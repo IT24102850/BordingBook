@@ -1,0 +1,15 @@
+import React from 'react';
+
+export default function AdministrationMonitoring() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-800 to-purple-700 flex flex-col items-center py-12 px-4 text-white">
+      <h2 className="text-4xl font-extrabold mb-6 text-center drop-shadow-lg">Administration & Monitoring</h2>
+      <div className="bg-white/90 rounded-2xl shadow-xl p-8 w-full max-w-2xl text-indigo-900">
+        <p className="mb-4 text-lg font-semibold">Admin tools for verifying, moderating, and monitoring the platform will appear here.</p>
+        <ul className="list-disc pl-6 space-y-2 text-base">
+          <li>Admin verification, moderation, reports, complaints</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
