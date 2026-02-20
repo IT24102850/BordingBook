@@ -63,7 +63,7 @@ export default function LandingPage() {
       <main className="flex flex-col md:flex-row items-center gap-12 pt-32 md:pt-28 w-full max-w-6xl">
         <div className="flex-1">
           <div className="surface-card p-10 mb-6 shadow-luxe">
-            <span className="tag-pill mb-4 inline-block">UNIVERSITY BOARDING · PLATFORM</span>
+            <span className="tag-pill mb-4 inline-block bg-cyan-900/20 text-cyan-200">SLIIT EXCLUSIVE · STUDENT PLATFORM</span>
             <h1 className="text-5xl md:text-6xl font-extrabold mb-4 leading-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-lg">
               <Typewriter
                 words={["Find Your Perfect Boarding", "Discover, Book, and Settle In", "Student Housing Made Simple"]}
@@ -115,7 +115,6 @@ export default function LandingPage() {
         <FeatureCard title="Roommate Finder" desc="Find and form groups with compatible roommates." />
         <FeatureCard title="Booking & Agreements" desc="Digital booking, status tracking, and rental agreements." />
         <FeatureCard title="Payments" desc="Pay rent, deposits, and track receipts securely." />
-        <FeatureCard title="Admin & Security" desc="Campus staff verify, moderate, and monitor the platform." />
       </section>
       {/* Contact Section */}
       <section id="contact" className="surface-glass border border-white/10 py-12 px-4 md:px-0 flex flex-col items-center rounded-3xl shadow-lift mb-12 w-full max-w-2xl backdrop-blur-xl">
