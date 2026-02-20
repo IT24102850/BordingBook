@@ -1,5 +1,6 @@
 import React from 'react';
 import { Typewriter } from './ui/Typewriter';
+import { AuthDropdown } from './AuthDropdown';
 import { BoardingSlideshow } from './ui/BoardingSlideshow';
 
 export default function LandingPage() {
@@ -8,18 +9,19 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="w-full flex justify-between items-center py-6 px-4 md:px-16 bg-white/10 backdrop-blur-xl rounded-b-3xl shadow-luxe">
         <span className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">Boarding<span className="text-purple-400">Book</span></span>
-        <div className="flex gap-8">
+        <div className="flex gap-8 items-center">
           <a href="#home" className="text-zinc-100 hover:text-cyan-300 border-b-2 border-cyan-400 pb-1">Home</a>
           <a href="#features" className="text-zinc-100 hover:text-cyan-300">Explore</a>
           <a href="#owner" className="text-zinc-100 hover:text-cyan-300">Owner Portal</a>
           <a href="#roommate" className="text-zinc-100 hover:text-cyan-300">Roommate Finder</a>
           <a
             href="#contact"
-            className="cta-primary ml-4 px-6 py-2 text-lg font-bold shadow-lift transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2"
+            className="glassmorphism ml-4 px-4 py-2 rounded-full text-cyan-400 font-bold text-lg shadow-lg hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 border border-cyan-200 backdrop-blur-xl"
             style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
           >
             Contact
           </a>
+          <AuthDropdown />
         </div>
       </nav>
       {/* Hero */}
