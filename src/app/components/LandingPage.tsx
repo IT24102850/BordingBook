@@ -2,30 +2,65 @@ import React from 'react';
 import { Typewriter } from './ui/Typewriter';
 import { AuthDropdown } from './AuthDropdown';
 import { BoardingSlideshow } from './ui/BoardingSlideshow';
+import { Menu, X } from 'lucide-react';
 
 export default function LandingPage() {
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4 overflow-visible">
       {/* Navbar */}
-      <nav className="w-full flex justify-between items-center py-6 px-4 md:px-16 bg-white/10 backdrop-blur-xl rounded-b-3xl shadow-luxe">
-        <span className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">Boarding<span className="text-purple-400">Book</span></span>
-        <div className="flex gap-8 items-center">
-          <a href="#home" className="text-zinc-100 hover:text-cyan-300 border-b-2 border-cyan-400 pb-1">Home</a>
-          <a href="#features" className="text-zinc-100 hover:text-cyan-300">Explore</a>
-          <a href="#owner" className="text-zinc-100 hover:text-cyan-300">Owner Portal</a>
-          <a href="#roommate" className="text-zinc-100 hover:text-cyan-300">Roommate Finder</a>
+      <nav className="w-full fixed top-0 left-0 flex justify-between items-center py-5 px-4 md:px-16 bg-gradient-to-br from-[#181f36]/90 via-[#232b47]/90 to-[#0b132b]/90 backdrop-blur-2xl border-b border-cyan-300/30 shadow-2xl z-[10000] transition-all duration-300">
+        <span className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-purple-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-lg select-none">
+          Boarding<span className="text-purple-300">Book</span>
+        </span>
+        {/* Desktop Nav */}
+        <div className="hidden md:flex gap-6 items-center">
+          <a href="#home" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Home</a>
+          <a href="#features" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Explore</a>
+          <a href="#owner" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Owner Portal</a>
+          <a href="#roommate" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Roommate Finder</a>
           <a
             href="#contact"
-            className="glassmorphism ml-4 px-4 py-2 rounded-full text-cyan-400 font-bold text-lg shadow-lg hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 border border-cyan-200 backdrop-blur-xl"
+            className="glassmorphism px-3 py-2 rounded-xl text-cyan-400 font-bold text-lg shadow-lg hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 border border-cyan-200 backdrop-blur-xl"
             style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
           >
             Contact
           </a>
           <AuthDropdown />
         </div>
+        {/* Mobile Nav Button */}
+        <button
+          className="md:hidden p-2 rounded-full bg-white/20 hover:bg-white/40 transition-colors"
+          onClick={() => setMobileNavOpen(v => !v)}
+          aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+        >
+          {mobileNavOpen ? <X className="w-7 h-7 text-cyan-400" /> : <Menu className="w-7 h-7 text-cyan-400" />}
+        </button>
+        {/* Mobile Nav Dropdown */}
+        {mobileNavOpen && (
+          <div className="absolute top-full left-0 w-full px-0 z-[9999] animate-fade-in">
+            <div className="bg-gradient-to-br from-[#181f36]/95 via-[#232b47]/95 to-[#0b132b]/95 backdrop-blur-xl rounded-b-2xl shadow-2xl border-x border-b border-cyan-700 flex flex-col items-stretch py-4 px-0 min-h-[320px] max-h-[80vh] overflow-y-auto">
+              <nav className="flex flex-col gap-4 px-4">
+                <a href="#home" className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400/10 to-purple-400/10 text-cyan-100 rounded-xl hover:bg-cyan-500/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-cyan-300/40">Home</a>
+                <a href="#features" className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400/10 to-purple-400/10 text-cyan-100 rounded-xl hover:bg-cyan-500/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-cyan-300/40">Explore</a>
+                <a href="#owner" className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400/10 to-purple-400/10 text-cyan-100 rounded-xl hover:bg-cyan-500/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-cyan-300/40">Owner Portal</a>
+                <a href="#roommate" className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400/10 to-purple-400/10 text-cyan-100 rounded-xl hover:bg-cyan-500/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-cyan-300/40">Roommate Finder</a>
+                <div className="my-2 border-t border-cyan-800/60"></div>
+                <a
+                  href="#contact"
+                  className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 text-white rounded-xl shadow-lg hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 border border-cyan-200/40 backdrop-blur-xl"
+                  style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
+                >
+                  Contact
+                </a>
+              </nav>
+              <div className="w-full flex justify-center mt-6"><AuthDropdown /></div>
+            </div>
+          </div>
+        )}
       </nav>
       {/* Hero */}
-      <main className="flex flex-col md:flex-row items-center gap-12 mt-16 w-full max-w-6xl">
+      <main className="flex flex-col md:flex-row items-center gap-12 pt-32 md:pt-28 w-full max-w-6xl">
         <div className="flex-1">
           <div className="surface-card p-10 mb-6 shadow-luxe">
             <span className="tag-pill mb-4 inline-block">UNIVERSITY BOARDING · PLATFORM</span>
