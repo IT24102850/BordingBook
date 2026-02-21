@@ -1,6 +1,8 @@
 import React from 'react';
+
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/dropdown-menu';
 import { User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function AuthDropdown() {
   return (
@@ -11,9 +13,13 @@ export function AuthDropdown() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-[120px] bg-white/80 backdrop-blur-xl border border-cyan-200 shadow-xl rounded-xl p-2 animate-fade-in">
-        <DropdownMenuItem className="font-semibold text-cyan-700 hover:bg-cyan-50 rounded-lg transition">Sign In</DropdownMenuItem>
+        <DropdownMenuItem asChild className="font-semibold text-cyan-700 hover:bg-cyan-50 rounded-lg transition">
+          <Link to="/signin">Sign In</Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="font-semibold text-purple-700 hover:bg-purple-50 rounded-lg transition">Sign Up</DropdownMenuItem>
+        <DropdownMenuItem asChild className="font-semibold text-purple-700 hover:bg-purple-50 rounded-lg transition">
+          <Link to="/signup">Sign Up</Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
