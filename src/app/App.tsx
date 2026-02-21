@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Landing
 import LandingPage from './components/LandingPage';
+import SignInPage from './components/SignInPage';
+import SignUpPage from './components/SignUpPage';
 
 // Mobile Components
 import MobileLayout from './components/mobile/MobileLayout';
@@ -39,6 +41,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/signin" element={<SignInPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
         
         {/* Mobile Routes */}
         <Route path="/mobile" element={<MobileLayout />}>
