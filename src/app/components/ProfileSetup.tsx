@@ -24,36 +24,145 @@ const steps = [
   { id: 5, icon: FaHome, title: 'Roommate', color: 'from-orange-400 to-orange-500', path: '/profile/roommate' },
 ];
 
+// Navigation items for the top bar
+const navItems = [
+  { icon: MdDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: FaSearch, label: 'Find', path: '/find' },
+  { icon: FaBell, label: 'Notifications', path: '/notifications', badge: 3 },
+  { icon: MdSettings, label: 'Settings', path: '/settings' },
+  { icon: MdHelp, label: 'Help', path: '/help' },
+];
+
 // Navigation Bar Component - Simplified and more compact
 const NavigationBar = ({ isMobileMenuOpen, setIsMobileMenuOpen }: { 
   isMobileMenuOpen: boolean, 
   setIsMobileMenuOpen: (open: boolean) => void 
 }) => {
   const navigate = useNavigate();
-  // Remove navItems and mobile menu dropdown logic
   const location = useLocation();
 
   return (
     <>
       {/* Desktop Navigation - More compact */}
-      <nav className="hidden md:flex items-center justify-between px-4 py-2 mb-3">
+      <nav className="hidden md:flex items-center justify-between bg-white/95 backdrop-blur-xl shadow-sm rounded-xl px-4 py-2 mb-3 border border-white/20">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Go back"
+          >
+            <FaArrowLeft className="text-gray-600 text-sm" />
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Home"
+          >
+            <FaHome className="text-gray-600 text-sm" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {navItems.slice(0, 3).map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`
+                  relative flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all text-sm
+                  ${isActive 
+                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-sm' 
+                    : 'hover:bg-gray-100 text-gray-700'
+                  }
+                `}
+              >
+                <Icon className="text-base" />
+                <span className="text-xs font-medium">{item.label}</span>
+                {item.badge && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         <button
-          onClick={() => navigate(-1)}
-          className="p-2 bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] rounded-lg text-white shadow-sm transition-colors"
-          title="Go back"
+          onClick={() => navigate('/profile')}
+          className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-400 to-purple-400 p-[2px]"
         >
-          <FaArrowLeft className="text-white text-sm" />
+          <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+            <FaUser className="text-cyan-500 text-xs" />
+          </div>
         </button>
       </nav>
+
       {/* Mobile Navigation - Simplified */}
       <div className="md:hidden w-full mb-2">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] rounded-lg text-white shadow-sm transition-colors"
-          title="Go back"
-        >
-          <FaArrowLeft className="text-white text-base" />
-        </button>
+        <div className="flex items-center justify-between bg-white/95 backdrop-blur-xl rounded-xl p-2 border border-white/20">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <FaArrowLeft className="text-gray-600 text-base" />
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <FaHome className="text-gray-600 text-base" />
+            </button>
+          </div>
+
+          <span className="text-sm font-semibold text-cyan-600">Profile Setup</span>
+
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            {isMobileMenuOpen ? <FaTimes className="text-gray-600 text-lg" /> : <FaBars className="text-gray-600 text-lg" />}
+          </button>
+        </div>
+
+        {/* Mobile Menu Dropdown */}
+        {isMobileMenuOpen && (
+          <div className="absolute left-2 right-2 mt-2 bg-white/95 backdrop-blur-xl rounded-xl shadow-lg border border-white/20 p-2 z-50">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => {
+                    navigate(item.path);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-sm
+                    ${isActive 
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white' 
+                      : 'hover:bg-gray-100 text-gray-700'
+                    }
+                  `}
+                >
+                  <Icon className="text-base" />
+                  <span className="font-medium">{item.label}</span>
+                  {item.badge && (
+                    <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );
@@ -137,16 +246,16 @@ function ProfileSetup() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-[#0a1124] via-[#1a1f35] to-[#0f172a] overflow-auto py-4 px-2 md:py-6 md:px-4">
+    <div className="min-h-screen w-full bg-gradient-to-br from-[#0a1124] via-[#1a1f35] to-[#0f172a] overflow-auto py-2 px-1 md:py-6 md:px-4 flex flex-col">
       {/* Background Effects - Simplified */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-80px] left-[-80px] w-[320px] h-[320px] bg-cyan-400/20 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-100px] right-[-60px] w-[260px] h-[260px] bg-purple-400/20 rounded-full blur-[90px]" />
-        <div className="absolute top-1/2 left-1/2 w-[180px] h-[180px] bg-indigo-400/20 rounded-full blur-[80px] -translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute top-[-80px] left-[-80px] w-[220px] h-[220px] bg-cyan-400/20 rounded-full blur-[80px] md:w-[320px] md:h-[320px] md:blur-[100px]" />
+        <div className="absolute bottom-[-100px] right-[-60px] w-[160px] h-[160px] bg-purple-400/20 rounded-full blur-[60px] md:w-[260px] md:h-[260px] md:blur-[90px]" />
+        <div className="absolute top-1/2 left-1/2 w-[120px] h-[120px] bg-indigo-400/20 rounded-full blur-[50px] md:w-[180px] md:h-[180px] md:blur-[80px] -translate-x-1/2 -translate-y-1/2" />
       </div>
 
       {/* Main Content - Fully Visible and Centered */}
-      <div className="relative z-10 max-w-4xl mx-auto">
+      <div className="relative z-10 max-w-4xl mx-auto w-full flex flex-col">
         {/* Navigation Bar */}
         <NavigationBar 
           isMobileMenuOpen={isMobileMenuOpen} 
@@ -154,10 +263,10 @@ function ProfileSetup() {
         />
 
         {/* Main Card */}
-        <div className="bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-4 md:p-6">
+        <div className="bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-2 md:p-6 w-full max-w-full md:max-w-2xl mx-auto">
           {/* Header */}
           <div className="text-center mb-4">
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-cyan-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-cyan-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
               Complete Your Profile
             </h1>
             <p className="text-xs md:text-sm text-gray-600 mt-1">
@@ -175,7 +284,7 @@ function ProfileSetup() {
               <button
                 key={path}
                 onClick={() => navigate(path)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] hover:bg-indigo-900/30 rounded-lg text-xs md:text-sm whitespace-nowrap transition-colors text-white"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg text-xs md:text-sm whitespace-nowrap transition-colors"
               >
                 {icon}
                 <span>{label}</span>
@@ -244,7 +353,7 @@ function ProfileSetup() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <SwitchTransition mode="out-in">
               <CSSTransition key={step} timeout={300} classNames="step-fade">
-                <div className="min-h-[200px] md:min-h-[220px]">
+                <div className="min-h-[180px] md:min-h-[220px]">
                   {/* Step 1: Photo */}
                   {step === 1 && (
                     <div className="flex flex-col items-center justify-center py-2">
@@ -271,9 +380,9 @@ function ProfileSetup() {
                   {/* Step 2: Bio */}
                   {step === 2 && (
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-200">Bio</label>
+                      <label className="block text-sm font-medium text-gray-700">Bio</label>
                       <textarea
-                        className="w-full rounded-lg border border-gray-700 bg-[#1a1f35] text-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 resize-none min-h-[100px] placeholder:text-gray-400"
+                        className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 resize-none min-h-[100px]"
                         maxLength={180}
                         value={bio}
                         onChange={e => setBio(e.target.value)}
@@ -292,13 +401,13 @@ function ProfileSetup() {
                   {step === 3 && (
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           <FaMoneyBillWave className="inline mr-1 text-green-500 text-sm" />
                           Monthly Budget (₹)
                         </label>
                         <input
                           type="number"
-                          className="w-full rounded-lg border border-gray-700 bg-[#1a1f35] text-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder:text-gray-400"
+                          className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
                           value={budget}
                           onChange={e => setBudget(e.target.value)}
                           placeholder="e.g., 20000"
@@ -307,13 +416,13 @@ function ProfileSetup() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           <FaMapMarkerAlt className="inline mr-1 text-purple-500 text-sm" />
                           Max Distance (km)
                         </label>
                         <input
                           type="number"
-                          className="w-full rounded-lg border border-gray-700 bg-[#1a1f35] text-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder:text-gray-400"
+                          className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
                           value={distance}
                           onChange={e => setDistance(e.target.value)}
                           placeholder="e.g., 5"
@@ -328,12 +437,12 @@ function ProfileSetup() {
                   {step === 4 && (
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           <FaUser className="inline mr-1 text-pink-500 text-sm" />
                           Gender
                         </label>
                         <select
-                          className="w-full rounded-lg border border-gray-700 bg-[#1a1f35] text-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder:text-gray-400"
+                          className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
                           value={gender}
                           onChange={e => setGender(e.target.value)}
                           required
@@ -345,12 +454,12 @@ function ProfileSetup() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           <FaGraduationCap className="inline mr-1 text-indigo-500 text-sm" />
                           Academic Year
                         </label>
                         <select
-                          className="w-full rounded-lg border border-gray-700 bg-[#1a1f35] text-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder:text-gray-400"
+                          className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
                           value={year}
                           onChange={e => setYear(e.target.value)}
                           required
@@ -365,12 +474,12 @@ function ProfileSetup() {
                   {/* Step 5: Roommate Preference */}
                   {step === 5 && (
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         <FaHome className="inline mr-1 text-orange-500 text-sm" />
                         Roommate Preference
                       </label>
                       <select
-                        className="w-full rounded-lg border border-gray-700 bg-[#1a1f35] text-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder:text-gray-400"
+                        className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
                         value={roommate}
                         onChange={e => setRoommate(e.target.value)}
                         required
@@ -380,7 +489,7 @@ function ProfileSetup() {
                           <option key={r} value={r}>{r}</option>
                         ))}
                       </select>
-                      <p className="text-xs text-gray-400 mt-2">
+                      <p className="text-xs text-gray-500 mt-2">
                         This helps us match you with compatible roommates
                       </p>
                     </div>
@@ -390,12 +499,12 @@ function ProfileSetup() {
             </SwitchTransition>
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between items-center pt-2 gap-2">
+            <div className="flex flex-col md:flex-row justify-between items-center pt-2 gap-2">
               {step > 1 ? (
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center gap-1"
+                  className="w-full md:w-auto px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center gap-1"
                 >
                   <FaChevronLeft className="text-xs" />
                   Back
@@ -407,7 +516,7 @@ function ProfileSetup() {
                   type="button"
                   onClick={handleNext}
                   disabled={!validateStep()}
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  className="w-full md:w-auto px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                 >
                   Next
                   <FaChevronRight className="text-xs" />
@@ -416,7 +525,7 @@ function ProfileSetup() {
                 <button
                   type="submit"
                   disabled={submitting || !validateStep()}
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:shadow-md transition-all disabled:opacity-50"
+                  className="w-full md:w-auto px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:shadow-md transition-all disabled:opacity-50"
                 >
                   {submitting ? 'Saving...' : 'Complete'}
                 </button>
