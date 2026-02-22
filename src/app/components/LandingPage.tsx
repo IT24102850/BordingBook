@@ -9,12 +9,20 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4 overflow-visible">
       {/* Navbar */}
-      <nav className="w-full fixed top-0 left-0 flex justify-between items-center py-5 px-4 md:px-16 bg-gradient-to-br from-[#181f36]/90 via-[#232b47]/90 to-[#0b132b]/90 backdrop-blur-2xl border-b border-cyan-300/30 shadow-2xl z-[10000] transition-all duration-300">
-        <span className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-purple-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-lg select-none">
+      <nav className="w-full fixed top-0 left-0 flex justify-start items-center py-5 px-4 md:px-16 bg-gradient-to-br from-[#181f36]/90 via-[#232b47]/90 to-[#0b132b]/90 backdrop-blur-2xl border-b border-cyan-300/30 shadow-2xl z-[10000] transition-all duration-300">
+        <span className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-purple-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-lg select-none mr-4">
           Boarding<span className="text-purple-300">Book</span>
         </span>
+        {/* Mobile Nav Button */}
+        <button
+          className="md:hidden ml-4 p-2 rounded-full bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] hover:bg-cyan-900/40 transition-colors border border-cyan-300 shadow-lg"
+          onClick={() => setMobileNavOpen(v => !v)}
+          aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+        >
+          {mobileNavOpen ? <X className="w-7 h-7 text-cyan-400" /> : <Menu className="w-7 h-7 text-cyan-400" />}
+        </button>
         {/* Desktop Nav */}
-        <div className="hidden md:flex gap-6 items-center">
+        <div className="hidden md:flex gap-6 items-center ml-8">
           <a href="#home" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Home</a>
           <a href="#features" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Explore</a>
           <a href="#owner" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Owner Portal</a>
@@ -28,14 +36,6 @@ export default function LandingPage() {
           </a>
           <AuthDropdown />
         </div>
-        {/* Mobile Nav Button */}
-        <button
-          className="md:hidden p-2 rounded-full bg-white/20 hover:bg-white/40 transition-colors"
-          onClick={() => setMobileNavOpen(v => !v)}
-          aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
-        >
-          {mobileNavOpen ? <X className="w-7 h-7 text-cyan-400" /> : <Menu className="w-7 h-7 text-cyan-400" />}
-        </button>
         {/* Mobile Nav Dropdown */}
         {mobileNavOpen && (
           <div className="absolute top-full left-0 w-full px-0 z-[9999] animate-fade-in">
