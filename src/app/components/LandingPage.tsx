@@ -9,7 +9,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4 overflow-visible">
       {/* Navbar */}
-      <nav className="w-full fixed top-0 left-0 flex justify-start items-center py-5 px-4 md:px-16 bg-gradient-to-br from-[#181f36]/90 via-[#232b47]/90 to-[#0b132b]/90 backdrop-blur-2xl border-b border-cyan-300/30 shadow-2xl z-[10000] transition-all duration-300">
+      <nav className="w-full fixed top-0 left-0 flex justify-between items-center py-5 px-4 md:px-16 bg-gradient-to-br from-[#181f36]/90 via-[#232b47]/90 to-[#0b132b]/90 backdrop-blur-2xl border-b border-cyan-300/30 shadow-2xl z-[10000] transition-all duration-300">
         <span className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-purple-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-lg select-none mr-4">
           Boarding<span className="text-purple-300">Book</span>
         </span>

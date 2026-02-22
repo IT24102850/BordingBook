@@ -2,10 +2,9 @@ import React, { useEffect, useState } from 'react';
 
 // Use images from public folder for production
 const getImagePaths = () => [
-  '/images/boardingpics/zoshua-colah-TzMGehZmocI-unsplash-1.jpg',
-  '/images/boardingpics/yosuke-ota-LLTAcSRutHU-unsplash.jpg',
-  '/images/boardingpics/sosey-interiors-YABErdnJPGc-unsplash.jpg',
-  '/images/boardingpics/Room-Layout-Tips.jpg',
+
+
+ 
   '/images/boardingpics/philip-kuo-tuM6OqyhTm0-unsplash.jpg',
   '/images/boardingpics/marcus-loke-WQJvWU_HZFo-unsplash.jpg',
   '/images/boardingpics/lotus-design-n-print-WDUtNbot6Qw-unsplash.jpg',
