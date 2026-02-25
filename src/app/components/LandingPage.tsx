@@ -7,48 +7,50 @@ import { Menu, X } from 'lucide-react';
 export default function LandingPage() {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4 overflow-visible">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#181f36] px-4 overflow-visible">
       {/* Navbar */}
-      <nav className="w-full fixed top-0 left-0 flex justify-between items-center py-5 px-4 md:px-16 bg-gradient-to-br from-[#181f36]/90 via-[#232b47]/90 to-[#0b132b]/90 backdrop-blur-2xl border-b border-cyan-300/30 shadow-2xl z-[10000] transition-all duration-300">
-        <span className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-purple-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-lg select-none mr-4">
-          Boarding<span className="text-purple-300">Book</span>
-        </span>
-        {/* Mobile Nav Button */}
-        <button
-          className="md:hidden ml-4 p-2 rounded-full bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] hover:bg-cyan-900/40 transition-colors border border-cyan-300 shadow-lg"
-          onClick={() => setMobileNavOpen(v => !v)}
-          aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
-        >
-          {mobileNavOpen ? <X className="w-7 h-7 text-cyan-400" /> : <Menu className="w-7 h-7 text-cyan-400" />}
-        </button>
-        {/* Desktop Nav */}
-        <div className="hidden md:flex gap-6 items-center ml-8">
-          <a href="#home" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Home</a>
-          <a href="#features" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Explore</a>
-          <a href="#owner" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Owner Portal</a>
-          <a href="#roommate" className="text-cyan-200 font-bold text-lg px-3 py-2 rounded-xl hover:bg-cyan-900/30 transition">Roommate Finder</a>
-          <a
-            href="#contact"
-            className="glassmorphism px-3 py-2 rounded-xl text-cyan-400 font-bold text-lg shadow-lg hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 border border-cyan-200 backdrop-blur-xl"
-            style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
+      <nav className="w-full fixed top-0 left-0 flex justify-between items-center py-4 px-4 md:px-16 bg-[#232b47] backdrop-blur-xl border-b border-zinc-700/30 shadow-xl z-[10000] transition-all duration-300">
+        <div className="flex items-center gap-1 md:gap-2">
+          <span className="text-3xl font-extrabold tracking-tight text-zinc-100 drop-shadow-lg select-none">
+            Boarding<span className="text-indigo-300">Book</span>
+          </span>
+          {/* Mobile Nav Button - now immediately next to logo */}
+          <button
+            className="md:hidden p-2 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors border border-zinc-600 shadow-lg"
+            onClick={() => setMobileNavOpen(v => !v)}
+            aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
           >
-            Contact
-          </a>
-          <AuthDropdown />
+            {mobileNavOpen ? <X className="w-7 h-7 text-indigo-300" /> : <Menu className="w-7 h-7 text-indigo-300" />}
+          </button>
+          {/* Desktop Nav - Moved closer to logo */}
+          <div className="hidden md:flex gap-4 items-center ml-2">
+            <a href="#home" className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition">Home</a>
+            <a href="#features" className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition">Explore</a>
+            <a href="#owner" className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition">Owner Portal</a>
+            <a href="#roommate" className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition">Roommate Finder</a>
+            <a
+              href="#contact"
+              className="px-2 py-1.5 rounded-xl text-indigo-300 font-semibold text-sm shadow hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 border border-zinc-600 bg-zinc-900"
+              style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
+            >
+              Contact
+            </a>
+            <AuthDropdown />
+          </div>
         </div>
         {/* Mobile Nav Dropdown */}
         {mobileNavOpen && (
           <div className="absolute top-full left-0 w-full px-0 z-[9999] animate-fade-in">
-            <div className="bg-gradient-to-br from-[#181f36]/95 via-[#232b47]/95 to-[#0b132b]/95 backdrop-blur-xl rounded-b-2xl shadow-2xl border-x border-b border-cyan-700 flex flex-col items-stretch py-4 px-0 min-h-[320px] max-h-[80vh] overflow-y-auto">
+            <div className="bg-zinc-900 backdrop-blur-xl rounded-b-2xl shadow-xl border-x border-b border-zinc-700 flex flex-col items-stretch py-4 px-0 min-h-[320px] max-h-[80vh] overflow-y-auto">
               <nav className="flex flex-col gap-4 px-4">
-                <a href="#home" className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400/10 to-purple-400/10 text-cyan-100 rounded-xl hover:bg-cyan-500/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-cyan-300/40">Home</a>
-                <a href="#features" className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400/10 to-purple-400/10 text-cyan-100 rounded-xl hover:bg-cyan-500/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-cyan-300/40">Explore</a>
-                <a href="#owner" className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400/10 to-purple-400/10 text-cyan-100 rounded-xl hover:bg-cyan-500/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-cyan-300/40">Owner Portal</a>
-                <a href="#roommate" className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400/10 to-purple-400/10 text-cyan-100 rounded-xl hover:bg-cyan-500/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-cyan-300/40">Roommate Finder</a>
-                <div className="my-2 border-t border-cyan-800/60"></div>
+                <a href="#home" className="w-full text-center py-3 text-lg font-semibold text-zinc-100 rounded-xl hover:bg-zinc-700/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-zinc-300/40">Home</a>
+                <a href="#features" className="w-full text-center py-3 text-lg font-semibold text-zinc-100 rounded-xl hover:bg-zinc-700/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-zinc-300/40">Explore</a>
+                <a href="#owner" className="w-full text-center py-3 text-lg font-semibold text-zinc-100 rounded-xl hover:bg-zinc-700/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-zinc-300/40">Owner Portal</a>
+                <a href="#roommate" className="w-full text-center py-3 text-lg font-semibold text-zinc-100 rounded-xl hover:bg-zinc-700/30 hover:text-white shadow-sm transition-all duration-200 border border-transparent hover:border-zinc-300/40">Roommate Finder</a>
+                <div className="my-2 border-t border-zinc-800/60"></div>
                 <a
                   href="#contact"
-                  className="w-full text-center py-3 text-lg font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 text-white rounded-xl shadow-lg hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 border border-cyan-200/40 backdrop-blur-xl"
+                  className="w-full text-center py-3 text-lg font-semibold text-indigo-300 rounded-xl shadow hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 border border-zinc-600 bg-zinc-900"
                   style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
                 >
                   Contact
