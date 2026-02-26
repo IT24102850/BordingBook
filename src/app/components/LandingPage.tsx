@@ -2,7 +2,7 @@ import React from 'react';
 import { Typewriter } from './ui/Typewriter';
 import { AuthDropdown } from './AuthDropdown';
 import { BoardingSlideshow } from './ui/BoardingSlideshow';
-import { Menu, X, Home, Search, Users, Building, Settings, User, LogIn } from 'lucide-react';
+import { Menu, X, Home, Search, Users, Building, Settings, User, LogIn, Shield, CheckCircle, MapPin, Zap, CreditCard, Users as UsersIcon, FileText, Briefcase } from 'lucide-react';
 
 export default function LandingPage() {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
@@ -472,7 +472,7 @@ export default function LandingPage() {
           }
         }
         
-        /* Desktop styles - EXACTLY AS ORIGINAL */
+        /* Desktop styles - IMPROVED based on feedback */
         @media (min-width: 769px) {
           .mobile-nav {
             display: none !important;
@@ -506,7 +506,7 @@ export default function LandingPage() {
             display: none !important;
           }
           
-          /* Restore original desktop layout */
+          /* Restore original desktop layout with improvements */
           .desktop-nav {
             display: flex !important;
           }
@@ -515,12 +515,15 @@ export default function LandingPage() {
             display: flex !important;
           }
           
-          .hero-stats-row {
-            display: flex !important;
-          }
-          
           .hero-image-desktop {
             display: flex !important;
+            position: relative !important;
+          }
+          
+          /* Add subtle glow to balance visual weight */
+          .hero-image-desktop .surface-glass {
+            box-shadow: 0 0 30px rgba(129, 140, 248, 0.2) !important;
+            border: 1px solid rgba(129, 140, 248, 0.2) !important;
           }
           
           .desktop-features-grid {
@@ -529,6 +532,131 @@ export default function LandingPage() {
           
           .original-contact-section {
             display: flex !important;
+          }
+          
+          /* Improved hero section */
+          .hero-content-wrapper {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 2rem !important;
+          }
+          
+          /* CTA buttons for desktop */
+          .desktop-cta-row {
+            display: flex !important;
+            gap: 1rem !important;
+            margin-top: 2rem !important;
+            margin-bottom: 2rem !important;
+          }
+          
+          .desktop-cta-primary {
+            background: linear-gradient(135deg, #818cf8, #22d3ee) !important;
+            color: white !important;
+            padding: 0.875rem 2rem !important;
+            border-radius: 40px !important;
+            font-weight: 600 !important;
+            font-size: 1rem !important;
+            border: none !important;
+            box-shadow: 0 4px 14px rgba(129, 140, 248, 0.3) !important;
+            transition: all 0.2s !important;
+            cursor: pointer !important;
+          }
+          
+          .desktop-cta-primary:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(129, 140, 248, 0.4) !important;
+          }
+          
+          .desktop-cta-secondary {
+            background: transparent !important;
+            color: #a5b4fc !important;
+            padding: 0.875rem 2rem !important;
+            border-radius: 40px !important;
+            font-weight: 600 !important;
+            font-size: 1rem !important;
+            border: 2px solid rgba(129, 140, 248, 0.3) !important;
+            transition: all 0.2s !important;
+            cursor: pointer !important;
+          }
+          
+          .desktop-cta-secondary:hover {
+            border-color: #818cf8 !important;
+            background: rgba(129, 140, 248, 0.1) !important;
+          }
+          
+          /* User benefits instead of stats */
+          .user-benefits-row {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 1rem !important;
+            margin-top: 1.5rem !important;
+            margin-bottom: 0.5rem !important;
+          }
+          
+          .user-benefit {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+            color: #cbd5e1 !important;
+            font-size: 0.95rem !important;
+          }
+          
+          .user-benefit svg {
+            color: #22d3ee !important;
+            width: 1.25rem !important;
+            height: 1.25rem !important;
+          }
+          
+          /* Improved feature cards */
+          .desktop-feature-card {
+            padding: 2rem 1.5rem !important;
+            border-radius: 1.5rem !important;
+            background: rgba(35, 43, 71, 0.8) !important;
+            border: 1px solid rgba(129, 140, 248, 0.15) !important;
+            backdrop-filter: blur(10px);
+            min-height: 200px !important;
+            transition: all 0.3s !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          
+          .desktop-feature-card:hover {
+            transform: translateY(-8px) !important;
+            box-shadow: 0 20px 30px -10px rgba(129, 140, 248, 0.3) !important;
+            border-color: rgba(129, 140, 248, 0.3) !important;
+          }
+          
+          .feature-icon {
+            width: 3rem !important;
+            height: 3rem !important;
+            border-radius: 1rem !important;
+            background: linear-gradient(135deg, rgba(129, 140, 248, 0.2), rgba(34, 211, 238, 0.2)) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin-bottom: 1.5rem !important;
+          }
+          
+          .feature-icon svg {
+            width: 1.5rem !important;
+            height: 1.5rem !important;
+            color: #22d3ee !important;
+          }
+          
+          .desktop-feature-card h3 {
+            font-size: 1.25rem !important;
+            font-weight: 700 !important;
+            color: white !important;
+            margin-bottom: 0.75rem !important;
+          }
+          
+          .desktop-feature-card p {
+            color: #94a3b8 !important;
+            font-size: 0.95rem !important;
+            line-height: 1.6 !important;
+            margin: 0 !important;
           }
         }
         
@@ -779,41 +907,49 @@ export default function LandingPage() {
         </section>
       </div>
 
-      {/* ORIGINAL DESKTOP CONTENT - EXACTLY AS IT WAS */}
+      {/* IMPROVED DESKTOP CONTENT - Based on feedback */}
       <main className="hidden md:flex flex-col md:flex-row items-center gap-8 pt-32 md:pt-28 w-full max-w-6xl overflow-visible px-0 md:px-0">
-        {/* Left: Hero content */}
+        {/* Left: Hero content - IMPROVED */}
         <div className="flex-1 min-w-[320px] animate-fade-up">
           <div className="surface-card p-7 md:p-8 mb-6 shadow-luxe hero-card">
-            <span className="tag-pill mb-3 inline-block bg-cyan-900/20 text-cyan-200 text-base font-semibold">All-in-One Student Boarding Platform</span>
-            <h1 className="text-5xl md:text-6xl font-extrabold mb-3 leading-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-lg">
+            {/* Removed duplicate headline - only one headline now */}
+            <h1 className="text-5xl md:text-6xl font-extrabold mb-4 leading-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-lg">
               Find Verified Rooms Near Your Campus
             </h1>
-            {/* Desktop Stats Section */}
-            <div className="flex flex-wrap gap-4 justify-center items-center my-6 hero-stats-row">
-              <div className="surface-subtle p-4 rounded-2xl flex flex-col items-center shadow-lift w-32">
-                <span className="text-2xl font-extrabold text-cyan-300">6+</span>
-                <span className="muted text-xs mt-1">Core Modules</span>
+            
+            {/* NEW: Clear CTAs for desktop */}
+            <div className="desktop-cta-row">
+              <button className="desktop-cta-primary">Find Verified Rooms Near Me</button>
+              <button className="desktop-cta-secondary">List Your Property</button>
+            </div>
+            
+            {/* NEW: User-facing benefits instead of stats */}
+            <div className="user-benefits-row">
+              <div className="user-benefit">
+                <CheckCircle size={20} />
+                <span>Verified Listings Only</span>
               </div>
-              <div className="surface-subtle p-4 rounded-2xl flex flex-col items-center shadow-lift w-32">
-                <span className="text-2xl font-extrabold text-cyan-300">1000+</span>
-                <span className="muted text-xs mt-1">Students Served</span>
+              <div className="user-benefit">
+                <Shield size={20} />
+                <span>No Agents. No Scams.</span>
               </div>
-              <div className="surface-subtle p-4 rounded-2xl flex flex-col items-center shadow-lift w-32">
-                <span className="text-2xl font-extrabold text-cyan-300">24/7</span>
-                <span className="muted text-xs mt-1">Support</span>
+              <div className="user-benefit">
+                <MapPin size={20} />
+                <span>Near Your Campus</span>
               </div>
             </div>
+            
             <div className="mt-5 text-zinc-400 text-sm">Only verified student housing. Find your place before the semester starts.</div>
           </div>
         </div>
-        {/* Right: Desktop Hero image */}
+        
+        {/* Right: Desktop Hero image - with improved visual weight */}
         <div className="flex-1 flex flex-col items-center relative max-w-xl hero-image-desktop">
           <div className="surface-glass shadow-luxe p-2 rounded-3xl relative scale-90 md:scale-95">
             <BoardingSlideshow />
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/80 px-6 py-2 rounded-full shadow-lift text-indigo-900 font-semibold text-sm mt-4">
-              Trusted by 1000+ Students
-            </div>
+            {/* Removed the image badge to reduce clutter - keeping pills below */}
           </div>
+          {/* Keeping the pills (trust signals) */}
           <div className="flex flex-col gap-4 mt-8 w-full max-w-xs">
             <div className="surface-card flex items-center gap-3 p-3 shadow-lift">
               <span className="tag-pill bg-green-500/20 text-green-300">Verified</span>
@@ -827,16 +963,36 @@ export default function LandingPage() {
         </div>
       </main>
 
-      {/* Desktop Features Section */}
+      {/* IMPROVED Desktop Features Section - with icons and better hover */}
       <section id="features" className="hidden md:grid w-full max-w-6xl mx-auto grid-cols-1 md:grid-cols-3 gap-8 px-4 md:px-0 mb-20 mt-16 z-10 desktop-features-grid">
-        <FeatureCardDesktop title="Find Verified Rooms Fast" desc="Browse and book student rooms near your campus in seconds. Only verified listings." />
-        <FeatureCardDesktop title="Pay Rent Securely" desc="No cash, no awkward transfers. Pay rent and deposits online with full security." />
-        <FeatureCardDesktop title="Roommate Matchmaking" desc="Match with roommates who fit your lifestyle and preferences. No more random pairings." />
-        <FeatureCardDesktop title="Digital Agreements" desc="Sign rental agreements online. Track your booking status and documents easily." />
-        <FeatureCardDesktop title="Owner Tools" desc="List your property, manage tenants, and collect payments—all in one place." />
+        <FeatureCardDesktopImproved 
+          icon={<Zap />}
+          title="Find Verified Rooms Fast" 
+          desc="Browse and book student rooms near your campus in seconds. Only verified listings." 
+        />
+        <FeatureCardDesktopImproved 
+          icon={<CreditCard />}
+          title="Pay Rent Securely" 
+          desc="No cash, no awkward transfers. Pay rent and deposits online with full security." 
+        />
+        <FeatureCardDesktopImproved 
+          icon={<UsersIcon />}
+          title="Roommate Matchmaking" 
+          desc="Match with roommates who fit your lifestyle and preferences. No more random pairings." 
+        />
+        <FeatureCardDesktopImproved 
+          icon={<FileText />}
+          title="Digital Agreements" 
+          desc="Sign rental agreements online. Track your booking status and documents easily." 
+        />
+        <FeatureCardDesktopImproved 
+          icon={<Briefcase />}
+          title="Owner Tools" 
+          desc="List your property, manage tenants, and collect payments—all in one place." 
+        />
       </section>
 
-      {/* Desktop Contact Section */}
+      {/* Desktop Contact Section - unchanged */}
       <section id="contact" className="hidden md:flex surface-glass border border-white/10 py-12 px-4 md:px-0 flex-col items-center rounded-3xl shadow-lift mb-12 w-full max-w-2xl backdrop-blur-xl original-contact-section">
         <h2 className="text-2xl xs:text-3xl font-bold text-white mb-4 drop-shadow-lg">Contact & Support</h2>
         <p className="text-zinc-200 mb-8 text-center max-w-xl text-base xs:text-lg drop-shadow">
@@ -848,17 +1004,20 @@ export default function LandingPage() {
   );
 }
 
-// Desktop Feature Card (original)
-function FeatureCardDesktop({ title, desc }: { title: string; desc: string }) {
+// Improved Desktop Feature Card with icon
+function FeatureCardDesktopImproved({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <div className="surface-card rounded-2xl p-6 flex flex-col items-center shadow-xl border border-indigo-200 min-h-[180px] hover:scale-105 hover:shadow-2xl transition feature-card">
-      <h3 className="font-bold text-lg text-white mb-1 text-center drop-shadow-lg">{title}</h3>
-      <p className="text-zinc-200 text-center text-sm drop-shadow">{desc}</p>
+    <div className="desktop-feature-card">
+      <div className="feature-icon">
+        {icon}
+      </div>
+      <h3>{title}</h3>
+      <p>{desc}</p>
     </div>
   );
 }
 
-// Mobile Feature Card
+// Mobile Feature Card (unchanged)
 function FeatureCard({ title, desc }: { title: string; desc: string }) {
   return (
     <div className="feature-card">
