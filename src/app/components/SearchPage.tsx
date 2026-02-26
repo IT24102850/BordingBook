@@ -3,7 +3,8 @@ import {
   FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
   FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
   FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
-  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList
+  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
+  FaHistory, FaBookmark
 } from 'react-icons/fa';
 import { MdOutlineVerified, MdOutlineLocationOn, MdOutlineBedroomParent } from 'react-icons/md';
 import { RiUserSharedLine } from 'react-icons/ri';
@@ -38,7 +39,7 @@ interface ListingCardProps {
   onViewDetails: (listing: Listing) => void;
   isAnimating: boolean;
   direction: 'left' | 'right' | null;
-  viewMode?: 'card' | 'grid';
+  viewMode?: 'card' | 'grid' | 'mini';
 }
 
 interface DetailsModalProps {
@@ -211,6 +212,44 @@ const getTravelTime = (distance: number): string => {
   if (distance <= 2) return `${Math.round(distance * 8)} min bike`;
   if (distance <= 3) return `${Math.round(distance * 5)} min bus`;
   return `${Math.round(distance * 3)} min drive`;
+};
+
+// Mini Card for side panels
+const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
+  const formatPrice = (price: number): string => {
+    return `Rs. ${price.toLocaleString()}`;
+  };
+
+  return (
+    <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-lg overflow-hidden border border-white/10 hover:shadow-cyan-500/10 transition-all mb-2">
+      <div className="flex items-center gap-2 p-2">
+        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+          <img 
+            src={listing.images[0]} 
+            alt={listing.title}
+            className="w-full h-full object-cover"
+          />
+          <div className={`absolute inset-0 ${type === 'passed' ? 'bg-red-500/20' : 'bg-green-500/20'} flex items-center justify-center`}>
+            {type === 'passed' ? (
+              <FaRegTimesCircle className="text-red-400 text-xs" />
+            ) : (
+              <FaHeart className="text-green-400 text-xs" />
+            )}
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-xs font-bold text-white truncate">{listing.title}</h4>
+          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+            <FaMapMarkerAlt className="text-purple-400" />
+            <span className="truncate">{listing.location}</span>
+          </div>
+          <div className="text-[10px] text-cyan-400 font-bold">
+            {formatPrice(listing.price)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Card View Component (for mobile and desktop card mode)
@@ -444,7 +483,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
         </div>
 
         {/* Swipe Hint */}
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full">
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full md:hidden">
           ← Drag or tap buttons →
         </div>
       </div>
@@ -704,6 +743,16 @@ export default function SearchPage() {
 
   const handleUndo = (): void => {
     if (currentIndex > 0) {
+      // Remove the last action
+      const lastPassed = passedListings[passedListings.length - 1];
+      const lastLiked = likedListings[likedListings.length - 1];
+      
+      if (lastPassed && lastPassed.id === filteredListings[currentIndex - 1]?.id) {
+        setPassedListings(passedListings.slice(0, -1));
+      } else if (lastLiked && lastLiked.id === filteredListings[currentIndex - 1]?.id) {
+        setLikedListings(likedListings.slice(0, -1));
+      }
+      
       setCurrentIndex(currentIndex - 1);
       setToastMessage('Action undone');
       setShowToast(true);
@@ -870,70 +919,123 @@ export default function SearchPage() {
           </div>
         </div>
 
-        {/* Results Count & Undo */}
-        <div className="flex justify-between items-center mb-4">
-          <span className="text-sm text-gray-400">
-            {viewMode === 'card' 
-              ? `${filteredListings.length - currentIndex} rooms remaining` 
-              : `${filteredListings.length} rooms found`}
-          </span>
-          <button
-            onClick={handleUndo}
-            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-          >
-            <FaUndo /> Undo
-          </button>
-        </div>
-
-        {/* Main Content - Different layouts based on view mode */}
+        {/* Main Content - Three Column Layout for Desktop Card Mode */}
         {viewMode === 'card' ? (
-          /* Card View (with swipe) - Works on both mobile and desktop */
-          <div>
-            <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
-              {/* Stack effect - next card behind */}
-              {currentIndex < filteredListings.length - 1 && (
-                <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
-              )}
-              
-              {/* Current Card */}
-              {currentListing && (
-                <ListingCard
-                  listing={currentListing}
-                  onLike={handleLike}
-                  onPass={handlePass}
-                  onViewDetails={handleViewDetails}
-                  isAnimating={isAnimating}
-                  direction={direction}
-                  viewMode="card"
-                />
-              )}
+          <div className="hidden md:grid md:grid-cols-3 gap-6">
+            {/* Left Column - Passed Listings */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <FaHistory className="text-red-400" />
+                <h3 className="text-sm font-bold text-white">Passed</h3>
+                <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">
+                  {passedListings.length}
+                </span>
+              </div>
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                {passedListings.length > 0 ? (
+                  passedListings.map((listing) => (
+                    <MiniListingCard key={listing.id} listing={listing} type="passed" />
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-xs text-gray-500">No passed listings yet</p>
+                    <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex justify-center gap-4 mt-6">
-              <button
-                onClick={handlePass}
-                disabled={isAnimating}
-                className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                title="Not interested (swipe left)"
-              >
-                <FaRegTimesCircle />
-              </button>
-              
-              <button
-                onClick={handleLike}
-                disabled={isAnimating}
-                className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                title="Save this listing (swipe right)"
-              >
-                <FaHeart />
-              </button>
+            {/* Center Column - Main Swipe Card */}
+            <div>
+              <div className="relative h-[500px] mb-4 perspective-1000">
+                {/* Stack effect - next card behind */}
+                {currentIndex < filteredListings.length - 1 && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+                )}
+                
+                {/* Current Card */}
+                {currentListing && (
+                  <ListingCard
+                    listing={currentListing}
+                    onLike={handleLike}
+                    onPass={handlePass}
+                    onViewDetails={handleViewDetails}
+                    isAnimating={isAnimating}
+                    direction={direction}
+                    viewMode="card"
+                  />
+                )}
+              </div>
+
+              {/* Results Count & Undo */}
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm text-gray-400">
+                  {filteredListings.length - currentIndex} rooms remaining
+                </span>
+                <button
+                  onClick={handleUndo}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                >
+                  <FaUndo /> Undo
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-center gap-4 mt-4">
+                <button
+                  onClick={handlePass}
+                  disabled={isAnimating}
+                  className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                  title="Not interested (swipe left)"
+                >
+                  <FaRegTimesCircle />
+                </button>
+                
+                <button
+                  onClick={handleLike}
+                  disabled={isAnimating}
+                  className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                  title="Save this listing (swipe right)"
+                >
+                  <FaHeart />
+                </button>
+              </div>
+
+              {/* Action Labels */}
+              <div className="flex justify-between px-8 mt-2 text-xs text-gray-500">
+                <span>Pass • Swipe Left</span>
+                <span>Like • Swipe Right</span>
+              </div>
             </div>
 
-            {/* Action Labels */}
-            <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
-              <span>Pass • Swipe Left</span>
-              <span>Like • Swipe Right</span>
+            {/* Right Column - Liked Listings */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <FaBookmark className="text-green-400" />
+                <h3 className="text-sm font-bold text-white">Favorites</h3>
+                <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">
+                  {likedListings.length}
+                </span>
+              </div>
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                {likedListings.length > 0 ? (
+                  likedListings.map((listing) => (
+                    <MiniListingCard key={listing.id} listing={listing} type="liked" />
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-xs text-gray-500">No favorites yet</p>
+                    <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* View All Button */}
+              {likedListings.length > 0 && (
+                <button className="w-full mt-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                  View All Favorites
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -961,13 +1063,76 @@ export default function SearchPage() {
           </div>
         )}
 
+        {/* Mobile View (Card Stack) */}
+        <div className="md:hidden">
+          <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
+            {/* Stack effect - next card behind */}
+            {currentIndex < filteredListings.length - 1 && (
+              <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+            )}
+            
+            {/* Current Card */}
+            {currentListing && (
+              <ListingCard
+                listing={currentListing}
+                onLike={handleLike}
+                onPass={handlePass}
+                onViewDetails={handleViewDetails}
+                isAnimating={isAnimating}
+                direction={direction}
+                viewMode="card"
+              />
+            )}
+          </div>
+
+          {/* Results Count & Undo - Mobile */}
+          <div className="flex justify-between items-center mb-4 max-w-md mx-auto">
+            <span className="text-sm text-gray-400">
+              {filteredListings.length - currentIndex} rooms remaining
+            </span>
+            <button
+              onClick={handleUndo}
+              className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+            >
+              <FaUndo /> Undo
+            </button>
+          </div>
+
+          {/* Action Buttons - Mobile */}
+          <div className="flex justify-center gap-4 mt-6">
+            <button
+              onClick={handlePass}
+              disabled={isAnimating}
+              className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+              title="Not interested (swipe left)"
+            >
+              <FaRegTimesCircle />
+            </button>
+            
+            <button
+              onClick={handleLike}
+              disabled={isAnimating}
+              className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+              title="Save this listing (swipe right)"
+            >
+              <FaHeart />
+            </button>
+          </div>
+
+          {/* Action Labels - Mobile */}
+          <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
+            <span>Pass • Swipe Left</span>
+            <span>Like • Swipe Right</span>
+          </div>
+        </div>
+
         {/* Desktop Action Bar */}
         <div className="hidden md:flex justify-center gap-4 mt-8">
           <button
             className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
           >
             <FaHeart />
-            View Favorites ({likedListings.length})
+            View All Favorites ({likedListings.length})
           </button>
         </div>
 
@@ -1043,6 +1208,24 @@ export default function SearchPage() {
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(34, 211, 238, 0.3);
+          border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(34, 211, 238, 0.5);
         }
       `}</style>
     </div>

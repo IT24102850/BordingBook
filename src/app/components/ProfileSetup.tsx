@@ -17,7 +17,35 @@ import './ProfileSetupAnimations.css';
 
 const academicYears = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 const genders = ['Male', 'Female', 'Other'];
-const roommatePrefs = ['Any', 'Same Gender', 'Different Gender', 'No Preference'];
+// Roommate preference options (expanded)
+const roommatePrefs = [
+  'Same Gender',
+  'Any Gender',
+  'Find a Boarding (Bodim)',
+  'Find a Compatible Roommate',
+];
+
+type RoomType = { label: string; icon: string };
+const roomTypes: RoomType[] = [
+  { label: 'Single Room', icon: '🛏️' },
+  { label: 'Shared Room', icon: '👫' },
+  { label: 'Studio/Annex', icon: '🏠' },
+  { label: 'Any', icon: '✨' },
+];
+
+type LifestyleOption = { key: string; label: string; icon: string };
+const lifestyleOptions: LifestyleOption[] = [
+  { key: 'smoking', label: 'Non-Smoker', icon: '🚭' },
+  { key: 'drinking', label: 'Non-Drinker', icon: '🚱' },
+  { key: 'vegetarian', label: 'Vegetarian', icon: '🥦' },
+  { key: 'earlyBird', label: 'Early Bird', icon: '🌅' },
+  { key: 'nightOwl', label: 'Night Owl', icon: '🌙' },
+  { key: 'studyFocus', label: 'Study Focused', icon: '📚' },
+  { key: 'petFriendly', label: 'Pet Friendly', icon: '🐾' },
+  { key: 'musicLover', label: 'Music Lover', icon: '🎵' },
+  { key: 'quiet', label: 'Quiet', icon: '🤫' },
+  { key: 'social', label: 'Social', icon: '🗣️' },
+];
 
 // Step configuration with icons and colors
 const steps = [
@@ -702,6 +730,8 @@ function ProfileSetup() {
   const [gender, setGender] = useState('');
   const [year, setYear] = useState('');
   const [roommate, setRoommate] = useState('');
+  const [roomType, setRoomType] = useState<string>('');
+  const [lifestylePrefs, setLifestylePrefs] = useState<string[]>([]);
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
@@ -1181,26 +1211,83 @@ function ProfileSetup() {
                   )}
 
                   {step === 5 && (
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-cyan-200 mb-1">
-                        <FaHome className="inline mr-1 text-orange-400 text-sm" />
-                        Roommate Preference
-                      </label>
-                      <select
-                        className="w-full rounded-lg border border-cyan-500/30 bg-[#0a1124] text-cyan-100 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                        value={roommate}
-                        onChange={e => setRoommate(e.target.value)}
-                        required
-                      >
-                        <option value="" disabled>Select preference</option>
-                        {roommatePrefs.map(r => (
-                          <option key={r} value={r}>{r}</option>
+                    <div className="space-y-6">
+                      <label className="block text-sm font-medium text-cyan-200 mb-1">Roommate Preferences</label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
+                        {roommatePrefs.map((pref) => (
+                          <button
+                            key={pref}
+                            type="button"
+                            onClick={() => setRoommate(pref)}
+                            className={`
+                              flex items-center gap-2 p-2 rounded-lg text-xs transition-all
+                              ${roommate === pref
+                                ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
+                                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700'
+                              }
+                            `}
+                          >
+                            <span>{pref}</span>
+                          </button>
                         ))}
-                      </select>
-                      <p className="text-xs text-cyan-300/60 mt-2">
-                        <FaInfoCircle className="inline mr-1 text-cyan-400" />
-                        This helps us match you with compatible roommates
-                      </p>
+                      </div>
+
+                      {/* Room Type Selection */}
+                      <div>
+                        <label className="block text-xs font-medium text-purple-200 mb-1">Preferred Room Type</label>
+                        <div className="flex flex-wrap gap-2">
+                          {roomTypes.map((type) => (
+                            <button
+                              key={type.label}
+                              type="button"
+                              onClick={() => setRoomType(type.label)}
+                              className={`
+                                flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all
+                                ${roomType === type.label
+                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700'
+                                }
+                              `}
+                            >
+                              <span className="text-lg">{type.icon}</span>
+                              <span>{type.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Lifestyle & Habits */}
+                      <div>
+                        <label className="block text-xs font-medium text-cyan-200 mb-1">Lifestyle & Habits</label>
+                        <div className="flex flex-wrap gap-2">
+                          {lifestyleOptions.map((opt) => (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              onClick={() => {
+                                setLifestylePrefs((prev) =>
+                                  prev.includes(opt.key)
+                                    ? prev.filter((k) => k !== opt.key)
+                                    : [...prev, opt.key]
+                                );
+                              }}
+                              className={`
+                                flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all
+                                ${lifestylePrefs.includes(opt.key)
+                                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
+                                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700'
+                                }
+                              `}
+                            >
+                              <span className="text-lg">{opt.icon}</span>
+                              <span>{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-2 text-xs text-cyan-300/70">
+                          Select all that apply. These help us match you with compatible roommates!
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
