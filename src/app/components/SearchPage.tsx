@@ -227,7 +227,12 @@ const ListingCard: React.FC<ListingCardProps> = ({
   const startX = useRef<number>(0);
   const currentX = useRef<number>(0);
 
-  // Handle touch events for swiping (only in card mode)
+  // Handle mouse drag for desktop swipe
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  // Handle touch events for mobile swiping
   const handleTouchStart = (e: React.TouchEvent) => {
     if (viewMode !== 'card') return;
     startX.current = e.touches[0].clientX;
@@ -258,6 +263,59 @@ const ListingCard: React.FC<ListingCardProps> = ({
     }
   };
 
+  // Handle mouse drag for desktop
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (viewMode !== 'card' || isAnimating) return;
+    setIsDragging(true);
+    setDragStartX(e.clientX);
+    if (cardRef.current) {
+      cardRef.current.style.transition = 'none';
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !cardRef.current || isAnimating || viewMode !== 'card') return;
+    
+    const diff = e.clientX - dragStartX;
+    setDragOffset(diff);
+    
+    if (Math.abs(diff) > 20) {
+      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.02}deg)`;
+      cardRef.current.style.opacity = `${1 - Math.abs(diff) / 500}`;
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!isDragging || !cardRef.current || isAnimating || viewMode !== 'card') {
+      setIsDragging(false);
+      return;
+    }
+    
+    const diff = e.clientX - dragStartX;
+    cardRef.current.style.transition = '';
+    cardRef.current.style.transform = '';
+    cardRef.current.style.opacity = '';
+    
+    if (diff > 100) {
+      onLike();
+    } else if (diff < -100) {
+      onPass();
+    }
+    
+    setIsDragging(false);
+    setDragOffset(0);
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging && cardRef.current) {
+      cardRef.current.style.transition = '';
+      cardRef.current.style.transform = '';
+      cardRef.current.style.opacity = '';
+      setIsDragging(false);
+      setDragOffset(0);
+    }
+  };
+
   const formatPrice = (price: number): string => {
     return `Rs. ${price.toLocaleString()}`;
   };
@@ -270,13 +328,22 @@ const ListingCard: React.FC<ListingCardProps> = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         className={`
           relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden
           border border-white/10 cursor-grab active:cursor-grabbing
           transition-all duration-300 hover:shadow-cyan-500/10
           ${direction === 'left' ? 'animate-swipe-left' : ''}
           ${direction === 'right' ? 'animate-swipe-right' : ''}
+          ${isDragging ? 'shadow-2xl scale-[1.02]' : ''}
         `}
+        style={{
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        }}
       >
         {/* Image Gallery with Overlay */}
         <div className="relative h-56 overflow-hidden">
@@ -284,6 +351,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
             src={listing.images[0]} 
             alt={listing.title}
             className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+            draggable="false"
           />
           
           {/* Gradient Overlay */}
@@ -375,9 +443,9 @@ const ListingCard: React.FC<ListingCardProps> = ({
           </button>
         </div>
 
-        {/* Swipe Hint (only shown on first card) */}
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full md:hidden">
-          ← Swipe or tap buttons →
+        {/* Swipe Hint */}
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full">
+          ← Drag or tap buttons →
         </div>
       </div>
     );
@@ -391,6 +459,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
           src={listing.images[0]} 
           alt={listing.title}
           className="w-full h-full object-cover"
+          draggable="false"
         />
         <div className="absolute top-2 left-2 flex gap-1">
           {listing.badges.slice(0, 2).map((badge: string) => (
@@ -737,7 +806,7 @@ export default function SearchPage() {
             <button
               onClick={() => setViewMode('card')}
               className={`p-2 rounded-lg transition-colors ${viewMode === 'card' ? 'bg-cyan-500 text-white' : 'text-gray-400 hover:text-white'}`}
-              title="Card view"
+              title="Swipe view"
             >
               <FaThLarge />
             </button>
@@ -751,11 +820,13 @@ export default function SearchPage() {
           </div>
         </div>
 
-        {/* Tip - Hide on desktop */}
-        <div className="flex md:hidden items-center justify-center gap-2 mb-4">
+        {/* Tip */}
+        <div className="flex items-center justify-center gap-2 mb-4">
           <FaInfoCircle className="text-cyan-400" />
           <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full">
-            Browse listings and find your perfect match
+            {viewMode === 'card' 
+              ? 'Drag cards left/right to pass or like • Click buttons to act' 
+              : 'Browse all listings in grid view'}
           </span>
         </div>
 
@@ -776,15 +847,9 @@ export default function SearchPage() {
                 className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
               />
             </div>
-
-            {/* Filter Button - Mobile only */}
-            <button className="md:hidden w-full bg-gradient-to-r from-cyan-500 to-purple-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2">
-              <FaFilter />
-              Filters
-            </button>
           </div>
 
-          {/* Filter Chips - Always visible */}
+          {/* Filter Chips */}
           <div className="flex flex-wrap gap-2 mt-4">
             {filterChips.map((chip) => (
               <button
@@ -808,7 +873,9 @@ export default function SearchPage() {
         {/* Results Count & Undo */}
         <div className="flex justify-between items-center mb-4">
           <span className="text-sm text-gray-400">
-            {filteredListings.length} rooms found
+            {viewMode === 'card' 
+              ? `${filteredListings.length - currentIndex} rooms remaining` 
+              : `${filteredListings.length} rooms found`}
           </span>
           <button
             onClick={handleUndo}
@@ -818,79 +885,81 @@ export default function SearchPage() {
           </button>
         </div>
 
-        {/* Main Content - Different layouts for mobile and desktop */}
-        <div className="md:hidden">
-          {/* Mobile: Card Stack View */}
-          <div className="relative h-[500px] mb-4 perspective-1000">
-            {/* Stack effect - next card behind */}
-            {currentIndex < filteredListings.length - 1 && (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
-            )}
-            
-            {/* Current Card */}
-            {currentListing && (
-              <ListingCard
-                listing={currentListing}
-                onLike={handleLike}
-                onPass={handlePass}
-                onViewDetails={handleViewDetails}
-                isAnimating={isAnimating}
-                direction={direction}
-                viewMode="card"
-              />
-            )}
-          </div>
+        {/* Main Content - Different layouts based on view mode */}
+        {viewMode === 'card' ? (
+          /* Card View (with swipe) - Works on both mobile and desktop */
+          <div>
+            <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
+              {/* Stack effect - next card behind */}
+              {currentIndex < filteredListings.length - 1 && (
+                <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+              )}
+              
+              {/* Current Card */}
+              {currentListing && (
+                <ListingCard
+                  listing={currentListing}
+                  onLike={handleLike}
+                  onPass={handlePass}
+                  onViewDetails={handleViewDetails}
+                  isAnimating={isAnimating}
+                  direction={direction}
+                  viewMode="card"
+                />
+              )}
+            </div>
 
-          {/* Action Buttons - Mobile */}
-          <div className="flex justify-center gap-4 mt-6">
-            <button
-              onClick={handlePass}
-              disabled={isAnimating}
-              className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-              title="Not interested"
-            >
-              <FaRegTimesCircle />
-            </button>
-            
-            <button
-              onClick={handleLike}
-              disabled={isAnimating}
-              className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-              title="Save this listing"
-            >
-              <FaHeart />
-            </button>
-          </div>
+            {/* Action Buttons */}
+            <div className="flex justify-center gap-4 mt-6">
+              <button
+                onClick={handlePass}
+                disabled={isAnimating}
+                className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                title="Not interested (swipe left)"
+              >
+                <FaRegTimesCircle />
+              </button>
+              
+              <button
+                onClick={handleLike}
+                disabled={isAnimating}
+                className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                title="Save this listing (swipe right)"
+              >
+                <FaHeart />
+              </button>
+            </div>
 
-          {/* Action Labels - Mobile */}
-          <div className="flex justify-between px-8 mt-2 text-xs text-gray-500">
-            <span>Pass</span>
-            <span>Like</span>
+            {/* Action Labels */}
+            <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
+              <span>Pass • Swipe Left</span>
+              <span>Like • Swipe Right</span>
+            </div>
           </div>
-        </div>
-
-        {/* Desktop: Grid View */}
-        <div className="hidden md:block">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredListings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                onLike={() => {
-                  setLikedListings([...likedListings, listing]);
-                  setToastMessage(`Added to favorites! ✨`);
-                  setShowToast(true);
-                  setTimeout(() => setShowToast(false), 2000);
-                }}
-                onPass={() => {}}
-                onViewDetails={handleViewDetails}
-                isAnimating={false}
-                direction={null}
-                viewMode="grid"
-              />
-            ))}
+        ) : (
+          /* Grid View (Desktop only) */
+          <div className="hidden md:block">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredListings.map((listing) => (
+                <ListingCard
+                  key={listing.id}
+                  listing={listing}
+                  onLike={() => {
+                    setLikedListings([...likedListings, listing]);
+                    setToastMessage(`Added to favorites! ✨`);
+                    setShowToast(true);
+                    setTimeout(() => setShowToast(false), 2000);
+                  }}
+                  onPass={() => {}}
+                  onViewDetails={handleViewDetails}
+                  isAnimating={false}
+                  direction={null}
+                  viewMode="grid"
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Desktop Action Bar */}
         <div className="hidden md:flex justify-center gap-4 mt-8">
