@@ -58,7 +58,8 @@ export default function SignIn() {
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return 'Please enter a valid email address';
-    if (!email.endsWith('@sliit.lk')) return 'Must be a @sliit.lk email address';
+    // For frontend-only testing, allow any email. Uncomment below for real validation:
+    // if (!email.endsWith('@my.sliit.lk')) return 'Must be a @my.sliit.lk email address';
     return '';
   };
 
