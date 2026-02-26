@@ -6,6 +6,7 @@ import LandingPage from './components/LandingPage';
 import SignInPage from './components/SignInPage';
 import SignUpPage from './components/SignUpPage';
 import ProfileSetup from './components/ProfileSetup';
+import SearchPage from './components/SearchPage';
 
 // Mobile Components
 import MobileLayout from './components/mobile/MobileLayout';
@@ -37,6 +38,9 @@ import BookingAgreement from './components/boarding/BookingAgreement';
 import PaymentRental from './components/boarding/PaymentRental';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
 
+
+
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -45,6 +49,7 @@ export default function App() {
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/profile-setup" element={<ProfileSetup />} />
+        <Route path="/find" element={<SearchPage />} />
         
         {/* Mobile Routes */}
         <Route path="/mobile" element={<MobileLayout />}>
