@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Typewriter } from './ui/Typewriter';
 import { AuthDropdown } from './AuthDropdown';
 import { BoardingSlideshow } from './ui/BoardingSlideshow';
-import { Menu, X, Home, Search, Users, Building, Settings, User, LogIn, Shield, CheckCircle, MapPin, Zap, CreditCard, Users as UsersIcon, FileText, Briefcase } from 'lucide-react';
+import { Menu, X, Home, Search, Users, Building, Settings, User, LogIn, LogOut, Shield, CheckCircle, MapPin, Zap, CreditCard, Users as UsersIcon, FileText, Briefcase } from 'lucide-react';
 
 export default function LandingPage() {
+  const navigate = useNavigate();
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   // Helper to get current hash for active nav
   const [activeHash, setActiveHash] = React.useState(window.location.hash || '#home');
@@ -18,6 +20,26 @@ export default function LandingPage() {
   // Close mobile menu when clicking a link
   const handleMobileLinkClick = () => {
     setMobileNavOpen(false);
+  };
+
+
+  // Handle Sign In click
+  const handleSignIn = () => {
+    setMobileNavOpen(false);
+    navigate('/signin');
+  };
+
+  // Handle Sign Up click
+  const handleSignUp = () => {
+    setMobileNavOpen(false);
+    navigate('/signup');
+  };
+
+  // Handle Settings click
+  const handleSettings = () => {
+    setMobileNavOpen(false);
+    console.log('Settings clicked');
+    // Add your settings logic
   };
 
   return (
@@ -119,12 +141,16 @@ export default function LandingPage() {
             z-index: 10000;
             animation: slideIn 0.3s ease;
             overflow-y: auto;
+            padding-bottom: 40px;
           }
           
           .mobile-menu-header {
             padding: 24px 20px;
             border-bottom: 1px solid rgba(129, 140, 248, 0.2);
             background: #232b47;
+            position: sticky;
+            top: 0;
+            z-index: 10;
           }
           
           .mobile-menu-user {
@@ -177,6 +203,9 @@ export default function LandingPage() {
             cursor: pointer;
             text-decoration: none;
             background: rgba(255, 255, 255, 0.02);
+            border: none;
+            width: 100%;
+            text-align: left;
           }
           
           .mobile-menu-item:hover {
@@ -205,19 +234,75 @@ export default function LandingPage() {
             margin: 20px 0;
           }
           
-          .mobile-menu-cta {
-            background: linear-gradient(135deg, #818cf8, #22d3ee);
-            color: white !important;
-            margin-top: 20px;
-            text-align: center;
+          /* Auth Section Styles */
+          .mobile-menu-auth {
+            padding: 0 16px 30px 16px;
+            margin-top: 10px;
+          }
+          
+          .mobile-menu-auth-title {
+            color: #94a3b8;
+            font-size: 0.85rem;
             font-weight: 600;
-            justify-content: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            padding-left: 8px;
+          }
+          
+          .mobile-menu-auth-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          
+          .mobile-menu-auth-button {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+          }
+          
+          .mobile-menu-auth-button.signin {
+            background: linear-gradient(135deg, #818cf8, #22d3ee);
+            color: white;
             border: none;
             box-shadow: 0 4px 12px rgba(129, 140, 248, 0.3);
           }
           
-          .mobile-menu-cta svg {
-            color: white !important;
+          .mobile-menu-auth-button.signin svg {
+            color: white;
+          }
+          
+          .mobile-menu-auth-button.signup {
+            background: transparent;
+            color: #a5b4fc;
+            border: 2px solid rgba(129, 140, 248, 0.3);
+          }
+          
+          .mobile-menu-auth-button.signup svg {
+            color: #a5b4fc;
+          }
+          
+          .mobile-menu-auth-button:hover {
+            transform: translateY(-2px);
+          }
+          
+          .mobile-menu-auth-button.signin:active {
+            transform: scale(0.98);
+          }
+          
+          .mobile-menu-auth-button.signup:active {
+            background: rgba(129, 140, 248, 0.1);
           }
           
           /* Main content container for mobile */
@@ -755,11 +840,11 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay - FIXED with working buttons */}
       {mobileNavOpen && (
         <div className="mobile-menu-overlay" onClick={() => setMobileNavOpen(false)}>
           <div className="mobile-menu-drawer" onClick={e => e.stopPropagation()}>
-            {/* Mobile Menu Header */}
+            {/* Mobile Menu Header - Sticky */}
             <div className="mobile-menu-header">
               <div className="mobile-menu-user">
                 <div className="mobile-menu-avatar">
@@ -772,7 +857,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Mobile Menu Items */}
+            {/* Mobile Menu Items - Navigation only */}
             <div className="mobile-menu-items">
               <a 
                 href="#home" 
@@ -812,44 +897,38 @@ export default function LandingPage() {
               
               <div className="mobile-menu-divider"></div>
               
-              <a 
-                href="#profile" 
+              <button 
                 className="mobile-menu-item"
-                onClick={handleMobileLinkClick}
-              >
-                <User size={22} />
-                Profile
-              </a>
-              
-              <a 
-                href="#settings" 
-                className="mobile-menu-item"
-                onClick={handleMobileLinkClick}
+                onClick={handleSettings}
               >
                 <Settings size={22} />
                 Settings
-              </a>
-              
-              <a 
-                href="#login" 
-                className="mobile-menu-item"
-                onClick={handleMobileLinkClick}
-              >
-                <LogIn size={22} />
-                Sign In
-              </a>
-              
-              <div className="mobile-menu-divider"></div>
-              
-              <a 
-                href="#features" 
-                className="mobile-menu-item mobile-menu-cta"
-                onClick={handleMobileLinkClick}
-              >
-                <Search size={22} />
-                Find Rooms Now
-              </a>
+              </button>
             </div>
+
+            {/* Auth Section - Working Sign In & Sign Up buttons */}
+            <div className="mobile-menu-auth">
+              <div className="mobile-menu-auth-title">ACCOUNT</div>
+              <div className="mobile-menu-auth-buttons">
+                <button 
+                  className="mobile-menu-auth-button signin"
+                  onClick={handleSignIn}
+                >
+                  <LogIn size={22} />
+                  Sign In
+                </button>
+                <button 
+                  className="mobile-menu-auth-button signup"
+                  onClick={handleSignUp}
+                >
+                  <User size={22} />
+                  Sign Up
+                </button>
+              </div>
+            </div>
+
+            {/* Extra space at bottom for comfortable scrolling */}
+            <div style={{ height: '20px' }}></div>
           </div>
         </div>
       )}
