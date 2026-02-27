@@ -35,10 +35,14 @@ import {
 import BoardingManagement from './components/boarding/BoardingManagement';
 import SearchDiscovery from './components/boarding/SearchDiscovery';
 import BookingAgreement from './components/boarding/BookingAgreement';
-import PaymentRental from './components/boarding/PaymentRental';
+import PaymentRentalPage from './components/PaymentRentalPage';
+import BoardingPlaceDetail from './components/payment/BoardingPlaceDetail';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
 import RoommateFinderPage from './components/RoommateFinderPage';
 import OwnerDashboard from './components/OwnerDashboard';
+import UserProfileDashboard from './components/UserProfileDashboard';
+import StudentPayment from './components/payment/StudentPayment';
+
 
 
 
@@ -81,11 +85,14 @@ export default function App() {
         <Route path="/boarding-management" element={<BoardingManagement />} />
         <Route path="/search-discovery" element={<SearchDiscovery />} />
         <Route path="/booking-agreement" element={<BookingAgreement />} />
-        <Route path="/payment-rental" element={<PaymentRental />} />
+        <Route path="/payment-rental" element={<PaymentRentalPage />} />
+        <Route path="/payment-rental/:placeId" element={<BoardingPlaceDetail />} />
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
 
         <Route path="/roommate-finder" element={<RoommateFinderPage />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
+        <Route path="/profile" element={<UserProfileDashboard />} />
+        <Route path="/student-payments" element={<StudentPayment />} />
 
       </Routes>
     </BrowserRouter>

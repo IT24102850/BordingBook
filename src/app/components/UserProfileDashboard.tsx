@@ -18,8 +18,11 @@ const sidebarLinks = [
   { icon: <FaCog />, label: "Settings" },
 ];
 
+import StudentPayment from "./payment/StudentPayment";
+
 export default function UserProfileDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("Dashboard");
   const [profile, setProfile] = useState({
     fullName: "Alexa Rawles",
     nickName: "Alexa",
@@ -73,10 +76,13 @@ export default function UserProfileDashboard() {
           className={`fixed md:static z-30 top-0 left-0 h-full md:h-auto w-64 md:w-20 bg-white/90 shadow-xl rounded-r-3xl md:rounded-3xl flex flex-col items-center py-8 gap-6 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
         >
           <nav className="flex flex-col gap-6 w-full items-center">
-            {sidebarLinks.map((link, i) => (
+            {sidebarLinks.map((link) => (
               <button
                 key={link.label}
-                className="flex flex-col items-center gap-1 text-cyan-500 hover:text-indigo-500 focus:text-indigo-600 text-xl md:text-2xl p-2 rounded-xl transition focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                onClick={() => setActiveSection(link.label)}
+                className={`flex flex-col items-center gap-1 text-xl md:text-2xl p-2 rounded-xl transition focus:outline-none focus:ring-2 focus:ring-cyan-300 ${
+                  activeSection === link.label ? 'text-indigo-600' : 'text-cyan-500 hover:text-indigo-500'
+                }`}
                 aria-label={link.label}
               >
                 {link.icon}
@@ -88,25 +94,31 @@ export default function UserProfileDashboard() {
         {/* Main Content */}
         <main className="flex-1 flex flex-col items-center">
           <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl p-8 md:p-12 mt-2 md:mt-0">
-            {/* Profile Summary */}
-            <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
-              <img
-                src="https://randomuser.me/api/portraits/women/44.jpg"
-                alt="User avatar"
-                className="w-24 h-24 rounded-full border-4 border-cyan-200 shadow-lg object-cover"
-              />
-              <div className="flex-1 text-center md:text-left">
-                <div className="text-2xl font-bold text-cyan-800">{profile.fullName}</div>
-                <div className="text-sm text-cyan-500">{profile.email}</div>
-              </div>
-              <button
-                className="px-6 py-2 rounded-xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 text-white shadow-md hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                onClick={() => setEditing((v) => !v)}
-              >
-                {editing ? "Cancel" : "Edit"}
-              </button>
-            </div>
-            {/* Editable Profile Fields */}
+            {activeSection === 'Payments' ? (
+              <StudentPayment />
+            ) : (
+              <>
+                {/* Profile Summary */}
+                <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
+                  <img
+                    src="https://randomuser.me/api/portraits/women/44.jpg"
+                    alt="User avatar"
+                    className="w-24 h-24 rounded-full border-4 border-cyan-200 shadow-lg object-cover"
+                  />
+                  <div className="flex-1 text-center md:text-left">
+                    <div className="text-2xl font-bold text-cyan-800">{profile.fullName}</div>
+                    <div className="text-sm text-cyan-500">{profile.email}</div>
+                  </div>
+                  <button
+                    className="px-6 py-2 rounded-xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 text-white shadow-md hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    onClick={() => setEditing((v) => !v)}
+                  >
+                    {editing ? "Cancel" : "Edit"}
+                  </button>
+                </div>
+                {/* Editable Profile Fields */}
+              </>
+            )}
             <form className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" onSubmit={e => e.preventDefault()}>
               <div>
                 <label className="block text-cyan-700 font-semibold mb-1">Full Name</label>
