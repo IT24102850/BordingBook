@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FaHeart, FaRegTimesCircle, FaUndo, FaHistory, FaBookmark, FaUserFriends, FaMoneyBillWave, FaBed, FaBolt, FaCalendarAlt, FaInfoCircle } from 'react-icons/fa';
 import { BiCurrentLocation } from 'react-icons/bi';
 import { RiUserSharedLine } from 'react-icons/ri';
-import { Menu, X, Home, Search, Users, User, LogIn } from 'lucide-react';
+import { Menu, X, Home, Search, Users, User, LogIn, Users as UsersIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const roommateProfiles = [
@@ -179,56 +179,66 @@ function RoommateNavBar() {
   };
   
   return (
-    <nav className="navbar w-full bg-[#232b47] border-b-2 border-indigo-200/20 flex items-center justify-between px-4 py-1.5 fixed top-0 left-0 right-0 z-50 min-h-[48px]">
-      {/* App Name Only (No Logo) */}
-      <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNav('/')}> 
-        <span className="text-base font-bold text-white tracking-wide">BoardingBook</span>
+    <nav
+      className="w-full fixed top-0 left-0 flex items-center justify-between h-12 md:h-13 px-4 md:px-16 bg-[#232b47] backdrop-blur-xl border-b-2 border-zinc-700/15 shadow-xl z-[10000] transition-all duration-300 navbar"
+      style={{height: '52px',minHeight: '52px',borderBottomWidth: '2px',borderBottomColor: 'rgba(113,113,122,0.15)',borderImage: 'linear-gradient(to right, rgba(99,102,241,.18), rgba(34,211,238,.18)) 1',borderBottomStyle: 'solid'}}>
+      {/* Logo */}
+      <div className="flex items-center gap-1 md:gap-2 min-w-max h-full cursor-pointer" onClick={() => handleNav('/')}> 
+        <span className="text-3xl font-extrabold tracking-tight text-zinc-100 drop-shadow-lg select-none flex items-center h-full navbar-logo">Boarding<span className="text-indigo-300">Book</span></span>
       </div>
-      
-      {/* Desktop Nav */}
+
+      {/* Desktop Nav - perfectly centered, improved labels and CTAs */}
       <div className="desktop-nav hidden md:flex flex-1 justify-center">
         <div className="flex gap-6 items-center bg-zinc-800/60 px-6 py-2 rounded-full shadow border border-zinc-700/40">
-          <button onClick={() => handleNav('/')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition">Home</button>
-          <button onClick={() => handleNav('/find')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition">Find Rooms</button>
-          <button onClick={() => handleNav('/roommate-finder')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition">Roommate Finder</button>
-          <button onClick={() => handleNav('/profile-setup')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition">Profile</button>
+          <button onClick={() => handleNav('/')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link">Home</button>
+          <button onClick={() => handleNav('/find')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link">Find Rooms</button>
+          <button onClick={() => handleNav('/roommate-finder')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link">Roommate Finder</button>
+          <button onClick={() => handleNav('/profile-setup')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link">Profile</button>
+          <button onClick={() => handleNav('/group-booking')} className="px-4 py-2 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 border border-indigo-400 nav-link-cta">Group Booking</button>
         </div>
       </div>
-      
+
       {/* Desktop Profile */}
-      <div className="desktop-profile hidden md:flex items-center min-w-max ml-6">
+      <div className="desktop-profile hidden md:flex items-center min-w-max ml-6 profile-area">
         <span className="text-zinc-200 text-sm font-medium mr-2">Guest</span>
         <div className="profile-icon relative group flex items-center justify-center" tabIndex={0} title="Account">
           <User className="text-cyan-400" />
         </div>
       </div>
-      
+
       {/* Hamburger Button - Mobile Only */}
       <div className="mobile-nav flex md:hidden">
         <button className="hamburger-btn" onClick={() => setMobileNavOpen(!mobileNavOpen)} aria-label="Toggle menu">
           {mobileNavOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
-      
+
       {/* Mobile Menu Overlay */}
       {mobileNavOpen && (
-        <div className="mobile-menu-overlay fixed inset-0 bg-black/80 backdrop-blur z-50 flex" onClick={() => setMobileNavOpen(false)}>
-          <div className="mobile-menu-drawer bg-[#1e2436] w-4/5 max-w-xs h-full p-6 overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="mobile-menu-header flex items-center gap-3 mb-8">
-              <div className="mobile-menu-avatar w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-cyan-400 flex items-center justify-center text-white font-bold text-xl">👤</div>
-              <div className="mobile-menu-user-info">
-                <h4 className="text-white text-base font-semibold mb-1">Guest User</h4>
-                <p className="text-gray-400 text-xs">Sign in to access your account</p>
+        <div className="mobile-menu-overlay" onClick={() => setMobileNavOpen(false)}>
+          <div className="mobile-menu-drawer" onClick={e => e.stopPropagation()}>
+            {/* Mobile Menu Header - Sticky */}
+            <div className="mobile-menu-header">
+              <div className="mobile-menu-user">
+                <div className="mobile-menu-avatar">👤</div>
+                <div className="mobile-menu-user-info">
+                  <h4>Guest User</h4>
+                  <p>Sign in to access your account</p>
+                </div>
               </div>
             </div>
-            <div className="mobile-menu-items flex flex-col gap-4">
-              <button onClick={() => handleNav('/')} className="flex items-center gap-2 text-zinc-200 font-semibold text-base px-2 py-2 rounded-xl hover:bg-zinc-700/30 transition"><Home size={22} />Home</button>
-              <button onClick={() => handleNav('/find')} className="flex items-center gap-2 text-zinc-200 font-semibold text-base px-2 py-2 rounded-xl hover:bg-zinc-700/30 transition"><Search size={22} />Find Rooms</button>
-              <button onClick={() => handleNav('/roommate-finder')} className="flex items-center gap-2 text-zinc-200 font-semibold text-base px-2 py-2 rounded-xl hover:bg-zinc-700/30 transition"><Users size={22} />Roommate Finder</button>
-              <button onClick={() => handleNav('/profile-setup')} className="flex items-center gap-2 text-zinc-200 font-semibold text-base px-2 py-2 rounded-xl hover:bg-zinc-700/30 transition"><User size={22} />Profile</button>
-              <div className="border-t border-zinc-700 my-4" />
-              <button onClick={() => handleNav('/signin')} className="flex items-center gap-2 text-cyan-400 font-semibold text-base px-2 py-2 rounded-xl hover:bg-cyan-700/30 transition"><LogIn size={22} />Sign In</button>
+            {/* Mobile Menu Items - Navigation only */}
+            <div className="mobile-menu-items">
+              <button onClick={() => handleNav('/')} className="mobile-menu-item"><Home size={22} />Home</button>
+              <button onClick={() => handleNav('/find')} className="mobile-menu-item"><Search size={22} />Find Rooms</button>
+              <button onClick={() => handleNav('/roommate-finder')} className="mobile-menu-item"><Users size={22} />Roommate Finder</button>
+              <button onClick={() => handleNav('/group-booking')} className="mobile-menu-item"><UsersIcon size={22} />Group Booking</button>
+              <button onClick={() => handleNav('/profile-setup')} className="mobile-menu-item"><User size={22} />Profile</button>
+              <div className="mobile-menu-divider"></div>
+              <button onClick={() => handleNav('/signin')} className="mobile-menu-auth-button signin"><LogIn size={22} />Sign In</button>
+              <button onClick={() => handleNav('/signup')} className="mobile-menu-auth-button signup"><User size={22} />Sign Up</button>
             </div>
+            <div style={{ height: '20px' }}></div>
           </div>
         </div>
       )}
@@ -305,11 +315,7 @@ export default function RoommateFinderPage() {
         <RoommateNavBar />
         <div className="flex-1 w-full px-4 py-6 mt-12">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-4">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">
-              Roommate Finder
-            </h1>
-          </div>
+          {/* Removed Roommate Finder heading as requested */}
 
           {/* Tip */}
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -488,9 +494,7 @@ export default function RoommateFinderPage() {
       <RoommateNavBar />
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8 mt-12">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">Roommate Finder</h1>
-        </div>
+        {/* Removed Roommate Finder heading as requested */}
         
         {/* Tip */}
         <div className="flex items-center justify-center gap-2 mb-4">
