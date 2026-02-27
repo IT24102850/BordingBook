@@ -6,8 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "start": "vite",
-    "postinstall": "chmod +x node_modules/.bin/vite"
+    "start": "vite"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

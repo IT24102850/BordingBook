@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -78,7 +80,6 @@ a {
 }
 
 /* Premium blue title effect for hero/landing headings */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
 
 .glow-title {
   font-family: 'Montserrat', 'Sora', 'Outfit', Arial, sans-serif;
