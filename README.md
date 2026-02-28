@@ -1,11 +1,28 @@
+# BoardingBook
 
-  # Smart Boarding System Wireframes
+A full-stack boarding place management system for students, built with React + Express + MongoDB.
 
-  This is a code bundle for Smart Boarding System Wireframes. The original project is available at https://www.figma.com/design/6iV083OdbantZm0kBctYTt/Smart-Boarding-System-Wireframes.
+## Project Structure
 
-  ## Running the code
+```
+BoardingBook/
+├── frontend/       # React + Vite frontend (port 5173)
+├── backend/        # Express + MongoDB backend (port 5001)
+└── docs/           # Project documentation
+```
 
-  Run `npm i` to install the dependencies.
+## Getting Started
 
-  Run `npm run dev` to start the development server.
-  
+**Frontend**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+**Backend**
+```bash
+cd backend
+npm install
+npm run dev
+```

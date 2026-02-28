@@ -2,13 +2,27 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Run Vite Dev Server",
+			"label": "Run Frontend Dev Server",
 			"type": "shell",
 			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
 			"isBackground": true,
 			"problemMatcher": [
 				"$tsc"
 			],
+			"group": "build"
+		},
+		{
+			"label": "Run Backend Dev Server",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"isBackground": true,
+			"problemMatcher": [],
 			"group": "build"
 		}
 	]
