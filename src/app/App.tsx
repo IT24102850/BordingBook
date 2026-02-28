@@ -38,6 +38,7 @@ import BookingAgreement from './components/boarding/BookingAgreement';
 import PaymentRental from './components/boarding/PaymentRental';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
 import RoommateFinderPage from './components/RoommateFinderPage';
+import RoommateFinderGroupPage from './components/RoommateFinderGroupPage';
 import OwnerDashboard from './components/OwnerDashboard';
 
 
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
 
         <Route path="/roommate-finder" element={<RoommateFinderPage />} />
+        <Route path="/roommate-finder-group" element={<RoommateFinderGroupPage />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
 
       </Routes>
