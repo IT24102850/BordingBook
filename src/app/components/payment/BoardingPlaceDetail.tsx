@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, AlertCircle, Trash2, Star, MapPin, Home, Users as UsersIcon, CreditCard } from 'lucide-react';
+import { ArrowLeft, Download, AlertCircle, Trash2, Star, MapPin, Home, Users as UsersIcon, CreditCard, ChevronRight, X, CheckCircle } from 'lucide-react';
 
 interface Tenant {
   id: string;
@@ -135,6 +135,7 @@ export default function BoardingPlaceDetail() {
   const navigate = useNavigate();
   const { placeId } = useParams<{ placeId: string }>();
   const [removedTenants, setRemovedTenants] = useState<Set<string>>(new Set());
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
 
   const place = mockBoardingPlaces.find(p => p.id === (placeId || '1'));
   if (!place) return <div className="text-white p-4">Boarding place not found</div>;
@@ -222,11 +223,10 @@ export default function BoardingPlaceDetail() {
                     <p>Capacity: <span className="text-white">{room.bedCount} bed(s)</span></p>
                     <p>Occupied: <span className="text-white">{activeTenantsInRoom.length}/{room.bedCount}</span></p>
                     <p>Price: <span className="text-white">Rs.{room.price.toLocaleString()}</span></p>
-                    <p className={`inline-block px-2 py-1 rounded text-[10px] ${
-                      room.status === 'available' ? 'bg-green-500/20 text-green-300' :
+                    <p className={`inline-block px-2 py-1 rounded text-[10px] ${room.status === 'available' ? 'bg-green-500/20 text-green-300' :
                       room.status === 'partial' ? 'bg-yellow-500/20 text-yellow-300' :
-                      'bg-red-500/20 text-red-300'
-                    }`}>
+                        'bg-red-500/20 text-red-300'
+                      }`}>
                       {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
                     </p>
                   </div>
@@ -256,55 +256,113 @@ export default function BoardingPlaceDetail() {
                 return (
                   <div
                     key={tenant.id}
-                    className={`p-3 rounded-lg border flex items-center justify-between ${
-                      tenant.paymentStatus === 'paid'
-                        ? 'bg-green-500/10 border-green-500/20'
-                        : daysOverdue > 0 && daysOverdue < 10
+                    onClick={() => setSelectedTenant(tenant)}
+                    className={`p-3 rounded-lg border flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity ${tenant.paymentStatus === 'paid'
+                      ? 'bg-green-500/10 border-green-500/20'
+                      : daysOverdue > 0 && daysOverdue < 10
                         ? 'bg-yellow-500/10 border-yellow-500/20'
                         : isOverdue10
-                        ? 'bg-red-500/10 border-red-500/20'
-                        : 'bg-white/5 border-white/10'
-                    }`}
+                          ? 'bg-red-500/10 border-red-500/20'
+                          : 'bg-white/5 border-white/10'
+                      }`}
                   >
                     <div className="flex-1">
                       <p className="text-sm text-white font-semibold">{tenant.name}</p>
                       <p className="text-xs text-gray-400">Room {room?.roomNumber} • Rs.{tenant.monthlyRent.toLocaleString()}</p>
                       {tenant.phone && <p className="text-xs text-gray-500">{tenant.phone}</p>}
                     </div>
-                    <div className="text-right mr-3">
-                      <p className={`text-xs font-semibold ${
-                        tenant.paymentStatus === 'paid'
+                    <div className="text-right mr-3 flex-1 flex justify-end">
+                      <div>
+                        <p className={`text-xs font-semibold ${tenant.paymentStatus === 'paid'
                           ? 'text-green-300'
                           : daysOverdue > 0
-                          ? 'text-red-300'
-                          : 'text-cyan-300'
-                      }`}>
-                        {formattedDate}
-                      </p>
-                      {daysOverdue > 0 && (
-                        <p className="text-[10px] text-red-400 font-semibold">{daysOverdue} days overdue</p>
-                      )}
-                    </div>
-                    {isOverdue10 && (
-                      <button
-                        onClick={() => handleRemoveTenant(tenant.id)}
-                        className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
-                        title="Remove tenant (10+ days overdue)"
-                      >
-                        <Trash2 size={14} className="text-white" />
-                      </button>
-                    )}
-                    {daysOverdue > 0 && daysOverdue < 10 && (
-                      <div className="p-2 bg-yellow-600/30 rounded-lg">
-                        <AlertCircle size={14} className="text-yellow-300" />
+                            ? 'text-red-300'
+                            : 'text-cyan-300'
+                          }`}>
+                          {formattedDate}
+                        </p>
+                        {daysOverdue > 0 && (
+                          <p className="text-[10px] text-red-400 font-semibold">{daysOverdue} days overdue</p>
+                        )}
                       </div>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isOverdue10 && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRemoveTenant(tenant.id); }}
+                          className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
+                          title="Remove tenant (10+ days overdue)"
+                        >
+                          <Trash2 size={14} className="text-white" />
+                        </button>
+                      )}
+                      {daysOverdue > 0 && daysOverdue < 10 && (
+                        <div className="p-2 bg-yellow-600/30 rounded-lg">
+                          <AlertCircle size={14} className="text-yellow-300" />
+                        </div>
+                      )}
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </div>
                   </div>
                 );
               })}
           </div>
         </div>
       </div>
+
+      {/* Tenant Details Modal */}
+      {selectedTenant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#131d3a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
+              <h3 className="text-lg font-bold text-white">Tenant Payment History</h3>
+              <button onClick={() => setSelectedTenant(null)} className="p-1 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/10">
+                <div className="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-300 font-bold text-xl">
+                  {selectedTenant.name.charAt(0)}
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-white">{selectedTenant.name}</h4>
+                  <p className="text-xs text-gray-400">Room {place.rooms.find(r => r.id === selectedTenant.roomId)?.roomNumber} • Rent: Rs.{selectedTenant.monthlyRent.toLocaleString()}</p>
+                </div>
+              </div>
+
+              <h5 className="text-sm font-semibold text-cyan-300 mb-4">Past Payments</h5>
+              <div className="space-y-3">
+                {/* Mock historical data based on check-in date */}
+                {[...Array(3)].map((_, i) => {
+                  const date = new Date();
+                  date.setMonth(date.getMonth() - (i + 1));
+                  const monthName = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+                  return (
+                    <div key={i} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-500/20 text-green-400 rounded-full">
+                          <CheckCircle size={14} />
+                        </div>
+                        <div>
+                          <p className="text-sm text-white">{monthName}</p>
+                          <p className="text-xs text-gray-400">Paid on {new Date(date.setDate(15)).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-cyan-300 transition-colors">
+                        <Download size={14} />
+                        Receipt
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, ChevronDown, Trash2, AlertCircle, Eye } from 'lucide-react';
+import { ChevronDown, Trash2, AlertCircle, Eye, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 
 interface Tenant {
   id: string;
@@ -93,226 +93,120 @@ const mockBoardingPlaces: BoardingHouse[] = [
 
 export default function OwnerDashboardPayment() {
   const navigate = useNavigate();
-  const [selectedPlace, setSelectedPlace] = useState<string>(mockBoardingPlaces[0].id);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [removedTenants, setRemovedTenants] = useState<Set<string>>(new Set());
 
-  // Get selected boarding place and its data
-  const currentPlace = mockBoardingPlaces.find(p => p.id === selectedPlace)!;
-  const allTenantsInPlace = currentPlace.rooms.flatMap(r => r.tenants).filter(t => !removedTenants.has(t.id));
-  const paidTenants = allTenantsInPlace.filter(t => t.paymentStatus === 'paid');
-  const overdueTenants = allTenantsInPlace.filter(t => t.paymentStatus === 'overdue');
-  const pendingTenants = allTenantsInPlace.filter(t => t.paymentStatus === 'pending');
+  // Mock pending slips for demo
+  const [pendingSlips, setPendingSlips] = useState([
+    { id: 'ps1', tenantName: 'Dana White', roomNumber: '102', placeId: '1', placeName: 'Sunrise Boarding House', amount: 18000, date: '2026-03-05' },
+    { id: 'ps2', tenantName: 'Grace Lee', roomNumber: '202', placeId: '2', placeName: 'Green Villa Boarding', amount: 12000, date: '2026-01-10' }
+  ]);
 
-  const totalCollected = paidTenants.reduce((sum, t) => sum + t.monthlyRent, 0);
-  const totalPending = overdueTenants.length + pendingTenants.length;
+  const handleApproveSlip = (slipId: string) => {
+    setPendingSlips(prev => prev.filter(s => s.id !== slipId));
+  };
 
-  const handleRemoveTenant = (tenantId: string) => {
-    const newRemoved = new Set(removedTenants);
-    newRemoved.add(tenantId);
-    setRemovedTenants(newRemoved);
+  const handleRejectSlip = (slipId: string) => {
+    setPendingSlips(prev => prev.filter(s => s.id !== slipId));
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-white">Payments & Receipts</h2>
-        
-        {/* Boarding Place Selector & View Details Button */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white hover:bg-white/10 transition-all"
-            >
-              {currentPlace.name}
-              <ChevronDown size={14} />
-            </button>
-            
-            {showDropdown && (
-              <div className="absolute top-full right-0 mt-1 bg-[#181f36] border border-white/10 rounded-lg shadow-lg z-10">
-                {mockBoardingPlaces.map(place => (
-                  <button
-                    key={place.id}
-                    onClick={() => {
-                      setSelectedPlace(place.id);
-                      setShowDropdown(false);
-                    }}
-                    className={`block w-full text-left px-4 py-2 text-xs hover:bg-white/10 ${
-                      place.id === selectedPlace ? 'text-cyan-300 font-semibold' : 'text-gray-300'
-                    }`}
-                  >
-                    {place.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          <button
-            onClick={() => navigate(`/payment-rental/${selectedPlace}`)}
-            className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all"
-          >
-            <Eye size={14} />
-            View Details
-          </button>
-        </div>
+        <h2 className="text-xl font-bold text-white">Owner Payment Dashboard</h2>
       </div>
 
-      {/* Calendar with Due Dates */}
-      <div className="bg-white/5 rounded-xl p-4 border border-white/10 mb-4">
-        <h3 className="text-sm font-medium text-cyan-300 mb-3">Payment Due Dates Calendar</h3>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {allTenantsInPlace
-            .slice()
-            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-            .map(tenant => {
-              const daysOverdue = getDaysOverdue(tenant.dueDate);
-              const isOverdue10 = isOverdue10Plus(tenant.dueDate);
-              const room = currentPlace.rooms.find(r => r.id === tenant.roomId);
-              const dueDateObj = new Date(tenant.dueDate);
-              const formattedDate = dueDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      {/* Review Payment Slips Section */}
+      <div className="bg-white/5 rounded-xl p-6 border border-white/10 shadow-lg">
+        <h3 className="text-lg font-semibold text-amber-400 mb-4 flex items-center gap-2">
+          New Payment Slips to Review
+          {pendingSlips.length > 0 && (
+            <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full text-xs">
+              {pendingSlips.length}
+            </span>
+          )}
+        </h3>
 
-              return (
-                <div
-                  key={tenant.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border ${
-                    tenant.paymentStatus === 'paid'
-                      ? 'bg-green-500/10 border-green-500/20'
-                      : daysOverdue > 0 && daysOverdue < 10
-                      ? 'bg-yellow-500/10 border-yellow-500/20'
-                      : isOverdue10
-                      ? 'bg-red-500/10 border-red-500/20'
-                      : 'bg-white/5 border-white/10'
-                  }`}
-                >
-                  <div className="flex-1">
-                    <p className="text-xs text-white font-semibold">{tenant.name}</p>
-                    <p className="text-[10px] text-gray-400">Room {room?.roomNumber} • Rs.{tenant.monthlyRent.toLocaleString()}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-xs font-semibold ${
-                      tenant.paymentStatus === 'paid'
-                        ? 'text-green-300'
-                        : daysOverdue > 0
-                        ? 'text-red-300'
-                        : 'text-cyan-300'
-                    }`}>
-                      {formattedDate}
-                    </p>
-                    {daysOverdue > 0 && (
-                      <p className="text-[10px] text-red-400">{daysOverdue} days overdue</p>
-                    )}
-                  </div>
-                  {isOverdue10 && (
-                    <button
-                      onClick={() => handleRemoveTenant(tenant.id)}
-                      className="ml-2 p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
-                      title="Remove tenant (10+ days overdue)"
-                    >
-                      <Trash2 size={14} className="text-white" />
-                    </button>
-                  )}
-                  {daysOverdue > 0 && daysOverdue < 10 && (
-                    <div className="ml-2 p-2 bg-yellow-600/30 rounded-lg">
-                      <AlertCircle size={14} className="text-yellow-300" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-        </div>
-      </div>
-
-      {/* Rooms & Roommates Section */}
-      <div className="bg-white/5 rounded-xl p-4 border border-white/10 mb-4">
-        <h3 className="text-sm font-medium text-cyan-300 mb-3">Rooms & Roommates</h3>
         <div className="space-y-3">
-          {currentPlace.rooms.map(room => {
-            const activeTenantsInRoom = room.tenants.filter(t => !removedTenants.has(t.id));
-            if (activeTenantsInRoom.length === 0) return null;
+          {pendingSlips.length > 0 ? (
+            pendingSlips.map(slip => (
+              <div key={slip.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-amber-500/20 rounded-xl hover:bg-white/10 transition-colors">
+                <div className="mb-3 md:mb-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm text-white font-semibold">{slip.tenantName}</p>
+                    <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-300">{slip.placeName}</span>
+                  </div>
+                  <p className="text-xs text-gray-400">Room {slip.roomNumber} • Rs.{slip.amount.toLocaleString()} • Uploaded: {slip.date}</p>
+                </div>
+
+                <div className="flex items-center gap-3 self-end md:self-auto">
+                  <button className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-cyan-300 font-medium transition-all shadow-sm border border-cyan-500/20">
+                    <Eye size={16} />
+                    View Slip
+                  </button>
+                  <button
+                    onClick={() => handleApproveSlip(slip.id)}
+                    className="flex items-center justify-center p-2 bg-green-500/20 hover:bg-green-500/40 rounded-lg text-green-400 transition-all border border-green-500/20"
+                    title="Approve Payment"
+                  >
+                    <CheckCircle size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleRejectSlip(slip.id)}
+                    className="flex items-center justify-center p-2 bg-red-500/20 hover:bg-red-500/40 rounded-lg text-red-400 transition-all border border-red-500/20"
+                    title="Reject Payment"
+                  >
+                    <XCircle size={18} />
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400 border-2 border-dashed border-white/5 rounded-xl">
+              <CheckCircle size={32} className="mb-3 text-white/20" />
+              <p className="text-sm font-medium">You're all caught up!</p>
+              <p className="text-xs mt-1 opacity-60">No pending payment slips to review at the moment.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Select Boarding Place Section */}
+      <div className="bg-white/5 rounded-xl p-6 border border-white/10 shadow-lg mt-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Manage Boarding Places</h3>
+        <p className="text-xs text-gray-400 mb-6">Select a boarding place to view detailed payment status, overdue tenants, and management options.</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {mockBoardingPlaces.map(place => {
+            const allTenantsInPlace = place.rooms.flatMap(r => r.tenants);
+            const overdueCount = allTenantsInPlace.filter(t => t.paymentStatus === 'overdue').length;
+
             return (
-              <div key={room.id} className="bg-white/5 rounded-lg p-3">
-                <p className="text-xs font-semibold text-white mb-2">Room {room.roomNumber} ({activeTenantsInRoom.length} tenants)</p>
-                <div className="space-y-1">
-                  {activeTenantsInRoom.map(tenant => (
-                    <div key={tenant.id} className="flex items-center justify-between text-[10px]">
-                      <span className="text-gray-300">{tenant.name}</span>
-                      <span className={`px-2 py-1 rounded ${
-                        tenant.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-300' :
-                        tenant.paymentStatus === 'overdue' ? 'bg-red-500/20 text-red-300' :
-                        'bg-yellow-500/20 text-yellow-300'
-                      }`}>
-                        {tenant.paymentStatus.charAt(0).toUpperCase() + tenant.paymentStatus.slice(1)}
-                      </span>
-                    </div>
-                  ))}
+              <div
+                key={place.id}
+                onClick={() => navigate(`/payment-rental/${place.id}`)}
+                className="group p-5 bg-white/5 border border-white/10 rounded-xl hover:border-cyan-500/50 hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden"
+              >
+                <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0">
+                  <ArrowRight size={20} className="text-cyan-400" />
+                </div>
+
+                <h4 className="text-base font-semibold text-white mb-1 group-hover:text-cyan-300 transition-colors">{place.name}</h4>
+                <p className="text-xs text-gray-400 mb-4">{place.address}</p>
+
+                <div className="flex items-center gap-4 border-t border-white/10 pt-4 mt-2">
+                  <div className="flex-1">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Tenants</p>
+                    <p className="text-sm font-bold text-white">{allTenantsInPlace.length}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Overdue</p>
+                    <p className={`text-sm font-bold ${overdueCount > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                      {overdueCount}
+                    </p>
+                  </div>
                 </div>
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Payments Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white/5 rounded-xl p-4 border border-white/10 col-span-2">
-          <h3 className="text-sm font-medium text-cyan-300 mb-3">All Tenant Payments</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {allTenantsInPlace.length > 0 ? (
-              allTenantsInPlace.map(tenant => {
-                const room = currentPlace.rooms.find(r => r.id === tenant.roomId);
-                const daysOverdue = getDaysOverdue(tenant.dueDate);
-                return (
-                  <div key={tenant.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                    <div>
-                      <p className="text-xs text-white">{tenant.name}</p>
-                      <p className="text-[10px] text-gray-400">Room {room?.roomNumber}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-white">Rs.{tenant.monthlyRent.toLocaleString()}</p>
-                      <p className={`text-[10px] ${
-                        tenant.paymentStatus === 'paid' ? 'text-green-400' :
-                        tenant.paymentStatus === 'overdue' ? 'text-red-400' :
-                        'text-yellow-400'
-                      }`}>
-                        {tenant.paymentStatus.charAt(0).toUpperCase() + tenant.paymentStatus.slice(1)}
-                        {daysOverdue > 0 && ` (${daysOverdue}d)`}
-                      </p>
-                    </div>
-                    <button className="p-1 hover:bg-white/10 rounded">
-                      <Download size={14} className="text-cyan-400" />
-                    </button>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-gray-400">No active tenants in this boarding place</p>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-          <h3 className="text-sm font-medium text-cyan-300 mb-3">Summary</h3>
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs text-gray-400">Total Collected</p>
-              <p className="text-lg font-bold text-white">Rs.{totalCollected.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">Pending/Overdue</p>
-              <p className="text-lg font-bold text-yellow-400">{totalPending}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">Total Tenants</p>
-              <p className="text-lg font-bold text-white">{allTenantsInPlace.length}</p>
-            </div>
-            <div className="pt-2 border-t border-white/10">
-              <button className="w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
-                Download All Receipts
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Download, UploadCloud, AlertCircle, Info } from 'lucide-react';
+import { CheckCircle, Download, UploadCloud, AlertCircle, Info, Bell, BellOff } from 'lucide-react';
 
 interface PaymentRecord {
   month: string;
@@ -88,7 +88,7 @@ export default function StudentPayment(): JSX.Element {
             <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="text-xs text-gray-300">
-                  {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <th key={d} className="py-1 w-[14%] whitespace-nowrap text-center">{d}</th>)}
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <th key={d} className="py-1 w-[14%] whitespace-nowrap text-center">{d}</th>)}
                 </tr>
               </thead>
               <tbody className="text-gray-200">{renderCalendar(calendarYear, calendarMonth)}</tbody>
@@ -159,8 +159,21 @@ export default function StudentPayment(): JSX.Element {
                 </div>
               </div>
             </section>
+
           </main>
         </div>
+
+        {/* System Reminders Section */}
+        <section className="bg-white/3 rounded-lg p-6 mt-6">
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <Bell size={20} className="text-amber-400" />
+            System Reminders
+          </h3>
+          <div className="flex flex-col items-center justify-center py-10 border border-dashed border-white/10 rounded-lg text-gray-400">
+            <BellOff size={32} className="mb-3 opacity-30" />
+            <p className="text-sm">No reminders</p>
+          </div>
+        </section>
       </div>
     </div>
   );
