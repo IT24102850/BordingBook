@@ -43,24 +43,29 @@ function getFiltered(filters) {
 }
 
 export default function SearchSection({ filters, setters, onOpenModal }) {
-    const { search, sort } = filters;
+    const { search, sort, room, facs } = filters;
     const { setSearch, setSort, setPriceMax, setDist, setRoom, setAvail, setFacs, setRating } = setters;
 
     const rooms = getFiltered(filters);
 
-    function applyTag(val) {
-        setSearch(val);
+    function handleReset() {
+        setSearch(''); setPriceMax(25000); setDist('1km');
+        setRoom('All'); setAvail('all'); setFacs([]); setRating(0); setSort('recommended');
     }
 
-    function handleReset() {
-        setSearch('');
-        setPriceMax(25000);
-        setDist('1km');
-        setRoom('All');
-        setAvail('all');
-        setFacs([]);
-        setRating(0);
-        setSort('recommended');
+    function applyTag(t) {
+        handleReset(); // Clear others for a fresh start on tag click
+        if (t.val === '') return;
+
+        if (['SLIIT Malabe', 'UOM', 'USJP', 'UOC', 'NSBM'].includes(t.val)) {
+            setSearch(t.val);
+        } else if (['WiFi', 'AC'].includes(t.val)) {
+            setFacs([t.val]);
+        } else if (['Single', 'Master'].includes(t.val)) {
+            setRoom(t.val);
+        } else {
+            setSearch(t.val);
+        }
     }
 
     function getSuggestions() {
@@ -97,8 +102,8 @@ export default function SearchSection({ filters, setters, onOpenModal }) {
                     {QUICK_TAGS.map(t => (
                         <span
                             key={t.label}
-                            className={`qtag${search === t.val ? ' active' : ''}`}
-                            onClick={() => applyTag(t.val)}
+                            className={`qtag${(search === t.val || room === t.val || facs.includes(t.val)) ? ' active' : ''}`}
+                            onClick={() => applyTag(t)}
                         >
                             {t.label}
                         </span>
@@ -126,22 +131,20 @@ export default function SearchSection({ filters, setters, onOpenModal }) {
                             </button>
                         ))}
                     </div>
-                    <div className="results-count">Showing <span id="resultCount">{rooms.length}</span> results</div>
+                    <div className="results-count">Showing <span>{rooms.length}</span> results</div>
                 </div>
 
-                {/* Room Cards Grid */}
+                {/* Room Cards / No Results */}
                 {rooms.length > 0 ? (
                     <div className="rooms-grid" id="roomsGrid">
-                        {rooms.map(r => (
-                            <RoomCard key={r.id} room={r} onOpen={onOpenModal} />
-                        ))}
+                        {rooms.map(r => <RoomCard key={r.id} room={r} onOpen={onOpenModal} />)}
                     </div>
                 ) : (
                     <div className="no-results show" id="noResults">
                         <div className="no-results-icon">🔍</div>
                         <h3>No boarding houses found</h3>
                         <p>Try adjusting your filters or search term.</p>
-                        <div className="suggestions" id="suggestionBtns">
+                        <div className="suggestions">
                             {getSuggestions().map((s, i) => (
                                 <button key={i} className="sugg-btn" onClick={s.fn}>{s.l}</button>
                             ))}

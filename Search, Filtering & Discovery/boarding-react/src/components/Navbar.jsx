@@ -1,6 +1,16 @@
+import { useState, useEffect } from 'react';
+
 export default function Navbar({ onFindRooms, onToggleDrawer }) {
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => setScrolled(window.scrollY > 20);
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
     return (
-        <nav className="navbar" id="navbar">
+        <nav className={`navbar${scrolled ? ' scrolled' : ''}`} id="navbar">
             <a className="nav-logo" href="#hero">Boarding<span>Book SL</span></a>
 
             <div className="nav-center" id="navCenter">

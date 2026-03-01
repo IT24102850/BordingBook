@@ -110,17 +110,14 @@ export const ROOMS = [
     }
 ];
 
-// ─── DISTANCE MAP ──────────────────────────────────
 export const distMap = { '500m': 0.5, '1km': 1, '2km': 2, '5km': 5, 'any': 9999 };
 
-// ─── FACILITY ICONS ────────────────────────────────
 export const facIco = {
     WiFi: '📶', AC: '❄️', Meals: '🍽️', Bathroom: '🚿',
     Parking: '🅿️', Security: '🔒', Laundry: '🧺', Gym: '💪'
 };
 export function fi(f) { return (facIco[f] || '✔') + ' ' + f; }
 
-// ─── CAMPUS COORDS ─────────────────────────────────
 export const campusCoords = {
     'SLIIT Malabe': { lat: 6.9147, lng: 79.9772 },
     'SLIIT City': { lat: 6.9271, lng: 79.8612 },
@@ -143,7 +140,6 @@ export const roomCoords = {
     11: { lat: 6.7964, lng: 79.9012 }, 12: { lat: 6.9210, lng: 79.8479 }
 };
 
-// ─── NLP KEYWORD MAP ───────────────────────────────
 export const NLP = {
     'sliit malabe': '@SLIIT Malabe', 'sliit city': '@SLIIT City', 'sliit': '@SLIIT Malabe',
     'malabe': '@SLIIT Malabe', 'mora': '@UOM', 'uom': '@UOM', 'moratuwa': '@UOM',
@@ -166,7 +162,6 @@ export const NLP = {
     'available': { avail: 'available' },
 };
 
-// ─── HELPERS ────────────────────────────────────────
 export function haversine(a, b, c, d) {
     const R = 6371, dLat = (c - a) * Math.PI / 180, dLng = (d - b) * Math.PI / 180;
     const x = Math.sin(dLat / 2) ** 2 + Math.cos(a * Math.PI / 180) * Math.cos(c * Math.PI / 180) * Math.sin(dLng / 2) ** 2;

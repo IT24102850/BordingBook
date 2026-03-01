@@ -1,7 +1,5 @@
 import { fi } from '../data/rooms';
 
-const facIco = { WiFi: '📶', AC: '❄️', Meals: '🍽️', Bathroom: '🚿', Parking: '🅿️', Security: '🔒', Laundry: '🧺', Gym: '💪' };
-
 export default function RoomCard({ room: r, onOpen }) {
     const halfStar = r.rating % 1 >= 0.5 ? '½' : '';
     const starsStr = '★'.repeat(Math.floor(r.rating)) + halfStar;

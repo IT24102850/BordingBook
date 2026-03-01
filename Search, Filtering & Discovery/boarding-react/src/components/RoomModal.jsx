@@ -2,14 +2,12 @@ import { useEffect } from 'react';
 import { fi } from '../data/rooms';
 
 export default function RoomModal({ room: r, onClose }) {
-    // Close on Escape key
     useEffect(() => {
         function onKey(e) { if (e.key === 'Escape') onClose(); }
         document.addEventListener('keydown', onKey);
         return () => document.removeEventListener('keydown', onKey);
     }, [onClose]);
 
-    // Lock body scroll when open
     useEffect(() => {
         if (r) {
             document.body.style.overflow = 'hidden';
