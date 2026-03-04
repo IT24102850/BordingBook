@@ -35,48 +35,48 @@ export const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#181f36] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="w-12 h-12 bg-gradient-to-br from-[#818cf8] to-[#22d3ee] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(129,140,248,0.4)]">
             <Building2 size={24} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">BoardingBook</h1>
-          <p className="text-sm text-gray-500 mt-1">Admin Portal</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">BoardingBook</h1>
+          <p className="text-sm text-slate-400 mt-1">Admin Portal</p>
         </div>
 
-        <form onSubmit={handleLogin} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-7 space-y-4">
+        <form onSubmit={handleLogin} className="bg-[#1e2436] rounded-2xl shadow-sm border border-[rgba(129,140,248,0.15)] p-7 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email address</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email address</label>
             <input
               type="email" value={email} onChange={e => setEmail(e.target.value)} required
               placeholder="admin@boardingbook.com"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-colors placeholder:text-gray-300"
+              className="w-full px-3.5 py-2.5 border border-[rgba(129,140,248,0.2)] bg-[#232b47] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Password</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)} required
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-colors placeholder:text-gray-300"
+              className="w-full px-3.5 py-2.5 border border-[rgba(129,140,248,0.2)] bg-[#232b47] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
             />
           </div>
           {error && (
-            <div className="flex items-center gap-2 text-red-600 text-xs bg-red-50 px-3 py-2 rounded-lg">
+            <div className="flex items-center gap-2 text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg">
               <AlertCircle size={14} />{error}
             </div>
           )}
           <button
             type="submit" disabled={loading}
-            className="w-full bg-black text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-900 transition-colors disabled:opacity-60 mt-2"
+            className="w-full bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 mt-2"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-400 mt-5">
-          Demo: <span className="font-medium text-gray-600">admin@boardingbook.com</span> / <span className="font-medium text-gray-600">Admin@1234</span>
+        <p className="text-center text-xs text-slate-500 mt-5">
+          Demo: <span className="font-medium text-slate-300">admin@boardingbook.com</span> / <span className="font-medium text-slate-300">Admin@1234</span>
         </p>
       </div>
     </div>
@@ -88,12 +88,12 @@ export const AdminLogin = () => {
 // ─────────────────────────────────────────────
 export const AdminDashboard = () => {
   const stats = [
-    { label: 'Total Listings', value: '24', delta: '+3 this week', icon: <Building2 size={18} />, color: 'bg-blue-50 text-blue-600' },
-    { label: 'Completed Bookings', value: '138', delta: '+12 this month', icon: <CheckSquare size={18} />, color: 'bg-green-50 text-green-600' },
-    { label: 'Registered Users', value: '312', delta: '+28 this month', icon: <Users size={18} />, color: 'bg-purple-50 text-purple-600' },
-    { label: 'Pending KYC', value: '7', delta: '2 urgent', icon: <ShieldCheck size={18} />, color: 'bg-amber-50 text-amber-600' },
-    { label: 'Open Tickets', value: '5', delta: '1 urgent', icon: <LifeBuoy size={18} />, color: 'bg-red-50 text-red-600' },
-    { label: 'Avg. Rating', value: '4.6', delta: '↑ 0.2 from last mo.', icon: <Star size={18} />, color: 'bg-orange-50 text-orange-600' },
+    { label: 'Total Listings', value: '24', delta: '+3 this week', icon: <Building2 size={18} />, color: 'bg-blue-900/30 text-blue-400' },
+    { label: 'Completed Bookings', value: '138', delta: '+12 this month', icon: <CheckSquare size={18} />, color: 'bg-green-900/30 text-green-400' },
+    { label: 'Registered Users', value: '312', delta: '+28 this month', icon: <Users size={18} />, color: 'bg-purple-900/30 text-purple-400' },
+    { label: 'Pending KYC', value: '7', delta: '2 urgent', icon: <ShieldCheck size={18} />, color: 'bg-amber-900/30 text-amber-400' },
+    { label: 'Open Tickets', value: '5', delta: '1 urgent', icon: <LifeBuoy size={18} />, color: 'bg-red-900/30 text-red-400' },
+    { label: 'Avg. Rating', value: '4.6', delta: '↑ 0.2 from last mo.', icon: <Star size={18} />, color: 'bg-orange-900/30 text-orange-400' },
   ];
 
   const recentActivity = [
@@ -102,29 +102,29 @@ export const AdminDashboard = () => {
     { text: 'New support ticket from Kavindu P.', time: '31m ago', dot: 'bg-red-400' },
     { text: 'New user registered: Nimasha R.', time: '1h ago', dot: 'bg-blue-400' },
     { text: 'New 5★ review on "Colombo Comfort Rooms"', time: '2h ago', dot: 'bg-purple-400' },
-    { text: 'Pradeep N. KYC approved by admin', time: '3h ago', dot: 'bg-gray-400' },
+    { text: 'Pradeep N. KYC approved by admin', time: '3h ago', dot: 'bg-slate-500' },
   ];
 
   return (
     <div className="space-y-7">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Welcome back, Super Admin</p>
+          <h1 className="text-xl font-bold text-white">Dashboard</h1>
+          <p className="text-sm text-slate-400 mt-0.5">Welcome back, Super Admin</p>
         </div>
-        <span className="text-xs text-gray-400 bg-white border border-gray-200 px-3 py-1.5 rounded-lg font-medium">
+        <span className="text-xs text-slate-400 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] px-3 py-1.5 rounded-lg font-medium">
           {new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((s) => (
-          <div key={s.label} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div key={s.label} className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{s.label}</p>
-                <p className="text-3xl font-black text-gray-900 mt-1.5">{s.value}</p>
-                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{s.label}</p>
+                <p className="text-3xl font-black text-white mt-1.5">{s.value}</p>
+                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                   <TrendingUp size={11} />{s.delta}
                 </p>
               </div>
@@ -137,30 +137,30 @@ export const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-3 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <div className="lg:col-span-3 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-gray-800">Bookings This Month</h3>
-            <span className="text-xs text-green-600 font-semibold bg-green-50 px-2 py-1 rounded-full">+12% ↑</span>
+            <h3 className="text-sm font-bold text-slate-200">Bookings This Month</h3>
+            <span className="text-xs text-green-400 font-semibold bg-green-900/30 px-2 py-1 rounded-full">+12% ↑</span>
           </div>
           <div className="flex items-end gap-1.5 h-24">
             {[40,65,45,80,55,90,70,85,60,95,75,88,72,98,65,80,55,75,90,68,85,70,78,92,65,55,80,70,88,75].map((h, i) => (
-              <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%`, background: i === 29 ? '#000' : '#e5e7eb' }} />
+              <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%`, background: i === 29 ? '#818cf8' : 'rgba(129,140,248,0.2)' }} />
             ))}
           </div>
-          <div className="flex justify-between text-[10px] text-gray-400 mt-1.5 font-medium">
+          <div className="flex justify-between text-[10px] text-slate-500 mt-1.5 font-medium">
             <span>1 Mar</span><span>Today</span>
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800 mb-4">Recent Activity</h3>
+        <div className="lg:col-span-2 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-200 mb-4">Recent Activity</h3>
           <div className="space-y-3">
             {recentActivity.map((a, i) => (
               <div key={i} className="flex items-start gap-2.5">
                 <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${a.dot}`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-700 leading-snug">{a.text}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{a.time}</p>
+                  <p className="text-xs text-slate-300 leading-snug">{a.text}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{a.time}</p>
                 </div>
               </div>
             ))}
@@ -203,71 +203,71 @@ export const UserManagement = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">User Management</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{users.length} total registered users</p>
+        <h1 className="text-xl font-bold text-white">User Management</h1>
+        <p className="text-sm text-slate-400 mt-0.5">{users.length} total registered users</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email…"
-            className="w-full pl-9 pr-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-colors" />
+            className="w-full pl-9 pr-4 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Filter size={14} className="text-gray-400 flex-shrink-0" />
+          <Filter size={14} className="text-slate-400 flex-shrink-0" />
           {['All', 'Owner', 'Tenant', 'Banned'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${filter === f ? 'bg-black text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${filter === f ? 'bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white' : 'bg-[#232b47] border border-[rgba(129,140,248,0.2)] text-slate-400 hover:bg-[rgba(129,140,248,0.1)]'}`}
             >{f}</button>
           ))}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-[#232b47] border-b border-[rgba(129,140,248,0.15)]">
               <tr>
                 {['User', 'Role', 'Joined', 'Listings / Bookings', 'Status', 'Actions'].map(h => (
-                  <th key={h} className="px-5 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-[rgba(129,140,248,0.08)]">
               {filtered.map(u => (
-                <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                <tr key={u.id} className="hover:bg-[rgba(129,140,248,0.05)] transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">
                         {u.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">{u.name}</p>
-                        <p className="text-xs text-gray-400">{u.email}</p>
+                        <p className="text-sm font-semibold text-white">{u.name}</p>
+                        <p className="text-xs text-slate-500">{u.email}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.role === 'Owner' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.role === 'Owner' ? 'bg-blue-900/30 text-blue-400' : 'bg-purple-900/30 text-purple-400'}`}>
                       {u.role}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-xs text-gray-500">{u.joined}</td>
-                  <td className="px-5 py-3.5 text-xs text-gray-600">
-                    <span className="font-semibold">{u.listings}</span> listings · <span className="font-semibold">{u.bookings}</span> bookings
+                  <td className="px-5 py-3.5 text-xs text-slate-400">{u.joined}</td>
+                  <td className="px-5 py-3.5 text-xs text-slate-400">
+                    <span className="font-semibold text-slate-200">{u.listings}</span> listings · <span className="font-semibold text-slate-200">{u.bookings}</span> bookings
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.status === 'Active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.status === 'Active' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
                       {u.status}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setSelected(u.id)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors" title="View">
+                      <button onClick={() => setSelected(u.id)} className="p-1.5 rounded-lg hover:bg-[rgba(129,140,248,0.1)] text-slate-400 hover:text-white transition-colors" title="View">
                         <Eye size={14} />
                       </button>
                       <button onClick={() => toggleBan(u.id)}
-                        className={`p-1.5 rounded-lg transition-colors ${u.status === 'Active' ? 'hover:bg-red-50 text-gray-400 hover:text-red-600' : 'hover:bg-green-50 text-gray-400 hover:text-green-600'}`}
+                        className={`p-1.5 rounded-lg transition-colors ${u.status === 'Active' ? 'hover:bg-red-900/20 text-slate-400 hover:text-red-400' : 'hover:bg-green-900/20 text-slate-400 hover:text-green-400'}`}
                         title={u.status === 'Active' ? 'Ban user' : 'Unban user'}>
                         {u.status === 'Active' ? <Ban size={14} /> : <RotateCcw size={14} />}
                       </button>
@@ -282,25 +282,25 @@ export const UserManagement = () => {
 
       {detailUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setSelected(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#1e2436] rounded-2xl shadow-2xl border border-[rgba(129,140,248,0.2)] w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-gray-900">User Details</h3>
-              <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
+              <h3 className="font-bold text-white">User Details</h3>
+              <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-[rgba(129,140,248,0.1)] rounded-lg text-slate-400"><X size={16} /></button>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-600">
+              <div className="w-12 h-12 rounded-2xl bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-lg font-bold text-indigo-300">
                 {detailUser.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
               </div>
               <div>
-                <p className="font-semibold text-gray-900">{detailUser.name}</p>
-                <p className="text-xs text-gray-500">{detailUser.email}</p>
+                <p className="font-semibold text-white">{detailUser.name}</p>
+                <p className="text-xs text-slate-400">{detailUser.email}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               {[['Role', detailUser.role], ['Status', detailUser.status], ['Joined', detailUser.joined], ['Listings', detailUser.listings], ['Bookings', detailUser.bookings]].map(([k, v]) => (
-                <div key={String(k)} className="bg-gray-50 rounded-xl px-3 py-2">
-                  <p className="text-xs text-gray-400 font-medium">{k}</p>
-                  <p className="font-semibold text-gray-800 mt-0.5">{String(v)}</p>
+                <div key={String(k)} className="bg-[#232b47] rounded-xl px-3 py-2">
+                  <p className="text-xs text-slate-500 font-medium">{k}</p>
+                  <p className="font-semibold text-slate-200 mt-0.5">{String(v)}</p>
                 </div>
               ))}
             </div>
@@ -339,22 +339,22 @@ export const KYCVerification = () => {
   const pendingCount = kycs.filter(k => k.status === 'pending').length;
 
   const statusStyle: Record<string, string> = {
-    pending: 'bg-amber-50 text-amber-700',
-    approved: 'bg-green-50 text-green-700',
-    rejected: 'bg-red-50 text-red-700',
+    pending: 'bg-amber-900/30 text-amber-400',
+    approved: 'bg-green-900/30 text-green-400',
+    rejected: 'bg-red-900/30 text-red-400',
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">KYC Verification</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Review boarding owner identity and property documents</p>
+        <h1 className="text-xl font-bold text-white">KYC Verification</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Review boarding owner identity and property documents</p>
       </div>
 
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit">
         {(['pending', 'approved', 'rejected'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${activeTab === tab ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
             {tab}{tab === 'pending' && pendingCount > 0 && (
               <span className="ml-1.5 bg-amber-500 text-white text-[10px] rounded-full w-4 h-4 inline-flex items-center justify-center">{pendingCount}</span>
             )}
@@ -364,31 +364,31 @@ export const KYCVerification = () => {
 
       <div className="space-y-3">
         {filtered.length === 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-sm text-gray-400">No {activeTab} submissions</div>
+          <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-10 text-center text-sm text-slate-500">No {activeTab} submissions</div>
         )}
         {filtered.map(k => (
-          <div key={k.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div key={k.id} className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] shadow-sm overflow-hidden">
             <button className="w-full text-left px-5 py-4 flex items-center gap-4" onClick={() => setExpanded(expanded === k.id ? null : k.id)}>
-              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">
                 {k.owner.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{k.owner}</p>
-                <p className="text-xs text-gray-400">{k.listing} · Submitted {k.submitted}</p>
+                <p className="text-sm font-semibold text-white">{k.owner}</p>
+                <p className="text-xs text-slate-500">{k.listing} · Submitted {k.submitted}</p>
               </div>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${statusStyle[k.status]}`}>{k.status}</span>
-              <ChevronDown size={16} className={`text-gray-400 transition-transform flex-shrink-0 ${expanded === k.id ? 'rotate-180' : ''}`} />
+              <ChevronDown size={16} className={`text-slate-500 transition-transform flex-shrink-0 ${expanded === k.id ? 'rotate-180' : ''}`} />
             </button>
 
             {expanded === k.id && (
-              <div className="border-t border-gray-100 px-5 py-4 space-y-4">
+              <div className="border-t border-[rgba(129,140,248,0.15)] px-5 py-4 space-y-4">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-2">Submitted Documents</p>
+                  <p className="text-xs font-semibold text-slate-400 mb-2">Submitted Documents</p>
                   <div className="flex flex-wrap gap-2">
                     {k.docs.map(doc => (
-                      <div key={doc} className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-700">
-                        <Check size={12} className="text-green-500" />{doc}
-                        <button className="ml-1 text-blue-500 hover:text-blue-700 font-semibold text-[10px] underline">View</button>
+                      <div key={doc} className="flex items-center gap-1.5 bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300">
+                        <Check size={12} className="text-green-400" />{doc}
+                        <button className="ml-1 text-indigo-400 hover:text-indigo-300 font-semibold text-[10px] underline">View</button>
                       </div>
                     ))}
                   </div>
@@ -400,13 +400,13 @@ export const KYCVerification = () => {
                       <Check size={13} />Approve
                     </button>
                     <button onClick={() => take(k.id, 'rejected')}
-                      className="flex items-center gap-1.5 bg-white border border-red-200 text-red-600 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-red-50 transition-colors">
+                      className="flex items-center gap-1.5 bg-[#232b47] border border-red-900/30 text-red-400 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-red-900/20 transition-colors">
                       <X size={13} />Reject
                     </button>
                   </div>
                 )}
                 {k.status !== 'pending' && (
-                  <p className={`text-xs font-semibold ${k.status === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-xs font-semibold ${k.status === 'approved' ? 'text-green-400' : 'text-red-400'}`}>
                     {k.status === 'approved' ? '✓ Approved — owner verified' : '✕ Rejected — awaiting resubmission'}
                   </p>
                 )}
@@ -446,20 +446,20 @@ export const SupportTickets = () => {
 
   const resolve = (id: number) => setTickets(tickets.map(t => t.id === id ? { ...t, status: 'Resolved' } : t));
 
-  const priorityStyle: Record<string, string> = { High: 'bg-red-50 text-red-700', Medium: 'bg-amber-50 text-amber-700', Low: 'bg-gray-50 text-gray-600' };
-  const statusStyle: Record<string, string> = { Open: 'bg-blue-50 text-blue-700', 'In Progress': 'bg-purple-50 text-purple-700', Resolved: 'bg-green-50 text-green-700' };
+  const priorityStyle: Record<string, string> = { High: 'bg-red-900/30 text-red-400', Medium: 'bg-amber-900/30 text-amber-400', Low: 'bg-[rgba(129,140,248,0.1)] text-slate-400' };
+  const statusStyle: Record<string, string> = { Open: 'bg-blue-900/30 text-blue-400', 'In Progress': 'bg-purple-900/30 text-purple-400', Resolved: 'bg-green-900/30 text-green-400' };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Support Tickets</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{tickets.filter(t => t.status !== 'Resolved').length} open · {tickets.length} total</p>
+        <h1 className="text-xl font-bold text-white">Support Tickets</h1>
+        <p className="text-sm text-slate-400 mt-0.5">{tickets.filter(t => t.status !== 'Resolved').length} open · {tickets.length} total</p>
       </div>
 
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit">
         {['All', 'Open', 'In Progress', 'Resolved'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${filter === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{f}</button>
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${filter === f ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>{f}</button>
         ))}
       </div>
 
@@ -467,15 +467,15 @@ export const SupportTickets = () => {
         <div className="lg:col-span-2 space-y-2.5">
           {filtered.map(t => (
             <button key={t.id} onClick={() => setSelected(t.id)}
-              className={`w-full text-left bg-white border rounded-2xl p-4 transition-all hover:shadow-sm ${selected === t.id ? 'border-black ring-1 ring-black/5 shadow-sm' : 'border-gray-100'}`}>
+              className={`w-full text-left bg-[#1e2436] border rounded-2xl p-4 transition-all hover:shadow-sm ${selected === t.id ? 'border-[#818cf8] ring-1 ring-[rgba(129,140,248,0.2)] shadow-sm' : 'border-[rgba(129,140,248,0.15)]'}`}>
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900 truncate">{t.subject}</p>
+                <p className="text-sm font-semibold text-white truncate">{t.subject}</p>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${priorityStyle[t.priority]}`}>{t.priority}</span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">{t.user} · {t.category}</p>
+              <p className="text-xs text-slate-500 mt-1">{t.user} · {t.category}</p>
               <div className="flex items-center justify-between mt-2">
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusStyle[t.status]}`}>{t.status}</span>
-                <span className="text-[10px] text-gray-400">{t.created}</span>
+                <span className="text-[10px] text-slate-500">{t.created}</span>
               </div>
             </button>
           ))}
@@ -483,45 +483,45 @@ export const SupportTickets = () => {
 
         <div className="lg:col-span-3">
           {detail ? (
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm flex flex-col" style={{ minHeight: 300 }}>
-              <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between">
+            <div className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl shadow-sm flex flex-col" style={{ minHeight: 300 }}>
+              <div className="px-5 py-4 border-b border-[rgba(129,140,248,0.15)] flex items-start justify-between">
                 <div>
-                  <p className="font-semibold text-gray-900">{detail.subject}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{detail.user} · {detail.email}</p>
+                  <p className="font-semibold text-white">{detail.subject}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{detail.user} · {detail.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {detail.status !== 'Resolved' && (
                     <button onClick={() => resolve(detail.id)}
-                      className="flex items-center gap-1 text-xs text-green-600 bg-green-50 border border-green-100 px-3 py-1.5 rounded-lg font-semibold hover:bg-green-100 transition-colors">
+                      className="flex items-center gap-1 text-xs text-green-400 bg-green-900/30 border border-green-900/30 px-3 py-1.5 rounded-lg font-semibold hover:bg-green-900/50 transition-colors">
                       <Check size={12} />Resolve
                     </button>
                   )}
-                  <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={15} /></button>
+                  <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-[rgba(129,140,248,0.1)] rounded-lg text-slate-400"><X size={15} /></button>
                 </div>
               </div>
               <div className="flex-1 p-5 space-y-3 overflow-y-auto max-h-64">
                 {detail.messages.map((m, i) => (
                   <div key={i} className={`flex ${m.from === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs px-3.5 py-2.5 rounded-2xl text-sm ${m.from === 'admin' ? 'bg-black text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
+                    <div className={`max-w-xs px-3.5 py-2.5 rounded-2xl text-sm ${m.from === 'admin' ? 'bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white rounded-br-sm' : 'bg-[#232b47] text-slate-200 rounded-bl-sm'}`}>
                       <p>{m.text}</p>
-                      <p className={`text-[10px] mt-1 ${m.from === 'admin' ? 'text-gray-400' : 'text-gray-500'}`}>{m.from === 'admin' ? 'You' : detail.user} · {m.time}</p>
+                      <p className={`text-[10px] mt-1 ${m.from === 'admin' ? 'text-indigo-200' : 'text-slate-500'}`}>{m.from === 'admin' ? 'You' : detail.user} · {m.time}</p>
                     </div>
                   </div>
                 ))}
               </div>
               {detail.status !== 'Resolved' && (
-                <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+                <div className="px-5 py-4 border-t border-[rgba(129,140,248,0.15)] flex gap-2">
                   <input value={reply} onChange={e => setReply(e.target.value)} placeholder="Type a reply…"
-                    className="flex-1 px-3.5 py-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-colors"
+                    className="flex-1 px-3.5 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
                     onKeyDown={e => e.key === 'Enter' && sendReply()} />
-                  <button onClick={sendReply} className="bg-black text-white p-2.5 rounded-xl hover:bg-gray-900 transition-colors">
+                  <button onClick={sendReply} className="bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white p-2.5 rounded-xl hover:opacity-90 transition-opacity">
                     <Send size={15} />
                   </button>
                 </div>
               )}
             </div>
           ) : (
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm flex items-center justify-center text-sm text-gray-400" style={{ minHeight: 200 }}>
+            <div className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl shadow-sm flex items-center justify-center text-sm text-slate-500" style={{ minHeight: 200 }}>
               Select a ticket to view details
             </div>
           )}
@@ -562,27 +562,27 @@ export const FeedbackManagement = () => {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Feedback Management</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{feedbacks.length} total reviews · Avg. {avgRating}★</p>
+          <h1 className="text-xl font-bold text-white">Feedback Management</h1>
+          <p className="text-sm text-slate-400 mt-0.5">{feedbacks.length} total reviews · Avg. {avgRating}★</p>
         </div>
         <div className="text-right">
-          <p className="text-3xl font-black text-gray-900">{avgRating}</p>
+          <p className="text-3xl font-black text-white">{avgRating}</p>
           <div className="flex items-center gap-0.5 justify-end mt-0.5">
-            {[1,2,3,4,5].map(s => <Star key={s} size={12} className={s <= Math.round(parseFloat(avgRating)) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'} />)}
+            {[1,2,3,4,5].map(s => <Star key={s} size={12} className={s <= Math.round(parseFloat(avgRating)) ? 'text-amber-400 fill-amber-400' : 'text-slate-600 fill-slate-600'} />)}
           </div>
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search feedback…"
-            className="w-full pl-9 pr-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-colors" />
+            className="w-full pl-9 pr-4 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
         </div>
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit self-start flex-wrap">
+        <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit self-start flex-wrap">
           {['All', 'Flagged', '5', '4', '3', '2', '1'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === f ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
               {f === 'Flagged' ? '🚩 Flagged' : ['5','4','3','2','1'].includes(f) ? `${f}★` : f}
             </button>
           ))}
@@ -591,39 +591,39 @@ export const FeedbackManagement = () => {
 
       <div className="space-y-3">
         {filtered.length === 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-sm text-gray-400">No reviews found</div>
+          <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-10 text-center text-sm text-slate-500">No reviews found</div>
         )}
         {filtered.map(fb => (
-          <div key={fb.id} className={`bg-white rounded-2xl border shadow-sm p-5 ${fb.flagged ? 'border-red-200 bg-red-50/20' : 'border-gray-100'}`}>
+          <div key={fb.id} className={`bg-[#1e2436] rounded-2xl border shadow-sm p-5 ${fb.flagged ? 'border-red-900/40 bg-red-900/5' : 'border-[rgba(129,140,248,0.15)]'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">
                   {fb.user.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-gray-900">{fb.user}</p>
-                    <span className="text-xs text-gray-400">→</span>
-                    <p className="text-xs text-blue-600 font-medium truncate">{fb.listing}</p>
-                    {fb.flagged && <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Flagged</span>}
+                    <p className="text-sm font-semibold text-white">{fb.user}</p>
+                    <span className="text-xs text-slate-400">→</span>
+                    <p className="text-xs text-indigo-400 font-medium truncate">{fb.listing}</p>
+                    {fb.flagged && <span className="text-[10px] font-bold bg-red-900/30 text-red-400 px-2 py-0.5 rounded-full">Flagged</span>}
                   </div>
                   <div className="flex items-center gap-1 mt-1">
                     {[1,2,3,4,5].map(s => (
-                      <Star key={s} size={12} className={s <= fb.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'} />
+                      <Star key={s} size={12} className={s <= fb.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-600 fill-slate-600'} />
                     ))}
-                    <span className="text-xs text-gray-400 ml-1">{fb.date}</span>
+                    <span className="text-xs text-slate-500 ml-1">{fb.date}</span>
                   </div>
-                  <p className="text-sm text-gray-700 mt-1.5 leading-relaxed">{fb.comment}</p>
+                  <p className="text-sm text-slate-300 mt-1.5 leading-relaxed">{fb.comment}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <button onClick={() => toggleFlag(fb.id)}
-                  className={`p-1.5 rounded-lg transition-colors ${fb.flagged ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'hover:bg-gray-100 text-gray-400 hover:text-amber-500'}`}
+                  className={`p-1.5 rounded-lg transition-colors ${fb.flagged ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50' : 'hover:bg-[rgba(129,140,248,0.1)] text-slate-400 hover:text-amber-400'}`}
                   title={fb.flagged ? 'Unflag' : 'Flag'}>
                   <Flag size={14} />
                 </button>
                 <button onClick={() => deleteFeedback(fb.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors" title="Delete">
+                  className="p-1.5 rounded-lg hover:bg-red-900/20 text-slate-400 hover:text-red-400 transition-colors" title="Delete">
                   <Trash2 size={14} />
                 </button>
               </div>
