@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Typewriter } from './ui/Typewriter';
 import { AuthDropdown } from './AuthDropdown';
 import { BoardingSlideshow } from './ui/BoardingSlideshow';
@@ -7,15 +7,9 @@ import { Menu, X, Home, Search, Users, Building, Settings, User, LogIn, LogOut, 
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
-  // Helper to get current hash for active nav
-  const [activeHash, setActiveHash] = React.useState(window.location.hash || '#home');
-  
-  React.useEffect(() => {
-    const onHashChange = () => setActiveHash(window.location.hash || '#home');
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
+  const activePath = location.pathname;
 
   // Close mobile menu when clicking a link
   const handleMobileLinkClick = () => {
@@ -799,23 +793,26 @@ export default function LandingPage() {
         {/* Desktop Nav - perfectly centered, improved labels and CTAs */}
         <div className="desktop-nav hidden md:flex flex-1 justify-center">
           <div className="flex gap-6 items-center bg-zinc-800/60 px-6 py-2 rounded-full shadow border border-zinc-700/40">
-            <a href="#home" className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activeHash==='#home'?' nav-link-active':''}`}>Home</a>
-            <a href="#features" className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activeHash==='#features'?' nav-link-active':''}`}>Find Rooms</a>
-            <a href="#roommate" className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activeHash==='#roommate'?' nav-link-active':''}`}>Roommate Finder</a>
+            <button onClick={() => navigate('/')} className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/'?' nav-link-active':''}`}>Home</button>
+            <button onClick={() => navigate('/find')} className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/find'?' nav-link-active':''}`}>Find Rooms</button>
+            <button onClick={() => navigate('/roommate-finder')} className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/roommate-finder'?' nav-link-active':''}`}>Roommate Finder</button>
+            <button onClick={() => navigate('/chatbot')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link flex items-center gap-1">
+              🤖 AI Chatbot
+            </button>
             {/* Owner dropdown */}
             <div className="relative group">
-              <button className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activeHash==='#owner'?' nav-link-active':''}`}>List Your Property</button>
+              <button className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/boarding-management'?' nav-link-active':''}`}>List Your Property</button>
               <div className="absolute left-0 mt-2 min-w-[180px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-lg py-2 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
-                <a href="#owner" className="block px-4 py-2 text-zinc-200 hover:bg-zinc-700/40 rounded-xl transition">For Owners (Info)</a>
+                <button onClick={() => navigate('/boarding-management')} className="block w-full text-left px-4 py-2 text-zinc-200 hover:bg-zinc-700/40 rounded-xl transition">For Owners (Info)</button>
               </div>
             </div>
-            <a
-              href="#features"
+            <button
+              onClick={() => navigate('/find')}
               className="px-4 py-2 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 border border-indigo-400 nav-link-cta"
               style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
             >
               Find Rooms
-            </a>
+            </button>
           </div>
         </div>
 
@@ -824,7 +821,6 @@ export default function LandingPage() {
           <span className="text-zinc-200 text-sm font-medium mr-2">Profile</span>
           <div className="profile-icon relative group" tabIndex={0} style={{display:'flex',alignItems:'center',justifyContent:'center'}} title="Account">
             <AuthDropdown />
-            <span className="absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 text-xs bg-zinc-800 text-zinc-100 rounded shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">Account</span>
           </div>
         </div>
 
@@ -859,41 +855,45 @@ export default function LandingPage() {
 
             {/* Mobile Menu Items - Navigation only */}
             <div className="mobile-menu-items">
-              <a 
-                href="#home" 
-                className={`mobile-menu-item ${activeHash === '#home' ? 'active' : ''}`}
-                onClick={handleMobileLinkClick}
+              <button 
+                className={`mobile-menu-item ${activePath === '/' ? 'active' : ''}`}
+                onClick={() => { handleMobileLinkClick(); navigate('/'); }}
               >
                 <Home size={22} />
                 Home
-              </a>
+              </button>
               
-              <a 
-                href="#features" 
-                className={`mobile-menu-item ${activeHash === '#features' ? 'active' : ''}`}
-                onClick={handleMobileLinkClick}
+              <button 
+                className={`mobile-menu-item ${activePath === '/find' ? 'active' : ''}`}
+                onClick={() => { handleMobileLinkClick(); navigate('/find'); }}
               >
                 <Search size={22} />
                 Find Rooms
-              </a>
+              </button>
               
-              <a 
-                href="#roommate" 
-                className={`mobile-menu-item ${activeHash === '#roommate' ? 'active' : ''}`}
-                onClick={handleMobileLinkClick}
+              <button 
+                className={`mobile-menu-item ${activePath === '/roommate-finder' ? 'active' : ''}`}
+                onClick={() => { handleMobileLinkClick(); navigate('/roommate-finder'); }}
               >
                 <Users size={22} />
                 Roommate Finder
-              </a>
+              </button>
               
-              <a 
-                href="#owner" 
-                className={`mobile-menu-item ${activeHash === '#owner' ? 'active' : ''}`}
-                onClick={handleMobileLinkClick}
+              <button 
+                className={`mobile-menu-item ${activePath === '/chatbot' ? 'active' : ''}`}
+                onClick={() => { handleMobileLinkClick(); navigate('/chatbot'); }}
+              >
+                <span style={{ fontSize: '22px' }}>🤖</span>
+                AI Chatbot
+              </button>
+              
+              <button 
+                className={`mobile-menu-item ${activePath === '/boarding-management' ? 'active' : ''}`}
+                onClick={() => { handleMobileLinkClick(); navigate('/boarding-management'); }}
               >
                 <Building size={22} />
                 List Your Property
-              </a>
+              </button>
               
               <div className="mobile-menu-divider"></div>
               
@@ -945,6 +945,12 @@ export default function LandingPage() {
             <div className="hero-cta-row">
               <button className="hero-cta-btn hero-cta-btn-primary">Find Verified Rooms Near Me</button>
               <button className="hero-cta-btn hero-cta-btn-secondary">I'm a Property Owner</button>
+              <button 
+                onClick={() => navigate('/chatbot')}
+                className="hero-cta-btn bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+              >
+                🤖 AI Chatbot Assistant
+              </button>
             </div>
 
             {/* Mobile Benefits */}
@@ -970,6 +976,7 @@ export default function LandingPage() {
         {/* Mobile Features Grid */}
         <section id="features" className="features-grid w-full">
           <FeatureCard title="Find Verified Rooms Fast" desc="Browse and book student rooms near your campus in seconds. Only verified listings with photos and details." />
+          <FeatureCard title="AI Chatbot Assistant" desc="Get instant help finding boarding places and roommates. Just chat naturally with our AI bot 24/7." />
           <FeatureCard title="Pay Rent Securely" desc="No cash, no awkward transfers. Pay rent and deposits online with full security and transaction tracking." />
           <FeatureCard title="Roommate Matchmaking" desc="Match with roommates who fit your lifestyle and preferences. Answer a few questions and find your perfect match." />
           <FeatureCard title="Digital Agreements" desc="Sign rental agreements online. Track your booking status and documents easily in one place." />
@@ -1000,6 +1007,12 @@ export default function LandingPage() {
             <div className="desktop-cta-row">
               <button className="desktop-cta-primary">Find Verified Rooms Near Me</button>
               <button className="desktop-cta-secondary">List Your Property</button>
+              <button 
+                onClick={() => navigate('/chatbot')}
+                className="px-6 py-3 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 transition-all duration-200 border border-purple-400"
+              >
+                🤖 AI Chatbot
+              </button>
             </div>
             
             {/* NEW: User-facing benefits instead of stats */}
@@ -1049,6 +1062,13 @@ export default function LandingPage() {
           title="Find Verified Rooms Fast" 
           desc="Browse and book student rooms near your campus in seconds. Only verified listings." 
         />
+        <div onClick={() => navigate('/chatbot')} className="cursor-pointer">
+          <FeatureCardDesktopImproved 
+            icon={<span style={{ fontSize: '24px' }}>🤖</span>}
+            title="AI Chatbot Assistant" 
+            desc="Get instant help finding boarding places and roommates. Just chat naturally 24/7." 
+          />
+        </div>
         <FeatureCardDesktopImproved 
           icon={<CreditCard />}
           title="Pay Rent Securely" 
@@ -1079,6 +1099,16 @@ export default function LandingPage() {
         </p>
         <a href="mailto:support@boardingbookingsystem.com" className="cta-primary px-6 py-2 text-lg font-bold shadow-lift bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-xl text-white">Email Support</a>
       </section>
+
+      {/* Floating Chatbot Button */}
+      <button
+        onClick={() => navigate('/chatbot')}
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-3xl transition-all duration-300 hover:scale-110 animate-bounce"
+        style={{ animationDuration: '2s', animationIterationCount: '3' }}
+        title="Open AI Chatbot"
+      >
+        🤖
+      </button>
     </div>
   );
 }

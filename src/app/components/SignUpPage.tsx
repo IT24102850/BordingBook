@@ -7,6 +7,8 @@ import {
   ChevronRight, Zap, Award, Clock
 } from 'lucide-react';
 
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+
 // Professional online image for right panel
 const ProfessionalVisual = () => {
   const [mounted, setMounted] = useState(false);
@@ -213,11 +215,35 @@ export default function SignUpPage() {
     setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const payload: Record<string, string | number> = {
+        email,
+        password,
+        role,
+      };
+
+      if (role === 'owner') {
+        payload.fullName = fullName;
+        payload.phoneNumber = phoneNumber;
+        payload.companyName = companyName;
+        payload.propertyCount = Number(propertyCount) || 0;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to create account');
+      }
+
       setSuccess('Account created! Verification email sent.');
-      setTimeout(() => navigate('/verify-email'), 1500);
+      setTimeout(() => navigate(`/verify-email?email=${encodeURIComponent(email)}`), 1200);
     } catch (err) {
-      setError('Failed to create account');
+      setError(err instanceof Error ? err.message : 'Failed to create account');
     } finally {
       setIsLoading(false);
     }
@@ -229,13 +255,7 @@ export default function SignUpPage() {
   };
 
   const handleSocialSignUp = (provider: string) => {
-    setIsLoading(true);
-    // Simulate social signup
-    setTimeout(() => {
-      setSuccess(`Account created with ${provider}!`);
-      setTimeout(() => navigate('/verify-email'), 1500);
-      setIsLoading(false);
-    }, 1500);
+    setError(`${provider} signup is not available yet. Please use email signup.`);
   };
 
   // Responsive sizing based on Redmi Note 13 (1080 x 2400)

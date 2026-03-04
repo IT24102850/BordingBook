@@ -120,13 +120,11 @@ export default function SignIn() {
     setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 800));
       setSuccess('Signed in successfully!');
-      setTimeout(() => {
-        navigate('/find');
-      }, 1000);
+      setTimeout(() => navigate('/find'), 800);
     } catch (err) {
-      setError('Invalid email or password. Please try again.');
+      setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
     } finally {
       setIsLoading(false);
     }

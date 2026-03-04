@@ -39,6 +39,7 @@ import PaymentRentalPage from './components/PaymentRentalPage';
 import BoardingPlaceDetail from './components/payment/BoardingPlaceDetail';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
 import RoommateFinderPage from './components/RoommateFinderPage';
+import ChatbotSection from './components/ChatbotSection';
 
 
 
@@ -87,7 +88,7 @@ export default function App() {
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
 
         <Route path="/roommate-finder" element={<RoommateFinderPage />} />
-
+        <Route path="/chatbot" element={<ChatbotSection standalone={true} />} />
 
       </Routes>
     </BrowserRouter>
