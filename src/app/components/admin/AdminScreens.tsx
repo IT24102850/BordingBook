@@ -1,158 +1,277 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, AlertTriangle, CheckCircle, Clock, Search, Filter, Camera, XCircle, QrCode } from 'lucide-react';
+import {
+  Users, Building2, CheckSquare, ShieldCheck, Star, Search,
+  TrendingUp, AlertCircle, X, Check, Clock, Eye, Ban, RotateCcw,
+  Flag, Trash2, Send, Filter, ChevronDown, LifeBuoy, MessageSquare
+} from 'lucide-react';
 
+// ─────────────────────────────────────────────
+//  ADMIN LOGIN
+// ─────────────────────────────────────────────
 export const AdminLogin = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const ADMIN_EMAIL = 'admin@boardingbook.com';
+  const ADMIN_PASSWORD = 'Admin@1234';
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setTimeout(() => {
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        localStorage.setItem('adminAuth', 'true');
+        navigate('/admin/dashboard');
+      } else {
+        setError('Invalid email or password.');
+      }
+      setLoading(false);
+    }, 600);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Admin Login</h2>
-          <p className="mt-2 text-sm text-gray-600">Access the staff dashboard</p>
-        </div>
-        <div className="mt-8 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="username" className="sr-only">Username</label>
-              <input id="username" name="username" type="text" required className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-black focus:border-black focus:z-10 sm:text-sm" placeholder="Username" />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input id="password" name="password" type="password" required className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-black focus:border-black focus:z-10 sm:text-sm" placeholder="Password" />
-            </div>
+    <div className="min-h-screen bg-[#181f36] flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 bg-gradient-to-br from-[#818cf8] to-[#22d3ee] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(129,140,248,0.4)]">
+            <Building2 size={24} className="text-white" />
           </div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">BoardingBook</h1>
+          <p className="text-sm text-slate-400 mt-1">Admin Portal</p>
+        </div>
 
+        <form onSubmit={handleLogin} className="bg-[#1e2436] rounded-2xl shadow-sm border border-[rgba(129,140,248,0.15)] p-7 space-y-4">
           <div>
-            <button 
-              onClick={() => navigate('/admin/dashboard')}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
-            >
-              Sign in
-            </button>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email address</label>
+            <input
+              type="email" value={email} onChange={e => setEmail(e.target.value)} required
+              placeholder="admin@boardingbook.com"
+              className="w-full px-3.5 py-2.5 border border-[rgba(129,140,248,0.2)] bg-[#232b47] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
+            />
           </div>
-        </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
+            <input
+              type="password" value={password} onChange={e => setPassword(e.target.value)} required
+              placeholder="••••••••"
+              className="w-full px-3.5 py-2.5 border border-[rgba(129,140,248,0.2)] bg-[#232b47] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
+            />
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg">
+              <AlertCircle size={14} />{error}
+            </div>
+          )}
+          <button
+            type="submit" disabled={loading}
+            className="w-full bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 mt-2"
+          >
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+
+        <p className="text-center text-xs text-slate-500 mt-5">
+          Demo: <span className="font-medium text-slate-300">admin@boardingbook.com</span> / <span className="font-medium text-slate-300">Admin@1234</span>
+        </p>
       </div>
     </div>
   );
 };
 
+// ─────────────────────────────────────────────
+//  ADMIN DASHBOARD
+// ─────────────────────────────────────────────
 export const AdminDashboard = () => {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <div className="flex gap-4">
-          <button className="bg-black text-white px-4 py-2 rounded-md font-bold text-sm hover:bg-gray-800">Start Boarding</button>
-          <button className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md font-bold text-sm hover:bg-gray-300">Pause Boarding</button>
-          <button className="border border-red-500 text-red-600 px-4 py-2 rounded-md font-bold text-sm hover:bg-red-50">End Boarding</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Passengers" value="184" icon={<Users className="text-blue-500" />} />
-        <StatCard title="Boarded" value="142" subtext="77%" icon={<CheckCircle className="text-green-500" />} />
-        <StatCard title="Remaining" value="42" icon={<Clock className="text-orange-500" />} />
-        <StatCard title="Delayed" value="3" icon={<AlertTriangle className="text-red-500" />} />
-      </div>
-
-      {/* Recent Activity or Chart Placeholder */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mt-8">
-        <h3 className="font-bold text-lg mb-4">Boarding Progress</h3>
-        <div className="w-full bg-gray-100 rounded-full h-4 mb-2 overflow-hidden">
-          <div className="bg-green-500 h-4 rounded-full" style={{ width: '77%' }}></div>
-        </div>
-        <div className="flex justify-between text-xs font-bold text-gray-500">
-          <span>0%</span>
-          <span>50%</span>
-          <span>100%</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StatCard = ({ title, value, subtext, icon }: { title: string, value: string, subtext?: string, icon: React.ReactNode }) => (
-  <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex items-start justify-between">
-    <div>
-      <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">{title}</p>
-      <div className="flex items-baseline gap-2 mt-2">
-        <p className="text-3xl font-black">{value}</p>
-        {subtext && <span className="text-sm text-green-600 font-bold">{subtext}</span>}
-      </div>
-    </div>
-    <div className="p-3 bg-gray-50 rounded-full">{icon}</div>
-  </div>
-);
-
-export const AdminPassengerList = () => {
-  const [filter, setFilter] = useState('All');
-
-  const passengers = [
-    { name: "John Doe", seat: "4A", group: "3", status: "Boarded" },
-    { name: "Jane Smith", seat: "4B", group: "3", status: "Waiting" },
-    { name: "Alice Johnson", seat: "5C", group: "2", status: "Boarded" },
-    { name: "Bob Brown", seat: "6D", group: "1", status: "Rejected" },
+  const stats = [
+    { label: 'Total Listings', value: '24', delta: '+3 this week', icon: <Building2 size={18} />, color: 'bg-blue-900/30 text-blue-400' },
+    { label: 'Completed Bookings', value: '138', delta: '+12 this month', icon: <CheckSquare size={18} />, color: 'bg-green-900/30 text-green-400' },
+    { label: 'Registered Users', value: '312', delta: '+28 this month', icon: <Users size={18} />, color: 'bg-purple-900/30 text-purple-400' },
+    { label: 'Pending KYC', value: '7', delta: '2 urgent', icon: <ShieldCheck size={18} />, color: 'bg-amber-900/30 text-amber-400' },
+    { label: 'Open Tickets', value: '5', delta: '1 urgent', icon: <LifeBuoy size={18} />, color: 'bg-red-900/30 text-red-400' },
+    { label: 'Avg. Rating', value: '4.6', delta: '↑ 0.2 from last mo.', icon: <Star size={18} />, color: 'bg-orange-900/30 text-orange-400' },
   ];
 
-  const filteredPassengers = filter === 'All' ? passengers : passengers.filter(p => p.status === filter);
+  const recentActivity = [
+    { text: 'Lakmal Silva submitted KYC documents', time: '2m ago', dot: 'bg-amber-400' },
+    { text: 'Booking #1038 marked as completed', time: '14m ago', dot: 'bg-green-400' },
+    { text: 'New support ticket from Kavindu P.', time: '31m ago', dot: 'bg-red-400' },
+    { text: 'New user registered: Nimasha R.', time: '1h ago', dot: 'bg-blue-400' },
+    { text: 'New 5★ review on "Colombo Comfort Rooms"', time: '2h ago', dot: 'bg-purple-400' },
+    { text: 'Pradeep N. KYC approved by admin', time: '3h ago', dot: 'bg-slate-500' },
+  ];
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Passenger List</h1>
-      
-      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
-            <input type="text" placeholder="Search passenger..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black" />
+    <div className="space-y-7">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-white">Dashboard</h1>
+          <p className="text-sm text-slate-400 mt-0.5">Welcome back, Super Admin</p>
+        </div>
+        <span className="text-xs text-slate-400 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] px-3 py-1.5 rounded-lg font-medium">
+          {new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {stats.map((s) => (
+          <div key={s.label} className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{s.label}</p>
+                <p className="text-3xl font-black text-white mt-1.5">{s.value}</p>
+                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                  <TrendingUp size={11} />{s.delta}
+                </p>
+              </div>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.color}`}>
+                {s.icon}
+              </div>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <Filter className="text-gray-400 w-5 h-5" />
-            <select 
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-black"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            >
-              <option value="All">All Passengers</option>
-              <option value="Boarded">Boarded</option>
-              <option value="Waiting">Waiting</option>
-            </select>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        <div className="lg:col-span-3 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-200">Bookings This Month</h3>
+            <span className="text-xs text-green-400 font-semibold bg-green-900/30 px-2 py-1 rounded-full">+12% ↑</span>
+          </div>
+          <div className="flex items-end gap-1.5 h-24">
+            {[40,65,45,80,55,90,70,85,60,95,75,88,72,98,65,80,55,75,90,68,85,70,78,92,65,55,80,70,88,75].map((h, i) => (
+              <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%`, background: i === 29 ? '#818cf8' : 'rgba(129,140,248,0.2)' }} />
+            ))}
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-500 mt-1.5 font-medium">
+            <span>1 Mar</span><span>Today</span>
           </div>
         </div>
 
+        <div className="lg:col-span-2 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-200 mb-4">Recent Activity</h3>
+          <div className="space-y-3">
+            {recentActivity.map((a, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${a.dot}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-300 leading-snug">{a.text}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{a.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+//  USER MANAGEMENT
+// ─────────────────────────────────────────────
+export const UserManagement = () => {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('All');
+  const [selected, setSelected] = useState<number | null>(null);
+
+  const [users, setUsers] = useState([
+    { id: 1, name: 'Kavindu Perera', email: 'kavindu@email.com', role: 'Tenant', joined: 'Feb 12, 2026', status: 'Active', listings: 0, bookings: 3 },
+    { id: 2, name: 'Lakmal Silva', email: 'lakmal@email.com', role: 'Owner', joined: 'Jan 5, 2026', status: 'Active', listings: 2, bookings: 0 },
+    { id: 3, name: 'Nimasha Rajapaksha', email: 'nimasha@email.com', role: 'Tenant', joined: 'Mar 1, 2026', status: 'Active', listings: 0, bookings: 1 },
+    { id: 4, name: 'Pradeep Nandana', email: 'pradeep@email.com', role: 'Owner', joined: 'Dec 20, 2025', status: 'Banned', listings: 1, bookings: 0 },
+    { id: 5, name: 'Isuri Fernando', email: 'isuri@email.com', role: 'Tenant', joined: 'Feb 28, 2026', status: 'Active', listings: 0, bookings: 2 },
+    { id: 6, name: 'Chamara Dias', email: 'chamara@email.com', role: 'Owner', joined: 'Feb 1, 2026', status: 'Active', listings: 3, bookings: 0 },
+  ]);
+
+  const toggleBan = (id: number) => {
+    setUsers(users.map(u => u.id === id ? { ...u, status: u.status === 'Active' ? 'Banned' : 'Active' } : u));
+  };
+
+  const filtered = users.filter(u => {
+    const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'All' || u.role === filter || u.status === filter;
+    return matchSearch && matchFilter;
+  });
+
+  const detailUser = users.find(u => u.id === selected);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold text-white">User Management</h1>
+        <p className="text-sm text-slate-400 mt-0.5">{users.length} total registered users</p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email…"
+            className="w-full pl-9 pr-4 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Filter size={14} className="text-slate-400 flex-shrink-0" />
+          {['All', 'Owner', 'Tenant', 'Banned'].map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${filter === f ? 'bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white' : 'bg-[#232b47] border border-[rgba(129,140,248,0.2)] text-slate-400 hover:bg-[rgba(129,140,248,0.1)]'}`}
+            >{f}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                <th className="p-4">Name</th>
-                <th className="p-4">Seat</th>
-                <th className="p-4">Group</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Action</th>
+          <table className="w-full text-left">
+            <thead className="bg-[#232b47] border-b border-[rgba(129,140,248,0.15)]">
+              <tr>
+                {['User', 'Role', 'Joined', 'Listings / Bookings', 'Status', 'Actions'].map(h => (
+                  <th key={h} className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
-              {filteredPassengers.map((p, i) => (
-                <tr key={i} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-4 font-medium">{p.name}</td>
-                  <td className="p-4 text-gray-600">{p.seat}</td>
-                  <td className="p-4">
-                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-bold">{p.group}</span>
+            <tbody className="divide-y divide-[rgba(129,140,248,0.08)]">
+              {filtered.map(u => (
+                <tr key={u.id} className="hover:bg-[rgba(129,140,248,0.05)] transition-colors">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">
+                        {u.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{u.name}</p>
+                        <p className="text-xs text-slate-500">{u.email}</p>
+                      </div>
+                    </div>
                   </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${
-                      p.status === 'Boarded' ? 'bg-green-100 text-green-800' :
-                      p.status === 'Waiting' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {p.status}
+                  <td className="px-5 py-3.5">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.role === 'Owner' ? 'bg-blue-900/30 text-blue-400' : 'bg-purple-900/30 text-purple-400'}`}>
+                      {u.role}
                     </span>
                   </td>
-                  <td className="p-4">
-                    <button className="text-blue-600 hover:text-blue-800 font-bold text-xs uppercase">View</button>
+                  <td className="px-5 py-3.5 text-xs text-slate-400">{u.joined}</td>
+                  <td className="px-5 py-3.5 text-xs text-slate-400">
+                    <span className="font-semibold text-slate-200">{u.listings}</span> listings · <span className="font-semibold text-slate-200">{u.bookings}</span> bookings
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.status === 'Active' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
+                      {u.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setSelected(u.id)} className="p-1.5 rounded-lg hover:bg-[rgba(129,140,248,0.1)] text-slate-400 hover:text-white transition-colors" title="View">
+                        <Eye size={14} />
+                      </button>
+                      <button onClick={() => toggleBan(u.id)}
+                        className={`p-1.5 rounded-lg transition-colors ${u.status === 'Active' ? 'hover:bg-red-900/20 text-slate-400 hover:text-red-400' : 'hover:bg-green-900/20 text-slate-400 hover:text-green-400'}`}
+                        title={u.status === 'Active' ? 'Ban user' : 'Unban user'}>
+                        {u.status === 'Active' ? <Ban size={14} /> : <RotateCcw size={14} />}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -160,177 +279,364 @@ export const AdminPassengerList = () => {
           </table>
         </div>
       </div>
+
+      {detailUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setSelected(null)}>
+          <div className="bg-[#1e2436] rounded-2xl shadow-2xl border border-[rgba(129,140,248,0.2)] w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white">User Details</h3>
+              <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-[rgba(129,140,248,0.1)] rounded-lg text-slate-400"><X size={16} /></button>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-lg font-bold text-indigo-300">
+                {detailUser.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+              </div>
+              <div>
+                <p className="font-semibold text-white">{detailUser.name}</p>
+                <p className="text-xs text-slate-400">{detailUser.email}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {[['Role', detailUser.role], ['Status', detailUser.status], ['Joined', detailUser.joined], ['Listings', detailUser.listings], ['Bookings', detailUser.bookings]].map(([k, v]) => (
+                <div key={String(k)} className="bg-[#232b47] rounded-xl px-3 py-2">
+                  <p className="text-xs text-slate-500 font-medium">{k}</p>
+                  <p className="font-semibold text-slate-200 mt-0.5">{String(v)}</p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => { toggleBan(detailUser.id); setSelected(null); }}
+              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${detailUser.status === 'Active' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
+              {detailUser.status === 'Active' ? 'Ban this user' : 'Unban this user'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export const AdminScanner = () => {
-  const [scanResult, setScanResult] = useState<'success' | 'error' | null>(null);
+// ─────────────────────────────────────────────
+//  KYC VERIFICATION
+// ─────────────────────────────────────────────
+export const KYCVerification = () => {
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [expanded, setExpanded] = useState<number | null>(null);
 
-  const simulateScan = () => {
-    // Randomly succeed or fail
-    const success = Math.random() > 0.3;
-    setScanResult(success ? 'success' : 'error');
-    setTimeout(() => setScanResult(null), 3000);
+  const [kycs, setKycs] = useState([
+    { id: 1, owner: 'Lakmal Silva', email: 'lakmal@email.com', submitted: 'Mar 3, 2026', status: 'pending', docs: ['NIC Front', 'NIC Back', 'Property Deed'], listing: 'Colombo Comfort Rooms' },
+    { id: 2, owner: 'Chamara Dias', email: 'chamara@email.com', submitted: 'Mar 2, 2026', status: 'pending', docs: ['NIC Front', 'NIC Back', 'Utility Bill'], listing: 'Kandy Budget Stay' },
+    { id: 3, owner: 'Sulan Perera', email: 'sulan@email.com', submitted: 'Feb 28, 2026', status: 'approved', docs: ['NIC Front', 'NIC Back', 'Property Deed'], listing: 'Galle Harbor View' },
+    { id: 4, owner: 'Nimal Fernando', email: 'nimal@email.com', submitted: 'Feb 20, 2026', status: 'rejected', docs: ['NIC Front'], listing: 'Matara Sea Breeze' },
+    { id: 5, owner: 'Pradeep Nandana', email: 'pradeep@email.com', submitted: 'Mar 4, 2026', status: 'pending', docs: ['NIC Front', 'NIC Back', 'Property Deed', 'Business Reg.'], listing: 'Nugegoda Twin Share' },
+  ]);
+
+  const take = (id: number, action: 'approved' | 'rejected') => {
+    setKycs(k => k.map(e => e.id === id ? { ...e, status: action } : e));
+    setExpanded(null);
+  };
+
+  const filtered = kycs.filter(k => k.status === activeTab);
+  const pendingCount = kycs.filter(k => k.status === 'pending').length;
+
+  const statusStyle: Record<string, string> = {
+    pending: 'bg-amber-900/30 text-amber-400',
+    approved: 'bg-green-900/30 text-green-400',
+    rejected: 'bg-red-900/30 text-red-400',
   };
 
   return (
-    <div className="h-full flex flex-col items-center justify-center space-y-8 max-w-2xl mx-auto">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold">Scan Boarding Pass</h1>
-        <p className="text-gray-500 mt-2">Position the QR code within the frame</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold text-white">KYC Verification</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Review boarding owner identity and property documents</p>
       </div>
 
-      <div className="relative w-full max-w-md aspect-square bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border-8 border-gray-800 flex items-center justify-center">
-        <Camera className="text-gray-700 w-16 h-16 absolute top-4 right-4 opacity-50" />
-        
-        {/* Viewfinder overlay */}
-        <div className="absolute inset-0 border-[40px] border-black/50 pointer-events-none"></div>
-        <div className="w-64 h-64 border-2 border-white/50 rounded-lg relative">
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white"></div>
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white"></div>
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white"></div>
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white"></div>
-        </div>
+      <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit">
+        {(['pending', 'approved', 'rejected'] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${activeTab === tab ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+            {tab}{tab === 'pending' && pendingCount > 0 && (
+              <span className="ml-1.5 bg-amber-500 text-white text-[10px] rounded-full w-4 h-4 inline-flex items-center justify-center">{pendingCount}</span>
+            )}
+          </button>
+        ))}
+      </div>
 
-        {/* Simulate scanning */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-green-500/10 to-transparent animate-[scan_2s_linear_infinite] pointer-events-none"></div>
-        
-        <button 
-            onClick={simulateScan}
-            className="absolute bottom-8 px-6 py-3 bg-white text-black font-bold rounded-full shadow-lg hover:bg-gray-100 active:scale-95 transition-all z-20"
-        >
-            Simulate Scan
-        </button>
-
-        {scanResult && (
-            <div className={`absolute inset-0 z-30 flex items-center justify-center bg-opacity-90 backdrop-blur-sm ${scanResult === 'success' ? 'bg-green-900/90' : 'bg-red-900/90'}`}>
-                <div className="text-center text-white p-8">
-                    {scanResult === 'success' ? (
-                        <>
-                            <CheckCircle size={64} className="mx-auto mb-4 text-green-400" />
-                            <h3 className="text-2xl font-bold mb-2">Access Granted</h3>
-                            <p className="text-green-200">John Doe - Seat 4A</p>
-                        </>
-                    ) : (
-                        <>
-                            <XCircle size={64} className="mx-auto mb-4 text-red-400" />
-                            <h3 className="text-2xl font-bold mb-2">Access Denied</h3>
-                            <p className="text-red-200">Invalid Ticket or Wrong Group</p>
-                        </>
-                    )}
-                </div>
-            </div>
+      <div className="space-y-3">
+        {filtered.length === 0 && (
+          <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-10 text-center text-sm text-slate-500">No {activeTab} submissions</div>
         )}
+        {filtered.map(k => (
+          <div key={k.id} className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] shadow-sm overflow-hidden">
+            <button className="w-full text-left px-5 py-4 flex items-center gap-4" onClick={() => setExpanded(expanded === k.id ? null : k.id)}>
+              <div className="w-9 h-9 rounded-full bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">
+                {k.owner.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white">{k.owner}</p>
+                <p className="text-xs text-slate-500">{k.listing} · Submitted {k.submitted}</p>
+              </div>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${statusStyle[k.status]}`}>{k.status}</span>
+              <ChevronDown size={16} className={`text-slate-500 transition-transform flex-shrink-0 ${expanded === k.id ? 'rotate-180' : ''}`} />
+            </button>
+
+            {expanded === k.id && (
+              <div className="border-t border-[rgba(129,140,248,0.15)] px-5 py-4 space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 mb-2">Submitted Documents</p>
+                  <div className="flex flex-wrap gap-2">
+                    {k.docs.map(doc => (
+                      <div key={doc} className="flex items-center gap-1.5 bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300">
+                        <Check size={12} className="text-green-400" />{doc}
+                        <button className="ml-1 text-indigo-400 hover:text-indigo-300 font-semibold text-[10px] underline">View</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {k.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button onClick={() => take(k.id, 'approved')}
+                      className="flex items-center gap-1.5 bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-green-700 transition-colors">
+                      <Check size={13} />Approve
+                    </button>
+                    <button onClick={() => take(k.id, 'rejected')}
+                      className="flex items-center gap-1.5 bg-[#232b47] border border-red-900/30 text-red-400 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-red-900/20 transition-colors">
+                      <X size={13} />Reject
+                    </button>
+                  </div>
+                )}
+                {k.status !== 'pending' && (
+                  <p className={`text-xs font-semibold ${k.status === 'approved' ? 'text-green-400' : 'text-red-400'}`}>
+                    {k.status === 'approved' ? '✓ Approved — owner verified' : '✕ Rejected — awaiting resubmission'}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
 };
 
-export const AdminControl = () => {
-  const [currentGroup, setCurrentGroup] = useState(3);
+// ─────────────────────────────────────────────
+//  SUPPORT TICKETS
+// ─────────────────────────────────────────────
+export const SupportTickets = () => {
+  const [filter, setFilter] = useState('All');
+  const [selected, setSelected] = useState<number | null>(null);
+  const [reply, setReply] = useState('');
+
+  const [tickets, setTickets] = useState([
+    { id: 1, user: 'Kavindu P.', email: 'kavindu@email.com', subject: 'Payment not reflecting', category: 'Payment', status: 'Open', priority: 'High', created: 'Mar 4, 2026', messages: [{ from: 'user', text: 'I made a payment 2 hours ago but my booking still shows pending.', time: '10:30 AM' }] },
+    { id: 2, user: 'Isuri F.', email: 'isuri@email.com', subject: 'Cannot upload profile photo', category: 'Technical', status: 'Open', priority: 'Medium', created: 'Mar 3, 2026', messages: [{ from: 'user', text: 'Every time I try to upload a photo it gives an error.', time: 'Yesterday' }] },
+    { id: 3, user: 'Nimasha R.', email: 'nimasha@email.com', subject: 'Room description is incorrect', category: 'Listing', status: 'In Progress', priority: 'Low', created: 'Mar 2, 2026', messages: [{ from: 'user', text: "The listing says AC included but the room doesn't have one.", time: 'Mar 2' }, { from: 'admin', text: "We've contacted the owner and are investigating.", time: 'Mar 3' }] },
+    { id: 4, user: 'Lakmal S.', email: 'lakmal@email.com', subject: 'KYC still pending after 3 days', category: 'KYC', status: 'Resolved', priority: 'Medium', created: 'Feb 28, 2026', messages: [{ from: 'user', text: 'Submitted my KYC 3 days ago, no update.', time: 'Feb 28' }, { from: 'admin', text: 'Your KYC has been approved. Thank you!', time: 'Mar 1' }] },
+    { id: 5, user: 'Sulan P.', email: 'sulan@email.com', subject: 'Refund not received', category: 'Payment', status: 'Open', priority: 'High', created: 'Mar 4, 2026', messages: [{ from: 'user', text: "My booking was cancelled but I haven't received my refund.", time: '9:15 AM' }] },
+  ]);
+
+  const filtered = filter === 'All' ? tickets : tickets.filter(t => t.status === filter);
+  const detail = tickets.find(t => t.id === selected);
+
+  const sendReply = () => {
+    if (!reply.trim() || !selected) return;
+    setTickets(tickets.map(t => t.id === selected ? { ...t, status: 'In Progress', messages: [...t.messages, { from: 'admin', text: reply, time: 'Now' }] } : t));
+    setReply('');
+  };
+
+  const resolve = (id: number) => setTickets(tickets.map(t => t.id === id ? { ...t, status: 'Resolved' } : t));
+
+  const priorityStyle: Record<string, string> = { High: 'bg-red-900/30 text-red-400', Medium: 'bg-amber-900/30 text-amber-400', Low: 'bg-[rgba(129,140,248,0.1)] text-slate-400' };
+  const statusStyle: Record<string, string> = { Open: 'bg-blue-900/30 text-blue-400', 'In Progress': 'bg-purple-900/30 text-purple-400', Resolved: 'bg-green-900/30 text-green-400' };
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Boarding Control</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold text-white">Support Tickets</h1>
+        <p className="text-sm text-slate-400 mt-0.5">{tickets.filter(t => t.status !== 'Resolved').length} open · {tickets.length} total</p>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-lg border-2 border-black shadow-lg flex flex-col items-center justify-center text-center space-y-6">
-            <h2 className="text-gray-500 font-bold uppercase tracking-widest text-sm">Now Boarding</h2>
-            <div className="text-8xl font-black">{currentGroup}</div>
-            <div className="flex gap-4 w-full justify-center">
-                <button 
-                    onClick={() => setCurrentGroup(Math.max(1, currentGroup - 1))}
-                    disabled={currentGroup === 1}
-                    className="px-6 py-3 border-2 border-gray-200 rounded-lg font-bold hover:bg-gray-50 disabled:opacity-50"
-                >
-                    Previous Group
-                </button>
-                <button 
-                    onClick={() => setCurrentGroup(Math.min(5, currentGroup + 1))}
-                    disabled={currentGroup === 5}
-                    className="px-6 py-3 bg-black text-white rounded-lg font-bold hover:bg-gray-800 disabled:opacity-50"
-                >
-                    Next Group
-                </button>
-            </div>
+      <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit">
+        {['All', 'Open', 'In Progress', 'Resolved'].map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${filter === f ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>{f}</button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        <div className="lg:col-span-2 space-y-2.5">
+          {filtered.map(t => (
+            <button key={t.id} onClick={() => setSelected(t.id)}
+              className={`w-full text-left bg-[#1e2436] border rounded-2xl p-4 transition-all hover:shadow-sm ${selected === t.id ? 'border-[#818cf8] ring-1 ring-[rgba(129,140,248,0.2)] shadow-sm' : 'border-[rgba(129,140,248,0.15)]'}`}>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-white truncate">{t.subject}</p>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${priorityStyle[t.priority]}`}>{t.priority}</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">{t.user} · {t.category}</p>
+              <div className="flex items-center justify-between mt-2">
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusStyle[t.status]}`}>{t.status}</span>
+                <span className="text-[10px] text-slate-500">{t.created}</span>
+              </div>
+            </button>
+          ))}
         </div>
 
-        <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                    <AlertTriangle className="text-orange-500" size={20} />
-                    Gate Actions
-                </h3>
-                <div className="space-y-4">
-                    <button className="w-full text-left px-4 py-3 bg-red-50 text-red-700 font-bold rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
-                        Close Gate Immediately
+        <div className="lg:col-span-3">
+          {detail ? (
+            <div className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl shadow-sm flex flex-col" style={{ minHeight: 300 }}>
+              <div className="px-5 py-4 border-b border-[rgba(129,140,248,0.15)] flex items-start justify-between">
+                <div>
+                  <p className="font-semibold text-white">{detail.subject}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{detail.user} · {detail.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {detail.status !== 'Resolved' && (
+                    <button onClick={() => resolve(detail.id)}
+                      className="flex items-center gap-1 text-xs text-green-400 bg-green-900/30 border border-green-900/30 px-3 py-1.5 rounded-lg font-semibold hover:bg-green-900/50 transition-colors">
+                      <Check size={12} />Resolve
                     </button>
-                    <button className="w-full text-left px-4 py-3 bg-yellow-50 text-yellow-700 font-bold rounded-lg border border-yellow-100 hover:bg-yellow-100 transition-colors">
-                        Announce Delay
-                    </button>
+                  )}
+                  <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-[rgba(129,140,248,0.1)] rounded-lg text-slate-400"><X size={15} /></button>
                 </div>
+              </div>
+              <div className="flex-1 p-5 space-y-3 overflow-y-auto max-h-64">
+                {detail.messages.map((m, i) => (
+                  <div key={i} className={`flex ${m.from === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xs px-3.5 py-2.5 rounded-2xl text-sm ${m.from === 'admin' ? 'bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white rounded-br-sm' : 'bg-[#232b47] text-slate-200 rounded-bl-sm'}`}>
+                      <p>{m.text}</p>
+                      <p className={`text-[10px] mt-1 ${m.from === 'admin' ? 'text-indigo-200' : 'text-slate-500'}`}>{m.from === 'admin' ? 'You' : detail.user} · {m.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {detail.status !== 'Resolved' && (
+                <div className="px-5 py-4 border-t border-[rgba(129,140,248,0.15)] flex gap-2">
+                  <input value={reply} onChange={e => setReply(e.target.value)} placeholder="Type a reply…"
+                    className="flex-1 px-3.5 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
+                    onKeyDown={e => e.key === 'Enter' && sendReply()} />
+                  <button onClick={sendReply} className="bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white p-2.5 rounded-xl hover:opacity-90 transition-opacity">
+                    <Send size={15} />
+                  </button>
+                </div>
+              )}
             </div>
-
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <h3 className="font-bold text-lg mb-4">Boarding Statistics</h3>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-500 font-medium">Passengers Boarded</span>
-                    <span className="font-bold">142 / 184</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-500 font-medium">Time Remaining</span>
-                    <span className="font-bold text-orange-600">14:20</span>
-                </div>
+          ) : (
+            <div className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl shadow-sm flex items-center justify-center text-sm text-slate-500" style={{ minHeight: 200 }}>
+              Select a ticket to view details
             </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export const AdminSettings = () => {
-    return (
-        <div className="max-w-2xl mx-auto space-y-8">
-            <h1 className="text-3xl font-bold">Settings</h1>
+// ─────────────────────────────────────────────
+//  FEEDBACK MANAGEMENT
+// ─────────────────────────────────────────────
+export const FeedbackManagement = () => {
+  const [filter, setFilter] = useState('All');
+  const [search, setSearch] = useState('');
 
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm divide-y divide-gray-100">
-                <div className="p-6 flex items-center justify-between">
-                    <div>
-                        <h3 className="font-bold text-lg">Enable Notifications</h3>
-                        <p className="text-gray-500 text-sm">Send push notifications to passengers</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" defaultChecked className="sr-only peer" />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
-                    </label>
-                </div>
+  const [feedbacks, setFeedbacks] = useState([
+    { id: 1, user: 'Kavindu P.', listing: 'Colombo Comfort Rooms', rating: 5, comment: 'Amazing place, very clean and the owner was super helpful!', date: 'Mar 3, 2026', flagged: false },
+    { id: 2, user: 'Nimasha R.', listing: 'Kandy Budget Stay', rating: 2, comment: 'The room was dirty and nothing matched the listing photos.', date: 'Mar 2, 2026', flagged: true },
+    { id: 3, user: 'Isuri F.', listing: 'Galle Harbor View', rating: 4, comment: 'Great view and location. AC was a bit noisy but overall good.', date: 'Mar 1, 2026', flagged: false },
+    { id: 4, user: 'Sulan P.', listing: 'Nugegoda Twin Share', rating: 1, comment: "SCAM! The place doesn't exist. Reported to authorities!", date: 'Feb 28, 2026', flagged: true },
+    { id: 5, user: 'Chamara D.', listing: 'Matara Sea Breeze', rating: 5, comment: 'Best boarding experience ever. Highly recommend!', date: 'Feb 26, 2026', flagged: false },
+    { id: 6, user: 'Pradeep N.', listing: 'Colombo Comfort Rooms', rating: 3, comment: 'Decent place but the water heater broke twice during my stay.', date: 'Feb 25, 2026', flagged: false },
+  ]);
 
-                <div className="p-6 flex items-center justify-between">
-                    <div>
-                        <h3 className="font-bold text-lg">Auto-close Gate</h3>
-                        <p className="text-gray-500 text-sm">Automatically close gate when time expires</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
-                    </label>
-                </div>
+  const toggleFlag = (id: number) => setFeedbacks(f => f.map(fb => fb.id === id ? { ...fb, flagged: !fb.flagged } : fb));
+  const deleteFeedback = (id: number) => setFeedbacks(f => f.filter(fb => fb.id !== id));
 
-                <div className="p-6 space-y-4">
-                    <div>
-                        <h3 className="font-bold text-lg">Boarding Time Limit</h3>
-                        <p className="text-gray-500 text-sm mb-2">Default duration for boarding process (minutes)</p>
-                    </div>
-                    <input type="number" defaultValue={45} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black" />
-                </div>
-            </div>
+  const filtered = feedbacks.filter(fb => {
+    const matchFilter = filter === 'All' || (filter === 'Flagged' && fb.flagged) || (fb.rating === parseInt(filter));
+    const matchSearch = fb.user.toLowerCase().includes(search.toLowerCase()) || fb.listing.toLowerCase().includes(search.toLowerCase()) || fb.comment.toLowerCase().includes(search.toLowerCase());
+    return matchFilter && matchSearch;
+  });
 
-            <div className="flex justify-end">
-                <button className="bg-black text-white px-8 py-3 rounded-lg font-bold hover:bg-gray-800 shadow-lg">
-                    Save Settings
-                </button>
-            </div>
+  const avgRating = (feedbacks.reduce((a, fb) => a + fb.rating, 0) / feedbacks.length).toFixed(1);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-white">Feedback Management</h1>
+          <p className="text-sm text-slate-400 mt-0.5">{feedbacks.length} total reviews · Avg. {avgRating}★</p>
         </div>
-    );
+        <div className="text-right">
+          <p className="text-3xl font-black text-white">{avgRating}</p>
+          <div className="flex items-center gap-0.5 justify-end mt-0.5">
+            {[1,2,3,4,5].map(s => <Star key={s} size={12} className={s <= Math.round(parseFloat(avgRating)) ? 'text-amber-400 fill-amber-400' : 'text-slate-600 fill-slate-600'} />)}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search feedback…"
+            className="w-full pl-9 pr-4 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
+        </div>
+        <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit self-start flex-wrap">
+          {['All', 'Flagged', '5', '4', '3', '2', '1'].map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === f ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+              {f === 'Flagged' ? '🚩 Flagged' : ['5','4','3','2','1'].includes(f) ? `${f}★` : f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {filtered.length === 0 && (
+          <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-10 text-center text-sm text-slate-500">No reviews found</div>
+        )}
+        {filtered.map(fb => (
+          <div key={fb.id} className={`bg-[#1e2436] rounded-2xl border shadow-sm p-5 ${fb.flagged ? 'border-red-900/40 bg-red-900/5' : 'border-[rgba(129,140,248,0.15)]'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">
+                  {fb.user.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-white">{fb.user}</p>
+                    <span className="text-xs text-slate-400">→</span>
+                    <p className="text-xs text-indigo-400 font-medium truncate">{fb.listing}</p>
+                    {fb.flagged && <span className="text-[10px] font-bold bg-red-900/30 text-red-400 px-2 py-0.5 rounded-full">Flagged</span>}
+                  </div>
+                  <div className="flex items-center gap-1 mt-1">
+                    {[1,2,3,4,5].map(s => (
+                      <Star key={s} size={12} className={s <= fb.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-600 fill-slate-600'} />
+                    ))}
+                    <span className="text-xs text-slate-500 ml-1">{fb.date}</span>
+                  </div>
+                  <p className="text-sm text-slate-300 mt-1.5 leading-relaxed">{fb.comment}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => toggleFlag(fb.id)}
+                  className={`p-1.5 rounded-lg transition-colors ${fb.flagged ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50' : 'hover:bg-[rgba(129,140,248,0.1)] text-slate-400 hover:text-amber-400'}`}
+                  title={fb.flagged ? 'Unflag' : 'Flag'}>
+                  <Flag size={14} />
+                </button>
+                <button onClick={() => deleteFeedback(fb.id)}
+                  className="p-1.5 rounded-lg hover:bg-red-900/20 text-slate-400 hover:text-red-400 transition-colors" title="Delete">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
+
+// Legacy compatibility stubs
+export const AdminPassengerList = UserManagement;
+export const AdminScanner = () => null;
+export const AdminControl = () => null;
+export const AdminSettings = () => null;
