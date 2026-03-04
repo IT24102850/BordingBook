@@ -10,7 +10,174 @@ import { MdOutlineVerified, MdOutlineLocationOn, MdOutlineBedroomParent } from '
 import { RiUserSharedLine } from 'react-icons/ri';
 import { BiCurrentLocation } from 'react-icons/bi';
 
+// Roommate Finder navigation handler
+// Roommate Finder tab content placeholder
+// Mock roommate data
+const roommates = [
+  {
+    id: 1,
+    name: 'Ayesha Perera',
+    age: 22,
+    gender: 'Female',
+    university: 'SLIIT',
+    bio: 'Looking for a friendly roommate. Loves music and reading.',
+    image: 'https://randomuser.me/api/portraits/women/44.jpg',
+    interests: ['Music', 'Reading', 'Cooking'],
+  },
+  {
+    id: 2,
+    name: 'Nimal Silva',
+    age: 24,
+    gender: 'Male',
+    university: 'CINEC',
+    bio: 'Clean, quiet, and respectful. Enjoys sports and movies.',
+    image: 'https://randomuser.me/api/portraits/men/32.jpg',
+    interests: ['Sports', 'Movies', 'Travel'],
+  },
+  {
+    id: 3,
+    name: 'Sajini Fernando',
+    age: 21,
+    gender: 'Female',
+    university: 'NSBM',
+    bio: 'Outgoing and social. Loves to cook and explore new places.',
+    image: 'https://randomuser.me/api/portraits/women/68.jpg',
+    interests: ['Cooking', 'Travel', 'Dancing'],
+  },
+];
+
+// Roommate swipe card component
+function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }: { roommate: any; onLike: () => void; onPass: () => void; isAnimating: boolean; direction: string | null }) {
+  return (
+    <div
+      className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden border border-white/10 w-full max-w-md mx-auto transition-all duration-300 ${direction === 'left' ? 'animate-swipe-left' : ''} ${direction === 'right' ? 'animate-swipe-right' : ''}`}
+      style={{ minHeight: 340 }}
+    >
+      <div className="flex flex-col items-center p-6">
+        <img src={roommate.image} alt={roommate.name} className="w-24 h-24 rounded-full object-cover border-4 border-pink-300 mb-3" />
+        <h3 className="text-xl font-bold text-white mb-1">{roommate.name}, <span className="text-pink-300">{roommate.age}</span></h3>
+        <div className="text-sm text-pink-200 mb-1">{roommate.gender} • {roommate.university}</div>
+        <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio}</div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {roommate.interests.map((interest: string, idx: number) => (
+            <span key={idx} className="bg-pink-500/20 text-pink-300 px-3 py-1 rounded-full text-xs">{interest}</span>
+          ))}
+        </div>
+        <div className="flex gap-8 mt-2">
+          <button
+            onClick={onPass}
+            className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg hover:scale-110 transition-transform"
+            title="Pass"
+            disabled={isAnimating}
+          >
+            <FaRegTimesCircle />
+          </button>
+          <button
+            onClick={onLike}
+            className="w-12 h-12 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg hover:scale-110 transition-transform"
+            title="Like"
+            disabled={isAnimating}
+          >
+            <FaHeart />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Roommate Finder tab content with swipe logic
+function RoommateFinderPlaceholder() {
+  const [currentIdx, setCurrentIdx] = React.useState(0);
+  const [liked, setLiked] = React.useState<any[]>([]);
+  const [passed, setPassed] = React.useState<any[]>([]);
+  const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
+  const [isAnimating, setIsAnimating] = React.useState(false);
+  const current = roommates[currentIdx];
+
+  const handleLike = () => {
+    if (!current || isAnimating) return;
+    setIsAnimating(true);
+    setDirection('right');
+    setTimeout(() => {
+      setLiked([...liked, current]);
+      if (currentIdx < roommates.length - 1) {
+        setCurrentIdx(currentIdx + 1);
+      }
+      setDirection(null);
+      setIsAnimating(false);
+    }, 250);
+  };
+  const handlePass = () => {
+    if (!current || isAnimating) return;
+    setIsAnimating(true);
+    setDirection('left');
+    setTimeout(() => {
+      setPassed([...passed, current]);
+      if (currentIdx < roommates.length - 1) {
+        setCurrentIdx(currentIdx + 1);
+      }
+      setDirection(null);
+      setIsAnimating(false);
+    }, 250);
+  };
+  const handleUndo = () => {
+    if (currentIdx > 0) {
+      setCurrentIdx(currentIdx - 1);
+      setDirection(null);
+    }
+  };
+
+  if (currentIdx >= roommates.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-pink-200 text-lg font-semibold shadow-inner">
+        <span className="mb-2 text-2xl">🎉</span>
+        <div className="mb-1">No more roommate profiles!</div>
+        <div className="text-sm text-pink-300 mt-2">Check back later for new matches.</div>
+        <button onClick={handleUndo} className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl text-xs font-medium hover:shadow-lg transition-all">Undo</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px]">
+      <RoommateSwipeCard
+        roommate={current}
+        onLike={handleLike}
+        onPass={handlePass}
+        isAnimating={isAnimating}
+        direction={direction}
+      />
+      <div className="flex justify-between w-full max-w-md mt-4 px-4">
+        <span className="text-xs text-gray-400">{roommates.length - currentIdx} profiles left</span>
+        <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><FaUndo /> Undo</button>
+      </div>
+    </div>
+  );
+}
+
+// Placeholder for Map View
+function MapViewPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner">
+      <span className="mb-2">🗺️</span>
+      Map View coming soon...
+    </div>
+  );
+}
+
 // Define types
+interface Roommate {
+  id: number;
+  name: string;
+  age: number;
+  gender: string;
+  university: string;
+  bio: string;
+  image: string;
+  interests: string[];
+}
+
 interface Listing {
   id: number;
   title: string;
@@ -664,7 +831,8 @@ export default function SearchPage() {
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
-  const [viewMode, setViewMode] = useState<'card' | 'grid'>('card');
+  const [viewMode, setViewMode] = useState<'card' | 'grid'>('grid');
+  const [activeTab, setActiveTab] = useState<'rooms' | 'map' | 'roommate'>('rooms');
 
   // Filter listings based on search and filters
   const filteredListings: Listing[] = listings.filter(listing => {
@@ -837,35 +1005,59 @@ export default function SearchPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col items-center w-full mb-6">
+          <div className="flex items-center gap-3 mb-4 w-full md:max-w-3xl md:mx-auto">
             <button
               onClick={() => window.history.back()}
               className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
             >
               <FaArrowLeft className="text-white text-sm" />
             </button>
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">
+            <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent flex-1 text-center">
               Find Your Room
             </h1>
           </div>
-          
-          {/* View Toggle - Desktop only */}
-          <div className="hidden md:flex items-center gap-2 bg-white/10 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('card')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'card' ? 'bg-cyan-500 text-white' : 'text-gray-400 hover:text-white'}`}
-              title="Swipe view"
-            >
-              <FaThLarge />
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-cyan-500 text-white' : 'text-gray-400 hover:text-white'}`}
-              title="Grid view"
-            >
-              <FaList />
-            </button>
+          {/* Segmented Tab Switcher */}
+          <div className="flex flex-col items-center w-full">
+            <div className="flex rounded-full bg-gradient-to-r from-[#181f36] to-[#0f172a] p-1 shadow-inner w-full max-w-md mb-2 border border-cyan-500/20 md:max-w-2xl">
+              <button
+                className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${activeTab === 'rooms' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg scale-105' : 'text-cyan-200 hover:bg-white/10'}`}
+                onClick={() => setActiveTab('rooms')}
+              >
+                Rooms
+              </button>
+              <button
+                className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${activeTab === 'map' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg scale-105' : 'text-cyan-200 hover:bg-white/10'}`}
+                onClick={() => setActiveTab('map')}
+              >
+                Map View
+              </button>
+              <button
+                className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${activeTab === 'roommate' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg scale-105' : 'text-cyan-200 hover:bg-white/10'}`}
+                onClick={() => setActiveTab('roommate')}
+              >
+                Roommate Finder
+              </button>
+            </div>
+            {/* View Toggle for Rooms tab only */}
+            {activeTab === 'rooms' && (
+              <div className="flex justify-center gap-2 mt-2">
+                <button
+                  onClick={() => setViewMode('card')}
+                  className={`p-2 rounded-lg transition-colors ${viewMode === 'card' ? 'bg-cyan-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                  title="Swipe view"
+                >
+                  <FaThLarge />
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-cyan-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                  title="Grid view"
+                >
+                  <FaList />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -873,268 +1065,259 @@ export default function SearchPage() {
         <div className="flex items-center justify-center gap-2 mb-4">
           <FaInfoCircle className="text-cyan-400" />
           <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full">
-            {viewMode === 'card' 
-              ? 'Drag cards left/right to pass or like • Click buttons to act' 
-              : 'Browse all listings in grid view'}
+            {activeTab === 'rooms'
+              ? (viewMode === 'card' 
+                  ? 'Drag cards left/right to pass or like • Click buttons to act' 
+                  : 'Browse all listings in grid view')
+              : activeTab === 'map'
+                ? 'View all rooms on a map (coming soon)'
+                : 'Find your ideal roommate!'}
           </span>
         </div>
 
-        {/* Search and Filters Section */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 md:p-6 mb-6 border border-white/10">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
-            {/* Search Bar */}
-            <div className="relative flex-1">
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by location or keyword..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentIndex(0);
-                }}
-                className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              />
-            </div>
-          </div>
-
-          {/* Filter Chips */}
-          <div className="flex flex-wrap gap-2 mt-4">
-            {filterChips.map((chip) => (
-              <button
-                key={chip.id}
-                onClick={() => toggleFilter(chip.id)}
-                className={`
-                  flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                  ${selectedFilters.includes(chip.id)
-                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
-                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                  }
-                `}
-              >
-                <span>{chip.icon}</span>
-                <span>{chip.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Main Content - Three Column Layout for Desktop Card Mode */}
-        {viewMode === 'card' ? (
-          <div className="hidden md:grid md:grid-cols-3 gap-6">
-            {/* Left Column - Passed Listings */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-2 mb-4">
-                <FaHistory className="text-red-400" />
-                <h3 className="text-sm font-bold text-white">Passed</h3>
-                <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">
-                  {passedListings.length}
-                </span>
-              </div>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                {passedListings.length > 0 ? (
-                  passedListings.map((listing) => (
-                    <MiniListingCard key={listing.id} listing={listing} type="passed" />
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-xs text-gray-500">No passed listings yet</p>
-                    <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Center Column - Main Swipe Card */}
-            <div>
-              <div className="relative h-[500px] mb-4 perspective-1000">
-                {/* Stack effect - next card behind */}
-                {currentIndex < filteredListings.length - 1 && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
-                )}
-                
-                {/* Current Card */}
-                {currentListing && (
-                  <ListingCard
-                    listing={currentListing}
-                    onLike={handleLike}
-                    onPass={handlePass}
-                    onViewDetails={handleViewDetails}
-                    isAnimating={isAnimating}
-                    direction={direction}
-                    viewMode="card"
-                  />
-                )}
-              </div>
-
-              {/* Results Count & Undo */}
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-sm text-gray-400">
-                  {filteredListings.length - currentIndex} rooms remaining
-                </span>
-                <button
-                  onClick={handleUndo}
-                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-                >
-                  <FaUndo /> Undo
-                </button>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-center gap-4 mt-4">
-                <button
-                  onClick={handlePass}
-                  disabled={isAnimating}
-                  className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                  title="Not interested (swipe left)"
-                >
-                  <FaRegTimesCircle />
-                </button>
-                
-                <button
-                  onClick={handleLike}
-                  disabled={isAnimating}
-                  className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                  title="Save this listing (swipe right)"
-                >
-                  <FaHeart />
-                </button>
-              </div>
-
-              {/* Action Labels */}
-              <div className="flex justify-between px-8 mt-2 text-xs text-gray-500">
-                <span>Pass • Swipe Left</span>
-                <span>Like • Swipe Right</span>
-              </div>
-            </div>
-
-            {/* Right Column - Liked Listings */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-2 mb-4">
-                <FaBookmark className="text-green-400" />
-                <h3 className="text-sm font-bold text-white">Favorites</h3>
-                <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">
-                  {likedListings.length}
-                </span>
-              </div>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                {likedListings.length > 0 ? (
-                  likedListings.map((listing) => (
-                    <MiniListingCard key={listing.id} listing={listing} type="liked" />
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-xs text-gray-500">No favorites yet</p>
-                    <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* View All Button */}
-              {likedListings.length > 0 && (
-                <button className="w-full mt-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
-                  View All Favorites
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* Grid View (Desktop only) */
-          <div className="hidden md:block">
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredListings.map((listing) => (
-                <ListingCard
-                  key={listing.id}
-                  listing={listing}
-                  onLike={() => {
-                    setLikedListings([...likedListings, listing]);
-                    setToastMessage(`Added to favorites! ✨`);
-                    setShowToast(true);
-                    setTimeout(() => setShowToast(false), 2000);
+        {/* Search and Filters Section (only for Rooms tab) */}
+        {activeTab === 'rooms' && (
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 md:p-6 mb-6 border border-white/10">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by location or keyword..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentIndex(0);
                   }}
-                  onPass={() => {}}
-                  onViewDetails={handleViewDetails}
-                  isAnimating={false}
-                  direction={null}
-                  viewMode="grid"
+                  className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                 />
+              </div>
+            </div>
+
+            {/* Filter Chips */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              {filterChips.map((chip) => (
+                <button
+                  key={chip.id}
+                  onClick={() => toggleFilter(chip.id)}
+                  className={`
+                    flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                    ${selectedFilters.includes(chip.id)
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                    }
+                  `}
+                >
+                  <span>{chip.icon}</span>
+                  <span>{chip.label}</span>
+                </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Mobile View (Card Stack) */}
-        <div className="md:hidden">
-          <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
-            {/* Stack effect - next card behind */}
-            {currentIndex < filteredListings.length - 1 && (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
-            )}
-            
-            {/* Current Card */}
-            {currentListing && (
-              <ListingCard
-                listing={currentListing}
-                onLike={handleLike}
-                onPass={handlePass}
-                onViewDetails={handleViewDetails}
-                isAnimating={isAnimating}
-                direction={direction}
-                viewMode="card"
-              />
-            )}
-          </div>
+        {/* Main Content */}
+        {activeTab === 'rooms' ? (
+          <>
+            {/* Desktop Views */}
+            <div className="hidden md:block">
+              {viewMode === 'card' ? (
+                <div className="grid grid-cols-3 gap-6">
+                  {/* Left Column - Passed Listings */}
+                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <div className="flex items-center gap-2 mb-4">
+                      <FaHistory className="text-red-400" />
+                      <h3 className="text-sm font-bold text-white">Passed</h3>
+                      <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">
+                        {passedListings.length}
+                      </span>
+                    </div>
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                      {passedListings.length > 0 ? (
+                        passedListings.map((listing) => (
+                          <MiniListingCard key={listing.id} listing={listing} type="passed" />
+                        ))
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-xs text-gray-500">No passed listings yet</p>
+                          <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-          {/* Results Count & Undo - Mobile */}
-          <div className="flex justify-between items-center mb-4 max-w-md mx-auto">
-            <span className="text-sm text-gray-400">
-              {filteredListings.length - currentIndex} rooms remaining
-            </span>
-            <button
-              onClick={handleUndo}
-              className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-            >
-              <FaUndo /> Undo
-            </button>
-          </div>
+                  {/* Center Column - Main Swipe Card */}
+                  <div>
+                    <div className="relative h-[500px] mb-4 perspective-1000">
+                      {/* Stack effect - next card behind */}
+                      {currentIndex < filteredListings.length - 1 && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+                      )}
+                      
+                      {/* Current Card */}
+                      {currentListing && (
+                        <ListingCard
+                          listing={currentListing}
+                          onLike={handleLike}
+                          onPass={handlePass}
+                          onViewDetails={handleViewDetails}
+                          isAnimating={isAnimating}
+                          direction={direction}
+                          viewMode="card"
+                        />
+                      )}
+                    </div>
+                  </div>
 
-          {/* Action Buttons - Mobile */}
-          <div className="flex justify-center gap-4 mt-6">
-            <button
-              onClick={handlePass}
-              disabled={isAnimating}
-              className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-              title="Not interested (swipe left)"
-            >
-              <FaRegTimesCircle />
-            </button>
-            
-            <button
-              onClick={handleLike}
-              disabled={isAnimating}
-              className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-              title="Save this listing (swipe right)"
-            >
-              <FaHeart />
-            </button>
-          </div>
+                  {/* Right Column - Liked Listings */}
+                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <div className="flex items-center gap-2 mb-4">
+                      <FaBookmark className="text-green-400" />
+                      <h3 className="text-sm font-bold text-white">Favorites</h3>
+                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">
+                        {likedListings.length}
+                      </span>
+                    </div>
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                      {likedListings.length > 0 ? (
+                        likedListings.map((listing) => (
+                          <MiniListingCard key={listing.id} listing={listing} type="liked" />
+                        ))
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-xs text-gray-500">No favorites yet</p>
+                          <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* View All Button */}
+                    {likedListings.length > 0 && (
+                      <button className="w-full mt-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                        View All Favorites
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Grid View (Desktop) */
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredListings.map((listing) => (
+                    <ListingCard
+                      key={listing.id}
+                      listing={listing}
+                      onLike={() => {
+                        setLikedListings([...likedListings, listing]);
+                        setToastMessage(`Added to favorites! ✨`);
+                        setShowToast(true);
+                        setTimeout(() => setShowToast(false), 2000);
+                      }}
+                      onPass={() => {}}
+                      onViewDetails={handleViewDetails}
+                      isAnimating={false}
+                      direction={null}
+                      viewMode="grid"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Action Labels - Mobile */}
-          <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
-            <span>Pass • Swipe Left</span>
-            <span>Like • Swipe Right</span>
-          </div>
-        </div>
+            {/* Mobile View - Grid by default, can switch to card */}
+            <div className="md:hidden">
+              {viewMode === 'card' ? (
+                <>
+                  {/* Card View (Swipe) */}
+                  <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
+                    {/* Stack effect - next card behind */}
+                    {currentIndex < filteredListings.length - 1 && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+                    )}
+                    
+                    {/* Current Card */}
+                    {currentListing && (
+                      <ListingCard
+                        listing={currentListing}
+                        onLike={handleLike}
+                        onPass={handlePass}
+                        onViewDetails={handleViewDetails}
+                        isAnimating={isAnimating}
+                        direction={direction}
+                        viewMode="card"
+                      />
+                    )}
+                  </div>
 
-        {/* Desktop Action Bar */}
-        <div className="hidden md:flex justify-center gap-4 mt-8">
-          <button
-            className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2"
-          >
-            <FaHeart />
-            View All Favorites ({likedListings.length})
-          </button>
-        </div>
+                  {/* Results Count & Undo - Mobile */}
+                  <div className="flex justify-between items-center mb-4 max-w-md mx-auto">
+                    <span className="text-sm text-gray-400">
+                      {filteredListings.length - currentIndex} rooms remaining
+                    </span>
+                    <button
+                      onClick={handleUndo}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                    >
+                      <FaUndo /> Undo
+                    </button>
+                  </div>
+
+                  {/* Action Buttons - Mobile */}
+                  <div className="flex justify-center gap-4 mt-6">
+                    <button
+                      onClick={handlePass}
+                      disabled={isAnimating}
+                      className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                      title="Not interested (swipe left)"
+                    >
+                      <FaRegTimesCircle />
+                    </button>
+                    
+                    <button
+                      onClick={handleLike}
+                      disabled={isAnimating}
+                      className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                      title="Save this listing (swipe right)"
+                    >
+                      <FaHeart />
+                    </button>
+                  </div>
+
+                  {/* Action Labels - Mobile */}
+                  <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
+                    <span>Pass • Swipe Left</span>
+                    <span>Like • Swipe Right</span>
+                  </div>
+                </>
+              ) : (
+                /* Grid View (Mobile) - DEFAULT */
+                <div className="grid grid-cols-2 gap-3">
+                  {filteredListings.map((listing) => (
+                    <ListingCard
+                      key={listing.id}
+                      listing={listing}
+                      onLike={() => {
+                        setLikedListings([...likedListings, listing]);
+                        setToastMessage(`Added to favorites! ✨`);
+                        setShowToast(true);
+                        setTimeout(() => setShowToast(false), 2000);
+                      }}
+                      onPass={() => {}}
+                      onViewDetails={handleViewDetails}
+                      isAnimating={false}
+                      direction={null}
+                      viewMode="grid"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        ) : activeTab === 'map' ? (
+          <MapViewPlaceholder />
+        ) : (
+          <RoommateFinderPlaceholder />
+        )}
 
         {/* Toast Notification */}
         {showToast && (
