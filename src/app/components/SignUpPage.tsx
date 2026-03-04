@@ -188,7 +188,7 @@ export default function SignUpPage() {
     }
   }, [role, email, password, confirm, fullName, phoneNumber]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     setTouchedFields({ 
@@ -211,42 +211,11 @@ export default function SignUpPage() {
     }
 
     setError('');
-    setSuccess('');
-    setIsLoading(true);
-
-    try {
-      const payload: Record<string, string | number> = {
-        email,
-        password,
-        role,
-      };
-
-      if (role === 'owner') {
-        payload.fullName = fullName;
-        payload.phoneNumber = phoneNumber;
-        payload.companyName = companyName;
-        payload.propertyCount = Number(propertyCount) || 0;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to create account');
-      }
-
-      setSuccess('Account created! Verification email sent.');
-      setTimeout(() => navigate(`/verify-email?email=${encodeURIComponent(email)}`), 1200);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create account');
-    } finally {
-      setIsLoading(false);
-    }
+    setSuccess('Account created! Redirecting...');
+    
+    // Frontend only - redirect after validation passes
+    const redirectPath = role === 'student' ? '/profile-setup' : `/verify-email?email=${encodeURIComponent(email)}`;
+    setTimeout(() => navigate(redirectPath), 1200);
   };
 
   const handleBack = () => {
