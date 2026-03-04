@@ -1,4 +1,84 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import { 
+  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
+  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
+  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
+  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
+  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
+  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye
+} from 'react-icons/fa';
+import { MdOutlineVerified } from 'react-icons/md';
+import { RiUserSharedLine } from 'react-icons/ri';
+import { BiCurrentLocation } from 'react-icons/bi';
+import { ROOMS, distMap, fi } from '../data/rooms';
+
+// Mock roommate data
+const roommates = [
+  {
+    id: 1,
+    name: 'Ayesha Perera',
+    age: 22,
+    gender: 'Female',
+    university: 'SLIIT',
+    bio: 'Looking for a friendly roommate. Loves music and reading.',
+    image: 'https://randomuser.me/api/portraits/women/44.jpg',
+    interests: ['Music', 'Reading', 'Cooking'],
+  },
+  {
+    id: 2,
+    name: 'Nimal Silva',
+    age: 24,
+    gender: 'Male',
+    university: 'CINEC',
+    bio: 'Clean, quiet, and respectful. Enjoys sports and movies.',
+    image: 'https://randomuser.me/api/portraits/men/32.jpg',
+    interests: ['Sports', 'Movies', 'Travel'],
+  },
+  {
+    id: 3,
+    name: 'Sajini Fernando',
+    age: 21,
+    gender: 'Female',
+    university: 'NSBM',
+    bio: 'Outgoing and social. Loves to cook and explore new places.',
+    image: 'https://randomuser.me/api/portraits/women/68.jpg',
+    interests: ['Cooking', 'Travel', 'Dancing'],
+  },
+];
+
+// Mini Roommate Card for passed/favorites columns
+const MiniRoommateCard: React.FC<{ roommate: typeof roommates[0]; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
+  return (
+    <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-lg overflow-hidden border border-white/10 hover:shadow-pink-500/10 transition-all mb-2">
+      <div className="flex items-center gap-2 p-2">
+        <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+          <img 
+            src={roommate.image} 
+            alt={roommate.name}
+            className="w-full h-full object-cover"
+          />
+          <div className={`absolute inset-0 ${type === 'passed' ? 'bg-red-500/20' : 'bg-green-500/20'} flex items-center justify-center`}>
+            {type === 'passed' ? (
+              <FaRegTimesCircle className="text-red-400 text-xs" />
+            ) : (
+              <FaHeart className="text-green-400 text-xs" />
+            )}
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-xs font-bold text-white truncate">{roommate.name}, {roommate.age}</h4>
+          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+            <FaUserFriends className="text-pink-400" />
+            <span className="truncate">{roommate.university}</span>
+          </div>
+          <div className="text-[10px] text-pink-400 truncate">
+            {roommate.gender}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Roommate swipe card component
 function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }: { roommate: any; onLike: () => void; onPass: () => void; isAnimating: boolean; direction: string | null }) {
@@ -94,19 +174,114 @@ function RoommateFinderPlaceholder() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px]">
-      <RoommateSwipeCard
-        roommate={current}
-        onLike={handleLike}
-        onPass={handlePass}
-        isAnimating={isAnimating}
-        direction={direction}
-      />
-      <div className="flex justify-between w-full max-w-md mt-4 px-4">
-        <span className="text-xs text-gray-400">{roommates.length - currentIdx} profiles left</span>
-        <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><FaUndo /> Undo</button>
+    <>
+      {/* Desktop View - 3 Column Layout */}
+      <div className="hidden md:block">
+        <div className="grid grid-cols-3 gap-6">
+          {/* Left Column - Passed Roommates */}
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-4">
+              <FaHistory className="text-red-400" />
+              <h3 className="text-sm font-bold text-white">Passed</h3>
+              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">
+                {passed.length}
+              </span>
+            </div>
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {passed.length > 0 ? (
+                passed.map((roommate) => (
+                  <MiniRoommateCard key={roommate.id} roommate={roommate} type="passed" />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-gray-500">No passed profiles yet</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Center Column - Main Swipe Card */}
+          <div>
+            <div className="relative h-[500px] mb-4 perspective-1000">
+              {/* Stack effect - next card behind */}
+              {currentIdx < roommates.length - 1 && (
+                <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+              )}
+              
+              {/* Current Card */}
+              {current && (
+                <RoommateSwipeCard
+                  roommate={current}
+                  onLike={handleLike}
+                  onPass={handlePass}
+                  isAnimating={isAnimating}
+                  direction={direction}
+                />
+              )}
+            </div>
+            
+            {/* Results Count & Undo */}
+            <div className="flex justify-between items-center mt-4">
+              <span className="text-sm text-gray-400">
+                {roommates.length - currentIdx} profiles remaining
+              </span>
+              <button
+                onClick={handleUndo}
+                className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+              >
+                <FaUndo /> Undo
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column - Liked Roommates */}
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-4">
+              <FaBookmark className="text-green-400" />
+              <h3 className="text-sm font-bold text-white">Favorites</h3>
+              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">
+                {liked.length}
+              </span>
+            </div>
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {liked.length > 0 ? (
+                liked.map((roommate) => (
+                  <MiniRoommateCard key={roommate.id} roommate={roommate} type="liked" />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-gray-500">No favorites yet</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
+                </div>
+              )}
+            </div>
+            
+            {/* View All Button */}
+            {liked.length > 0 && (
+              <button className="w-full mt-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                View All Favorites
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Mobile View - Single Card */}
+      <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
+        <RoommateSwipeCard
+          roommate={current}
+          onLike={handleLike}
+          onPass={handlePass}
+          isAnimating={isAnimating}
+          direction={direction}
+        />
+        <div className="flex justify-between w-full max-w-md mt-4 px-4">
+          <span className="text-xs text-gray-400">{roommates.length - currentIdx} profiles left</span>
+          <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><FaUndo /> Undo</button>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -151,6 +326,9 @@ interface Listing {
   features: string[];
   deposit: number;
   roommateCount: number;
+  rating?: number;
+  campus?: string[];
+  fullAddress?: string;
 }
 
 interface ListingCardProps {
@@ -368,6 +546,86 @@ const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> 
             {formatPrice(listing.price)}
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Ranked Result Card Component - for list view display
+const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: number) => void }> = ({ room, onOpen }) => {
+  const formatPrice = (price: number): string => {
+    return `Rs. ${price.toLocaleString()}/mo`;
+  };
+
+  const stars = '★'.repeat(Math.floor(room.rating)) + (room.rating % 1 >= 0.5 ? '½' : '');
+
+  return (
+    <div
+      onClick={() => onOpen(room.id)}
+      className="bg-gradient-to-br from-[#181f36]/80 to-[#232b47]/80 backdrop-blur-sm rounded-xl p-4 mb-3 border border-white/10 hover:border-cyan-400/50 hover:bg-gradient-to-br hover:from-[#181f36] hover:to-[#232b47] transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/20"
+    >
+      {/* Top Row: Name + Price */}
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <div className="flex-1">
+          <h3 className="text-base md:text-lg font-bold text-white mb-1">{room.name}</h3>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <div className="text-lg md:text-xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+            {formatPrice(room.price)}
+          </div>
+        </div>
+      </div>
+
+      {/* Second Row: Location + Distance + Rating */}
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <div className="flex items-center gap-1 text-sm text-gray-300">
+          <FaMapMarkerAlt className="text-pink-400 flex-shrink-0" />
+          <span>{room.location}, {room.campus}</span>
+        </div>
+      </div>
+
+      {/* Distance and Rating Row */}
+      <div className="flex items-center gap-4 mb-3 flex-wrap text-xs md:text-sm">
+        <div className="flex items-center gap-1 text-gray-400">
+          <FaWalking className="text-cyan-400" />
+          <span className="font-semibold">{room.distKm < 1 ? `${Math.round(room.distKm * 1000)}m` : `${room.distKm}km`} away</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {stars && (
+            <>
+              <span className="text-yellow-400">{stars}</span>
+              <span className="text-gray-400">{room.rating.toFixed(1)}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Availability Badge + Facilities */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span
+          className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+            room.available
+              ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+              : 'bg-red-500/20 text-red-300 border border-red-500/30'
+          }`}
+        >
+          {room.available ? '✅ Available' : '❌ Occupied'}
+        </span>
+
+        {/* Facilities Tags */}
+        {room.facilities.slice(0, 3).map((fac: string, idx: number) => (
+          <span
+            key={idx}
+            className="px-2 py-1 rounded-full text-xs bg-cyan-500/20 text-cyan-300 border border-cyan-500/20 flex-shrink-0"
+          >
+            {fac}
+          </span>
+        ))}
+        {room.facilities.length > 3 && (
+          <span className="px-2 py-1 rounded-full text-xs bg-white/5 text-gray-400 border border-white/10">
+            +{room.facilities.length - 3} more
+          </span>
+        )}
       </div>
     </div>
   );
@@ -773,6 +1031,207 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike })
   );
 };
 
+// Advanced FiltersPanel Component matching the image
+const FiltersPanel: React.FC<{
+  filters: any;
+  setters: any;
+  onReset: () => void;
+}> = ({ filters, setters, onReset }) => {
+  const { priceMax, dist, room, avail, facs, rating } = filters;
+  const { setPriceMax, setDist, setRoom, setAvail, setFacs, setRating } = setters;
+
+  const facilityOptions = [
+    { name: 'WiFi', icon: '📶' },
+    { name: 'Air-Cond', icon: '❄️' },
+    { name: 'Meals', icon: '🍽️' },
+    { name: 'Private Bath', icon: '🚿' },
+    { name: 'Parking', icon: '🅿️' },
+    { name: 'Laundry', icon: '👕' },
+    { name: 'Security', icon: '🔒' },
+    { name: 'Gym', icon: '💪' }
+  ];
+
+  const distanceOptions = [
+    { label: '500m', value: '500m' },
+    { label: '1km', value: 'walking' },
+    { label: '2km', value: 'cycling' },
+    { label: '5km', value: 'bus' },
+    { label: 'Any', value: 'any' }
+  ];
+
+  const roomTypeOptions = ['All', 'Single', 'Master', 'Sharing', 'Annex'];
+
+  const availabilityOptions = ['All', 'Available', 'Occupied'];
+
+  return (
+    <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-cyan-500/30 shadow-2xl shadow-cyan-500/10">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <FaFilter className="text-cyan-400 text-lg sm:text-xl flex-shrink-0" />
+          <h3 className="text-lg sm:text-xl font-bold text-white">Real-Time Filters</h3>
+        </div>
+        <button
+          onClick={onReset}
+          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg text-xs sm:text-sm font-medium hover:shadow-lg transition-all flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
+        >
+          <FaTimes className="text-xs sm:text-sm" />
+          <span>Reset All</span>
+        </button>
+      </div>
+
+      {/* Filters Row 1: Price, Distance, Room Type */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        {/* Price Range */}
+        <div className="lg:col-span-1 md:col-span-2">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Price Range (Rs./Month)</label>
+          <div className="space-y-2">
+            <input
+              type="range"
+              min="3000"
+              max="50000"
+              step="500"
+              value={priceMax}
+              onChange={(e) => setPriceMax(Number(e.target.value))}
+              className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+            <div className="flex justify-between text-xs text-gray-400">
+              <span className="hidden sm:inline">Rs. 3,000</span>
+              <span className="sm:hidden text-[10px]">3k</span>
+              <span className="text-cyan-400 font-bold text-center text-xs sm:text-sm">Rs. {priceMax.toLocaleString()}</span>
+              <span className="hidden sm:inline">Rs. 50,000</span>
+              <span className="sm:hidden text-[10px]">50k</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Max Distance from Campus */}
+        <div className="md:col-span-2 lg:col-span-2">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Max Distance from Campus</label>
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            {distanceOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setDist(option.value)}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                  dist === option.value
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/10'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Room Type */}
+        <div className="md:col-span-2 lg:col-span-2">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Room Type</label>
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            {roomTypeOptions.map((type) => (
+              <button
+                key={type}
+                onClick={() => setRoom(type.toLowerCase())}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                  (type === 'All' && room === 'any') || room === type.toLowerCase()
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/50'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/10'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Filters Row 2: Availability & Rating */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        {/* Availability */}
+        <div className="md:col-span-1 lg:col-span-1">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Availability</label>
+          <div className="flex gap-1.5 sm:gap-2">
+            {availabilityOptions.map((status) => (
+              <button
+                key={status}
+                onClick={() => setAvail(status === 'All' ? 'all' : status.toLowerCase())}
+                className={`flex-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                  (status === 'All' && avail === 'all') || avail === status.toLowerCase()
+                    ? 'bg-green-500 text-white shadow-lg shadow-green-500/50'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/10'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Minimum Rating */}
+        <div className="md:col-span-2 lg:col-span-3">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Minimum Rating</label>
+          <div className="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
+            <div className="flex gap-0.5 sm:gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setRating(star)}
+                  className={`text-xl sm:text-2xl transition-all ${
+                    rating >= star ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-300'
+                  }`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <span className="text-xs sm:text-sm font-medium text-gray-300 ml-auto sm:ml-0 pr-0 sm:pr-4">
+              {rating > 0 ? `${rating}★ and above` : 'Any'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Facilities with Icon + Toggle */}
+      <div>
+        <label className="text-xs sm:text-sm text-cyan-300 mb-3 sm:mb-4 block font-semibold">Facilities</label>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-2 sm:gap-3">
+          {facilityOptions.map((facility) => (
+            <button
+              key={facility.name}
+              onClick={() => {
+                if (facs.includes(facility.name)) {
+                  setFacs(facs.filter((f: string) => f !== facility.name));
+                } else {
+                  setFacs([...facs, facility.name]);
+                }
+              }}
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl transition-all border-2 ${
+                facs.includes(facility.name)
+                  ? 'border-cyan-500 bg-cyan-500/20 shadow-lg shadow-cyan-500/30'
+                  : 'border-white/20 bg-white/5 hover:bg-white/10'
+              }`}
+            >
+              <span className="text-lg sm:text-2xl">{facility.icon}</span>
+              <span className={`text-[10px] sm:text-xs font-medium text-center leading-tight ${
+                facs.includes(facility.name) ? 'text-cyan-300' : 'text-gray-400'
+              }`}>
+                {facility.name}
+              </span>
+              {/* Toggle indicator */}
+              <div className={`w-5 sm:w-6 h-2.5 sm:h-3 rounded-full transition-all mt-0.5 sm:mt-1 ${
+                facs.includes(facility.name)
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500'
+                  : 'bg-gray-600'
+              }`} />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function SearchPage() {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
@@ -787,8 +1246,20 @@ export default function SearchPage() {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'grid'>('grid');
   const [activeTab, setActiveTab] = useState<'rooms' | 'map' | 'roommate'>('rooms');
+  
+  // Advanced filter states matching the image
+  const [priceMax, setPriceMax] = useState<number>(50000);
+  const [dist, setDist] = useState<string>('any');
+  const [room, setRoom] = useState<string>('any');
+  const [avail, setAvail] = useState<string>('all');
+  const [facs, setFacs] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState<boolean>(true);
+  const [sortMode, setSortMode] = useState<'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance'>('discovery');
 
-  // Filter listings based on search and filters
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean);
+
+  // Filter listings based on search and advanced filters
   const filteredListings: Listing[] = listings.filter(listing => {
     // Search filter
     if (searchTerm && !listing.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
@@ -796,18 +1267,125 @@ export default function SearchPage() {
       return false;
     }
     
-    // Chip filters
+    // Chip filters (kept for backward compatibility)
     if (selectedFilters.includes('budget') && listing.price > 20000) return false;
     if (selectedFilters.includes('near') && listing.distance > 2) return false;
     if (selectedFilters.includes('verified') && !listing.verified) return false;
-    if (selectedFilters.includes('single') && listing.roomType.includes('Shared')) return false;
+    if (selectedFilters.includes('single') && listing.roomType !== 'Single Room') return false;
     if (selectedFilters.includes('shared') && !listing.roomType.includes('Shared')) return false;
     if (selectedFilters.includes('bills') && !listing.billsIncluded) return false;
     
     return true;
   });
 
-  const currentListing: Listing | undefined = filteredListings[currentIndex];
+  const listingScore = (listing: Listing): number => {
+    let score = 0;
+
+    if (!normalizedSearch) {
+      score += listing.verified ? 25 : 0;
+      score += listing.billsIncluded ? 12 : 0;
+      score += Math.max(0, 10 - listing.distance * 2);
+      score += Math.max(0, 8 - listing.price / 5000);
+      return score;
+    }
+
+    const haystack = `${listing.title} ${listing.location} ${listing.roomType} ${listing.description}`.toLowerCase();
+    if (listing.title.toLowerCase().includes(normalizedSearch)) score += 40;
+    if (listing.location.toLowerCase().includes(normalizedSearch)) score += 26;
+
+    for (const token of searchTokens) {
+      if (listing.title.toLowerCase().includes(token)) score += 12;
+      if (listing.location.toLowerCase().includes(token)) score += 9;
+      if (listing.roomType.toLowerCase().includes(token)) score += 7;
+      if (haystack.includes(token)) score += 4;
+    }
+
+    score += listing.verified ? 10 : 0;
+    score += listing.billsIncluded ? 6 : 0;
+    score += Math.max(0, 10 - listing.distance * 2);
+    return score;
+  };
+
+  const rankedListings: Listing[] = [...filteredListings].sort((a, b) => {
+    if (sortMode === 'price-low') return a.price - b.price;
+    if (sortMode === 'price-high') return b.price - a.price;
+    if (sortMode === 'distance') return a.distance - b.distance;
+    return listingScore(b) - listingScore(a);
+  });
+
+  // Filter ROOMS data based on advanced filters
+  const getFilteredRooms = () => {
+    return ROOMS.filter((r: any) => {
+      // Search term
+      if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !r.location.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !r.campus.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Price
+      if (r.price > priceMax) return false;
+      
+      // Distance
+      if (dist !== 'any' && r.distKm > (distMap as any)[dist]) return false;
+      
+      // Room type
+      if (room !== 'any' && r.roomType.toLowerCase() !== room.toLowerCase()) return false;
+      
+      // Availability
+      if (avail === 'available' && !r.available) return false;
+      if (avail === 'occupied' && r.available) return false;
+      
+      // Facilities
+      if (facs.length > 0 && !facs.every(f => r.facilities.map((fac: string) => fac.toLowerCase()).includes(f.toLowerCase()))) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+  
+  const filteredRooms = getFilteredRooms();
+  
+  const roomScore = (roomItem: typeof ROOMS[0]): number => {
+    let score = 0;
+
+    if (!normalizedSearch) {
+      score += roomItem.available ? 25 : 0;
+      score += roomItem.rating * 8;
+      score += Math.max(0, 12 - roomItem.distKm * 2.2);
+      score += Math.max(0, 8 - roomItem.price / 6000);
+      return score;
+    }
+
+    const haystack = `${roomItem.name} ${roomItem.location} ${roomItem.campus} ${roomItem.roomType} ${roomItem.desc} ${roomItem.facilities.join(' ')}`.toLowerCase();
+    if (roomItem.name.toLowerCase().includes(normalizedSearch)) score += 42;
+    if (roomItem.location.toLowerCase().includes(normalizedSearch)) score += 24;
+    if (roomItem.campus.toLowerCase().includes(normalizedSearch)) score += 20;
+
+    for (const token of searchTokens) {
+      if (roomItem.name.toLowerCase().includes(token)) score += 14;
+      if (roomItem.location.toLowerCase().includes(token)) score += 10;
+      if (roomItem.campus.toLowerCase().includes(token)) score += 10;
+      if (roomItem.roomType.toLowerCase().includes(token)) score += 8;
+      if (haystack.includes(token)) score += 4;
+    }
+
+    score += roomItem.available ? 12 : 0;
+    score += roomItem.rating * 5;
+    score += Math.min(12, roomItem.reviews / 3);
+    score += Math.max(0, 10 - roomItem.distKm * 2);
+    return score;
+  };
+
+  const rankedRooms = [...filteredRooms].sort((a, b) => {
+    if (sortMode === 'price-low') return a.price - b.price;
+    if (sortMode === 'price-high') return b.price - a.price;
+    if (sortMode === 'distance') return a.distKm - b.distKm;
+    return roomScore(b) - roomScore(a);
+  });
+
+  const currentListing: Listing | undefined = rankedListings[currentIndex];
 
   const handleLike = (): void => {
     if (!currentListing || isAnimating) return;
@@ -821,10 +1399,10 @@ export default function SearchPage() {
       setShowToast(true);
       
       setTimeout(() => {
-        if (currentIndex < filteredListings.length - 1) {
+        if (currentIndex < rankedListings.length - 1) {
           setCurrentIndex(currentIndex + 1);
         } else {
-          setCurrentIndex(filteredListings.length);
+          setCurrentIndex(rankedListings.length);
         }
         setDirection(null);
         setIsAnimating(false);
@@ -848,10 +1426,10 @@ export default function SearchPage() {
       setShowToast(true);
       
       setTimeout(() => {
-        if (currentIndex < filteredListings.length - 1) {
+        if (currentIndex < rankedListings.length - 1) {
           setCurrentIndex(currentIndex + 1);
         } else {
-          setCurrentIndex(filteredListings.length);
+          setCurrentIndex(rankedListings.length);
         }
         setDirection(null);
         setIsAnimating(false);
@@ -869,9 +1447,9 @@ export default function SearchPage() {
       const lastPassed = passedListings[passedListings.length - 1];
       const lastLiked = likedListings[likedListings.length - 1];
       
-      if (lastPassed && lastPassed.id === filteredListings[currentIndex - 1]?.id) {
+      if (lastPassed && lastPassed.id === rankedListings[currentIndex - 1]?.id) {
         setPassedListings(passedListings.slice(0, -1));
-      } else if (lastLiked && lastLiked.id === filteredListings[currentIndex - 1]?.id) {
+      } else if (lastLiked && lastLiked.id === rankedListings[currentIndex - 1]?.id) {
         setLikedListings(likedListings.slice(0, -1));
       }
       
@@ -903,7 +1481,7 @@ export default function SearchPage() {
   };
 
   // Empty state
-  if (filteredListings.length === 0 || currentIndex >= filteredListings.length) {
+  if (rankedListings.length === 0 || currentIndex >= rankedListings.length) {
     return (
       <div className="min-h-screen flex flex-col items-center py-12 px-4 bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
         <div className="w-full max-w-4xl mx-auto">
@@ -1050,7 +1628,15 @@ export default function SearchPage() {
             </div>
 
             {/* Filter Chips */}
-            <div className="flex flex-wrap gap-2 mt-4">
+            <div className="flex flex-wrap gap-2 mt-4 mb-4">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-medium shadow-lg hover:shadow-xl transition-all"
+              >
+                <FaFilter />
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
+              
               {filterChips.map((chip) => (
                 <button
                   key={chip.id}
@@ -1068,6 +1654,53 @@ export default function SearchPage() {
                 </button>
               ))}
             </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="text-xs text-gray-400">Sort results</span>
+              <select
+                value={sortMode}
+                onChange={(e) => {
+                  setSortMode(e.target.value as 'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance');
+                  setCurrentIndex(0);
+                }}
+                className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              >
+                <option value="discovery" className="bg-[#131d3a]">Discovery Picks</option>
+                <option value="relevance" className="bg-[#131d3a]">Best Match</option>
+                <option value="distance" className="bg-[#131d3a]">Nearest First</option>
+                <option value="price-low" className="bg-[#131d3a]">Lowest Price</option>
+                <option value="price-high" className="bg-[#131d3a]">Highest Price</option>
+              </select>
+            </div>
+
+            {/* Advanced Filters Panel */}
+            {showFilters && (
+              <div className="mt-4">
+                <FiltersPanel
+                  filters={{
+                    priceMax,
+                    dist,
+                    room,
+                    avail,
+                    facs
+                  }}
+                  setters={{
+                    setPriceMax,
+                    setDist,
+                    setRoom,
+                    setAvail,
+                    setFacs
+                  }}
+                  onReset={() => {
+                    setPriceMax(50000);
+                    setDist('any');
+                    setRoom('any');
+                    setAvail('all');
+                    setFacs([]);
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -1105,7 +1738,7 @@ export default function SearchPage() {
                   <div>
                     <div className="relative h-[500px] mb-4 perspective-1000">
                       {/* Stack effect - next card behind */}
-                      {currentIndex < filteredListings.length - 1 && (
+                      {currentIndex < rankedListings.length - 1 && (
                         <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
                       )}
                       
@@ -1156,25 +1789,100 @@ export default function SearchPage() {
                 </div>
               ) : (
                 /* Grid View (Desktop) */
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredListings.map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      listing={listing}
-                      onLike={() => {
-                        setLikedListings([...likedListings, listing]);
-                        setToastMessage(`Added to favorites! ✨`);
-                        setShowToast(true);
-                        setTimeout(() => setShowToast(false), 2000);
-                      }}
-                      onPass={() => {}}
-                      onViewDetails={handleViewDetails}
-                      isAnimating={false}
-                      direction={null}
-                      viewMode="grid"
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* Original Listings Grid */}
+                  {rankedListings.length > 0 && (
+                    <>
+                      <h2 className="text-xl font-bold text-white mb-4">Your Saved Searches</h2>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                        {rankedListings.map((listing) => (
+                          <ListingCard
+                            key={listing.id}
+                            listing={listing}
+                            onLike={() => {
+                              setLikedListings([...likedListings, listing]);
+                              setToastMessage(`Added to favorites! ✨`);
+                              setShowToast(true);
+                              setTimeout(() => setShowToast(false), 2000);
+                            }}
+                            onPass={() => {}}
+                            onViewDetails={handleViewDetails}
+                            isAnimating={false}
+                            direction={null}
+                            viewMode="grid"
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Advanced Filtered Rooms Grid */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-bold text-white">
+                        All Available Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
+                      </h2>
+                      {(priceMax < 50000 || dist !== 'any' || room !== 'any' || avail !== 'all' || facs.length > 0) && (
+                        <button
+                          onClick={() => {
+                            setPriceMax(50000);
+                            setDist('any');
+                            setRoom('any');
+                            setAvail('all');
+                            setFacs([]);
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition-colors"
+                        >
+                          <FaTimes />
+                          Clear Filters
+                        </button>
+                      )}
+                    </div>
+                    
+                    {rankedRooms.length > 0 ? (
+                      <div className="space-y-2 max-h-screen overflow-y-auto pr-2 custom-scrollbar">
+                        {rankedRooms.map((room) => (
+                          <RankedResultCard
+                            key={room.id}
+                            room={room}
+                            onOpen={(id: number) => {
+                              // Convert room to listing format for details modal
+                              const r = ROOMS.find((rm: any) => rm.id === id);
+                              if (!r) return;
+                              const listing: Listing = {
+                                id: r.id,
+                                title: r.name,
+                                images: [r.img],
+                                price: r.price,
+                                location: r.location,
+                                distance: r.distKm,
+                                distanceUnit: 'km',
+                                travelTime: r.distKm < 1 ? `${Math.round(r.distKm * 1000)}m walk` : `${r.distKm}km from ${r.campus}`,
+                                roomType: r.roomType,
+                                genderPreference: 'Any',
+                                availableFrom: new Date().toISOString(),
+                                billsIncluded: r.facilities.includes('Meals'),
+                                verified: true,
+                                badges: r.available ? ['Available'] : ['Occupied'],
+                                description: r.desc,
+                                features: r.facilities,
+                                deposit: r.price * 2,
+                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0
+                              };
+                              handleViewDetails(listing);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                        <FaSearch className="text-4xl text-gray-500 mx-auto mb-4" />
+                        <p className="text-gray-400 mb-2">No rooms match your filters</p>
+                        <p className="text-sm text-gray-500">Try adjusting your search criteria</p>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 
@@ -1185,7 +1893,7 @@ export default function SearchPage() {
                   {/* Card View (Swipe) */}
                   <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
                     {/* Stack effect - next card behind */}
-                    {currentIndex < filteredListings.length - 1 && (
+                    {currentIndex < rankedListings.length - 1 && (
                       <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
                     )}
                     
@@ -1206,7 +1914,7 @@ export default function SearchPage() {
                   {/* Results Count & Undo - Mobile */}
                   <div className="flex justify-between items-center mb-4 max-w-md mx-auto">
                     <span className="text-sm text-gray-400">
-                      {filteredListings.length - currentIndex} rooms remaining
+                      {rankedListings.length - currentIndex} rooms remaining
                     </span>
                     <button
                       onClick={handleUndo}
@@ -1245,25 +1953,82 @@ export default function SearchPage() {
                 </>
               ) : (
                 /* Grid View (Mobile) - DEFAULT */
-                <div className="grid grid-cols-2 gap-3">
-                  {filteredListings.map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      listing={listing}
-                      onLike={() => {
-                        setLikedListings([...likedListings, listing]);
-                        setToastMessage(`Added to favorites! ✨`);
-                        setShowToast(true);
-                        setTimeout(() => setShowToast(false), 2000);
-                      }}
-                      onPass={() => {}}
-                      onViewDetails={handleViewDetails}
-                      isAnimating={false}
-                      direction={null}
-                      viewMode="grid"
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* Original Listings Grid */}
+                  {rankedListings.length > 0 && (
+                    <>
+                      <h2 className="text-lg font-bold text-white mb-3 px-2">Your Saved Searches</h2>
+                      <div className="grid grid-cols-1 gap-3 mb-6">
+                        {rankedListings.map((listing) => (
+                          <ListingCard
+                            key={listing.id}
+                            listing={listing}
+                            onLike={() => {
+                              setLikedListings([...likedListings, listing]);
+                              setToastMessage(`Added to favorites! ✨`);
+                              setShowToast(true);
+                              setTimeout(() => setShowToast(false), 2000);
+                            }}
+                            onPass={() => {}}
+                            onViewDetails={handleViewDetails}
+                            isAnimating={false}
+                            direction={null}
+                            viewMode="grid"
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Advanced Filtered Rooms Grid */}
+                  <div className="px-2">
+                    <h2 className="text-lg font-bold text-white mb-3">
+                      All Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
+                    </h2>
+                    
+                    {rankedRooms.length > 0 ? (
+                      <div className="space-y-2 max-h-screen overflow-y-auto pr-2 custom-scrollbar">
+                        {rankedRooms.map((room) => (
+                          <RankedResultCard
+                            key={room.id}
+                            room={room}
+                            onOpen={(id: number) => {
+                              const r = ROOMS.find((rm: any) => rm.id === id);
+                              if (!r) return;
+                              const listing: Listing = {
+                                id: r.id,
+                                title: r.name,
+                                images: [r.img],
+                                price: r.price,
+                                location: r.location,
+                                distance: r.distKm,
+                                distanceUnit: 'km',
+                                travelTime: r.distKm < 1 ? `${Math.round(r.distKm * 1000)}m walk` : `${r.distKm}km from ${r.campus}`,
+                                roomType: r.roomType,
+                                genderPreference: 'Any',
+                                availableFrom: new Date().toISOString(),
+                                billsIncluded: r.facilities.includes('Meals'),
+                                verified: true,
+                                badges: r.available ? ['Available'] : ['Occupied'],
+                                description: r.desc,
+                                features: r.facilities,
+                                deposit: r.price * 2,
+                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0
+                              };
+                              handleViewDetails(listing);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                        <FaSearch className="text-3xl text-gray-500 mx-auto mb-3" />
+                        <p className="text-gray-400 text-sm mb-1">No rooms match your filters</p>
+                        <p className="text-xs text-gray-500">Try adjusting your criteria</p>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </>

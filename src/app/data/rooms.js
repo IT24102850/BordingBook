@@ -339,3 +339,17 @@ export function buildReply(extracted) {
 
 // ─── FACILITY ICONS ───────────────────────────────────
 export const facIco = { WiFi: '📶', AC: '❄️', Meals: '🍽️', Bathroom: '🚿', Parking: '🅿️', Security: '🔒', Laundry: '👕' };
+
+// ─── DISTANCE MAP FOR FILTERING ──────────────────────
+export const distMap = {
+  'walking': 1,
+  'cycling': 2.5,
+  'bus': 5,
+  'any': 100
+};
+
+// ─── FACILITY ICON FUNCTION ──────────────────────────
+export const fi = (facility) => {
+  const icon = facIco[facility];
+  return icon ? `${icon} ${facility}` : facility;
+};
