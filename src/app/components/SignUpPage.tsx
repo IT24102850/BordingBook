@@ -4,7 +4,7 @@ import {
   UserCheck, ArrowLeft, Eye, EyeOff, AlertCircle, Loader2, 
   Shield, Mail, Lock, CheckCircle, XCircle, FileText, 
   Building, Phone, User, Home, Briefcase, Sparkles,
-  ChevronRight, Zap, Award, Clock
+  ChevronRight, Zap, Award, Clock, Calendar, CreditCard, GraduationCap, Hash
 } from 'lucide-react';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
@@ -79,6 +79,14 @@ export default function SignUpPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [propertyCount, setPropertyCount] = useState('');
+
+  // Student-specific fields
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [birthday, setBirthday] = useState('');
+  const [academicYear, setAcademicYear] = useState('');
+  const [nic, setNic] = useState('');
+  const [studentIdPrefix, setStudentIdPrefix] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -91,7 +99,13 @@ export default function SignUpPage() {
     password: false,
     confirm: false,
     fullName: false,
-    phoneNumber: false
+    phoneNumber: false,
+    firstName: false,
+    lastName: false,
+    birthday: false,
+    academicYear: false,
+    nic: false,
+    studentIdPrefix: false,
   });
   
   const navigate = useNavigate();
@@ -119,20 +133,33 @@ export default function SignUpPage() {
     return { checks, strength, score, strengthColor };
   };
 
-  const validateEmail = (email: string) => {
+  const validateEmail = (emailVal: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) return 'Email is required';
-    if (!emailRegex.test(email)) return 'Invalid email format';
-    
     if (role === 'student') {
-      if (!email.endsWith('@sliit.lk') && !email.endsWith('@my.sliit.lk')) {
-        return 'Use @sliit.lk or @my.sliit.lk';
-      }
-    } else {
-      if (email.endsWith('@sliit.lk') || email.endsWith('@my.sliit.lk')) {
-        return 'Use business/personal email';
-      }
+      // email is derived from studentIdPrefix for students
+      return '';
     }
+    if (!emailVal) return 'Email is required';
+    if (!emailRegex.test(emailVal)) return 'Invalid email format';
+    if (emailVal.endsWith('@sliit.lk') || emailVal.endsWith('@my.sliit.lk')) {
+      return 'Use business/personal email';
+    }
+    return '';
+  };
+
+  const validateStudentId = (prefix: string) => {
+    if (!prefix) return 'Student ID is required';
+    if (!/^IT\d{8}$/i.test(prefix)) return 'Format: IT followed by 8 digits (e.g. IT21234567)';
+    return '';
+  };
+
+  const validateFirstName = (v: string) => !v.trim() ? 'First name is required' : '';
+  const validateLastName = (v: string) => !v.trim() ? 'Last name is required' : '';
+  const validateBirthday = (v: string) => !v ? 'Birthday is required' : '';
+  const validateAcademicYear = (v: string) => !v ? 'Academic year is required' : '';
+  const validateNic = (v: string) => {
+    if (!v) return 'NIC is required';
+    if (!/^(\d{9}[vVxX]|\d{12})$/.test(v)) return 'Invalid NIC (e.g. 123456789V or 200012345678)';
     return '';
   };
 
@@ -169,11 +196,21 @@ export default function SignUpPage() {
     return '';
   };
 
+  // Derive the full student email
+  const studentEmail = role === 'student' ? `${studentIdPrefix}@my.sliit.lk` : email;
+  const effectiveEmail = role === 'student' ? studentEmail : email;
+
   const emailError = touchedFields.email ? validateEmail(email) : '';
+  const studentIdError = role === 'student' && touchedFields.studentIdPrefix ? validateStudentId(studentIdPrefix) : '';
   const passwordError = touchedFields.password ? validatePassword(password) : '';
   const confirmError = touchedFields.confirm ? validateConfirm(confirm) : '';
   const fullNameError = role === 'owner' && touchedFields.fullName ? validateFullName(fullName) : '';
   const phoneNumberError = role === 'owner' && touchedFields.phoneNumber ? validatePhoneNumber(phoneNumber) : '';
+  const firstNameError = role === 'student' && touchedFields.firstName ? validateFirstName(firstName) : '';
+  const lastNameError = role === 'student' && touchedFields.lastName ? validateLastName(lastName) : '';
+  const birthdayError = role === 'student' && touchedFields.birthday ? validateBirthday(birthday) : '';
+  const academicYearError = role === 'student' && touchedFields.academicYear ? validateAcademicYear(academicYear) : '';
+  const nicError = role === 'student' && touchedFields.nic ? validateNic(nic) : '';
   
   const passwordStrength = password && role === 'student' ? checkPasswordStrength(password) : null;
 
@@ -196,16 +233,25 @@ export default function SignUpPage() {
       password: true, 
       confirm: true,
       fullName: role === 'owner',
-      phoneNumber: role === 'owner'
+      phoneNumber: role === 'owner',
+      firstName: role === 'student',
+      lastName: role === 'student',
+      birthday: role === 'student',
+      academicYear: role === 'student',
+      nic: role === 'student',
+      studentIdPrefix: role === 'student',
     });
     
-    const emailValidation = validateEmail(email);
+    const emailValidation = role === 'student' ? validateStudentId(studentIdPrefix) : validateEmail(email);
     const passwordValidation = validatePassword(password);
     const confirmValidation = validateConfirm(confirm);
     const fullNameValidation = role === 'owner' ? validateFullName(fullName) : '';
     const phoneNumberValidation = role === 'owner' ? validatePhoneNumber(phoneNumber) : '';
+    const studentFieldsValidation = role === 'student'
+      ? (validateFirstName(firstName) || validateLastName(lastName) || validateBirthday(birthday) || validateAcademicYear(academicYear) || validateNic(nic))
+      : '';
     
-    if (emailValidation || passwordValidation || confirmValidation || fullNameValidation || phoneNumberValidation) {
+    if (emailValidation || passwordValidation || confirmValidation || fullNameValidation || phoneNumberValidation || studentFieldsValidation) {
       setError('Please fix the errors below');
       return;
     }
@@ -216,7 +262,7 @@ export default function SignUpPage() {
 
     try {
       const payload: Record<string, string | number> = {
-        email,
+        email: role === 'student' ? `${studentIdPrefix}@my.sliit.lk` : email,
         password,
         role,
       };
@@ -226,6 +272,15 @@ export default function SignUpPage() {
         payload.phoneNumber = phoneNumber;
         payload.companyName = companyName;
         payload.propertyCount = Number(propertyCount) || 0;
+      }
+
+      if (role === 'student') {
+        payload.firstName = firstName;
+        payload.lastName = lastName;
+        payload.birthday = birthday;
+        payload.academicYear = academicYear;
+        payload.nic = nic;
+        payload.studentId = studentIdPrefix.toUpperCase();
       }
 
       const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
@@ -387,6 +442,147 @@ export default function SignUpPage() {
               </div>
 
               <form className="space-y-3 md:space-y-4" onSubmit={handleSubmit} noValidate>
+                {/* Student Fields */}
+                {role === 'student' && (
+                  <div className="space-y-2 md:space-y-3 animate-slideDown">
+                    {/* First Name + Last Name */}
+                    <div className="grid grid-cols-2 gap-2 md:gap-3">
+                      {/* First Name */}
+                      <div className="relative">
+                        <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium z-10 bg-[#1e253f] ${
+                          firstNameError ? 'text-red-400' : focusedField === 'firstName' ? 'text-cyan-400' : 'text-gray-400'
+                        }`}>First Name</label>
+                        <div className="relative">
+                          <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
+                            onFocus={() => setFocusedField('firstName')}
+                            onBlur={() => { setFocusedField(null); setTouchedFields(p => ({ ...p, firstName: true })); }}
+                            className={`w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all ${
+                              firstNameError ? 'border-red-400 bg-red-400/5' :
+                              firstName && !firstNameError ? 'border-green-400 bg-green-400/5' :
+                              focusedField === 'firstName' ? 'border-cyan-400 bg-cyan-400/5' : 'border-white/10 bg-white/5'
+                            } text-white placeholder-transparent focus:outline-none`} placeholder="John" />
+                          <User className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 ${ focusedField === 'firstName' ? 'text-cyan-400' : 'text-gray-400'}`} size={isRedmiNote13 ? 12 : 14} />
+                        </div>
+                        {firstNameError && <p className="text-red-400 text-[9px] mt-1 ml-1 flex items-center gap-1"><AlertCircle size={9} />{firstNameError}</p>}
+                      </div>
+                      {/* Last Name */}
+                      <div className="relative">
+                        <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium z-10 bg-[#1e253f] ${
+                          lastNameError ? 'text-red-400' : focusedField === 'lastName' ? 'text-cyan-400' : 'text-gray-400'
+                        }`}>Last Name</label>
+                        <div className="relative">
+                          <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
+                            onFocus={() => setFocusedField('lastName')}
+                            onBlur={() => { setFocusedField(null); setTouchedFields(p => ({ ...p, lastName: true })); }}
+                            className={`w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all ${
+                              lastNameError ? 'border-red-400 bg-red-400/5' :
+                              lastName && !lastNameError ? 'border-green-400 bg-green-400/5' :
+                              focusedField === 'lastName' ? 'border-cyan-400 bg-cyan-400/5' : 'border-white/10 bg-white/5'
+                            } text-white placeholder-transparent focus:outline-none`} placeholder="Doe" />
+                          <User className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 ${ focusedField === 'lastName' ? 'text-cyan-400' : 'text-gray-400'}`} size={isRedmiNote13 ? 12 : 14} />
+                        </div>
+                        {lastNameError && <p className="text-red-400 text-[9px] mt-1 ml-1 flex items-center gap-1"><AlertCircle size={9} />{lastNameError}</p>}
+                      </div>
+                    </div>
+
+                    {/* Birthday + Academic Year */}
+                    <div className="grid grid-cols-2 gap-2 md:gap-3">
+                      {/* Birthday */}
+                      <div className="relative">
+                        <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium z-10 bg-[#1e253f] ${
+                          birthdayError ? 'text-red-400' : focusedField === 'birthday' ? 'text-cyan-400' : 'text-gray-400'
+                        }`}>Birthday</label>
+                        <div className="relative">
+                          <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)}
+                            onFocus={() => setFocusedField('birthday')}
+                            onBlur={() => { setFocusedField(null); setTouchedFields(p => ({ ...p, birthday: true })); }}
+                            max={new Date().toISOString().split('T')[0]}
+                            className={`w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all ${
+                              birthdayError ? 'border-red-400 bg-red-400/5' :
+                              birthday ? 'border-green-400 bg-green-400/5' :
+                              focusedField === 'birthday' ? 'border-cyan-400 bg-cyan-400/5' : 'border-white/10 bg-white/5'
+                            } text-white focus:outline-none [color-scheme:dark]`} />
+                          <Calendar className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 ${ focusedField === 'birthday' ? 'text-cyan-400' : 'text-gray-400'}`} size={isRedmiNote13 ? 12 : 14} />
+                        </div>
+                        {birthdayError && <p className="text-red-400 text-[9px] mt-1 ml-1 flex items-center gap-1"><AlertCircle size={9} />{birthdayError}</p>}
+                      </div>
+                      {/* Academic Year */}
+                      <div className="relative">
+                        <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium z-10 bg-[#1e253f] ${
+                          academicYearError ? 'text-red-400' : focusedField === 'academicYear' ? 'text-cyan-400' : 'text-gray-400'
+                        }`}>Academic Year</label>
+                        <div className="relative">
+                          <select value={academicYear} onChange={e => setAcademicYear(e.target.value)}
+                            onFocus={() => setFocusedField('academicYear')}
+                            onBlur={() => { setFocusedField(null); setTouchedFields(p => ({ ...p, academicYear: true })); }}
+                            className={`w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all appearance-none ${
+                              academicYearError ? 'border-red-400 bg-red-400/5' :
+                              academicYear ? 'border-green-400 bg-green-400/5' :
+                              focusedField === 'academicYear' ? 'border-cyan-400 bg-cyan-400/5' : 'border-white/10 bg-white/5'
+                            } text-white focus:outline-none [color-scheme:dark]`}>
+                            <option value="" disabled className="bg-[#1e253f]">Select</option>
+                            {['1st Year','2nd Year','3rd Year','4th Year'].map(y => (
+                              <option key={y} value={y} className="bg-[#1e253f]">{y}</option>
+                            ))}
+                          </select>
+                          <GraduationCap className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 pointer-events-none ${ focusedField === 'academicYear' ? 'text-cyan-400' : 'text-gray-400'}`} size={isRedmiNote13 ? 12 : 14} />
+                        </div>
+                        {academicYearError && <p className="text-red-400 text-[9px] mt-1 ml-1 flex items-center gap-1"><AlertCircle size={9} />{academicYearError}</p>}
+                      </div>
+                    </div>
+
+                    {/* NIC */}
+                    <div className="relative">
+                      <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium z-10 bg-[#1e253f] ${
+                        nicError ? 'text-red-400' : focusedField === 'nic' ? 'text-cyan-400' : 'text-gray-400'
+                      }`}>NIC Number</label>
+                      <div className="relative">
+                        <input type="text" value={nic} onChange={e => setNic(e.target.value)}
+                          onFocus={() => setFocusedField('nic')}
+                          onBlur={() => { setFocusedField(null); setTouchedFields(p => ({ ...p, nic: true })); }}
+                          className={`w-full pl-8 md:pl-10 pr-8 md:pr-10 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all ${
+                            nicError ? 'border-red-400 bg-red-400/5' :
+                            nic && !nicError ? 'border-green-400 bg-green-400/5' :
+                            focusedField === 'nic' ? 'border-cyan-400 bg-cyan-400/5' : 'border-white/10 bg-white/5'
+                          } text-white placeholder-transparent focus:outline-none`} placeholder="123456789V" />
+                        <CreditCard className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 ${ focusedField === 'nic' ? 'text-cyan-400' : 'text-gray-400'}`} size={isRedmiNote13 ? 14 : 16} />
+                        {nic && !nicError && touchedFields.nic && <CheckCircle className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-green-400" size={isRedmiNote13 ? 14 : 16} />}
+                      </div>
+                      {nicError
+                        ? <p className="text-red-400 text-[9px] md:text-xs mt-1 ml-1 flex items-center gap-1"><AlertCircle size={10} />{nicError}</p>
+                        : <p className="text-[8px] text-cyan-400/40 mt-1 ml-1">Old: 123456789V · New: 200012345678</p>}
+                    </div>
+
+                    {/* Student Email (split input) */}
+                    <div className="relative">
+                      <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium z-10 bg-[#1e253f] ${
+                        studentIdError ? 'text-red-400' : focusedField === 'studentIdPrefix' ? 'text-cyan-400' : 'text-gray-400'
+                      }`}>Student Email</label>
+                      <div className={`flex items-center rounded-lg md:rounded-xl border-2 overflow-hidden transition-all ${
+                        studentIdError ? 'border-red-400 bg-red-400/5' :
+                        studentIdPrefix && !studentIdError ? 'border-green-400 bg-green-400/5' :
+                        focusedField === 'studentIdPrefix' ? 'border-cyan-400 bg-cyan-400/5' : 'border-white/10 bg-white/5'
+                      }`}>
+                        <div className="pl-8 md:pl-10 relative flex-shrink-0">
+                          <Mail className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 ${ focusedField === 'studentIdPrefix' ? 'text-cyan-400' : 'text-gray-400'}`} size={isRedmiNote13 ? 14 : 16} />
+                        </div>
+                        <input type="text" value={studentIdPrefix}
+                          onChange={e => setStudentIdPrefix(e.target.value.toUpperCase())}
+                          onFocus={() => setFocusedField('studentIdPrefix')}
+                          onBlur={() => { setFocusedField(null); setTouchedFields(p => ({ ...p, studentIdPrefix: true })); }}
+                          className="flex-1 min-w-0 py-2 md:py-3 text-sm md:text-base text-white bg-transparent focus:outline-none"
+                          placeholder="IT21234567" maxLength={10} />
+                        <span className="pr-3 text-xs md:text-sm text-cyan-400/70 font-medium whitespace-nowrap flex-shrink-0 border-l border-white/10 pl-2 md:pl-3 py-2 md:py-3 bg-white/5">
+                          @my.sliit.lk
+                        </span>
+                      </div>
+                      {studentIdError
+                        ? <p className="text-red-400 text-[9px] md:text-xs mt-1 ml-1 flex items-center gap-1"><AlertCircle size={10} />{studentIdError}</p>
+                        : <p className="text-[8px] text-cyan-400/40 mt-1 ml-1">Format: IT followed by 8 digits · e.g. IT21234567@my.sliit.lk</p>}
+                    </div>
+                  </div>
+                )}
+
                 {/* Owner Fields */}
                 {role === 'owner' && (
                   <div className="space-y-2 md:space-y-3 animate-slideDown">
@@ -521,13 +717,14 @@ export default function SignUpPage() {
                   </div>
                 )}
 
-                {/* Email Field */}
+                {/* Email Field — owners only; students use studentIdPrefix above */}
+                {role === 'owner' && (
                 <div className="relative">
                   <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium transition-all z-10 bg-[#1e253f] ${
                     emailError && touchedFields.email
                       ? 'text-red-400'
                       : focusedField === 'email'
-                      ? role === 'student' ? 'text-cyan-400' : 'text-purple-400'
+                      ? 'text-purple-400'
                       : 'text-gray-400'
                   }`}>
                     Email Address
@@ -551,13 +748,9 @@ export default function SignUpPage() {
                           ? role === 'student' ? 'border-cyan-400 bg-cyan-400/5' : 'border-purple-400 bg-purple-400/5'
                           : 'border-white/10 bg-white/5'
                       } text-white placeholder-transparent focus:outline-none`}
-                      placeholder={role === 'student' ? "student@sliit.lk" : "owner@company.com"}
+                      placeholder="owner@company.com"
                     />
-                    <Mail className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 transition-colors ${
-                      focusedField === 'email' 
-                        ? role === 'student' ? 'text-cyan-400' : 'text-purple-400'
-                        : 'text-gray-400'
-                    }`} size={isRedmiNote13 ? 14 : 16} />
+                    <Mail className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 transition-colors text-purple-400" size={isRedmiNote13 ? 14 : 16} />
                     {email && !emailError && touchedFields.email && (
                       <CheckCircle className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-green-400" size={isRedmiNote13 ? 14 : 16} />
                     )}
@@ -570,10 +763,11 @@ export default function SignUpPage() {
                   ) : (
                     <p className="text-[8px] md:text-[10px] text-cyan-400/40 mt-1 ml-1 flex items-center gap-1">
                       <Mail size={8} />
-                      {role === 'student' ? '@sliit.lk or @my.sliit.lk' : 'Business or personal email'}
+                      Business or personal email
                     </p>
                   )}
                 </div>
+                )} {/* end role === 'owner' email field */}
 
                 {/* Password Fields Grid */}
                 <div className="grid grid-cols-2 gap-2 md:gap-3">

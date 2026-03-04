@@ -22,13 +22,13 @@ import {
 
 // Admin Components
 import AdminLayout from './components/admin/AdminLayout';
-import { 
-  AdminLogin, 
-  AdminDashboard, 
-  AdminPassengerList, 
-  AdminScanner, 
-  AdminControl, 
-  AdminSettings 
+import {
+  AdminLogin,
+  AdminDashboard,
+  UserManagement,
+  KYCVerification,
+  SupportTickets,
+  FeedbackManagement,
 } from './components/admin/AdminScreens';
 
 // Boarding Management System Core Functions
@@ -73,10 +73,10 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="passengers" element={<AdminPassengerList />} />
-          <Route path="scanner" element={<AdminScanner />} />
-          <Route path="control" element={<AdminControl />} />
-          <Route path="settings" element={<AdminSettings />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="kyc" element={<KYCVerification />} />
+          <Route path="tickets" element={<SupportTickets />} />
+          <Route path="feedback" element={<FeedbackManagement />} />
         </Route>
 
         {/* Boarding Booking Management System Core Functions */}
