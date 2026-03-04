@@ -275,7 +275,7 @@ const RoomCard = ({ room, onEdit, onDelete, onViewTenants }: any) => {
           <h4 className="text-white font-medium text-sm">Room {room.roomNumber}</h4>
           <p className="text-xs text-gray-400">Floor {room.floor}</p>
         </div>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[room.status]}`}>
+
           {room.status === 'available' ? 'Available' : room.status === 'partial' ? 'Partial' : 'Full'}
         </span>
       </div>
@@ -329,7 +329,7 @@ const MobileRoomCard = ({ room, onEdit, onDelete, onViewTenants }: any) => {
           <h4 className="text-white font-medium text-xs">Room {room.roomNumber}</h4>
           <p className="text-[9px] text-gray-400">Floor {room.floor}</p>
         </div>
-        <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${statusColors[room.status]}`}>
+
           {room.status === 'available' ? 'Available' : room.status === 'partial' ? 'Partial' : 'Full'}
         </span>
       </div>
