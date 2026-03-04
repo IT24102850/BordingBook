@@ -6,6 +6,8 @@ import LandingPage from './components/LandingPage';
 import SignInPage from './components/SignInPage';
 import SignUpPage from './components/SignUpPage';
 import ProfileSetup from './components/ProfileSetup';
+import SearchPage from './components/SearchPage';
+import VerifyEmailPage from './components/VerifyEmailPage';
 
 // Mobile Components
 import MobileLayout from './components/mobile/MobileLayout';
@@ -32,10 +34,16 @@ import {
 // Boarding Management System Core Functions
 import BoardingManagement from './components/boarding/BoardingManagement';
 import SearchDiscovery from './components/boarding/SearchDiscovery';
-import RoommateFinder from './components/boarding/RoommateFinder';
 import BookingAgreement from './components/boarding/BookingAgreement';
-import PaymentRental from './components/boarding/PaymentRental';
+import PaymentRentalPage from './components/PaymentRentalPage';
+import BoardingPlaceDetail from './components/payment/BoardingPlaceDetail';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
+import RoommateFinderPage from './components/RoommateFinderPage';
+import ChatbotSection from './components/ChatbotSection';
+
+
+
+
 
 export default function App() {
   return (
@@ -45,6 +53,8 @@ export default function App() {
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/profile-setup" element={<ProfileSetup />} />
+        <Route path="/find" element={<SearchPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         
         {/* Mobile Routes */}
         <Route path="/mobile" element={<MobileLayout />}>
@@ -72,10 +82,13 @@ export default function App() {
         {/* Boarding Booking Management System Core Functions */}
         <Route path="/boarding-management" element={<BoardingManagement />} />
         <Route path="/search-discovery" element={<SearchDiscovery />} />
-        <Route path="/roommate-finder" element={<RoommateFinder />} />
         <Route path="/booking-agreement" element={<BookingAgreement />} />
-        <Route path="/payment-rental" element={<PaymentRental />} />
+        <Route path="/payment-rental" element={<PaymentRentalPage />} />
+        <Route path="/payment-rental/:placeId" element={<BoardingPlaceDetail />} />
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
+
+        <Route path="/roommate-finder" element={<RoommateFinderPage />} />
+        <Route path="/chatbot" element={<ChatbotSection standalone={true} />} />
 
       </Routes>
     </BrowserRouter>

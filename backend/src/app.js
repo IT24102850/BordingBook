@@ -10,7 +10,16 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
-// TODO: Import and use routes here
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+
+// Use routes
+app.use('/api/auth', authRoutes);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Server is running' });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

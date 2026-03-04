@@ -5,6 +5,12 @@
 			"label": "Run Vite Dev Server",
 			"type": "shell",
 			"command": "npm run dev",
+			"options": {
+				"shell": {
+					"executable": "cmd.exe",
+					"args": ["/d", "/c"]
+				}
+			},
 			"isBackground": true,
 			"problemMatcher": [
 				"$tsc"
