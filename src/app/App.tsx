@@ -39,9 +39,6 @@ import PaymentRentalPage from './components/PaymentRentalPage';
 import BoardingPlaceDetail from './components/payment/BoardingPlaceDetail';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
 import RoommateFinderPage from './components/RoommateFinderPage';
-import OwnerDashboard from './components/OwnerDashboard';
-import UserProfileDashboard from './components/UserProfileDashboard';
-import StudentPayment from './components/payment/StudentPayment';
 
 
 
@@ -90,9 +87,7 @@ export default function App() {
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
 
         <Route path="/roommate-finder" element={<RoommateFinderPage />} />
-        <Route path="/owner-dashboard" element={<OwnerDashboard />} />
-        <Route path="/profile" element={<UserProfileDashboard />} />
-        <Route path="/student-payments" element={<StudentPayment />} />
+
 
       </Routes>
     </BrowserRouter>
