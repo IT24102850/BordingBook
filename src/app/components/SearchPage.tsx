@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
   FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
   FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
   FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
   FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
-  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye
+  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell
 } from 'react-icons/fa';
 import { MdOutlineVerified } from 'react-icons/md';
 import { RiUserSharedLine } from 'react-icons/ri';
@@ -82,10 +83,96 @@ const MiniRoommateCard: React.FC<{ roommate: typeof roommates[0]; type: 'passed'
 
 // Roommate swipe card component
 function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }: { roommate: any; onLike: () => void; onPass: () => void; isAnimating: boolean; direction: string | null }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+  const touchCurrentX = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+
+  const resetCardTransform = () => {
+    if (!cardRef.current) return;
+    cardRef.current.style.transform = '';
+    cardRef.current.style.opacity = '';
+    cardRef.current.style.transition = '';
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isAnimating) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isAnimating || !cardRef.current) return;
+    touchCurrentX.current = e.touches[0].clientX;
+    const diff = touchCurrentX.current - touchStartX.current;
+
+    if (Math.abs(diff) > 10) {
+      e.preventDefault();
+      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.03}deg)`;
+      cardRef.current.style.opacity = `${1 - Math.min(Math.abs(diff) / 420, 0.6)}`;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isAnimating) return;
+    const diff = touchCurrentX.current - touchStartX.current;
+    resetCardTransform();
+
+    if (diff > 90) onLike();
+    else if (diff < -90) onPass();
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isAnimating || !cardRef.current) return;
+    setIsDragging(true);
+    setDragStartX(e.clientX);
+    cardRef.current.style.transition = 'none';
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || isAnimating || !cardRef.current) return;
+    const diff = e.clientX - dragStartX;
+
+    if (Math.abs(diff) > 10) {
+      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.03}deg)`;
+      cardRef.current.style.opacity = `${1 - Math.min(Math.abs(diff) / 420, 0.6)}`;
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!isDragging || isAnimating) {
+      setIsDragging(false);
+      resetCardTransform();
+      return;
+    }
+
+    const diff = e.clientX - dragStartX;
+    setIsDragging(false);
+    resetCardTransform();
+
+    if (diff > 90) onLike();
+    else if (diff < -90) onPass();
+  };
+
+  const handleMouseLeave = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    resetCardTransform();
+  };
+
   return (
     <div
-      className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden border border-white/10 w-full max-w-md mx-auto transition-all duration-300 ${direction === 'left' ? 'animate-swipe-left' : ''} ${direction === 'right' ? 'animate-swipe-right' : ''}`}
-      style={{ minHeight: 340 }}
+      ref={cardRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden border border-white/10 w-full max-w-md mx-auto transition-all duration-300 cursor-grab active:cursor-grabbing ${direction === 'left' ? 'animate-swipe-left' : ''} ${direction === 'right' ? 'animate-swipe-right' : ''}`}
+      style={{ minHeight: 340, touchAction: 'pan-y' }}
     >
       <div className="flex flex-col items-center p-6">
         <img src={roommate.image} alt={roommate.name} className="w-24 h-24 rounded-full object-cover border-4 border-pink-300 mb-3" />
@@ -122,11 +209,19 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
 
 // Roommate Finder tab content with swipe logic
 function RoommateFinderPlaceholder() {
+  const navigate = useNavigate();
+  const [roommateTab, setRoommateTab] = React.useState<'browse' | 'profile' | 'requests' | 'inbox' | 'groups'>('browse');
   const [currentIdx, setCurrentIdx] = React.useState(0);
   const [liked, setLiked] = React.useState<any[]>([]);
   const [passed, setPassed] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
+  const [myProfile, setMyProfile] = React.useState({ budget: 12000, gender: 'Select', preferences: '' });
+  const [profileEdit, setProfileEdit] = React.useState(false);
+  const [sentRequests, setSentRequests] = React.useState<any[]>([]);
+  const [inboxRequests, setInboxRequests] = React.useState([
+    { id: 'req1', from: roommates[0], message: 'Hi! Want to room together?', status: 'pending' }
+  ]);
   const current = roommates[currentIdx];
 
   const handleLike = () => {
@@ -135,6 +230,7 @@ function RoommateFinderPlaceholder() {
     setDirection('right');
     setTimeout(() => {
       setLiked([...liked, current]);
+      setSentRequests([...sentRequests, { id: `req_${Date.now()}`, from: current, message: 'Hi! I think we would be great roommates!', status: 'pending' }]);
       if (currentIdx < roommates.length - 1) {
         setCurrentIdx(currentIdx + 1);
       }
@@ -142,6 +238,7 @@ function RoommateFinderPlaceholder() {
       setIsAnimating(false);
     }, 250);
   };
+
   const handlePass = () => {
     if (!current || isAnimating) return;
     setIsAnimating(true);
@@ -155,6 +252,7 @@ function RoommateFinderPlaceholder() {
       setIsAnimating(false);
     }, 250);
   };
+
   const handleUndo = () => {
     if (currentIdx > 0) {
       setCurrentIdx(currentIdx - 1);
@@ -162,55 +260,125 @@ function RoommateFinderPlaceholder() {
     }
   };
 
-  if (currentIdx >= roommates.length) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-pink-200 text-lg font-semibold shadow-inner">
-        <span className="mb-2 text-2xl">🎉</span>
-        <div className="mb-1">No more roommate profiles!</div>
-        <div className="text-sm text-pink-300 mt-2">Check back later for new matches.</div>
-        <button onClick={handleUndo} className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl text-xs font-medium hover:shadow-lg transition-all">Undo</button>
-      </div>
+  const handleRequestResponse = (requestId: string, accept: boolean) => {
+    setInboxRequests(
+      inboxRequests.map((req) =>
+        req.id === requestId ? { ...req, status: accept ? 'accepted' : 'rejected' } : req
+      )
     );
-  }
+  };
 
   return (
-    <>
-      {/* Desktop View - 3 Column Layout */}
-      <div className="hidden md:block">
-        <div className="grid grid-cols-3 gap-6">
-          {/* Left Column - Passed Roommates */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-            <div className="flex items-center gap-2 mb-4">
-              <FaHistory className="text-red-400" />
-              <h3 className="text-sm font-bold text-white">Passed</h3>
-              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">
-                {passed.length}
-              </span>
-            </div>
-            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              {passed.length > 0 ? (
-                passed.map((roommate) => (
-                  <MiniRoommateCard key={roommate.id} roommate={roommate} type="passed" />
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-xs text-gray-500">No passed profiles yet</p>
-                  <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
+    <div className="space-y-4">
+      {/* Tab Navigation */}
+      <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
+        {[
+          { id: 'browse', label: '🔍 Browse', icon: '🔍' },
+          { id: 'profile', label: '👤 Profile', icon: '👤' },
+          { id: 'requests', label: `📤 Sent (${sentRequests.length})`, icon: '📤' },
+          { id: 'inbox', label: `📥 Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})`, icon: '📥' },
+          { id: 'groups', label: '👥 Groups', icon: '👥' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setRoommateTab(tab.id as any)}
+            className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-semibold ${
+              roommateTab === tab.id
+                ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg'
+                : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* BROWSE TAB */}
+      {roommateTab === 'browse' && (
+        <>
+          <div className="hidden md:block">
+            <div className="grid grid-cols-3 gap-6">
+              {/* Left Column - Passed Roommates */}
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaHistory className="text-red-400" />
+                  <h3 className="text-sm font-bold text-white">Passed</h3>
+                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">{passed.length}</span>
                 </div>
-              )}
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {passed.length > 0 ? (
+                    passed.map((roommate) => (
+                      <MiniRoommateCard key={roommate.id} roommate={roommate} type="passed" />
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-xs text-gray-500">No passed profiles yet</p>
+                      <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Center Column - Main Swipe Card */}
+              <div>
+                <div className="relative h-[500px] mb-4 perspective-1000">
+                  {currentIdx < roommates.length - 1 && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+                  )}
+                  {current ? (
+                    <RoommateSwipeCard
+                      roommate={current}
+                      onLike={handleLike}
+                      onPass={handlePass}
+                      isAnimating={isAnimating}
+                      direction={direction}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10">
+                      <p className="text-gray-400 text-center">No more profiles!</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-between items-center mt-4">
+                  <span className="text-sm text-gray-400">{Math.max(0, roommates.length - currentIdx)} profiles remaining</span>
+                  <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                    <FaUndo /> Undo
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column - Liked Roommates */}
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaBookmark className="text-green-400" />
+                  <h3 className="text-sm font-bold text-white">Favorites</h3>
+                  <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">{liked.length}</span>
+                </div>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {liked.length > 0 ? (
+                    liked.map((roommate) => (
+                      <MiniRoommateCard key={roommate.id} roommate={roommate} type="liked" />
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-xs text-gray-500">No favorites yet</p>
+                      <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
+                    </div>
+                  )}
+                </div>
+                {liked.length > 0 && (
+                  <button className="w-full mt-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                    View All Favorites
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Center Column - Main Swipe Card */}
-          <div>
-            <div className="relative h-[500px] mb-4 perspective-1000">
-              {/* Stack effect - next card behind */}
-              {currentIdx < roommates.length - 1 && (
-                <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
-              )}
-              
-              {/* Current Card */}
-              {current && (
+          {/* Mobile View */}
+          <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
+            {current ? (
+              <>
                 <RoommateSwipeCard
                   roommate={current}
                   onLike={handleLike}
@@ -218,70 +386,196 @@ function RoommateFinderPlaceholder() {
                   isAnimating={isAnimating}
                   direction={direction}
                 />
-              )}
-            </div>
-            
-            {/* Results Count & Undo */}
-            <div className="flex justify-between items-center mt-4">
-              <span className="text-sm text-gray-400">
-                {roommates.length - currentIdx} profiles remaining
-              </span>
-              <button
-                onClick={handleUndo}
-                className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-              >
-                <FaUndo /> Undo
-              </button>
-            </div>
-          </div>
-
-          {/* Right Column - Liked Roommates */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-            <div className="flex items-center gap-2 mb-4">
-              <FaBookmark className="text-green-400" />
-              <h3 className="text-sm font-bold text-white">Favorites</h3>
-              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">
-                {liked.length}
-              </span>
-            </div>
-            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              {liked.length > 0 ? (
-                liked.map((roommate) => (
-                  <MiniRoommateCard key={roommate.id} roommate={roommate} type="liked" />
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-xs text-gray-500">No favorites yet</p>
-                  <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
+                <div className="flex justify-between w-full max-w-md mt-4 px-4">
+                  <span className="text-xs text-gray-400">{Math.max(0, roommates.length - currentIdx)} profiles left</span>
+                  <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                    <FaUndo /> Undo
+                  </button>
                 </div>
-              )}
-            </div>
-            
-            {/* View All Button */}
-            {liked.length > 0 && (
-              <button className="w-full mt-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
-                View All Favorites
-              </button>
+              </>
+            ) : (
+              <p className="text-gray-400">No more profiles!</p>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* PROFILE TAB */}
+      {roommateTab === 'profile' && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-white">My Roommate Profile</h3>
+            <button
+              onClick={() => setProfileEdit(!profileEdit)}
+              className="px-4 py-2 bg-cyan-500/30 border border-cyan-500 text-cyan-300 rounded-lg hover:bg-cyan-500/50 text-xs font-semibold"
+            >
+              {profileEdit ? 'Done' : 'Edit'}
+            </button>
+          </div>
+          <div className="space-y-3">
+            {profileEdit ? (
+              <>
+                <div>
+                  <label className="text-sm text-gray-300">Budget (Rs.)</label>
+                  <input type="number" value={myProfile.budget} onChange={(e) => setMyProfile({...myProfile, budget: Number(e.target.value)})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-300">Gender</label>
+                  <select value={myProfile.gender} onChange={(e) => setMyProfile({...myProfile, gender: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
+                    <option>Select</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-300">Preferences</label>
+                  <textarea value={myProfile.preferences} onChange={(e) => setMyProfile({...myProfile, preferences: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" placeholder="e.g., Early riser, non-smoker" rows={2} />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-300"><span className="text-gray-400">Budget:</span> Rs. {myProfile.budget.toLocaleString()}</p>
+                <p className="text-gray-300"><span className="text-gray-400">Gender:</span> {myProfile.gender}</p>
+                <p className="text-gray-300"><span className="text-gray-400">Preferences:</span> {myProfile.preferences || 'Not specified'}</p>
+              </>
             )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Mobile View - Single Card */}
-      <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
-        <RoommateSwipeCard
-          roommate={current}
-          onLike={handleLike}
-          onPass={handlePass}
-          isAnimating={isAnimating}
-          direction={direction}
-        />
-        <div className="flex justify-between w-full max-w-md mt-4 px-4">
-          <span className="text-xs text-gray-400">{roommates.length - currentIdx} profiles left</span>
-          <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><FaUndo /> Undo</button>
+      {/* SENT REQUESTS TAB */}
+      {roommateTab === 'requests' && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-4">Requests Sent</h3>
+          <div className="space-y-3">
+            {sentRequests.length > 0 ? (
+              sentRequests.map((req) => (
+                <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img src={req.from.image} alt="" className="w-12 h-12 rounded-full object-cover border border-pink-400" />
+                    <div>
+                      <p className="text-white font-semibold">{req.from.name}</p>
+                      <p className="text-xs text-gray-400">{req.message}</p>
+                    </div>
+                  </div>
+                  <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>
+                    {req.status.toUpperCase()}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400 text-center py-8">No requests sent yet</p>
+            )}
+          </div>
         </div>
-      </div>
-    </>
+      )}
+
+      {/* INBOX TAB */}
+      {roommateTab === 'inbox' && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-4">Requests Received</h3>
+          <div className="space-y-3">
+            {inboxRequests.length > 0 ? (
+              inboxRequests.map((req) => (
+                <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <img src={req.from.image} alt="" className="w-12 h-12 rounded-full object-cover border border-pink-400" />
+                      <div>
+                        <p className="text-white font-semibold">{req.from.name}</p>
+                        <p className="text-xs text-gray-400">{req.from.university}</p>
+                      </div>
+                    </div>
+                    <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>
+                      {req.status.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-gray-300 mb-3 text-sm">{req.message}</p>
+                  {req.status === 'pending' && (
+                    <div className="flex gap-2">
+                      <button onClick={() => handleRequestResponse(req.id, true)} className="flex-1 px-3 py-2 bg-green-600/30 border border-green-600 text-green-300 rounded-lg hover:bg-green-600/50 text-xs font-semibold">
+                        Accept
+                      </button>
+                      <button onClick={() => handleRequestResponse(req.id, false)} className="flex-1 px-3 py-2 bg-red-600/30 border border-red-600 text-red-300 rounded-lg hover:bg-red-600/50 text-xs font-semibold">
+                        Decline
+                      </button>
+                    </div>
+                  )}
+                  {req.status === 'accepted' && (
+                    <button
+                      onClick={() => navigate('/chat', { state: { selectedRoommate: req.from, chatType: 'direct-message' } })}
+                      className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
+                    >
+                      💬 Start Chat
+                    </button>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400 text-center py-8">No requests received yet</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* GROUPS TAB */}
+      {roommateTab === 'groups' && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-white">Groups</h3>
+            <button 
+              onClick={() => navigate('/roommate-group', { state: { selectedRoommates: liked } })}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition"
+            >
+              <FaPlus size={16} />
+              Create Group
+            </button>
+          </div>
+          
+          {liked.length > 0 ? (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
+                <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {liked.map((roommate) => (
+                    <div key={roommate.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
+                      <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
+                      <div className="flex-1">
+                        <p className="text-white font-semibold text-sm">{roommate.name}</p>
+                        <p className="text-gray-400 text-xs">{roommate.age} • {roommate.university}</p>
+                      </div>
+                      <FaCheckCircle className="text-green-400" />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-gray-300 mb-4">
+                  Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
+                </p>
+                <button 
+                  onClick={() => navigate('/roommate-group', { state: { selectedRoommates: liked } })}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <FaUserFriends size={18} />
+                  Create Group with These Members
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
+              <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
+              <p className="text-gray-300 font-semibold mb-2">No groups yet</p>
+              <p className="text-sm text-gray-400 mb-4">Start by liking roommates in the Browse tab</p>
+              <button 
+                onClick={() => setRoommateTab('browse')}
+                className="px-4 py-2 bg-white/10 border border-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition"
+              >
+                Browse Roommates
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -329,6 +623,9 @@ interface Listing {
   rating?: number;
   campus?: string[];
   fullAddress?: string;
+  vacancy?: string;
+  totalRooms?: number;
+  occupiedRooms?: number;
 }
 
 interface ListingCardProps {
@@ -345,6 +642,7 @@ interface DetailsModalProps {
   listing: Listing | null;
   onClose: () => void;
   onLike: () => void;
+  onBooking?: (listing: Listing) => void;
 }
 
 interface FilterChip {
@@ -513,6 +811,210 @@ const getTravelTime = (distance: number): string => {
   return `${Math.round(distance * 3)} min drive`;
 };
 
+// Get vacancy badge info based on vacancy status
+const getVacancyInfo = (vacancy: string, totalRooms: number, occupiedRooms: number): { label: string; color: string; bgColor: string; icon: string } => {
+  switch (vacancy) {
+    case 'low':
+      return { 
+        label: `🔴 ${totalRooms - occupiedRooms} Vacancy Left`, 
+        color: 'text-red-300', 
+        bgColor: 'bg-red-500/20 border-red-500/30',
+        icon: '🔴'
+      };
+    case 'full':
+      return { 
+        label: '❌ Fully Booked', 
+        color: 'text-gray-300', 
+        bgColor: 'bg-gray-500/20 border-gray-500/30',
+        icon: '❌'
+      };
+    case 'coming':
+      return { 
+        label: '⏰ Coming Soon', 
+        color: 'text-blue-300', 
+        bgColor: 'bg-blue-500/20 border-blue-500/30',
+        icon: '⏰'
+      };
+    default: // 'available'
+      return { 
+        label: `🟢 ${totalRooms - occupiedRooms} Available`, 
+        color: 'text-green-300', 
+        bgColor: 'bg-green-500/20 border-green-500/30',
+        icon: '🟢'
+      };
+  }
+};
+
+// Booking Form Component
+const BookingForm: React.FC<{ listing: Listing | null; onClose: () => void; onSubmit: (data: any) => void }> = ({ listing, onClose, onSubmit }) => {
+  const [bookingType, setBookingType] = useState<'individual' | 'group'>('individual');
+  const [fullName, setFullName] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [contact, setContact] = useState('');
+  const [moveInDate, setMoveInDate] = useState('');
+  const [duration, setDuration] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const handleSubmit = () => {
+    if (!contact || !moveInDate || !duration) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    const data = {
+      roomId: listing?.id,
+      bookingType,
+      name: bookingType === 'individual' ? fullName : groupName,
+      contact,
+      moveInDate,
+      duration,
+      notes
+    };
+
+    onSubmit(data);
+    onClose();
+  };
+
+  if (!listing) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-white/10">
+        {/* Header */}
+        <div className="sticky top-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] p-4 border-b border-white/10 flex justify-between items-center">
+          <h3 className="text-lg font-bold bg-gradient-to-r from-purple-300 to-cyan-300 bg-clip-text text-transparent">Booking Form</h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <FaTimes className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-4">
+          {/* Subtitle */}
+          <p className="text-xs text-gray-400 mb-4">Submit your room booking request</p>
+
+          {/* Selected Room Info */}
+          <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-4">
+            <div className="flex items-center gap-2 text-sm">
+              <FaBed className="text-cyan-400" />
+              <div>
+                <p className="text-gray-300 text-xs">Selected Boarding Room • ID: L001</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Booking Type Tabs */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setBookingType('individual')}
+              className={`flex-1 py-2 px-3 rounded-lg font-semibold text-sm transition-all ${
+                bookingType === 'individual'
+                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
+              }`}
+            >
+              Individual Booking
+            </button>
+            <button
+              onClick={() => setBookingType('group')}
+              className={`flex-1 py-2 px-3 rounded-lg font-semibold text-sm transition-all ${
+                bookingType === 'group'
+                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
+              }`}
+            >
+              Group Booking
+            </button>
+          </div>
+
+          {/* Form Fields */}
+          <div className="space-y-3 mb-4">
+            {/* Name Field */}
+            <div>
+              <label className="text-xs font-medium text-gray-300 mb-1.5 block">
+                {bookingType === 'individual' ? 'Full Name' : 'Group Name'} *
+              </label>
+              <input
+                type="text"
+                value={bookingType === 'individual' ? fullName : groupName}
+                onChange={(e) => bookingType === 'individual' ? setFullName(e.target.value) : setGroupName(e.target.value)}
+                placeholder={bookingType === 'individual' ? 'Enter full name' : 'e.g. SLIIT Friends'}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition-all text-sm"
+              />
+            </div>
+
+            {/* Contact Number */}
+            <div>
+              <label className="text-xs font-medium text-gray-300 mb-1.5 block">
+                Contact Number *
+              </label>
+              <input
+                type="tel"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                placeholder="e.g. 0771234567"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition-all text-sm"
+              />
+            </div>
+
+            {/* Move-in Date and Duration */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-300 mb-1.5 block">
+                  Move-in Date *
+                </label>
+                <input
+                  type="date"
+                  value={moveInDate}
+                  onChange={(e) => setMoveInDate(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition-all text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-300 mb-1.5 block">
+                  Duration (months) *
+                </label>
+                <input
+                  type="number"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  placeholder="e.g. 6"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition-all text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Special Notes */}
+            <div>
+              <label className="text-xs font-medium text-gray-300 mb-1.5 block">
+                Special Notes
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Any additional requests"
+                rows={3}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition-all text-sm resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            onClick={handleSubmit}
+            className="w-full py-3 bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            <FaCheckCircle />
+            Submit Booking Request
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Mini Card for side panels
 const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
   const formatPrice = (price: number): string => {
@@ -603,14 +1105,24 @@ const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: nu
       {/* Availability Badge + Facilities */}
       <div className="flex items-center gap-2 flex-wrap">
         <span
-          className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+          className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 border ${
             room.available
-              ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-              : 'bg-red-500/20 text-red-300 border border-red-500/30'
+              ? 'bg-green-500/20 text-green-300 border-green-500/30'
+              : 'bg-red-500/20 text-red-300 border-red-500/30'
           }`}
         >
           {room.available ? '✅ Available' : '❌ Occupied'}
         </span>
+
+        {/* Vacancy Badge */}
+        {room.vacancy && (() => {
+          const vacancyInfo = getVacancyInfo(room.vacancy, room.totalRooms, room.occupiedRooms);
+          return (
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 border ${vacancyInfo.bgColor}`}>
+              {vacancyInfo.label}
+            </span>
+          );
+        })()}
 
         {/* Facilities Tags */}
         {room.facilities.slice(0, 3).map((fac: string, idx: number) => (
@@ -840,6 +1352,17 @@ const ListingCard: React.FC<ListingCardProps> = ({
                 <span>Bills Included</span>
               </div>
             )}
+
+            {/* Vacancy Status Badge */}
+            {listing.vacancy && (() => {
+              const vacancyInfo = getVacancyInfo(listing.vacancy, listing.totalRooms || 1, listing.occupiedRooms || 0);
+              return (
+                <div className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${vacancyInfo.bgColor}`}>
+                  <span>{vacancyInfo.icon}</span>
+                  <span>{vacancyInfo.label.replace(/[🔴❌⏰🟢]/g, '').trim()}</span>
+                </div>
+              );
+            })()}
             
             <div className="bg-white/10 px-2 py-1 rounded-full text-xs text-gray-300 flex items-center gap-1">
               <FaCalendarAlt className="text-orange-400" />
@@ -919,7 +1442,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
   );
 };
 
-const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike }) => {
+const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, onBooking }) => {
   if (!listing) return null;
 
   const formatPrice = (price: number): string => {
@@ -1015,16 +1538,29 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike })
             </div>
           </div>
           
-          <button
-            onClick={() => {
-              onLike();
-              onClose();
-            }}
-            className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
-          >
-            <FaHeart />
-            Like This Room
-          </button>
+          {/* Action Buttons */}
+          <div className="space-y-2">
+            <button
+              onClick={() => {
+                onBooking?.(listing);
+                onClose();
+              }}
+              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            >
+              <FaCheckCircle />
+              Book Now
+            </button>
+            <button
+              onClick={() => {
+                onLike();
+                onClose();
+              }}
+              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            >
+              <FaHeart />
+              Like This Room
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1232,6 +1768,629 @@ const FiltersPanel: React.FC<{
   );
 };
 
+// Notification Interface
+interface Notification {
+  id: string;
+  type: 'owner_approval' | 'payment_pending' | 'payment_verified' | 'receipt_generated' | 'booking_confirmed' | 'checkin_reminder';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionRequired: boolean;
+  bookingId?: string;
+  roomTitle?: string;
+}
+
+// Mock Notifications Data
+const mockNotifications: Notification[] = [
+  {
+    id: 'notif-001',
+    type: 'owner_approval',
+    title: '✅ Booking Approved!',
+    message: 'Owner has approved your booking request for "Modern Boarding House near SLIIT". Please upload your payment slip to proceed.',
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    read: false,
+    actionRequired: true,
+    bookingId: 'BK002',
+    roomTitle: 'Modern Boarding House near SLIIT'
+  },
+  {
+    id: 'notif-002',
+    type: 'payment_verified',
+    title: '💰 Payment Verified',
+    message: 'Your payment for booking #BK001 has been verified. Receipt has been generated.',
+    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+    read: false,
+    actionRequired: false,
+    bookingId: 'BK001'
+  },
+  {
+    id: 'notif-003',
+    type: 'receipt_generated',
+    title: '📄 Receipt Generated',
+    message: 'Your payment receipt for booking #BK001 is ready for download.',
+    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    read: false,
+    actionRequired: false,
+    bookingId: 'BK001'
+  },
+  {
+    id: 'notif-004',
+    type: 'booking_confirmed',
+    title: '🎉 Booking Confirmed!',
+    message: 'Your booking for "Modern Boarding House near SLIIT" has been confirmed. Welcome!',
+    timestamp: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+    read: true,
+    actionRequired: false,
+    bookingId: 'BK001'
+  },
+  {
+    id: 'notif-005',
+    type: 'checkin_reminder',
+    title: '📅 Check-in Date Reminder',
+    message: 'Please submit your check-in date for your confirmed booking. Your room is reserved until you confirm.',
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+    read: false,
+    actionRequired: true,
+    bookingId: 'BK001'
+  }
+];
+
+// Student Payment Portal Content Component
+function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }) {
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'not_uploaded' | 'uploaded' | 'verified' | 'rejected'>('not_uploaded');
+  const [isSplitPayment, setIsSplitPayment] = useState<boolean>(false);
+
+  const handleUploadSlip = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      setUploadedFile(file);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!uploadedFile) {
+      alert('Please select a payment slip to upload');
+      return;
+    }
+    setPaymentStatus('uploaded');
+    setUploadedFile(null);
+  };
+
+  const mockBookingDetails = {
+    bookingId: bookingId || 'BK002',
+    roomTitle: 'Modern Boarding House near SLIIT',
+    roomImage: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    roomPrice: 18000,
+    location: 'Malabe, Colombo',
+    moveInDate: '2026-04-01',
+    duration: 6,
+    totalAmount: 108000,
+    ownerName: 'Mr. Perera',
+    approvedDate: '2026-03-04'
+  };
+
+  const generateAndDownloadReceipt = () => {
+    const receiptContent = generateReceiptHTML(mockBookingDetails);
+
+    // Create blob and download
+    const blob = new Blob([receiptContent], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Receipt_${mockBookingDetails.bookingId}_${Date.now()}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    // Also open in new window for immediate viewing/printing
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(receiptContent);
+      newWindow.document.close();
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header Section with Status */}
+      <div className="bg-gradient-to-br from-cyan-900/40 via-purple-900/30 to-indigo-900/40 rounded-2xl p-6 border border-cyan-500/20 shadow-xl">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-3 text-white">
+              <FaCheckCircle className="text-emerald-400" size={28} />
+              Approved Booking Payment
+            </h2>
+            <p className="text-sm text-gray-300 mt-1">Booking ID: {mockBookingDetails.bookingId}</p>
+            <p className="text-xs text-gray-400 mt-0.5">Approved on: {new Date(mockBookingDetails.approvedDate).toLocaleDateString()}</p>
+          </div>
+          <div className="text-right">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold shadow-lg ${
+              paymentStatus === 'not_uploaded' ? 'bg-amber-900/40 text-amber-300 border border-amber-500/30' :
+              paymentStatus === 'uploaded' ? 'bg-blue-900/40 text-blue-300 border border-blue-500/30' :
+              paymentStatus === 'verified' ? 'bg-green-900/40 text-green-300 border border-green-500/30' :
+              'bg-red-900/40 text-red-300 border border-red-500/30'
+            }`}>
+              {paymentStatus === 'not_uploaded' && '⏳ Payment Pending'}
+              {paymentStatus === 'uploaded' && '🔍 Under Review'}
+              {paymentStatus === 'verified' && '✓ Payment Verified'}
+              {paymentStatus === 'rejected' && '✗ Payment Rejected'}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Room Details Card */}
+          <div className="md:col-span-2 bg-white/5 rounded-lg p-5 backdrop-blur-sm">
+            <div className="flex gap-4">
+              <img
+                src={mockBookingDetails.roomImage}
+                alt={mockBookingDetails.roomTitle}
+                className="w-32 h-32 object-cover rounded-lg shadow-md"
+              />
+              <div className="flex-1">
+                <h3 className="text-xl font-semibold text-white mb-2">{mockBookingDetails.roomTitle}</h3>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <div className="flex items-center gap-2">
+                    <FaMapMarkerAlt className="text-cyan-400" size={16} />
+                    <span>{mockBookingDetails.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FaCalendarAlt className="text-purple-400" size={16} />
+                    <span>Move-in: {new Date(mockBookingDetails.moveInDate).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FaMoneyBillWave className="text-emerald-400" size={16} />
+                    <span>LKR {mockBookingDetails.roomPrice.toLocaleString()}/month × {mockBookingDetails.duration} months</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FaUserFriends className="text-amber-400" size={16} />
+                    <span>Owner: {mockBookingDetails.ownerName}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Action Card */}
+          <div className="bg-white/5 rounded-lg p-5 backdrop-blur-sm">
+            <div className="text-center mb-4">
+              <div className="text-sm text-gray-400 mb-1">{isSplitPayment ? 'Payment Per Installment' : 'Total Amount'}</div>
+              <div className="text-3xl font-bold text-emerald-400">
+                LKR {isSplitPayment 
+                  ? (mockBookingDetails.totalAmount / 2).toLocaleString() 
+                  : mockBookingDetails.totalAmount.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {isSplitPayment 
+                  ? '(2 installments of 3 months each)' 
+                  : `(${mockBookingDetails.duration} months booking)`}
+              </div>
+            </div>
+
+            {/* Split Payment Toggle */}
+            <div className="mb-4 p-3 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-lg border border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-white flex items-center gap-2">
+                    <FaMoneyBillWave className="text-purple-400" size={16} />
+                    Split Payment Option
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {isSplitPayment ? 'Pay in 2 installments' : 'Pay full amount upfront'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsSplitPayment(!isSplitPayment)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+                    isSplitPayment ? 'bg-gradient-to-r from-purple-500 to-indigo-500' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isSplitPayment ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Installment Details */}
+              {isSplitPayment && (
+                <div className="mt-3 pt-3 border-t border-purple-500/20 space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">1st Installment (Now):</span>
+                    <span className="text-emerald-400 font-semibold">LKR {(mockBookingDetails.totalAmount / 2).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">2nd Installment (Month 3):</span>
+                    <span className="text-purple-400 font-semibold">LKR {(mockBookingDetails.totalAmount / 2).toLocaleString()}</span>
+                  </div>
+                  <div className="text-xs text-amber-300 bg-amber-900/20 p-2 rounded border border-amber-500/20 mt-2 flex items-start gap-1">
+                    <span>⚡</span>
+                    <span>Upload slip for 1st installment now. 2nd installment due in 3 months.</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {paymentStatus === 'not_uploaded' && (
+              <div className="space-y-3">
+                <div className="text-sm text-amber-300 bg-amber-900/20 p-3 rounded-lg border border-amber-500/20 flex items-start gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <span>Please upload your payment slip to proceed</span>
+                </div>
+                <label className="block">
+                  <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center cursor-pointer hover:border-cyan-400/50 hover:bg-white/5 transition-all">
+                    <FaMoneyBillWave className="text-3xl mx-auto mb-2 text-cyan-400" />
+                    <div className="text-sm text-gray-300">
+                      {uploadedFile ? (
+                        <span className="text-emerald-400 font-medium">✓ {uploadedFile.name}</span>
+                      ) : (
+                        'Click to upload slip'
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">JPG, PNG, PDF (Max 5MB)</div>
+                  </div>
+                  <input
+                    type="file"
+                    onChange={handleUploadSlip}
+                    accept="image/*,.pdf"
+                    className="sr-only"
+                  />
+                </label>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!uploadedFile}
+                  className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                >
+                  Submit Payment Slip
+                </button>
+              </div>
+            )}
+
+            {paymentStatus === 'uploaded' && (
+              <div className="space-y-3">
+                <div className="text-sm text-blue-300 bg-blue-900/20 p-3 rounded-lg border border-blue-500/20 text-center">
+                  🔍 Your payment is being verified by the owner
+                </div>
+                <div className="text-xs text-gray-400 text-center">
+                  This usually takes 1-2 business days
+                </div>
+                <div className="flex items-center justify-center gap-2 text-gray-400 text-sm mt-4">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                  <span>Verification in progress...</span>
+                </div>
+              </div>
+            )}
+
+            {paymentStatus === 'verified' && (
+              <div className="space-y-3">
+                <div className="text-sm text-green-300 bg-green-900/20 p-4 rounded-lg border border-green-500/20 text-center flex items-center justify-center gap-2">
+                  <FaCheckCircle className="text-green-400" size={18} />
+                  <span className="font-semibold">Payment Verified</span>
+                </div>
+                <button
+                  onClick={generateAndDownloadReceipt}
+                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <FaMoneyBillWave size={18} />
+                  Download Receipt
+                </button>
+                <p className="text-xs text-gray-400 text-center">
+                  Receipt will open in a new window and download automatically
+                </p>
+              </div>
+            )}
+
+            {paymentStatus === 'rejected' && (
+              <div className="space-y-3">
+                <div className="text-sm text-red-300 bg-red-900/20 p-3 rounded-lg border border-red-500/20 flex items-start gap-2">
+                  <span className="text-lg">✗</span>
+                  <span>Payment rejected. Please upload a clear payment slip.</span>
+                </div>
+                <label className="block">
+                  <div className="border-2 border-dashed border-red-400/30 rounded-lg p-4 text-center cursor-pointer hover:border-red-400/50 hover:bg-white/5 transition-all">
+                    <FaMoneyBillWave className="text-3xl mx-auto mb-2 text-red-400" />
+                    <div className="text-sm text-gray-300">
+                      {uploadedFile ? (
+                        <span className="text-emerald-400 font-medium">✓ {uploadedFile.name}</span>
+                      ) : (
+                        'Re-upload payment slip'
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">JPG, PNG, PDF (Max 5MB)</div>
+                  </div>
+                  <input
+                    type="file"
+                    onChange={handleUploadSlip}
+                    accept="image/*,.pdf"
+                    className="sr-only"
+                  />
+                </label>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!uploadedFile}
+                  className="w-full py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-semibold rounded-lg hover:from-red-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                >
+                  Re-submit Payment
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Instructions Card */}
+      <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-5 backdrop-blur-sm">
+        <div className="flex gap-3">
+          <FaInfoCircle className="text-cyan-400 flex-shrink-0 mt-1" size={20} />
+          <div className="text-sm text-gray-300">
+            <p className="font-semibold text-white mb-2 text-base">Payment Instructions:</p>
+            <ul className="list-disc list-inside space-y-1.5 text-gray-400">
+              <li>Upload a clear photo or PDF of your bank transfer receipt</li>
+              <li>Ensure all transaction details (date, amount, reference) are visible</li>
+              <li>Owner will verify your payment within 1-2 business days</li>
+              <li>You'll receive a notification once payment is verified</li>
+              <li>After verification, you can download your official booking receipt</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {paymentStatus === 'verified' && (
+          <button
+            onClick={() => {
+              // View receipt in new window without downloading
+              const receiptContent = generateReceiptHTML(mockBookingDetails);
+              const newWindow = window.open('', '_blank');
+              if (newWindow) {
+                newWindow.document.write(receiptContent);
+                newWindow.document.close();
+              }
+            }}
+            className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FaEye className="text-emerald-400" size={20} />
+              </div>
+              <div>
+                <div className="text-white font-medium text-sm">View Receipt</div>
+                <div className="text-gray-400 text-xs">Preview in browser</div>
+              </div>
+            </div>
+          </button>
+        )}
+        
+        <button
+          onClick={() => setPaymentStatus('verified')}
+          className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-left group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FaCheckCircle className="text-blue-400" size={20} />
+            </div>
+            <div>
+              <div className="text-white font-medium text-sm">Test Verification</div>
+              <div className="text-gray-400 text-xs">Simulate owner review</div>
+            </div>
+          </div>
+        </button>
+        
+        <button
+          onClick={() => setPaymentStatus('not_uploaded')}
+          className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-left group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FaUndo className="text-purple-400" size={20} />
+            </div>
+            <div>
+              <div className="text-white font-medium text-sm">Reset Status</div>
+              <div className="text-gray-400 text-xs">Start upload again</div>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+
+  // Helper function to generate receipt HTML (separated for reuse)
+  function generateReceiptHTML(bookingDetails: any): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Payment Receipt - ${bookingDetails.bookingId}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .receipt-container {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .header {
+      text-align: center;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #667eea;
+      margin: 0;
+      font-size: 32px;
+    }
+    .header p {
+      color: #64748b;
+      margin: 5px 0;
+    }
+    .verified-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .info-section {
+      margin: 30px 0;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .info-label {
+      color: #64748b;
+      font-weight: 500;
+    }
+    .info-value {
+      color: #1e293b;
+      font-weight: 600;
+    }
+    .total-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      margin: 30px 0;
+      text-align: center;
+    }
+    .total-section h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .total-amount {
+      font-size: 42px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 2px solid #e2e8f0;
+      color: #64748b;
+      font-size: 14px;
+    }
+    .print-button {
+      display: block;
+      width: 200px;
+      margin: 20px auto;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    @media print {
+      body {
+        background: white;
+        margin: 0;
+        padding: 0;
+      }
+      .print-button {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="header">
+      <h1>🏠 BOARDING PAYMENT RECEIPT</h1>
+      <p>Official Payment Confirmation</p>
+      <div class="verified-badge">✓ PAYMENT VERIFIED</div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-row">
+        <span class="info-label">Receipt Number:</span>
+        <span class="info-value">RCP-${bookingDetails.bookingId}-${Date.now()}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Booking ID:</span>
+        <span class="info-value">${bookingDetails.bookingId}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Issue Date:</span>
+        <span class="info-value">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Payment Verified On:</span>
+        <span class="info-value">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <h3 style="color: #667eea; margin-bottom: 15px;">Booking Details</h3>
+      <div class="info-row">
+        <span class="info-label">Property:</span>
+        <span class="info-value">${bookingDetails.roomTitle}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Location:</span>
+        <span class="info-value">${bookingDetails.location}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Owner:</span>
+        <span class="info-value">${bookingDetails.ownerName}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Move-in Date:</span>
+        <span class="info-value">${new Date(bookingDetails.moveInDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Rental Duration:</span>
+        <span class="info-value">${bookingDetails.duration} months</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Monthly Rent:</span>
+        <span class="info-value">LKR ${bookingDetails.roomPrice.toLocaleString()}</span>
+      </div>
+    </div>
+
+    <div class="total-section">
+      <h2>Total Amount Paid</h2>
+      <div class="total-amount">LKR ${bookingDetails.totalAmount.toLocaleString()}</div>
+      <p style="margin: 0; opacity: 0.9;">Payment received in full</p>
+    </div>
+
+    <div class="footer">
+      <p><strong>Thank you for your payment!</strong></p>
+      <p>This is an official receipt for your booking payment.</p>
+      <p>For any queries, please contact the property owner: ${bookingDetails.ownerName}</p>
+      <p style="margin-top: 20px; font-size: 12px;">
+        Generated on ${new Date().toLocaleString()}<br>
+        Smart Boarding Management System
+      </p>
+    </div>
+
+    <button class="print-button" onclick="window.print()">🖨️ Print Receipt</button>
+  </div>
+</body>
+</html>
+    `;
+  }
+}
+
 export default function SearchPage() {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
@@ -1246,6 +2405,16 @@ export default function SearchPage() {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'grid'>('grid');
   const [activeTab, setActiveTab] = useState<'rooms' | 'map' | 'roommate'>('rooms');
+  const [showBooking, setShowBooking] = useState<boolean>(false);
+  const [selectedRoomForBooking, setSelectedRoomForBooking] = useState<Listing | null>(null);
+  
+  // Notification states
+  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [showPaymentPortal, setShowPaymentPortal] = useState<boolean>(false);
+  const [showCheckinForm, setShowCheckinForm] = useState<boolean>(false);
+  const [selectedNotificationBooking, setSelectedNotificationBooking] = useState<string | null>(null);
+  const [checkinDate, setCheckinDate] = useState<string>('');
   
   // Advanced filter states matching the image
   const [priceMax, setPriceMax] = useState<number>(50000);
@@ -1548,6 +2717,120 @@ export default function SearchPage() {
             <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent flex-1 text-center">
               Find Your Room
             </h1>
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors relative"
+              >
+                <FaBell className="text-white text-lg" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-lg">
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+              
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 top-full mt-2 w-96 max-h-[600px] overflow-y-auto bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-50">
+                  <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-white font-bold text-lg">Notifications</h3>
+                      <button
+                        onClick={() => {
+                          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                        }}
+                        className="text-xs text-cyan-400 hover:text-cyan-300"
+                      >
+                        Mark all read
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="p-2">
+                    {notifications.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400">
+                        <FaBell className="text-4xl mx-auto mb-2 opacity-50" />
+                        <p>No notifications</p>
+                      </div>
+                    ) : (
+                      notifications.map((notif) => (
+                        <div
+                          key={notif.id}
+                          className={`p-4 mb-2 rounded-lg cursor-pointer transition-all ${
+                            notif.read
+                              ? 'bg-white/5 hover:bg-white/10'
+                              : 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 hover:border-cyan-500/40'
+                          }`}
+                          onClick={() => {
+                            setNotifications(prev =>
+                              prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
+                            );
+                            
+                            // Handle different notification types
+                            if (notif.type === 'owner_approval' || notif.type === 'payment_pending') {
+                              setSelectedNotificationBooking(notif.bookingId || null);
+                              setShowPaymentPortal(true);
+                              setShowNotifications(false);
+                            } else if (notif.type === 'checkin_reminder') {
+                              setSelectedNotificationBooking(notif.bookingId || null);
+                              setShowCheckinForm(true);
+                              setShowNotifications(false);
+                            } else if (notif.type === 'receipt_generated' || notif.type === 'payment_verified') {
+                              setSelectedNotificationBooking(notif.bookingId || null);
+                              setShowPaymentPortal(true);
+                              setShowNotifications(false);
+                            }
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                              notif.type === 'owner_approval' ? 'bg-green-500/20' :
+                              notif.type === 'payment_verified' ? 'bg-emerald-500/20' :
+                              notif.type === 'receipt_generated' ? 'bg-blue-500/20' :
+                              notif.type === 'booking_confirmed' ? 'bg-purple-500/20' :
+                              'bg-amber-500/20'
+                            }`}>
+                              {notif.type === 'owner_approval' && <FaCheckCircle className="text-green-400" />}
+                              {notif.type === 'payment_verified' && <FaCheckCircle className="text-emerald-400" />}
+                              {notif.type === 'receipt_generated' && <FaMoneyBillWave className="text-blue-400" />}
+                              {notif.type === 'booking_confirmed' && <FaCheckCircle className="text-purple-400" />}
+                              {notif.type === 'checkin_reminder' && <FaCalendarAlt className="text-amber-400" />}
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="text-white font-semibold text-sm">{notif.title}</h4>
+                                {!notif.read && (
+                                  <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
+                                )}
+                              </div>
+                              <p className="text-gray-300 text-xs mb-2">{notif.message}</p>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500 text-xs">
+                                  {new Date(notif.timestamp).toLocaleString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                                {notif.actionRequired && (
+                                  <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30">
+                                    Action Required
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           {/* Segmented Tab Switcher */}
           <div className="flex flex-col items-center w-full">
@@ -1755,6 +3038,32 @@ export default function SearchPage() {
                         />
                       )}
                     </div>
+
+                    {/* Action Buttons - Desktop */}
+                    <div className="flex justify-center gap-4 mt-3">
+                      <button
+                        onClick={handlePass}
+                        disabled={isAnimating}
+                        className="w-14 h-14 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                        title="Not interested (swipe left)"
+                      >
+                        <FaRegTimesCircle />
+                      </button>
+
+                      <button
+                        onClick={handleLike}
+                        disabled={isAnimating}
+                        className="w-14 h-14 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                        title="Save this listing (swipe right)"
+                      >
+                        <FaHeart />
+                      </button>
+                    </div>
+
+                    <div className="flex justify-between px-8 mt-2 text-xs text-gray-500">
+                      <span>Pass • Swipe Left</span>
+                      <span>Like • Swipe Right</span>
+                    </div>
                   </div>
 
                   {/* Right Column - Liked Listings */}
@@ -1867,7 +3176,10 @@ export default function SearchPage() {
                                 description: r.desc,
                                 features: r.facilities,
                                 deposit: r.price * 2,
-                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0
+                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0,
+                                vacancy: r.vacancy,
+                                totalRooms: r.totalRooms,
+                                occupiedRooms: r.occupiedRooms
                               };
                               handleViewDetails(listing);
                             }}
@@ -2013,7 +3325,10 @@ export default function SearchPage() {
                                 description: r.desc,
                                 features: r.facilities,
                                 deposit: r.price * 2,
-                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0
+                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0,
+                                vacancy: r.vacancy,
+                                totalRooms: r.totalRooms,
+                                occupiedRooms: r.occupiedRooms
                               };
                               handleViewDetails(listing);
                             }}
@@ -2052,7 +3367,130 @@ export default function SearchPage() {
             listing={selectedListing}
             onClose={() => setShowDetails(false)}
             onLike={handleLike}
+            onBooking={(listing) => {
+              setSelectedRoomForBooking(listing);
+              setShowBooking(true);
+            }}
           />
+        )}
+
+        {/* Booking Form Modal */}
+        {showBooking && (
+          <BookingForm
+            listing={selectedRoomForBooking}
+            onClose={() => setShowBooking(false)}
+            onSubmit={(data) => {
+              setToastMessage(`✅ Booking request submitted for ${selectedRoomForBooking?.title}!`);
+              setShowToast(true);
+              setTimeout(() => setShowToast(false), 3000);
+            }}
+          />
+        )}
+
+        {/* Payment Portal Modal - Shows StudentPayment.tsx content */}
+        {showPaymentPortal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto border border-white/10 shadow-2xl">
+              <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10 flex items-center justify-between z-10">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Payment Portal</h2>
+                  <p className="text-sm text-gray-400">
+                    {selectedNotificationBooking && `Booking ID: ${selectedNotificationBooking}`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPaymentPortal(false)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <FaTimes className="text-white" />
+                </button>
+              </div>
+              <div className="p-6">
+                <StudentPaymentPortalContent bookingId={selectedNotificationBooking} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Check-in Date Submission Modal */}
+        {showCheckinForm && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl">
+              <div className="bg-gradient-to-r from-cyan-500/20 to-purple-500/20 p-4 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-white">Submit Check-in Date</h2>
+                  <button
+                    onClick={() => setShowCheckinForm(false)}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <FaTimes className="text-white" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                    <FaCalendarAlt className="text-amber-400 text-2xl" />
+                    <div>
+                      <h3 className="text-white font-semibold">Booking Confirmed!</h3>
+                      <p className="text-sm text-gray-400">
+                        {selectedNotificationBooking && `Booking ID: ${selectedNotificationBooking}`}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-gray-300 text-sm mb-4">
+                    Your payment has been verified and your booking is confirmed. Please select your expected check-in date to complete the process.
+                  </p>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-white font-semibold mb-2">
+                    Check-in Date <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={checkinDate}
+                    onChange={(e) => setCheckinDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  />
+                  <p className="text-xs text-gray-400 mt-2">
+                    Select a date from today onwards
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowCheckinForm(false)}
+                    className="flex-1 px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!checkinDate) {
+                        alert('Please select a check-in date');
+                        return;
+                      }
+                      // Simulate submission
+                      setToastMessage(`✅ Check-in date submitted: ${new Date(checkinDate).toLocaleDateString()}`);
+                      setShowToast(true);
+                      setTimeout(() => setShowToast(false), 3000);
+                      setShowCheckinForm(false);
+                      setCheckinDate('');
+                      
+                      // Remove the check-in reminder notification
+                      setNotifications(prev => prev.filter(n => n.type !== 'checkin_reminder' || n.bookingId !== selectedNotificationBooking));
+                    }}
+                    disabled={!checkinDate}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Submit
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
