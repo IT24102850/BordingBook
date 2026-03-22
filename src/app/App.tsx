@@ -92,7 +92,7 @@ export default function App() {
         <Route path="/roommate-finder" element={<RoommateFinderPage />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
         <Route path="/profile" element={<UserProfileDashboard />} />
-        <Route path="/student-payments" element={<StudentPayment />} />
+        <Route path="/student-payment" element={<StudentPayment />} />
 
       </Routes>
     </BrowserRouter>
