@@ -7,6 +7,8 @@ import {
   ChevronRight, Zap, Award, Clock
 } from 'lucide-react';
 
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+
 // Professional online image for right panel
 const ProfessionalVisual = () => {
   const [mounted, setMounted] = useState(false);
@@ -186,7 +188,7 @@ export default function SignUpPage() {
     }
   }, [role, email, password, confirm, fullName, phoneNumber]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     setTouchedFields({ 
@@ -209,18 +211,11 @@ export default function SignUpPage() {
     }
 
     setError('');
-    setSuccess('');
-    setIsLoading(true);
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setSuccess('Account created! Verification email sent.');
-      setTimeout(() => navigate('/verify-email'), 1500);
-    } catch (err) {
-      setError('Failed to create account');
-    } finally {
-      setIsLoading(false);
-    }
+    setSuccess('Account created! Redirecting...');
+    
+    // Frontend only - redirect after validation passes
+    const redirectPath = role === 'student' ? '/profile-setup' : `/verify-email?email=${encodeURIComponent(email)}`;
+    setTimeout(() => navigate(redirectPath), 1200);
   };
 
   const handleBack = () => {
@@ -229,13 +224,7 @@ export default function SignUpPage() {
   };
 
   const handleSocialSignUp = (provider: string) => {
-    setIsLoading(true);
-    // Simulate social signup
-    setTimeout(() => {
-      setSuccess(`Account created with ${provider}!`);
-      setTimeout(() => navigate('/verify-email'), 1500);
-      setIsLoading(false);
-    }, 1500);
+    setError(`${provider} signup is not available yet. Please use email signup.`);
   };
 
   // Responsive sizing based on Redmi Note 13 (1080 x 2400)

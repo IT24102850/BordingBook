@@ -25,10 +25,10 @@ import AdminLayout from './components/admin/AdminLayout';
 import { 
   AdminLogin, 
   AdminDashboard, 
-  AdminPassengerList, 
-  AdminScanner, 
-  AdminControl, 
-  AdminSettings 
+  UserManagement, 
+  KYCVerification, 
+  SupportTickets, 
+  FeedbackManagement 
 } from './components/admin/AdminScreens';
 
 // Boarding Management System Core Functions
@@ -37,14 +37,26 @@ import SearchDiscovery from './components/boarding/SearchDiscovery';
 import BookingAgreement from './components/boarding/BookingAgreement';
 import PaymentRentalPage from './components/PaymentRentalPage';
 import BoardingPlaceDetail from './components/payment/BoardingPlaceDetail';
+import OwnerDashboardPayment from './components/payment/OwnerDashboardPayment';
+import StudentPayment from './components/payment/StudentPayment';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
 import RoommateFinderPage from './components/RoommateFinderPage';
+import RoommateFinderEnhanced from './components/RoommateFinderEnhanced';
+import ChatbotSection from './components/ChatbotSection';
 import OwnerDashboard from './components/OwnerDashboard';
+import BookingManagementSystem from './components/booking/BookingManagementSystem';
+import StudentBookingDashboard from './components/booking/StudentBookingDashboard';
 import UserProfileDashboard from './components/UserProfileDashboard';
-import StudentPayment from './components/payment/StudentPayment';
 
-
-
+// Roommate Finder Flow Components
+import BoardingDetail from './components/BoardingDetail';
+import GroupBooking from './components/GroupBooking';
+import ApprovalSuccess from './components/ApprovalSuccess';
+import AgreementPayment from './components/AgreementPayment';
+import Dashboard from './components/Dashboard';
+import Chat from './components/Chat';
+import RoommateFinderGroupPage from './components/RoommateFinderGroupPage';
+import OwnerApprovalPage from './components/OwnerApprovalPage';
 
 
 export default function App() {
@@ -75,10 +87,10 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="passengers" element={<AdminPassengerList />} />
-          <Route path="scanner" element={<AdminScanner />} />
-          <Route path="control" element={<AdminControl />} />
-          <Route path="settings" element={<AdminSettings />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="kyc" element={<KYCVerification />} />
+          <Route path="tickets" element={<SupportTickets />} />
+          <Route path="feedback" element={<FeedbackManagement />} />
         </Route>
 
         {/* Boarding Booking Management System Core Functions */}
@@ -87,12 +99,26 @@ export default function App() {
         <Route path="/booking-agreement" element={<BookingAgreement />} />
         <Route path="/payment-rental" element={<PaymentRentalPage />} />
         <Route path="/payment-rental/:placeId" element={<BoardingPlaceDetail />} />
+        <Route path="/owner-payment-dashboard" element={<OwnerDashboardPayment />} />
+        <Route path="/owner-bookings" element={<BookingManagementSystem />} />
+        <Route path="/student-booking" element={<StudentBookingDashboard />} />
+        <Route path="/student-payment" element={<StudentPayment />} />
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
-
-        <Route path="/roommate-finder" element={<RoommateFinderPage />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
         <Route path="/profile" element={<UserProfileDashboard />} />
-        <Route path="/student-payment" element={<StudentPayment />} />
+
+        {/* Roommate Finder Enhanced Routes (from main branch) */}
+        <Route path="/roommate-finder" element={<RoommateFinderPage />} />
+        <Route path="/roommate-finder-enhanced" element={<RoommateFinderEnhanced />} />
+        <Route path="/roommate-group" element={<RoommateFinderGroupPage />} />
+        <Route path="/boarding-detail/:id" element={<BoardingDetail />} />
+        <Route path="/group-booking" element={<GroupBooking />} />
+        <Route path="/approval-success" element={<ApprovalSuccess />} />
+        <Route path="/booking-agreement" element={<AgreementPayment />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/owner-approval" element={<OwnerApprovalPage />} />
+        <Route path="/chatbot" element={<ChatbotSection standalone={true} />} />
 
       </Routes>
     </BrowserRouter>
