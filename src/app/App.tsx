@@ -46,6 +46,7 @@ import ChatbotSection from './components/ChatbotSection';
 import OwnerDashboard from './components/OwnerDashboard';
 import BookingManagementSystem from './components/booking/BookingManagementSystem';
 import StudentBookingDashboard from './components/booking/StudentBookingDashboard';
+import UserProfileDashboard from './components/UserProfileDashboard';
 
 // Roommate Finder Flow Components
 import BoardingDetail from './components/BoardingDetail';
@@ -56,9 +57,6 @@ import Dashboard from './components/Dashboard';
 import Chat from './components/Chat';
 import RoommateFinderGroupPage from './components/RoommateFinderGroupPage';
 import OwnerApprovalPage from './components/OwnerApprovalPage';
-
-
-
 
 
 export default function App() {
@@ -107,7 +105,9 @@ export default function App() {
         <Route path="/student-payment" element={<StudentPayment />} />
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
+        <Route path="/profile" element={<UserProfileDashboard />} />
 
+        {/* Roommate Finder Enhanced Routes (from main branch) */}
         <Route path="/roommate-finder" element={<RoommateFinderPage />} />
         <Route path="/roommate-finder-enhanced" element={<RoommateFinderEnhanced />} />
         <Route path="/roommate-group" element={<RoommateFinderGroupPage />} />

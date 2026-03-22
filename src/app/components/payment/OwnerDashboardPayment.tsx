@@ -1,24 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Building, Home, Bed, Users, Star, Download, Edit, Trash2, 
-  Plus, Image, Wifi, Coffee, Bath, Wind, Zap, Upload, 
-  Calendar, CheckCircle, XCircle, AlertCircle, DollarSign,
-  Camera, Eye, EyeOff, ChevronDown, ChevronUp, Settings,
-  BarChart, CreditCard, Award, TrendingUp, Menu, X,
-  Filter, Search, MoreVertical, Phone, Mail, MapPin
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronDown, Trash2, AlertCircle, Eye, CheckCircle, XCircle, ArrowRight, Navigation, Loader2 } from 'lucide-react';
+import { generatePaymentReceiptPDF } from '../../helpers/generateReceipt';
 
 // Types
 interface BoardingHouse {
   id: string;
   name: string;
-  address: string;
-  totalRooms: number;
-  occupiedRooms: number;
-  rating: number;
-  totalReviews: number;
-  image: string;
-  status: 'active' | 'inactive';
+  roomId: string;
+  paymentStatus: 'paid' | 'pending' | 'overdue';
+  monthlyRent: number;
+  outstandingBalance?: number;
+  dueDate: string; // YYYY-MM-DD
+  checkInDate: string;
+  trustScore?: 'high' | 'medium' | 'low'; // Custom field for Risk Profiling
 }
 
 interface Room {
@@ -59,62 +54,49 @@ const mockHouses: BoardingHouse[] = [
     id: '1',
     name: 'Sunrise Boarding House',
     address: '123 Malabe, Colombo',
-    totalRooms: 12,
-    occupiedRooms: 8,
-    rating: 4.5,
-    totalReviews: 23,
-    image: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    status: 'active'
+    rooms: [
+      {
+        id: '101',
+        roomNumber: '101',
+        bedCount: 2,
+        tenants: [
+          { id: 't1', name: 'Alice Perera', roomId: '101', paymentStatus: 'paid', monthlyRent: 15000, outstandingBalance: 0, dueDate: '2026-02-28', checkInDate: '2024-01-15', trustScore: 'high' },
+          { id: 't2', name: 'Bob Silva', roomId: '101', paymentStatus: 'overdue', monthlyRent: 15000, outstandingBalance: 15000, dueDate: '2026-02-05', checkInDate: '2024-02-01', trustScore: 'low' },
+        ]
+      },
+      {
+        id: '102',
+        roomNumber: '102',
+        bedCount: 3,
+        tenants: [
+          { id: 't3', name: 'Charlie Brown', roomId: '102', paymentStatus: 'overdue', monthlyRent: 18000, outstandingBalance: 18000, dueDate: '2026-01-15', checkInDate: '2024-01-10', trustScore: 'low' },
+          { id: 't4', name: 'Dana White', roomId: '102', paymentStatus: 'pending', monthlyRent: 18000, outstandingBalance: 18000, dueDate: '2026-03-05', checkInDate: '2024-03-01', trustScore: 'high' },
+        ]
+      },
+    ]
   },
   {
     id: '2',
     name: 'Green Villa Boarding',
     address: '45 Kaduwela, Colombo',
-    totalRooms: 8,
-    occupiedRooms: 5,
-    rating: 4.2,
-    totalReviews: 15,
-    image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    status: 'active'
-  }
-];
-
-const mockRooms: Room[] = [
-  {
-    id: '101',
-    houseId: '1',
-    roomNumber: '101',
-    floor: 1,
-    bedCount: 3,
-    occupiedBeds: 2,
-    price: 15000,
-    facilities: ['wifi', 'ac', 'bathroom'],
-    status: 'partial',
-    images: [
-      'https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1598928636135-d146006ff4be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-    ],
-    tenants: [
-      { id: 't1', name: 'Alice Perera', roomId: '101', checkInDate: '2024-01-15', checkOutDate: '2024-12-15', paymentStatus: 'paid', monthlyRent: 15000, phone: '+94 77 123 4567', email: 'alice@email.com' },
-      { id: 't2', name: 'Bob Silva', roomId: '101', checkInDate: '2024-02-01', checkOutDate: '2024-12-01', paymentStatus: 'paid', monthlyRent: 15000, phone: '+94 77 234 5678', email: 'bob@email.com' }
-    ]
-  },
-  {
-    id: '102',
-    houseId: '1',
-    roomNumber: '102',
-    floor: 1,
-    bedCount: 2,
-    occupiedBeds: 2,
-    price: 18000,
-    facilities: ['wifi', 'ac', 'bathroom', 'meals'],
-    status: 'full',
-    images: [
-      'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-    ],
-    tenants: [
-      { id: 't3', name: 'Charlie Weerasinghe', roomId: '102', checkInDate: '2024-01-10', checkOutDate: '2024-12-10', paymentStatus: 'paid', monthlyRent: 18000, phone: '+94 77 345 6789', email: 'charlie@email.com' },
-      { id: 't4', name: 'Diana Fernando', roomId: '102', checkInDate: '2024-01-10', checkOutDate: '2024-12-10', paymentStatus: 'pending', monthlyRent: 18000, phone: '+94 77 456 7890', email: 'diana@email.com' }
+    rooms: [
+      {
+        id: '201',
+        roomNumber: '201',
+        bedCount: 2,
+        tenants: [
+          { id: 't5', name: 'Eve Johnson', roomId: '201', paymentStatus: 'paid', monthlyRent: 12000, outstandingBalance: 0, dueDate: '2026-02-25', checkInDate: '2024-02-01', trustScore: 'high' },
+          { id: 't6', name: 'Frank Miller', roomId: '201', paymentStatus: 'paid', monthlyRent: 12000, outstandingBalance: 0, dueDate: '2026-03-10', checkInDate: '2024-03-10', trustScore: 'high' },
+        ]
+      },
+      {
+        id: '202',
+        roomNumber: '202',
+        bedCount: 2,
+        tenants: [
+          { id: 't7', name: 'Grace Lee', roomId: '202', paymentStatus: 'overdue', monthlyRent: 12000, outstandingBalance: 12000, dueDate: '2026-01-10', checkInDate: '2024-01-10', trustScore: 'medium' },
+        ]
+      },
     ]
   },
   {
@@ -223,137 +205,112 @@ const HouseCard = ({ house, onEdit, onDelete, onSelect, onViewRating }: any) => 
   </div>
 );
 
-// Mobile House Card Component
-const MobileHouseCard = ({ house, onEdit, onDelete, onSelect, onViewRating }: any) => (
-  <div 
-    className="bg-white/5 rounded-xl overflow-hidden border border-white/10 active:border-cyan-400/30 transition-colors touch-manipulation"
-    onClick={() => onSelect(house)}
-  >
-    <div className="relative h-28 overflow-hidden">
-      <img src={house.image} alt={house.name} className="w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-      <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-        <span className="text-white font-bold text-xs truncate max-w-[60%]">{house.name}</span>
-        <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${house.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
-          {house.status}
-        </span>
-      </div>
-    </div>
-    <div className="p-2">
-      <p className="text-[9px] text-gray-400 mb-1 flex items-center gap-1 truncate">
-        <MapPin size={8} />
-        {house.address}
-      </p>
-      <div className="flex items-center justify-between text-[9px]">
-        <span className="text-cyan-400">{house.occupiedRooms}/{house.totalRooms} rooms</span>
-        <div className="flex items-center gap-1">
-          <Star size={8} className="text-yellow-400" />
-          <span className="text-white">{house.rating}</span>
-        </div>
-      </div>
-      <div className="flex justify-end gap-2 mt-1.5 pt-1.5 border-t border-white/10">
-        <button onClick={(e) => { e.stopPropagation(); onViewRating(house); }} className="text-yellow-400 active:text-yellow-300 text-[8px] flex items-center gap-0.5 px-2 py-1 min-h-[32px]">
-          <Star size={10} /> Rating
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onEdit(house); }} className="text-cyan-400 active:text-cyan-300 text-[8px] flex items-center gap-0.5 px-2 py-1 min-h-[32px]">
-          <Edit size={10} /> Edit
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onDelete(house); }} className="text-red-400 active:text-red-300 text-[8px] flex items-center gap-0.5 px-2 py-1 min-h-[32px]">
-          <Trash2 size={10} /> Delete
-        </button>
-      </div>
-    </div>
-  </div>
-);
+  const [processingSlipId, setProcessingSlipId] = useState<string | null>(null);
+  const [rejectingSlip, setRejectingSlip] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectError, setRejectError] = useState('');
 
-// Room Card Component (Desktop)
-const RoomCard = ({ room, onEdit, onDelete, onViewTenants }: any) => {
-  const statusColors = {
-    available: 'text-green-400 bg-green-500/20',
-    partial: 'text-yellow-400 bg-yellow-500/20',
-    full: 'text-red-400 bg-red-500/20'
+  // Calculate Financial Overview Metrics
+  const totalExpected = mockBoardingPlaces.reduce((sum, place) =>
+    sum + place.rooms.reduce((rSum, room) =>
+      rSum + room.tenants.reduce((tSum, t) => tSum + t.monthlyRent, 0), 0), 0);
+
+  const totalCollected = mockBoardingPlaces.reduce((sum, place) =>
+    sum + place.rooms.reduce((rSum, room) =>
+      rSum + room.tenants.reduce((tSum, t) => tSum + (t.monthlyRent - (t.outstandingBalance || 0)), 0), 0), 0);
+
+  const totalDeficit = totalExpected - totalCollected;
+  const collectionPercentage = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+
+  // Mock pending slips for demo
+  const [pendingSlips, setPendingSlips] = useState([
+    { id: 'ps1', tenantName: 'Dana White', roomNumber: '102', placeId: '1', placeName: 'Sunrise Boarding House', amount: 9000, originalRent: 18000, date: '2026-03-05', trustScore: 'high' }, // 9000 uploaded, true rent 18000
+    { id: 'ps2', tenantName: 'Grace Lee', roomNumber: '202', placeId: '2', placeName: 'Green Villa Boarding', amount: 12000, originalRent: 12000, date: '2026-01-10', trustScore: 'medium' }
+  ]);
+
+  const handleApproveSlip = (slip: any) => {
+    if (!window.confirm(`Approve Rs.${slip.amount.toLocaleString()} payment from ${slip.tenantName}?\n\nThis will generate an official receipt and notify the tenant.`)) {
+      return;
+    }
+    setProcessingSlipId(slip.id);
+    setTimeout(() => {
+      const doc = generatePaymentReceiptPDF({
+        tenantName: slip.tenantName,
+        roomNumber: slip.roomNumber,
+        placeName: slip.placeName,
+        amount: slip.amount,
+        date: slip.date,
+        receiptNumber: `REC-${Math.floor(Math.random() * 100000)}`,
+        paymentMethod: 'Bank Transfer'
+      });
+      doc.save(`receipt_${slip.tenantName.replace(/\s+/g, '_')}_${slip.date}.pdf`);
+      setPendingSlips(prev => prev.filter(s => s.id !== slip.id));
+      setProcessingSlipId(null);
+    }, 1500);
+  };
+
+  const handleConfirmReject = () => {
+    if (rejectReason.trim().length < 10) {
+      setRejectError('Please provide a reason of at least 10 characters so the student knows why their slip was rejected.');
+      return;
+    }
+    setRejectError('');
+    setPendingSlips(prev => prev.filter(s => s.id !== rejectingSlip.id));
+    setRejectingSlip(null);
+    setRejectReason('');
   };
 
   return (
-    <div className="bg-white/5 rounded-lg p-3 border border-white/10 hover:border-purple-400/30 transition-all">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h4 className="text-white font-medium text-sm">Room {room.roomNumber}</h4>
-          <p className="text-xs text-gray-400">Floor {room.floor}</p>
+    <>
+
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-white">Owner Payment Dashboard</h2>
+      </div>
+
+      {/* Financial Overview Analytics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
+          <p className="text-sm font-medium text-gray-400 mb-1">Expected Revenue</p>
+          <p className="text-3xl font-bold text-white tracking-tight">Rs. {totalExpected.toLocaleString()}</p>
+          <p className="text-xs text-gray-500 mt-2">Total rent for occupied rooms</p>
         </div>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[room.status as keyof typeof statusColors]}`}>
-          {room.status === 'available' ? 'Available' : room.status === 'partial' ? 'Partial' : 'Full'}
-        </span>
-      </div>
-      
-      <div className="flex items-center gap-2 mb-2">
-        <Bed size={12} className="text-cyan-400" />
-        <span className="text-xs text-white">{room.occupiedBeds}/{room.bedCount} beds</span>
-        <DollarSign size={12} className="text-green-400 ml-2" />
-        <span className="text-xs text-white">Rs.{room.price.toLocaleString()}</span>
-      </div>
 
-      <div className="flex flex-wrap gap-1 mb-2">
-        {room.facilities.map((fac: string) => {
-          const facility = facilitiesList.find(f => f.id === fac);
-          return facility ? (
-            <span key={fac} className="bg-cyan-900/30 text-cyan-300 px-1.5 py-0.5 rounded-full text-[8px] flex items-center gap-1">
-              {facility.icon}
-              {facility.name}
-            </span>
-          ) : null;
-        })}
-      </div>
-
-      <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/10">
-        <button onClick={() => onViewTenants(room)} className="text-blue-400 hover:text-blue-300 text-[10px] flex items-center gap-1">
-          <Users size={10} /> Tenants ({room.tenants.length})
-        </button>
-        <button onClick={() => onEdit(room)} className="text-cyan-400 hover:text-cyan-300 text-[10px] flex items-center gap-1">
-          <Edit size={10} /> Edit
-        </button>
-        <button onClick={() => onDelete(room)} className="text-red-400 hover:text-red-300 text-[10px] flex items-center gap-1">
-          <Trash2 size={10} /> Delete
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Mobile Room Card Component
-const MobileRoomCard = ({ room, onEdit, onDelete, onViewTenants }: any) => {
-  const statusColors = {
-    available: 'text-green-400 bg-green-500/20',
-    partial: 'text-yellow-400 bg-yellow-500/20',
-    full: 'text-red-400 bg-red-500/20'
-  };
-
-  return (
-    <div className="bg-white/5 rounded-lg p-2.5 border border-white/10 active:border-purple-400/30 transition-colors touch-manipulation">
-      <div className="flex justify-between items-start mb-1.5">
-        <div>
-          <h4 className="text-white font-medium text-xs">Room {room.roomNumber}</h4>
-          <p className="text-[9px] text-gray-400">Floor {room.floor}</p>
+        <div className="bg-gradient-to-br from-emerald-900/40 to-slate-900 border border-emerald-500/20 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
+          <p className="text-sm font-medium text-emerald-400/80 mb-1">Total Collected</p>
+          <p className="text-3xl font-bold text-emerald-400 tracking-tight">Rs. {totalCollected.toLocaleString()}</p>
+          <div className="mt-3">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-gray-400">Collection Rate</span>
+              <span className="text-emerald-400 font-medium">{collectionPercentage}%</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-emerald-500 h-1.5 rounded-full"
+                style={{ width: `${collectionPercentage}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
-        <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${statusColors[room.status as keyof typeof statusColors]}`}>
-          {room.status === 'available' ? 'Available' : room.status === 'partial' ? 'Partial' : 'Full'}
-        </span>
-      </div>
-      
-      <div className="flex items-center gap-2 mb-1.5">
-        <Bed size={10} className="text-cyan-400" />
-        <span className="text-[9px] text-white">{room.occupiedBeds}/{room.bedCount} beds</span>
-        <DollarSign size={10} className="text-green-400 ml-1" />
-        <span className="text-[9px] text-white">Rs.{room.price.toLocaleString()}</span>
+
+        <div className="bg-gradient-to-br from-rose-900/40 to-slate-900 border border-rose-500/20 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
+          <p className="text-sm font-medium text-rose-400/80 mb-1">Outstanding Deficit</p>
+          <p className="text-3xl font-bold text-rose-400 tracking-tight">Rs. {totalDeficit.toLocaleString()}</p>
+          <p className="text-xs text-rose-400/60 mt-2 flex items-center gap-1">
+            <AlertCircle size={12} /> Needs follow-up
+          </p>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 mb-1.5">
-        {room.facilities.slice(0, 3).map((fac: string) => {
-          const facility = facilitiesList.find(f => f.id === fac);
-          return facility ? (
-            <span key={fac} className="bg-cyan-900/30 text-cyan-300 px-1 py-0.5 rounded-full text-[6px] flex items-center gap-0.5">
-              {facility.icon}
-              {facility.name}
+      {/* Review Payment Slips Section */}
+      <div className="bg-white/5 rounded-xl p-6 border border-white/10 shadow-lg relative">
+        <h3 className="text-lg font-semibold text-amber-400 mb-4 flex items-center gap-2">
+          New Payment Slips to Review
+          {pendingSlips.length > 0 && (
+            <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full text-xs">
+              {pendingSlips.length}
             </span>
           ) : null;
         })}
@@ -852,254 +809,58 @@ export default function OwnerDashboard() {
     return acc + room.tenants.filter(t => t.paymentStatus !== 'paid').length;
   }, 0);
 
-  // Get all tenants
-  const allTenants = rooms.flatMap(room => room.tenants);
-
-  // Filter rooms by house
-  const filteredRooms = filterHouse === 'all' 
-    ? rooms 
-    : rooms.filter(room => room.houseId === filterHouse);
-
-  // Filter tenants by search
-  const filteredTenants = allTenants.filter(tenant => 
-    tenant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    rooms.find(r => r.id === tenant.roomId)?.roomNumber.includes(searchQuery)
-  );
-
-  const handleViewTenants = (room: Room) => {
-    setSelectedRoomForTenants(room);
-    setShowTenantModal(true);
-  };
-
-  // Desktop view (unchanged)
-  if (!isMobile) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
-        {/* Header - Desktop */}
-        <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Building className="text-cyan-400" size={28} />
-                <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
-                  Owner Dashboard
-                </h1>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">Welcome back,</span>
-                <span className="text-sm text-white font-medium">John Doe</span>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                  JD
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation Tabs - Desktop */}
-            <div className="flex gap-1 mt-4 overflow-x-auto pb-1 scrollbar-hide items-center">
-              {[
-                { id: 'overview', label: 'Overview', icon: <BarChart size={14} /> },
-                { id: 'houses', label: 'Houses', icon: <Building size={14} /> },
-                { id: 'rooms', label: 'Rooms', icon: <Bed size={14} /> },
-                { id: 'tenants', label: 'Tenants', icon: <Users size={14} /> },
-                { id: 'payments', label: 'Payments', icon: <CreditCard size={14} /> },
-                { id: 'notices', label: 'Notices', icon: <Mail size={14} /> }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          {/* Overview Tab - Desktop */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatsCard 
-                  title="Total Houses" 
-                  value={totalHouses} 
-                  icon={<Building size={18} />} 
-                  trend={12}
-                  color="bg-cyan-500/20 text-cyan-400"
-                />
-                <StatsCard 
-                  title="Total Rooms" 
-                  value={totalRooms} 
-                  icon={<Bed size={18} />} 
-                  trend={8}
-                  color="bg-purple-500/20 text-purple-400"
-                />
-                <StatsCard 
-                  title="Total Tenants" 
-                  value={totalTenants} 
-                  icon={<Users size={18} />} 
-                  trend={15}
-                  color="bg-green-500/20 text-green-400"
-                />
-                <StatsCard 
-                  title="Occupancy Rate" 
-                  value={`${occupancyRate}%`} 
-                  icon={<TrendingUp size={18} />} 
-                  trend={5}
-                  color="bg-yellow-500/20 text-yellow-400"
-                />
-              </div>
-
-              {/* Revenue & Payments */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <h3 className="text-sm font-medium text-cyan-300 mb-3 flex items-center gap-2">
-                    <DollarSign size={16} />
-                    Monthly Revenue
-                  </h3>
-                  <p className="text-2xl font-bold text-white">Rs.{monthlyRevenue.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1">from {totalTenants} tenants</p>
-                  <div className="mt-3 h-1 bg-gray-700 rounded-full overflow-hidden">
-                    <div className="h-full w-3/4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" />
+        <div className="space-y-3">
+          {pendingSlips.length > 0 ? (
+            pendingSlips.map(slip => (
+              <div key={slip.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-amber-500/20 rounded-xl hover:bg-white/10 transition-colors">
+                <div className="mb-3 md:mb-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm text-white font-semibold">{slip.tenantName}</p>
+                    <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-300">{slip.placeName}</span>
+                    {slip.trustScore === 'high' && <span title="Excellent Trust Score" className="flex items-center text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20"><CheckCircle size={10} className="mr-0.5" /> Reliable</span>}
+                    {slip.trustScore === 'medium' && <span title="Moderate Risk - Review Carefully" className="flex items-center text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20"><AlertCircle size={10} className="mr-0.5" /> Moderate Risk</span>}
+                    {slip.trustScore === 'low' && <span title="High Risk - History of late payments" className="flex items-center text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20"><AlertCircle size={10} className="mr-0.5" /> High Risk</span>}
+                  </div>
+                  <div className="text-xs text-gray-400 flex items-center gap-3">
+                    <span>Room {slip.roomNumber}</span>
+                    <span>•</span>
+                    <span>Paid on {slip.date}</span>
                   </div>
                 </div>
 
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <h3 className="text-sm font-medium text-cyan-300 mb-3 flex items-center gap-2">
-                    <AlertCircle size={16} />
-                    Payment Status
-                  </h3>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-400">Pending Payments</span>
-                    <span className="text-sm font-bold text-yellow-400">{pendingPayments}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">Overdue</span>
-                    <span className="text-sm font-bold text-red-400">0</span>
-                  </div>
-                  <button onClick={handleDownloadPaymentReport} className="w-full mt-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
-                    Download Payment Report
-                  </button>
-                </div>
-              </div>
-
-              {/* Recent Tenants */}
-              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                <h3 className="text-sm font-medium text-cyan-300 mb-3 flex items-center gap-2">
-                  <Users size={16} />
-                  Recent Tenants
-                </h3>
-                <TenantTable tenants={allTenants.slice(0, 5)} rooms={rooms} onDownload={handleDownloadTenantReceipt} />
-              </div>
-
-              {/* Top Rated Houses */}
-              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                <h3 className="text-sm font-medium text-cyan-300 mb-3 flex items-center gap-2">
-                  <Award size={16} />
-                  Top Rated Houses
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {houses.sort((a, b) => b.rating - a.rating).slice(0, 2).map(house => (
-                    <div key={house.id} className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
-                      <img src={house.image} alt={house.name} className="w-12 h-12 rounded-lg object-cover" />
-                      <div>
-                        <h4 className="text-sm font-bold text-white">{house.name}</h4>
-                        <div className="flex items-center gap-2 text-xs">
-                          <Star size={10} className="text-yellow-400" />
-                          <span className="text-white">{house.rating}</span>
-                          <span className="text-gray-400">({house.totalReviews} reviews)</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Houses Tab - Desktop */}
-          {activeTab === 'houses' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-white">My Boarding Houses</h2>
-                <button 
-                  onClick={() => setShowAddHouse(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all flex items-center gap-2"
-                >
-                  <Plus size={16} />
-                  Add House
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {houses.map(house => (
-                  <HouseCard 
-                    key={house.id}
-                    house={house}
-                    onSelect={setSelectedHouse}
-                    onEdit={handleEditHouse}
-                    onDelete={handleDeleteHouse}
-                    onViewRating={handleViewRating}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Rooms Tab - Desktop */}
-          {activeTab === 'rooms' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-white">Rooms Management</h2>
-                <div className="flex gap-2">
-                  <select className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white">
-                    <option>All Houses</option>
-                    {houses.map(house => (
-                      <option key={house.id}>{house.name}</option>
-                    ))}
-                  </select>
-                  <button 
-                    onClick={() => setShowAddRoom(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all flex items-center gap-2"
-                  >
-                    <Plus size={16} />
-                    Add Room
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {rooms.map(room => (
-                  <RoomCard 
-                    key={room.id}
-                    room={room}
-                    onEdit={handleEditRoom}
-                    onDelete={handleDeleteRoom}
-                    onViewTenants={handleViewTenants}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tenants Tab - Desktop */}
-          {activeTab === 'notices' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-white">Notices</h2>
                 <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-400">Sent: {notices.length}</span>
-                  <button onClick={() => setShowNoticeForm(true)} className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-sm rounded-lg flex items-center gap-2">
-                    <Plus size={16} />
-                    New Notice
-                  </button>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-white">Rs. {slip.amount.toLocaleString()}</p>
+                    {slip.amount < slip.originalRent ? (
+                      <p className="text-[10px] text-amber-400 font-medium">Partial (Owes Rs. {(slip.originalRent - slip.amount).toLocaleString()})</p>
+                    ) : (
+                      <p className="text-[10px] text-gray-500">Full Rent Uploaded</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 rounded-lg text-cyan-400 transition-colors border border-white/10" title="View Uploaded Slip">
+                      <Eye size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleApproveSlip(slip)}
+                      disabled={processingSlipId === slip.id}
+                      className="flex items-center justify-center gap-1 px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/40 rounded-lg text-emerald-400 transition-all border border-emerald-500/20 disabled:opacity-50"
+                      title={slip.amount < slip.originalRent ? "Approve as Partial Payment" : "Approve Full Payment"}
+                    >
+                      {processingSlipId === slip.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                      <span className="text-xs font-semibold hidden sm:inline">{slip.amount < slip.originalRent ? "Approve Partial" : "Approve"}</span>
+                    </button>
+                    <button
+                      onClick={() => { setRejectingSlip(slip); setRejectReason(''); setRejectError(''); }}
+                      disabled={processingSlipId === slip.id}
+                      className="flex items-center justify-center gap-1 px-3 py-2 bg-rose-500/20 hover:bg-rose-500/40 rounded-lg text-rose-400 transition-all border border-rose-500/20 disabled:opacity-50"
+                      title="Reject Payment"
+                    >
+                      <XCircle size={16} />
+                      <span className="text-xs font-semibold hidden sm:inline">Reject</span>
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
@@ -1590,6 +1351,16 @@ export default function OwnerDashboard() {
             </div>
           )}
         </div>
+
+        {/* Global Processing Overlay indicating Server Save Simulation */}
+        {processingSlipId && (
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm rounded-xl flex items-center justify-center z-10 transition-all">
+            <div className="bg-slate-800 border border-cyan-500/30 p-4 rounded-xl shadow-2xl flex items-center gap-3">
+              <Loader2 className="animate-spin text-cyan-400" size={20} />
+              <span className="text-sm font-medium text-cyan-50">Saving to payment_receipts server folder...</span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -2135,52 +1906,64 @@ export default function OwnerDashboard() {
         )}
       </div>
 
-      {/* Global Styles */}
-      <style>{`
-        /* Redmi Note 13 specific optimizations */
-        @media (max-width: 400px) {
-          .min-h-[44px] {
-            min-height: 44px;
-          }
-          .text-xs {
-            font-size: 11px;
-          }
-          .text-[9px] {
-            font-size: 10px;
-          }
-          .text-[8px] {
-            font-size: 9px;
-          }
-          .gap-1 {
-            gap: 0.25rem;
-          }
-          .p-2 {
-            padding: 0.5rem;
-          }
-        }
-        
-        /* Hide scrollbar but keep functionality */
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        
-        /* Touch optimization */
-        .touch-manipulation {
-          touch-action: manipulation;
-        }
-        
-        /* Active states for touch */
-        .active\\:bg-white\\/10:active {
-          background-color: rgba(255, 255, 255, 0.1);
-        }
-        .active\\:border-cyan-400\\/30:active {
-          border-color: rgba(34, 211, 238, 0.3);
-        }
-      `}</style>
-    </div>
+      {/* Reject Reason Modal */}
+      {rejectingSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 ring-1 ring-white/10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-white/10 bg-rose-500/5">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <XCircle size={18} className="text-rose-400" /> Reject Payment Slip
+              </h3>
+              <button onClick={() => setRejectingSlip(null)} className="text-gray-500 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-all">
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3 bg-white/5 border border-white/10 rounded-xl">
+                <p className="text-sm text-white font-semibold">{rejectingSlip.tenantName}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{rejectingSlip.placeName} · Room {rejectingSlip.roomNumber} · Rs.{rejectingSlip.amount.toLocaleString()}</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-semibold text-gray-400 mb-2">Reason for Rejection <span className="text-rose-400">*</span></label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => { setRejectReason(e.target.value); setRejectError(''); }}
+                  rows={3}
+                  className={`w-full bg-white/5 border rounded-xl py-2.5 px-4 text-white placeholder-gray-600 focus:bg-white/10 focus:ring-2 transition-all resize-none outline-none ${rejectError ? 'border-rose-500/70 focus:ring-rose-500/30' : 'border-white/10 focus:ring-rose-500/40 focus:border-rose-500/50'}`}
+                  placeholder="e.g. The amount on the slip doesn't match the uploaded amount..."
+                />
+                <div className="flex justify-between items-center mt-1.5">
+                  {rejectError ? (
+                    <p className="flex items-center gap-1 text-[11px] text-rose-400 font-medium">
+                      <AlertCircle size={12} /> {rejectError}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-500">Min. 10 characters. This will be sent to the student.</p>
+                  )}
+                  <p className={`text-[10px] ml-2 flex-shrink-0 ${rejectReason.length < 10 ? 'text-gray-500' : 'text-emerald-500'}`}>{rejectReason.length}/10+</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setRejectingSlip(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-gray-300 hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmReject}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500 border border-rose-500/30 hover:border-rose-500 text-rose-400 hover:text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-rose-500/25"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
