@@ -35,9 +35,8 @@ import {
 import BoardingManagement from './components/boarding/BoardingManagement';
 import SearchDiscovery from './components/boarding/SearchDiscovery';
 import BookingAgreement from './components/boarding/BookingAgreement';
-import PaymentRentalPage from './components/PaymentRentalPage';
+import PaymentRentalPage from './components/payment/PaymentRentalPage';
 import BoardingPlaceDetail from './components/payment/BoardingPlaceDetail';
-import OwnerDashboardPayment from './components/payment/OwnerDashboardPayment';
 import StudentPayment from './components/payment/StudentPayment';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
 import RoommateFinderPage from './components/RoommateFinderPage';
@@ -99,7 +98,6 @@ export default function App() {
         <Route path="/booking-agreement" element={<BookingAgreement />} />
         <Route path="/payment-rental" element={<PaymentRentalPage />} />
         <Route path="/payment-rental/:placeId" element={<BoardingPlaceDetail />} />
-        <Route path="/owner-payment-dashboard" element={<OwnerDashboardPayment />} />
         <Route path="/owner-bookings" element={<BookingManagementSystem />} />
         <Route path="/student-booking" element={<StudentBookingDashboard />} />
         <Route path="/student-payment" element={<StudentPayment />} />
