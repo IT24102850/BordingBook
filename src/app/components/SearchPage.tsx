@@ -10,6 +10,12 @@ import { MdOutlineVerified, MdOutlineLocationOn, MdOutlineBedroomParent } from '
 import { RiUserSharedLine } from 'react-icons/ri';
 import { BiCurrentLocation } from 'react-icons/bi';
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+import FiltersPanel from './boarding/FiltersPanel';
+import RoomCard from './boarding/RoomCard';
+import { ROOMS, distMap, fi } from '../data/rooms';
+>>>>>>> Stashed changes
 =======
 import FiltersPanel from './boarding/FiltersPanel';
 import RoomCard from './boarding/RoomCard';
@@ -52,7 +58,10 @@ const roommates = [
   },
 ];
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 
 // Mini Roommate Card for passed/favorites columns
 const MiniRoommateCard: React.FC<{ roommate: Roommate; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
@@ -87,6 +96,9 @@ const MiniRoommateCard: React.FC<{ roommate: Roommate; type: 'passed' | 'liked' 
     </div>
   );
 };
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 // Roommate swipe card component

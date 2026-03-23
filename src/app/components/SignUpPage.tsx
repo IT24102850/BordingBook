@@ -211,6 +211,9 @@ export default function SignUpPage() {
     setIsLoading(true);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
     // UI-only testing mode - no backend calls
     setTimeout(() => {
       setSuccess('Account created successfully!');
@@ -223,6 +226,7 @@ export default function SignUpPage() {
         }
       }, 1000);
     }, 800);
+<<<<<<< Updated upstream
 =======
     try {
       const signUpResult = await authApi.signUp({
@@ -258,6 +262,8 @@ export default function SignUpPage() {
     } finally {
       setIsLoading(false);
     }
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   };
 
