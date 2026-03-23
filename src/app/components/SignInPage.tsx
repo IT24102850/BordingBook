@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
+<<<<<<< Updated upstream
 import { useNavigate } from 'react-router-dom';
+=======
+import { authApi, AuthApiError } from '../api/authApi';
+import { useLocation, useNavigate } from 'react-router-dom';
+>>>>>>> Stashed changes
 import { 
   Lock, Mail, ShieldCheck, UserCheck, ArrowLeft, Eye, EyeOff, 
   AlertCircle, Loader2, HelpCircle, FileText, Shield,
@@ -75,7 +80,17 @@ export default function SignIn() {
     password: false
   });
   
+  const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const search = new URLSearchParams(location.search);
+    const emailFromQuery = search.get('email');
+
+    if (emailFromQuery) {
+      setEmail(emailFromQuery);
+    }
+  }, [location.search]);
 
   // Handle window resize for responsive adjustments
   useEffect(() => {
@@ -122,7 +137,7 @@ export default function SignIn() {
     try {
       await new Promise(resolve => setTimeout(resolve, 800));
       setSuccess('Signed in successfully!');
-      setTimeout(() => navigate('/find'), 800);
+      setTimeout(() => navigate('/profile-setup'), 800);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
     } finally {
@@ -142,7 +157,7 @@ export default function SignIn() {
     setIsLoading(true);
     setTimeout(() => {
       setSuccess('Signed in with Google!');
-      setTimeout(() => navigate('/find'), 1000);
+      setTimeout(() => navigate('/profile-setup'), 1000);
       setIsLoading(false);
     }, 1500);
   };

@@ -210,6 +210,7 @@ export default function SignUpPage() {
     setSuccess('');
     setIsLoading(true);
 
+<<<<<<< Updated upstream
     // UI-only testing mode - no backend calls
     setTimeout(() => {
       setSuccess('Account created successfully!');
@@ -222,6 +223,42 @@ export default function SignUpPage() {
         }
       }, 1000);
     }, 800);
+=======
+    try {
+      const signUpResult = await authApi.signUp({
+        email,
+        password,
+        role,
+        fullName: role === 'owner' ? fullName : undefined,
+        phoneNumber: role === 'owner' ? phoneNumber : undefined,
+        companyName: role === 'owner' ? companyName : undefined,
+        propertyCount: role === 'owner' ? Number(propertyCount || 0) : undefined,
+      });
+
+      if (signUpResult?.emailSent === false && signUpResult.verificationUrl) {
+        setSuccess('Account created. Email delivery is unavailable, redirecting to verification link for development.');
+        setTimeout(() => {
+          const verificationUrl = new URL(signUpResult.verificationUrl as string, window.location.origin);
+          navigate(`${verificationUrl.pathname}${verificationUrl.search}`);
+        }, 1200);
+        return;
+      }
+
+      setSuccess('Account created! Please verify your email.');
+      const redirectPath = `/verify-email?email=${encodeURIComponent(email)}`;
+      setTimeout(() => navigate(redirectPath), 1200);
+    } catch (err) {
+      if (err instanceof AuthApiError) {
+        setError(err.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Unable to create account right now. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+>>>>>>> Stashed changes
   };
 
   const handleBack = () => {

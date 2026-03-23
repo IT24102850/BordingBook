@@ -56,6 +56,7 @@ export default function App() {
         <Route path="/profile-setup" element={<ProfileSetup />} />
         <Route path="/find" element={<SearchPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
         
         {/* Mobile Routes */}
         <Route path="/mobile" element={<MobileLayout />}>

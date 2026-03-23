@@ -1,6 +1,44 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
+<<<<<<< Updated upstream
+=======
+const validateRequest = require('../middleware/validateRequest');
+const { requireAuth } = require('../middleware/auth');
+
+const signupValidation = [
+	body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
+	body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+	body('role').optional().isIn(['student', 'owner']).withMessage('Role must be student or owner'),
+	body('fullName').optional().trim(),
+	body('phoneNumber').optional().trim(),
+	body('companyName').optional().trim(),
+	body('propertyCount').optional().isInt({ min: 0 }).withMessage('Property count must be 0 or greater'),
+];
+
+const verifyEmailValidation = [
+	query('token').isString().notEmpty().withMessage('Verification token is required'),
+];
+
+const resendValidation = [body('email').isEmail().withMessage('Valid email is required').normalizeEmail()];
+const signinValidation = [
+	body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
+	body('password').notEmpty().withMessage('Password is required'),
+];
+const profileUpdateValidation = [
+	body('bio').optional().isString().isLength({ max: 180 }).withMessage('Bio must be 180 characters or less'),
+	body('profilePicture').optional().isString(),
+	body('minBudget').optional().isNumeric().withMessage('Minimum budget must be a number'),
+	body('maxBudget').optional().isNumeric().withMessage('Maximum budget must be a number'),
+	body('distance').optional().isNumeric().withMessage('Distance must be a number'),
+	body('selectedLocation').optional().isString(),
+	body('gender').optional().isString(),
+	body('academicYear').optional().isString(),
+	body('roommatePreference').optional().isString(),
+	body('roomType').optional().isString(),
+	body('lifestylePrefs').optional().isArray().withMessage('Lifestyle preferences must be an array'),
+];
+>>>>>>> Stashed changes
 
 /**
  * @route   POST /api/auth/signup
@@ -17,6 +55,13 @@ router.post('/signup', authController.signup);
 router.get('/verify-email', authController.verifyEmail);
 
 /**
+ * @route   GET /api/auth/verify-email/:token
+ * @desc    Verify user email with token path param
+ * @access  Public
+ */
+router.get('/verify-email/:token', authController.verifyEmail);
+
+/**
  * @route   POST /api/auth/resend-verification
  * @desc    Resend verification email
  * @access  Public
@@ -28,6 +73,13 @@ router.post('/resend-verification', authController.resendVerification);
  * @desc    Sign in user
  * @access  Public
  */
+<<<<<<< Updated upstream
 router.post('/signin', authController.signin);
+=======
+router.post('/signin', signinValidation, validateRequest, authController.signin);
+
+router.get('/me', requireAuth, authController.getMe);
+router.put('/profile', requireAuth, profileUpdateValidation, validateRequest, authController.updateProfile);
+>>>>>>> Stashed changes
 
 module.exports = router;

@@ -77,6 +77,7 @@ exports.signup = async (req, res) => {
     // Save user to database
     await user.save();
 
+<<<<<<< Updated upstream
     // Send verification email
     try {
       await emailService.sendVerificationEmail(email, verificationToken);
@@ -84,23 +85,56 @@ exports.signup = async (req, res) => {
       console.error('Failed to send verification email:', emailError);
       // Continue even if email fails - user can request resend
     }
+=======
+    const emailSendResult = await emailService
+      .sendVerificationEmail(normalizedEmail, verificationToken)
+      .catch((emailError) => {
+        console.error('Failed to send verification email:', emailError.message);
+        return { success: false, reason: emailError.message || 'Email send failed' };
+      });
+
+    const signupMessage = emailSendResult.success
+      ? 'Account created successfully. Please check your email to verify your account.'
+      : 'Account created, but verification email could not be sent. Please contact support or try resend later.';
+>>>>>>> Stashed changes
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please check your email to verify your account.',
+      message: signupMessage,
       data: {
         userId: user._id,
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
+        emailSent: Boolean(emailSendResult.success),
+        emailError: emailSendResult.reason || null,
+        verificationUrl:
+          env.nodeEnv === 'development' && !emailSendResult.success
+            ? emailSendResult.verificationUrl || null
+            : null,
       },
     });
   } catch (error) {
+<<<<<<< Updated upstream
     console.error('Signup error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create account',
       error: error.message,
+=======
+    console.error('Signup error:', error.message);
+
+    if (error && error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email already exists',
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: env.nodeEnv === 'development' ? error.message : 'Failed to create account',
+>>>>>>> Stashed changes
     });
   }
 };
@@ -111,7 +145,14 @@ exports.signup = async (req, res) => {
  */
 exports.verifyEmail = async (req, res) => {
   try {
-    const { token } = req.query;
+    const token = req.query.token || req.params.token;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification token is required',
+      });
+    }
 
     if (!token) {
       return res.status(400).json({
@@ -217,8 +258,34 @@ exports.resendVerification = async (req, res) => {
     const verificationToken = user.generateVerificationToken();
     await user.save();
 
+<<<<<<< Updated upstream
     // Send verification email
     await emailService.sendVerificationEmail(email, verificationToken);
+=======
+    const emailSendResult = await emailService
+      .sendVerificationEmail(normalizedEmail, verificationToken)
+      .catch((emailError) => {
+        console.error('Failed to resend verification email:', emailError.message);
+        return { success: false, reason: emailError.message || 'Email send failed' };
+      });
+
+    if (!emailSendResult.success) {
+      if (env.nodeEnv === 'development' && emailSendResult.verificationUrl) {
+        return res.status(200).json({
+          success: true,
+          message: 'Email service unavailable in development. Use provided verification URL.',
+          verificationUrl: emailSendResult.verificationUrl,
+          emailError: emailSendResult.reason || 'Unknown email delivery error',
+        });
+      }
+
+      return res.status(503).json({
+        success: false,
+        message: 'Verification email service is unavailable. Please try again later.',
+        emailError: emailSendResult.reason || 'Unknown email delivery error',
+      });
+    }
+>>>>>>> Stashed changes
 
     res.status(200).json({
       success: true,
@@ -301,6 +368,7 @@ exports.signin = async (req, res) => {
           role: user.role,
           fullName: user.fullName,
           isVerified: user.isVerified,
+          profileCompleted: user.profileCompleted,
         },
       },
     });
@@ -309,7 +377,135 @@ exports.signin = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to sign in',
+<<<<<<< Updated upstream
       error: error.message,
+=======
+    });
+  }
+};
+
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-verificationToken -verificationTokenExpiry');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        fullName: user.fullName,
+        phoneNumber: user.phoneNumber,
+        companyName: user.companyName,
+        propertyCount: user.propertyCount,
+        isVerified: user.isVerified,
+        profilePicture: user.profilePicture,
+        bio: user.bio,
+        minBudget: user.minBudget,
+        maxBudget: user.maxBudget,
+        distance: user.distance,
+        selectedLocation: user.selectedLocation,
+        gender: user.gender,
+        academicYear: user.academicYear,
+        roommatePreference: user.roommatePreference,
+        roomType: user.roomType,
+        lifestylePrefs: user.lifestylePrefs,
+        profileCompleted: user.profileCompleted,
+      },
+    });
+  } catch (error) {
+    console.error('Get profile error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user profile',
+>>>>>>> Stashed changes
+    });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const {
+      profilePicture,
+      bio,
+      minBudget,
+      maxBudget,
+      distance,
+      selectedLocation,
+      gender,
+      academicYear,
+      roommatePreference,
+      roomType,
+      lifestylePrefs,
+    } = req.body;
+
+    const parsedMinBudget = Number(minBudget);
+    const parsedMaxBudget = Number(maxBudget);
+
+    if (!Number.isNaN(parsedMinBudget) && !Number.isNaN(parsedMaxBudget) && parsedMaxBudget < parsedMinBudget) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum budget must be greater than or equal to minimum budget',
+      });
+    }
+
+    if (typeof profilePicture === 'string') user.profilePicture = profilePicture;
+    if (typeof bio === 'string') user.bio = bio.trim();
+    if (!Number.isNaN(parsedMinBudget)) user.minBudget = parsedMinBudget;
+    if (!Number.isNaN(parsedMaxBudget)) user.maxBudget = parsedMaxBudget;
+    if (!Number.isNaN(Number(distance))) user.distance = Number(distance);
+    if (typeof selectedLocation === 'string') user.selectedLocation = selectedLocation.trim();
+    if (typeof gender === 'string') user.gender = gender.trim();
+    if (typeof academicYear === 'string') user.academicYear = academicYear.trim();
+    if (typeof roommatePreference === 'string') user.roommatePreference = roommatePreference.trim();
+    if (typeof roomType === 'string') user.roomType = roomType.trim();
+    if (Array.isArray(lifestylePrefs)) {
+      user.lifestylePrefs = lifestylePrefs.filter((item) => typeof item === 'string').map((item) => item.trim());
+    }
+
+    user.profileCompleted = Boolean(
+      user.bio &&
+        user.minBudget > 0 &&
+        user.maxBudget > 0 &&
+        user.distance > 0 &&
+        user.gender &&
+        user.academicYear &&
+        user.roommatePreference
+    );
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile saved successfully',
+      data: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        profileCompleted: user.profileCompleted,
+      },
+    });
+  } catch (error) {
+    console.error('Update profile error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to save profile',
     });
   }
 };

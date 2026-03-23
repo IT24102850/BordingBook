@@ -1038,6 +1038,7 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike })
 };
 
 export default function SearchPage() {
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
   const [passedListings, setPassedListings] = useState<Listing[]>([]);
@@ -1295,7 +1296,7 @@ export default function SearchPage() {
         <div className="w-full max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-6">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => navigate('/')}
               className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
             >
               <FaArrowLeft className="text-white text-sm" />
@@ -1348,7 +1349,7 @@ export default function SearchPage() {
         <div className="flex flex-col items-center w-full mb-6">
           <div className="flex items-center gap-3 mb-4 w-full md:max-w-3xl md:mx-auto">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => navigate('/')}
               className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
             >
               <FaArrowLeft className="text-white text-sm" />

@@ -68,6 +68,51 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    minBudget: {
+      type: Number,
+      default: 0,
+    },
+    maxBudget: {
+      type: Number,
+      default: 0,
+    },
+    distance: {
+      type: Number,
+      default: 0,
+    },
+    selectedLocation: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    gender: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    academicYear: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    roommatePreference: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    roomType: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    lifestylePrefs: {
+      type: [String],
+      default: [],
+    },
+    profileCompleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt fields
