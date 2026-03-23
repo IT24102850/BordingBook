@@ -35,9 +35,8 @@ import {
 import BoardingManagement from './components/boarding/BoardingManagement';
 import SearchDiscovery from './components/boarding/SearchDiscovery';
 import BookingAgreement from './components/boarding/BookingAgreement';
-import PaymentRentalPage from './components/PaymentRentalPage';
+import PaymentRentalPage from './components/payment/PaymentRentalPage';
 import BoardingPlaceDetail from './components/payment/BoardingPlaceDetail';
-import OwnerDashboardPayment from './components/payment/OwnerDashboardPayment';
 import StudentPayment from './components/payment/StudentPayment';
 import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
 import RoommateFinderPage from './components/RoommateFinderPage';
@@ -46,6 +45,7 @@ import ChatbotSection from './components/ChatbotSection';
 import OwnerDashboard from './components/OwnerDashboard';
 import BookingManagementSystem from './components/booking/BookingManagementSystem';
 import StudentBookingDashboard from './components/booking/StudentBookingDashboard';
+import UserProfileDashboard from './components/UserProfileDashboard';
 
 // Roommate Finder Flow Components
 import BoardingDetail from './components/BoardingDetail';
@@ -56,9 +56,6 @@ import Dashboard from './components/Dashboard';
 import Chat from './components/Chat';
 import RoommateFinderGroupPage from './components/RoommateFinderGroupPage';
 import OwnerApprovalPage from './components/OwnerApprovalPage';
-
-
-
 
 
 export default function App() {
@@ -101,13 +98,14 @@ export default function App() {
         <Route path="/booking-agreement" element={<BookingAgreement />} />
         <Route path="/payment-rental" element={<PaymentRentalPage />} />
         <Route path="/payment-rental/:placeId" element={<BoardingPlaceDetail />} />
-        <Route path="/owner-payment-dashboard" element={<OwnerDashboardPayment />} />
         <Route path="/owner-bookings" element={<BookingManagementSystem />} />
         <Route path="/student-booking" element={<StudentBookingDashboard />} />
         <Route path="/student-payment" element={<StudentPayment />} />
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
+        <Route path="/profile" element={<UserProfileDashboard />} />
 
+        {/* Roommate Finder Enhanced Routes (from main branch) */}
         <Route path="/roommate-finder" element={<RoommateFinderPage />} />
         <Route path="/roommate-finder-enhanced" element={<RoommateFinderEnhanced />} />
         <Route path="/roommate-group" element={<RoommateFinderGroupPage />} />
