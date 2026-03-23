@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authApi, AuthApiError } from '../api/authApi';
 import { useNavigate } from 'react-router-dom';
 import { 
   Lock, Mail, ShieldCheck, UserCheck, ArrowLeft, Eye, EyeOff, 
@@ -104,12 +105,12 @@ export default function SignIn() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setTouchedFields({ email: true, password: true });
-    
+
     const emailValidation = validateEmail(email);
     const passwordValidation = validatePassword(password);
-    
+
     if (emailValidation || passwordValidation) {
       setError('Please fix the errors below');
       return;
@@ -120,11 +121,21 @@ export default function SignIn() {
     setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const result = await authApi.signIn({ email, password });
+      localStorage.setItem('bb_access_token', result.token);
+      localStorage.setItem('bb_current_user', JSON.stringify(result.user));
       setSuccess('Signed in successfully!');
       setTimeout(() => navigate('/find'), 800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
+      if (err instanceof AuthApiError) {
+        if (err.needsVerification) {
+          navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+          return;
+        }
+        setError(err.message);
+      } else {
+        setError('Unable to sign in right now. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

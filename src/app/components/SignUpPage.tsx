@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authApi, AuthApiError } from '../api/authApi';
 import { useNavigate } from 'react-router-dom';
 import { 
   UserCheck, ArrowLeft, Eye, EyeOff, AlertCircle, Loader2, 
@@ -6,8 +7,6 @@ import {
   Building, Phone, User, Home, Briefcase, Sparkles,
   ChevronRight, Zap, Award, Clock
 } from 'lucide-react';
-
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
 
 // Professional online image for right panel
 const ProfessionalVisual = () => {
@@ -188,7 +187,7 @@ export default function SignUpPage() {
     }
   }, [role, email, password, confirm, fullName, phoneNumber]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     setTouchedFields({ 
@@ -211,11 +210,32 @@ export default function SignUpPage() {
     }
 
     setError('');
-    setSuccess('Account created! Redirecting...');
-    
-    // Frontend only - redirect after validation passes
-    const redirectPath = role === 'student' ? '/profile-setup' : `/verify-email?email=${encodeURIComponent(email)}`;
-    setTimeout(() => navigate(redirectPath), 1200);
+    setSuccess('');
+    setIsLoading(true);
+
+    try {
+      await authApi.signUp({
+        email,
+        password,
+        role,
+        fullName: role === 'owner' ? fullName : undefined,
+        phoneNumber: role === 'owner' ? phoneNumber : undefined,
+        companyName: role === 'owner' ? companyName : undefined,
+        propertyCount: role === 'owner' ? Number(propertyCount || 0) : undefined,
+      });
+
+      setSuccess('Account created! Please verify your email.');
+      const redirectPath = `/verify-email?email=${encodeURIComponent(email)}`;
+      setTimeout(() => navigate(redirectPath), 1200);
+    } catch (err) {
+      if (err instanceof AuthApiError) {
+        setError(err.message);
+      } else {
+        setError('Unable to create account right now. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {

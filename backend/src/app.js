@@ -1,30 +1,55 @@
-require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const env = require('./config/env');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const app = express();
 
-// Middleware
-app.use(cors());
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(helmet());
+app.use(compression());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || env.allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('CORS not allowed'));
+    },
+  })
+);
 app.use(express.json());
-app.use(morgan('dev'));
+app.use(express.urlencoded({ extended: false }));
+app.use(limiter);
+app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
+const roommateRoutes = require('./routes/roommateRoutes');
 
 // Use routes
 app.use('/api/auth', authRoutes);
+app.use('/api/roommates', roommateRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Server is running' });
+  res.status(200).json({
+    success: true,
+    status: 'OK',
+    environment: env.nodeEnv,
+  });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: err.message });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;
