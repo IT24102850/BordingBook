@@ -29,6 +29,9 @@ interface SignInResult {
     email: string;
     role: 'student' | 'owner' | 'admin';
     fullName?: string;
+    phoneNumber?: string;
+    companyName?: string;
+    propertyCount?: number;
     isVerified: boolean;
   };
 }

@@ -2706,81 +2706,27 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
-      <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
+      <div className="flex-1 w-full max-w-7xl mx-auto px-4 pt-24 md:pt-28 pb-6 md:pb-8">
         {/* Header */}
         <div className="flex flex-col items-center w-full mb-6">
-          <div className="w-full mb-4 md:max-w-5xl md:mx-auto rounded-2xl border border-white/10 bg-[#0f172a]/70 backdrop-blur-xl shadow-2xl px-3 py-3 md:px-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { window.location.href = '/'; }}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                  aria-label="Go to home"
-                >
-                  <FaArrowLeft className="text-white text-sm" />
-                </button>
-                <button
-                  onClick={() => { window.location.href = '/'; }}
-                  className="text-left"
-                >
-                  <h1 className="text-base md:text-xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent leading-tight">
-                    BoardingBook
-                  </h1>
-                  <p className="text-[10px] md:text-xs text-cyan-100/70">Find & Search</p>
-                </button>
+          <div className="w-full fixed top-0 left-0 flex items-center justify-between h-14 md:h-16 px-6 md:px-24 bg-[#232b47] backdrop-blur-xl border-b-2 border-zinc-700/15 shadow-xl z-[10000] transition-all duration-300 navbar" style={{height: '64px',minHeight: '64px',borderBottomWidth: '2px',borderBottomColor: 'rgba(113,113,122,0.15)',borderImage: 'linear-gradient(to right, rgba(99,102,241,.18), rgba(34,211,238,.18)) 1',borderBottomStyle: 'solid'}}>
+            <div className="w-full flex items-center justify-between gap-4">
+              <button onClick={() => navigate('/')} className="text-3xl font-extrabold tracking-tight text-zinc-100 drop-shadow-lg select-none">
+                Boarding<span className="text-indigo-300">Book</span>
+              </button>
+
+              <div className="hidden md:flex flex-1 justify-center">
+                <div className="flex gap-8 items-center bg-zinc-800/60 px-8 py-2.5 rounded-full shadow border border-zinc-700/40">
+                  <button type="button" onClick={() => navigate('/')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition ${location.pathname === '/' ? 'bg-zinc-700/30' : ''}`}>Home</button>
+                  <button type="button" onClick={() => { setActiveTab('rooms'); navigate('/find'); }} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition ${location.pathname === '/find' && activeTab === 'rooms' ? 'bg-zinc-700/30' : ''}`}>Find Rooms</button>
+                  <button type="button" onClick={() => { setActiveTab('roommate'); navigate('/find'); }} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition ${activeTab === 'roommate' ? 'bg-zinc-700/30' : ''}`}>Roommate Finder</button>
+                  <button type="button" onClick={() => navigate('/chatbot')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition ${location.pathname === '/chatbot' ? 'bg-zinc-700/30' : ''}`}>🤖 AI Chatbot</button>
+                  <button type="button" onClick={() => navigate('/boarding-management')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition ${location.pathname === '/boarding-management' ? 'bg-zinc-700/30' : ''}`}>List Your Property</button>
+                  <button type="button" onClick={() => { setActiveTab('rooms'); navigate('/find'); }} className="px-5 py-2.5 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:scale-105 transition-transform duration-200 border border-indigo-400">Find Rooms</button>
+                </div>
               </div>
 
-              <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
-                <button
-                  onClick={() => navigate('/')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  Home
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab('rooms');
-                    navigate('/find');
-                  }}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/find' && activeTab === 'rooms' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  Find Rooms
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab('roommate');
-                    navigate('/find');
-                  }}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${activeTab === 'roommate' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  Roommate Finder
-                </button>
-                <button
-                  onClick={() => navigate('/chatbot')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/chatbot' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  AI Chatbot
-                </button>
-                <button
-                  onClick={() => navigate('/owner-dashboard')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/owner-dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  List Your Property
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setActiveTab('rooms');
-                    navigate('/find');
-                  }}
-                  className="hidden md:inline-flex px-5 py-2 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 text-white font-semibold shadow-lg hover:opacity-90 transition"
-                >
-                  Find Rooms
-                </button>
-
-                <div className="relative">
+              <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors relative"
@@ -2792,108 +2738,11 @@ export default function SearchPage() {
                     </span>
                   )}
                 </button>
-
-                {showNotifications && (
-                  <div className="absolute right-0 top-full mt-2 w-96 max-h-[600px] overflow-y-auto bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-50">
-                    <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-white font-bold text-lg">Notifications</h3>
-                        <button
-                          onClick={() => {
-                            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-                          }}
-                          className="text-xs text-cyan-400 hover:text-cyan-300"
-                        >
-                          Mark all read
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-2">
-                      {notifications.length === 0 ? (
-                        <div className="text-center py-8 text-gray-400">
-                          <FaBell className="text-4xl mx-auto mb-2 opacity-50" />
-                          <p>No notifications</p>
-                        </div>
-                      ) : (
-                        notifications.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className={`p-4 mb-2 rounded-lg cursor-pointer transition-all ${
-                              notif.read
-                                ? 'bg-white/5 hover:bg-white/10'
-                                : 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 hover:border-cyan-500/40'
-                            }`}
-                            onClick={() => {
-                              setNotifications(prev =>
-                                prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
-                              );
-
-                              if (notif.type === 'owner_approval' || notif.type === 'payment_pending') {
-                                setSelectedNotificationBooking(notif.bookingId || null);
-                                setShowPaymentPortal(true);
-                                setShowNotifications(false);
-                              } else if (notif.type === 'checkin_reminder') {
-                                setSelectedNotificationBooking(notif.bookingId || null);
-                                setShowCheckinForm(true);
-                                setShowNotifications(false);
-                              } else if (notif.type === 'receipt_generated' || notif.type === 'payment_verified') {
-                                setSelectedNotificationBooking(notif.bookingId || null);
-                                setShowPaymentPortal(true);
-                                setShowNotifications(false);
-                              }
-                            }}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                                notif.type === 'owner_approval' ? 'bg-green-500/20' :
-                                notif.type === 'payment_verified' ? 'bg-emerald-500/20' :
-                                notif.type === 'receipt_generated' ? 'bg-blue-500/20' :
-                                notif.type === 'booking_confirmed' ? 'bg-purple-500/20' :
-                                'bg-amber-500/20'
-                              }`}>
-                                {notif.type === 'owner_approval' && <FaCheckCircle className="text-green-400" />}
-                                {notif.type === 'payment_verified' && <FaCheckCircle className="text-emerald-400" />}
-                                {notif.type === 'receipt_generated' && <FaMoneyBillWave className="text-blue-400" />}
-                                {notif.type === 'booking_confirmed' && <FaCheckCircle className="text-purple-400" />}
-                                {notif.type === 'checkin_reminder' && <FaCalendarAlt className="text-amber-400" />}
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="text-white font-semibold text-sm">{notif.title}</h4>
-                                  {!notif.read && <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>}
-                                </div>
-                                <p className="text-gray-300 text-xs mb-2">{notif.message}</p>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-gray-500 text-xs">
-                                    {new Date(notif.timestamp).toLocaleString('en-US', {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </span>
-                                  {notif.actionRequired && (
-                                    <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30">
-                                      Action Required
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-                </div>
               </div>
             </div>
           </div>
           {/* Segmented Tab Switcher */}
-          <div className="flex flex-col items-center w-full">
+          <div className="flex flex-col items-center w-full mt-2 md:mt-3">
             <div className="flex rounded-full bg-gradient-to-r from-[#181f36] to-[#0f172a] p-1 shadow-inner w-full max-w-md mb-2 border border-cyan-500/20 md:max-w-2xl">
               <button
                 className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${activeTab === 'rooms' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg scale-105' : 'text-cyan-200 hover:bg-white/10'}`}

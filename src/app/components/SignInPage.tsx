@@ -125,7 +125,10 @@ export default function SignIn() {
       localStorage.setItem('bb_access_token', result.token);
       localStorage.setItem('bb_current_user', JSON.stringify(result.user));
       setSuccess('Signed in successfully!');
-      setTimeout(() => navigate('/find'), 800);
+      
+      // Redirect based on user role
+      const redirectPath = result.user.role === 'owner' ? '/owner-dashboard' : '/find';
+      setTimeout(() => navigate(redirectPath), 800);
     } catch (err) {
       if (err instanceof AuthApiError) {
         if (err.needsVerification) {
@@ -153,6 +156,7 @@ export default function SignIn() {
     setIsLoading(true);
     setTimeout(() => {
       setSuccess('Signed in with Google!');
+      // Note: In production, retrieve user role from Google auth response
       setTimeout(() => navigate('/find'), 1000);
       setIsLoading(false);
     }, 1500);

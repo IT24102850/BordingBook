@@ -8,6 +8,7 @@ import {
   Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight
 } from 'lucide-react';
 import BookingManagementSystem from './booking/BookingManagementSystem';
+import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
 
 // ============================================
 // TYPES
@@ -18,11 +19,20 @@ interface BoardingHouse {
   name: string;
   address: string;
   totalRooms: number;
+  monthlyPrice?: number;
+  roomType?: string;
+  availableFrom?: string;
+  deposit?: number;
+  roommateCount?: string;
+  description?: string;
+  features?: string[];
   occupiedRooms: number;
   rating: number;
   totalReviews: number;
   image: string;
+  images?: string[];
   status: 'active' | 'inactive';
+  genderPreference?: 'any' | 'girls' | 'boys';
 }
 
 interface Tenant {
@@ -49,6 +59,13 @@ interface Room {
   status: 'available' | 'partial' | 'full';
   images: string[];
   tenants: Tenant[];
+  location?: string;
+  roomType?: string;
+  genderPreference?: string;
+  availableFrom?: string;
+  deposit?: number;
+  roommateCount?: string;
+  description?: string;
 }
 
 interface Facility {
@@ -109,6 +126,17 @@ interface TenantTableProps {
 interface MobileTenantListProps {
   tenants: Tenant[];
   rooms: Room[];
+}
+
+interface OwnerProfile {
+  id: string;
+  email: string;
+  role: 'student' | 'owner' | 'admin';
+  fullName: string;
+  phoneNumber: string;
+  companyName: string;
+  propertyCount: number;
+  profileImage?: string;
 }
 
 interface SparklineProps {
@@ -261,7 +289,8 @@ const facilitiesList: Facility[] = [
   { id: 'meals', name: 'Meals Included', icon: <Coffee size={14} /> },
   { id: 'parking', name: 'Parking', icon: <Building size={14} /> },
   { id: 'laundry', name: 'Laundry', icon: <Wind size={14} /> },
-  { id: 'study', name: 'Study Area', icon: <Building size={14} /> },
+  { id: 'study', name: 'Study Table', icon: <Building size={14} /> },
+  { id: 'furnished', name: 'Furnished', icon: <Home size={14} /> },
   { id: 'security', name: 'Security', icon: <Eye size={14} /> }
 ];
 
@@ -366,6 +395,13 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect
         <Building size={12} />
         {house.address}
       </p>
+      <p className="text-[10px] text-purple-300 mb-2">
+        {house.genderPreference === 'girls'
+          ? 'Girls Only'
+          : house.genderPreference === 'boys'
+          ? 'Boys Only'
+          : 'Any'}
+      </p>
       <div className="flex items-center justify-between text-xs">
         <span className="text-cyan-400">{house.occupiedRooms}/{house.totalRooms} rooms</span>
         <div className="flex items-center gap-1">
@@ -406,6 +442,13 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
       <p className="text-[9px] text-gray-400 mb-1 flex items-center gap-1 truncate">
         <MapPin size={8} />
         {house.address}
+      </p>
+      <p className="text-[8px] text-purple-300 mb-1">
+        {house.genderPreference === 'girls'
+          ? 'Girls Only'
+          : house.genderPreference === 'boys'
+          ? 'Boys Only'
+          : 'Any'}
       </p>
       <div className="flex items-center justify-between text-[9px]">
         <span className="text-cyan-400">{house.occupiedRooms}/{house.totalRooms} rooms</span>
@@ -707,14 +750,14 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
 // ============================================
 
 export default function OwnerDashboard() {
-  const [houses, setHouses] = useState<BoardingHouse[]>(mockHouses);
-  const [rooms, setRooms] = useState<Room[]>(mockRooms);
+  const [houses, setHouses] = useState<BoardingHouse[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedHouse, setSelectedHouse] = useState<BoardingHouse | null>(null);
   const [showAddHouse, setShowAddHouse] = useState(false);
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [selectedRoomForTenants, setSelectedRoomForTenants] = useState<Room | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'rooms' | 'tenants' | 'payments' | 'bookings' | 'notifications' | 'notices'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'rooms' | 'tenants' | 'payments' | 'bookings' | 'notifications' | 'notices' | 'profile'>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
@@ -722,24 +765,51 @@ export default function OwnerDashboard() {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
   const [uploadedRoomImages, setUploadedRoomImages] = useState<string[]>([]);
   const [uploadedHouseImages, setUploadedHouseImages] = useState<string[]>([]);
+  const [ownerProfile, setOwnerProfile] = useState<OwnerProfile>({
+    id: '',
+    email: 'owner@boardingbook.com',
+    role: 'owner',
+    fullName: 'Owner',
+    phoneNumber: '',
+    companyName: '',
+    propertyCount: 0,
+  });
+  const [profileMessage, setProfileMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const houseFileInputRef = useRef<HTMLInputElement>(null);
+  const profileImageInputRef = useRef<HTMLInputElement>(null);
   
   // Form state for new room
   const [newRoom, setNewRoom] = useState({
+    listingTitle: '',
     houseId: '',
     roomNumber: '',
     floor: 1,
     bedCount: 1,
     price: 0,
-    facilities: [] as string[]
+    facilities: [] as string[],
+    location: '',
+    roomType: 'Single Room',
+    genderPreference: 'Any',
+    availableFrom: '',
+    deposit: 0,
+    roommateCount: 'None',
+    description: ''
   });
   
   // Form state for new house
   const [newHouse, setNewHouse] = useState({
     name: '',
     address: '',
-    totalRooms: 0
+    totalRooms: 0,
+    monthlyPrice: 0,
+    roomType: 'Single Room',
+    availableFrom: '',
+    deposit: 0,
+    roommateCount: 'None (Private)',
+    description: '',
+    features: [] as string[],
+    genderPreference: 'any' as 'any' | 'girls' | 'boys'
   });
 
   // Notice states
@@ -764,9 +834,110 @@ export default function OwnerDashboard() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    try {
+      const rawUser = localStorage.getItem('bb_current_user');
+      if (!rawUser) {
+        return;
+      }
+
+      const parsedUser = JSON.parse(rawUser) as Partial<OwnerProfile>;
+      setOwnerProfile((prev) => ({
+        ...prev,
+        id: parsedUser.id || prev.id,
+        email: parsedUser.email || prev.email,
+        role: (parsedUser.role as OwnerProfile['role']) || prev.role,
+        fullName: parsedUser.fullName || prev.fullName,
+        phoneNumber: parsedUser.phoneNumber || prev.phoneNumber,
+        companyName: parsedUser.companyName || prev.companyName,
+        propertyCount: typeof parsedUser.propertyCount === 'number' ? parsedUser.propertyCount : prev.propertyCount,
+        profileImage: parsedUser.profileImage || prev.profileImage,
+      }));
+    } catch (error) {
+      console.error('Failed to load owner profile:', error);
+    }
+  }, []);
+
   // Redmi Note 13 specific (360-400px width)
   const isRedmiNote13 = windowWidth >= 360 && windowWidth <= 400;
   const isMobile = windowWidth < 768;
+
+  const ownerInitials = ownerProfile.fullName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join('') || 'OW';
+
+  const mapHouseDtoToUi = (house: OwnerHouseDto): BoardingHouse => ({
+    id: house._id,
+    name: house.name,
+    address: house.address,
+    totalRooms: house.totalRooms,
+    monthlyPrice: house.monthlyPrice,
+    roomType: house.roomType,
+    availableFrom: house.availableFrom,
+    deposit: house.deposit,
+    roommateCount: house.roommateCount,
+    description: house.description,
+    features: house.features || [],
+    occupiedRooms: house.occupiedRooms,
+    rating: house.rating,
+    totalReviews: house.totalReviews,
+    image: house.image || house.images?.[0] || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    images: house.images || (house.image ? [house.image] : []),
+    status: house.status,
+    genderPreference: house.genderPreference || 'any',
+  });
+
+  const mapRoomDtoToUi = (room: OwnerRoomDto): Room => {
+    const bedCount = room.bedCount || room.totalSpots || 1;
+    const occupiedBeds = room.occupancy || 0;
+
+    return {
+      id: room._id,
+      houseId: room.houseId || '',
+      roomNumber: room.roomNumber || room._id.slice(-4),
+      floor: room.floor || 1,
+      bedCount,
+      occupiedBeds,
+      price: room.price,
+      facilities: room.facilities || [],
+      status: occupiedBeds <= 0 ? 'available' : occupiedBeds < bedCount ? 'partial' : 'full',
+      images: room.images?.length ? room.images : ['https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
+      tenants: [],
+      location: room.location,
+      roomType: room.roomType,
+      genderPreference: room.genderPreference,
+      availableFrom: room.availableFrom,
+      deposit: room.deposit,
+      roommateCount: room.roommateCount,
+      description: room.description,
+    };
+  };
+
+  useEffect(() => {
+    const loadOwnerData = async () => {
+      const token = localStorage.getItem('bb_access_token');
+      if (!token) {
+        return;
+      }
+
+      try {
+        const [houseData, roomData] = await Promise.all([
+          ownerDashboardApi.getHouses(),
+          ownerDashboardApi.getRooms(),
+        ]);
+
+        setHouses(houseData.map(mapHouseDtoToUi));
+        setRooms(roomData.map(mapRoomDtoToUi));
+      } catch (error) {
+        console.error('Failed to load owner dashboard data:', error);
+      }
+    };
+
+    loadOwnerData();
+  }, []);
 
   // ============================================
   // STATS CALCULATIONS
@@ -836,24 +1007,73 @@ export default function OwnerDashboard() {
     setShowTenantModal(true);
   };
 
-  const handleEditHouse = (house: BoardingHouse) => {
-    // Implement edit functionality
-    console.log('Edit house:', house);
+  const handleEditHouse = async (house: BoardingHouse) => {
+    const nextName = window.prompt('Update boarding house name', house.name);
+    if (!nextName) {
+      return;
+    }
+
+    const nextAddress = window.prompt('Update distance from SLIIT', house.address);
+    if (!nextAddress) {
+      return;
+    }
+
+    try {
+      const updated = await ownerDashboardApi.updateHouse(house.id, {
+        name: nextName,
+        address: nextAddress,
+      });
+
+      setHouses((prev) => prev.map((h) => (h.id === house.id ? mapHouseDtoToUi(updated) : h)));
+    } catch (error) {
+      alert((error as Error).message || 'Failed to update house');
+    }
   };
 
-  const handleDeleteHouse = (house: BoardingHouse) => {
-    // Implement delete functionality
-    console.log('Delete house:', house);
+  const handleDeleteHouse = async (house: BoardingHouse) => {
+    if (!window.confirm(`Delete ${house.name}? This will also remove its rooms.`)) {
+      return;
+    }
+
+    try {
+      await ownerDashboardApi.deleteHouse(house.id);
+      setHouses((prev) => prev.filter((h) => h.id !== house.id));
+      setRooms((prev) => prev.filter((room) => room.houseId !== house.id));
+    } catch (error) {
+      alert((error as Error).message || 'Failed to delete house');
+    }
   };
 
-  const handleEditRoom = (room: Room) => {
-    // Implement edit functionality
-    console.log('Edit room:', room);
+  const handleEditRoom = async (room: Room) => {
+    const nextPriceRaw = window.prompt('Update monthly price (Rs.)', String(room.price));
+    if (!nextPriceRaw) {
+      return;
+    }
+    const nextPrice = Number(nextPriceRaw);
+    if (Number.isNaN(nextPrice) || nextPrice <= 0) {
+      alert('Invalid price value');
+      return;
+    }
+
+    try {
+      const updated = await ownerDashboardApi.updateRoom(room.id, { price: nextPrice });
+      setRooms((prev) => prev.map((r) => (r.id === room.id ? mapRoomDtoToUi(updated) : r)));
+    } catch (error) {
+      alert((error as Error).message || 'Failed to update room');
+    }
   };
 
-  const handleDeleteRoom = (room: Room) => {
-    // Implement delete functionality
-    console.log('Delete room:', room);
+  const handleDeleteRoom = async (room: Room) => {
+    if (!window.confirm(`Delete Room ${room.roomNumber}?`)) {
+      return;
+    }
+
+    try {
+      await ownerDashboardApi.deleteRoom(room.id);
+      setRooms((prev) => prev.filter((r) => r.id !== room.id));
+    } catch (error) {
+      alert((error as Error).message || 'Failed to delete room');
+    }
   };
 
   // Handle file upload for room photos
@@ -939,6 +1159,76 @@ export default function OwnerDashboard() {
     houseFileInputRef.current?.click();
   };
 
+  const handleOpenProfileImageDialog = () => {
+    profileImageInputRef.current?.click();
+  };
+
+  const handleProfileImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file.');
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Profile image must be less than 3MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const imageData = reader.result as string;
+      setOwnerProfile((prev) => ({ ...prev, profileImage: imageData }));
+      setProfileMessage('Profile image updated. Click Save Changes to persist.');
+      setTimeout(() => setProfileMessage(''), 2500);
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
+  const handleRemoveProfileImage = () => {
+    setOwnerProfile((prev) => ({ ...prev, profileImage: undefined }));
+    setProfileMessage('Profile image removed. Click Save Changes to persist.');
+    setTimeout(() => setProfileMessage(''), 2500);
+  };
+
+  const handleSaveProfileSettings = () => {
+    if (!ownerProfile.fullName.trim()) {
+      alert('Owner name is required');
+      return;
+    }
+
+    const normalizedProfile = {
+      ...ownerProfile,
+      fullName: ownerProfile.fullName.trim(),
+      phoneNumber: ownerProfile.phoneNumber.trim(),
+      companyName: ownerProfile.companyName.trim(),
+      propertyCount: Number(ownerProfile.propertyCount) || 0,
+    };
+
+    setOwnerProfile(normalizedProfile);
+
+    try {
+      const existingRaw = localStorage.getItem('bb_current_user');
+      const existingUser = existingRaw ? JSON.parse(existingRaw) : {};
+      const updatedUser = {
+        ...existingUser,
+        ...normalizedProfile,
+      };
+
+      localStorage.setItem('bb_current_user', JSON.stringify(updatedUser));
+      setProfileMessage('Profile settings saved successfully.');
+      setTimeout(() => setProfileMessage(''), 2500);
+    } catch (error) {
+      console.error('Failed to save owner profile:', error);
+      alert('Could not save profile settings. Please try again.');
+    }
+  };
+
   // Handle facility toggle
   const handleFacilityToggle = (facilityId: string) => {
     setNewRoom(prev => ({
@@ -949,78 +1239,118 @@ export default function OwnerDashboard() {
     }));
   };
 
+  const handleHouseFeatureToggle = (featureId: string) => {
+    setNewHouse((prev) => ({
+      ...prev,
+      features: prev.features.includes(featureId)
+        ? prev.features.filter((f) => f !== featureId)
+        : [...prev.features, featureId],
+    }));
+  };
+
   // Handle save room
-  const handleSaveRoom = () => {
-    if (!newRoom.roomNumber || !newRoom.houseId) {
-      alert('Please fill in all required fields');
+  const handleSaveRoom = async () => {
+    if (!newRoom.roomNumber || !newRoom.houseId || !newRoom.location) {
+      alert('Please fill in all required fields (Room Number, House, Location)');
       return;
     }
 
-    const newRoomData: Room = {
-      id: `${Date.now()}`,
-      houseId: newRoom.houseId || houses[0]?.id || '1',
-      roomNumber: newRoom.roomNumber,
-      floor: newRoom.floor,
-      bedCount: newRoom.bedCount,
-      occupiedBeds: 0,
-      price: newRoom.price,
-      facilities: newRoom.facilities,
-      status: 'available',
-      images: uploadedRoomImages.length > 0 ? uploadedRoomImages : [
-        'https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-      ],
-      tenants: []
-    };
+    try {
+      const created = await ownerDashboardApi.createRoom({
+        name: newRoom.listingTitle,
+        houseId: newRoom.houseId,
+        roomNumber: newRoom.roomNumber,
+        floor: newRoom.floor,
+        bedCount: newRoom.bedCount,
+        price: newRoom.price,
+        facilities: newRoom.facilities,
+        images: uploadedRoomImages,
+        location: newRoom.location,
+        roomType: newRoom.roomType,
+        genderPreference: newRoom.genderPreference,
+        availableFrom: newRoom.availableFrom,
+        deposit: newRoom.deposit,
+        roommateCount: newRoom.roommateCount,
+        description: newRoom.description,
+        owner: ownerProfile.fullName,
+        ownerPhone: ownerProfile.phoneNumber,
+        ownerEmail: ownerProfile.email,
+      });
 
-    setRooms(prev => [...prev, newRoomData]);
-    setShowAddRoom(false);
-    
-    // Reset form
-    setNewRoom({
-      houseId: '',
-      roomNumber: '',
-      floor: 1,
-      bedCount: 1,
-      price: 0,
-      facilities: []
-    });
-    setUploadedRoomImages([]);
-    
-    alert(`Room ${newRoom.roomNumber} added successfully!`);
+      setRooms((prev) => [...prev, mapRoomDtoToUi(created)]);
+      setShowAddRoom(false);
+
+      setNewRoom({
+        listingTitle: '',
+        houseId: '',
+        roomNumber: '',
+        floor: 1,
+        bedCount: 1,
+        price: 0,
+        facilities: [],
+        location: '',
+        roomType: 'Single Room',
+        genderPreference: 'Any',
+        availableFrom: '',
+        deposit: 0,
+        roommateCount: 'None',
+        description: '',
+      });
+      setUploadedRoomImages([]);
+
+      alert(`Room ${created.roomNumber || newRoom.roomNumber} added successfully!`);
+    } catch (error) {
+      alert((error as Error).message || 'Failed to add room');
+    }
   };
 
   // Handle save house
-  const handleSaveHouse = () => {
+  const handleSaveHouse = async () => {
     if (!newHouse.name || !newHouse.address) {
-      alert('Please fill in House Name and Address');
+      alert('Please fill in House Name and Distance from SLIIT');
       return;
     }
 
-    const newHouseData: BoardingHouse = {
-      id: `${Date.now()}`,
-      name: newHouse.name,
-      address: newHouse.address,
-      totalRooms: newHouse.totalRooms || 0,
-      occupiedRooms: 0,
-      rating: 0,
-      totalReviews: 0,
-      image: uploadedHouseImages.length > 0 ? uploadedHouseImages[0] : 
-        'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-      status: 'active'
-    };
+    try {
+      const created = await ownerDashboardApi.createHouse({
+        name: newHouse.name,
+        address: newHouse.address,
+        totalRooms: newHouse.totalRooms,
+        monthlyPrice: newHouse.monthlyPrice,
+        roomType: newHouse.roomType,
+        availableFrom: newHouse.availableFrom,
+        deposit: newHouse.deposit,
+        roommateCount: newHouse.roommateCount,
+        description: newHouse.description,
+        features: newHouse.features,
+        image: uploadedHouseImages[0],
+        images: uploadedHouseImages,
+        status: 'active',
+        genderPreference: newHouse.genderPreference,
+      });
 
-    setHouses(prev => [...prev, newHouseData]);
-    setShowAddHouse(false);
-    
-    // Reset form
-    setNewHouse({
-      name: '',
-      address: '',
-      totalRooms: 0
-    });
-    setUploadedHouseImages([]);
-    
-    alert(`Boarding House "${newHouse.name}" added successfully!`);
+      setHouses((prev) => [...prev, mapHouseDtoToUi(created)]);
+      setShowAddHouse(false);
+
+      setNewHouse({
+        name: '',
+        address: '',
+        totalRooms: 0,
+        monthlyPrice: 0,
+        roomType: 'Single Room',
+        availableFrom: '',
+        deposit: 0,
+        roommateCount: 'None (Private)',
+        description: '',
+        features: [],
+        genderPreference: 'any',
+      });
+      setUploadedHouseImages([]);
+
+      alert(`Boarding House "${created.name}" added successfully!`);
+    } catch (error) {
+      alert((error as Error).message || 'Failed to add boarding house');
+    }
   };
 
   // ============================================
@@ -1029,6 +1359,7 @@ export default function OwnerDashboard() {
 
   if (!isMobile) {
     return (
+      <>
       <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
         {/* Header - Desktop */}
         <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50 shadow-lg">
@@ -1054,12 +1385,20 @@ export default function OwnerDashboard() {
                 </button>
                 <div className="flex items-center gap-3 pl-3 border-l border-white/10">
                   <div className="text-right">
-                    <p className="text-sm text-white font-medium">John Doe</p>
-                    <p className="text-xs text-gray-400">Owner</p>
+                    <p className="text-sm text-white font-medium">{ownerProfile.fullName}</p>
+                    <p className="text-xs text-gray-400">Owner • {ownerProfile.email}</p>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg">
-                    JD
-                  </div>
+                  {ownerProfile.profileImage ? (
+                    <img
+                      src={ownerProfile.profileImage}
+                      alt={ownerProfile.fullName}
+                      className="w-10 h-10 rounded-full object-cover border border-cyan-400/50 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg">
+                      {ownerInitials}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1074,6 +1413,7 @@ export default function OwnerDashboard() {
                 { id: 'payments', label: 'Payments', icon: <CreditCard size={16} /> },
                 { id: 'bookings', label: 'Bookings', icon: <FileText size={16} /> },
                 { id: 'notices', label: 'Notices', icon: <Mail size={16} /> },
+                { id: 'profile', label: 'Profile', icon: <Settings size={16} /> },
                 { id: 'notifications', label: 'Alerts', icon: <Bell size={16} />, badge: unreadNotifications }
               ].map((tab) => (
                 <button
@@ -1102,6 +1442,22 @@ export default function OwnerDashboard() {
           {/* Dashboard Tab - Desktop */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              <div className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-4 border border-cyan-500/30 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white">Welcome back, {ownerProfile.fullName}</h3>
+                  <p className="text-xs text-gray-300 mt-1">
+                    {ownerProfile.companyName ? `${ownerProfile.companyName} • ` : ''}
+                    {ownerProfile.email}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-cyan-300 rounded-lg text-xs font-medium transition-colors"
+                >
+                  Edit Profile
+                </button>
+              </div>
+
               {/* Quick Action Buttons */}
               <div className="flex gap-3 flex-wrap">
                 <button 
@@ -1551,6 +1907,125 @@ export default function OwnerDashboard() {
             </div>
           )}
 
+          {/* Profile Tab - Desktop */}
+          {activeTab === 'profile' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold text-white">Owner Profile Settings</h2>
+                <button
+                  onClick={handleSaveProfileSettings}
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                >
+                  Save Changes
+                </button>
+              </div>
+
+              {profileMessage && (
+                <div className="bg-green-900/20 rounded-xl p-3 border border-green-500/30 text-green-300 text-sm">
+                  {profileMessage}
+                </div>
+              )}
+
+              <div className="bg-white/5 rounded-xl p-5 border border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-300 mb-2">Profile Picture</label>
+                  <div className="flex items-center gap-4 p-3 rounded-lg border border-white/10 bg-white/5">
+                    {ownerProfile.profileImage ? (
+                      <img
+                        src={ownerProfile.profileImage}
+                        alt={ownerProfile.fullName}
+                        className="w-20 h-20 rounded-full object-cover border border-cyan-400/50"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
+                        {ownerInitials}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleOpenProfileImageDialog}
+                        className="px-3 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors"
+                      >
+                        <Camera size={14} /> Upload Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveProfileImage}
+                        className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg text-xs font-medium transition-colors"
+                      >
+                        Remove Photo
+                      </button>
+                      <p className="w-full text-[11px] text-gray-400">Accepted: JPG/PNG/WebP up to 3MB</p>
+                    </div>
+                  </div>
+                  <input
+                    ref={profileImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleProfileImageUpload}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Owner Name</label>
+                  <input
+                    type="text"
+                    value={ownerProfile.fullName}
+                    onChange={(e) => setOwnerProfile((prev) => ({ ...prev, fullName: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                    placeholder="Enter full name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={ownerProfile.email}
+                    disabled
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-400 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={ownerProfile.phoneNumber}
+                    onChange={(e) => setOwnerProfile((prev) => ({ ...prev, phoneNumber: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Company Name</label>
+                  <input
+                    type="text"
+                    value={ownerProfile.companyName}
+                    onChange={(e) => setOwnerProfile((prev) => ({ ...prev, companyName: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                    placeholder="Enter company name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Property Count</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={ownerProfile.propertyCount}
+                    onChange={(e) => setOwnerProfile((prev) => ({ ...prev, propertyCount: Number(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Notifications Tab - Desktop */}
           {activeTab === 'notifications' && (
             <div className="space-y-4">
@@ -1684,6 +2159,503 @@ export default function OwnerDashboard() {
           )}
         </div>
       </div>
+
+      {/* Add House Modal - Desktop */}
+      {showAddHouse && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-5xl w-full my-8 p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Plus size={22} className="text-cyan-400" /> Add Boarding House
+              </h2>
+              <button
+                onClick={() => setShowAddHouse(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="text-gray-400 hover:text-white" size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-8 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-gray-300 mb-1">House Name *</label>
+                      <input
+                        type="text"
+                        value={newHouse.name}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                        placeholder="e.g., Lake View Boarding House"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-gray-300 mb-1">Distance from SLIIT *</label>
+                      <input
+                        type="text"
+                        value={newHouse.address}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, address: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                        placeholder="e.g., 0.8 km from SLIIT"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-300 mb-1">Total Rooms</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={newHouse.totalRooms}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, totalRooms: Number(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-300 mb-1">Price (Rs./month)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={newHouse.monthlyPrice}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, monthlyPrice: Number(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                        placeholder="18000"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-300 mb-1">Room Type</label>
+                      <select
+                        value={newHouse.roomType}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, roomType: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                      >
+                        <option>Single Room</option>
+                        <option>Shared Room</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-300 mb-1">Available From</label>
+                      <input
+                        type="date"
+                        value={newHouse.availableFrom}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, availableFrom: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-300 mb-1">Bodim Price (Rs.)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={newHouse.deposit}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, deposit: Number(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                        placeholder="e.g., 18000"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-300 mb-1">Roommates</label>
+                      <select
+                        value={newHouse.roommateCount}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, roommateCount: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                      >
+                        <option>None (Private)</option>
+                        <option>1 Roommate</option>
+                        <option>2 Roommates</option>
+                        <option>3+ Roommates</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-gray-300 mb-2">Gender Preference</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className={`px-3 py-2 rounded-lg border text-xs text-center cursor-pointer transition-colors ${newHouse.genderPreference === 'any' ? 'border-cyan-400 bg-cyan-500/20 text-cyan-200' : 'border-white/10 bg-white/5 text-gray-300'}`}>
+                          <input
+                            type="radio"
+                            name="boarding-house-gender"
+                            value="any"
+                            checked={newHouse.genderPreference === 'any'}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, genderPreference: e.target.value as 'any' | 'girls' | 'boys' }))}
+                            className="hidden"
+                          />
+                          Any
+                        </label>
+                        <label className={`px-3 py-2 rounded-lg border text-xs text-center cursor-pointer transition-colors ${newHouse.genderPreference === 'girls' ? 'border-pink-400 bg-pink-500/20 text-pink-200' : 'border-white/10 bg-white/5 text-gray-300'}`}>
+                          <input
+                            type="radio"
+                            name="boarding-house-gender"
+                            value="girls"
+                            checked={newHouse.genderPreference === 'girls'}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, genderPreference: e.target.value as 'any' | 'girls' | 'boys' }))}
+                            className="hidden"
+                          />
+                          Girls
+                        </label>
+                        <label className={`px-3 py-2 rounded-lg border text-xs text-center cursor-pointer transition-colors ${newHouse.genderPreference === 'boys' ? 'border-blue-400 bg-blue-500/20 text-blue-200' : 'border-white/10 bg-white/5 text-gray-300'}`}>
+                          <input
+                            type="radio"
+                            name="boarding-house-gender"
+                            value="boys"
+                            checked={newHouse.genderPreference === 'boys'}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, genderPreference: e.target.value as 'any' | 'girls' | 'boys' }))}
+                            className="hidden"
+                          />
+                          Boys
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-gray-300 mb-1">Description</label>
+                      <textarea
+                        value={newHouse.description}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, description: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none h-24"
+                        placeholder="Spacious, fully furnished room with attached bathroom. Walking distance to SLIIT campus. Includes WiFi, AC, and study table."
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-gray-300 mb-2">Features</label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {facilitiesList.map((facility) => (
+                          <label key={`house-feature-${facility.id}`} className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:border-cyan-400/50 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={newHouse.features.includes(facility.id)}
+                              onChange={() => handleHouseFeatureToggle(facility.id)}
+                              className="cursor-pointer"
+                            />
+                            <span className="text-xs text-gray-300 flex items-center gap-1">
+                              {facility.icon}
+                              {facility.name}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-3">
+                  <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <label className="block text-xs font-medium text-cyan-300 mb-2">Boarding House Images</label>
+                    <button
+                      onClick={handleOpenHouseFileDialog}
+                      className="w-full px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Upload size={16} /> Upload Images
+                    </button>
+                    <input
+                      ref={houseFileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleHouseFileUpload}
+                    />
+
+                    {uploadedHouseImages.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2 mt-3">
+                        {uploadedHouseImages.map((image, index) => (
+                          <div key={`house-preview-${index}`} className="relative group">
+                            <img
+                              src={image}
+                              alt={`Boarding house preview ${index + 1}`}
+                              className="w-full h-20 object-cover rounded-lg border border-white/10"
+                            />
+                            <button
+                              onClick={() => removeHouseImage(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-gray-400 mt-2">No images selected yet.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t border-white/10 sticky bottom-0 bg-gradient-to-r from-[#131d3a]/95 to-[#0b132b]/95">
+                <button
+                  onClick={() => setShowAddHouse(false)}
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveHouse}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                >
+                  Save Boarding House
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Room Modal - Desktop */}
+      {showAddRoom && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-2xl w-full my-8 p-6 shadow-2xl" >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Plus size={24} className="text-cyan-400" /> Add New Room
+              </h2>
+              <button
+                onClick={() => setShowAddRoom(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="text-gray-400 hover:text-white" size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Room Images Upload */}
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                <label className="block text-sm font-medium text-cyan-300 mb-2">Room Images</label>
+                <div className="space-y-2">
+                  <button
+                    onClick={handleOpenFileDialog}
+                    className="w-full px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Upload size={16} /> Upload Images (Multiple)
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+
+                  {uploadedRoomImages.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {uploadedRoomImages.map((img, idx) => (
+                        <div key={idx} className="relative group">
+                          <img src={img} alt={`Room ${idx}`} className="w-full h-20 rounded-lg object-cover border border-white/10" />
+                          <button
+                            onClick={() => removeImage(idx)}
+                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Basic Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-300 mb-1">Listing Title</label>
+                  <input
+                    type="text"
+                    value={newRoom.listingTitle}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, listingTitle: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g., Modern Boarding House near SLIIT"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">House *</label>
+                  <select
+                    value={newRoom.houseId}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, houseId: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="">Select House</option>
+                    {houses.map((h) => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Room Number *</label>
+                  <input
+                    type="text"
+                    value={newRoom.roomNumber}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, roomNumber: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g., 101"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Location *</label>
+                  <input
+                    type="text"
+                    value={newRoom.location}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, location: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g., Malabe (0.8km from SLIIT)"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Tip: Add distance from campus, e.g. 0.8km from SLIIT</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Room Type</label>
+                  <select
+                    value={newRoom.roomType}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, roomType: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option>Single Room</option>
+                    <option>Shared Room</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Monthly Price (Rs.)</label>
+                  <input
+                    type="number"
+                    value={newRoom.price}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, price: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="18000"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Bodim Price (Rs.)</label>
+                  <input
+                    type="number"
+                    value={newRoom.deposit}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, deposit: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g., 18000"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Bed Count</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newRoom.bedCount}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, bedCount: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Available From</label>
+                  <input
+                    type="date"
+                    value={newRoom.availableFrom}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, availableFrom: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Gender Preference</label>
+                  <select
+                    value={newRoom.genderPreference}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, genderPreference: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option>Any</option>
+                    <option>Female Only</option>
+                    <option>Male Only</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Roommate Count</label>
+                  <select
+                    value={newRoom.roommateCount}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, roommateCount: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option>None (Private)</option>
+                    <option>1 Roommate</option>
+                    <option>2 Roommates</option>
+                    <option>3+ Roommates</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Floor</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newRoom.floor}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, floor: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={newRoom.description}
+                  onChange={(e) => setNewRoom((prev) => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none h-24"
+                  placeholder="Spacious, fully furnished room with attached bathroom. Walking distance to SLIIT campus. Includes WiFi, AC, and study table."
+                />
+              </div>
+
+              {/* Facilities */}
+              <div>
+                <label className="block text-xs text-gray-300 mb-2">Features</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {facilitiesList.map((facility) => (
+                    <label key={facility.id} className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:border-cyan-400/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={newRoom.facilities.includes(facility.id)}
+                        onChange={() => handleFacilityToggle(facility.id)}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-300 flex items-center gap-1">
+                        {facility.icon}
+                        {facility.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t border-white/10">
+                <button
+                  onClick={() => setShowAddRoom(false)}
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveRoom}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                >
+                  Save Room
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
     );
   }
 

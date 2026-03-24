@@ -1,9 +1,32 @@
 const mongoose = require('mongoose');
 
 const roomSchema = new mongoose.Schema({
+  ownerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    index: true,
+  },
+  houseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BoardingHouse',
+  },
   name: {
     type: String,
     required: true,
+  },
+  roomNumber: {
+    type: String,
+    default: '',
+  },
+  floor: {
+    type: Number,
+    default: 1,
+    min: 1,
+  },
+  bedCount: {
+    type: Number,
+    default: 1,
+    min: 1,
   },
   location: {
     type: String,
@@ -32,6 +55,27 @@ const roomSchema = new mongoose.Schema({
   description: {
     type: String,
     default: '',
+  },
+  roomType: {
+    type: String,
+    default: 'Single Room',
+  },
+  genderPreference: {
+    type: String,
+    default: 'Any',
+  },
+  availableFrom: {
+    type: String,
+    default: '',
+  },
+  deposit: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  roommateCount: {
+    type: String,
+    default: 'None',
   },
   owner: {
     type: String,
