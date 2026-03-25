@@ -13,11 +13,14 @@ import { RiUserSharedLine } from 'react-icons/ri';
 import { BiCurrentLocation } from 'react-icons/bi';
 import { ROOMS, distMap, fi } from '../data/rooms';
 
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
+
 // Mock roommate data
 const roommates = [
   {
     id: 1,
     name: 'Ayesha Perera',
+    email: 'ayesha@sliit.lk',
     age: 22,
     gender: 'Female',
     university: 'SLIIT',
@@ -28,6 +31,7 @@ const roommates = [
   {
     id: 2,
     name: 'Nimal Silva',
+    email: 'nimal@sliit.lk',
     age: 24,
     gender: 'Male',
     university: 'CINEC',
@@ -38,6 +42,7 @@ const roommates = [
   {
     id: 3,
     name: 'Sajini Fernando',
+    email: 'sajini@sliit.lk',
     age: 21,
     gender: 'Female',
     university: 'NSBM',
@@ -177,8 +182,14 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
       <div className="flex flex-col items-center p-6">
         <img src={roommate.image} alt={roommate.name} className="w-24 h-24 rounded-full object-cover border-4 border-pink-300 mb-3" />
         <h3 className="text-xl font-bold text-white mb-1">{roommate.name}, <span className="text-pink-300">{roommate.age}</span></h3>
-        <div className="text-sm text-pink-200 mb-1">{roommate.gender} GÇó {roommate.university}</div>
+        <div className="text-sm text-pink-200 mb-1">{roommate.gender} | {roommate.university}</div>
+        {roommate.email && <div className="text-xs text-cyan-300 mb-1">{roommate.email}</div>}
         <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio}</div>
+        {typeof roommate.mutualCount === 'number' && roommate.mutualCount > 0 && (
+          <div className="mb-3 text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-400/30">
+            {roommate.mutualCount} mutual interests
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 mb-4">
           {roommate.interests.map((interest: string, idx: number) => (
             <span key={idx} className="bg-pink-500/20 text-pink-300 px-3 py-1 rounded-full text-xs">{interest}</span>
@@ -208,8 +219,19 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
 }
 
 // Roommate Finder tab content with swipe logic
-function RoommateFinderPlaceholder() {
+function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] }) {
   const navigate = useNavigate();
+  const fallbackRoommate = roommateData[0] || {
+    id: 'fallback',
+    name: 'Student',
+    email: '',
+    age: 20,
+    gender: 'Any',
+    university: 'SLIIT',
+    bio: 'Looking for a compatible roommate.',
+    image: 'https://randomuser.me/api/portraits/lego/1.jpg',
+    interests: [],
+  };
   const [roommateTab, setRoommateTab] = React.useState<'browse' | 'profile' | 'requests' | 'inbox' | 'groups'>('browse');
   const [currentIdx, setCurrentIdx] = React.useState(0);
   const [liked, setLiked] = React.useState<any[]>([]);
@@ -220,9 +242,9 @@ function RoommateFinderPlaceholder() {
   const [profileEdit, setProfileEdit] = React.useState(false);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState([
-    { id: 'req1', from: roommates[0], message: 'Hi! Want to room together?', status: 'pending' }
+    { id: 'req1', from: fallbackRoommate, message: 'Hi! Want to room together?', status: 'pending' }
   ]);
-  const current = roommates[currentIdx];
+  const current = roommateData[currentIdx];
 
   const handleLike = () => {
     if (!current || isAnimating) return;
@@ -231,7 +253,7 @@ function RoommateFinderPlaceholder() {
     setTimeout(() => {
       setLiked([...liked, current]);
       setSentRequests([...sentRequests, { id: `req_${Date.now()}`, from: current, message: 'Hi! I think we would be great roommates!', status: 'pending' }]);
-      if (currentIdx < roommates.length - 1) {
+      if (currentIdx < roommateData.length - 1) {
         setCurrentIdx(currentIdx + 1);
       }
       setDirection(null);
@@ -245,7 +267,7 @@ function RoommateFinderPlaceholder() {
     setDirection('left');
     setTimeout(() => {
       setPassed([...passed, current]);
-      if (currentIdx < roommates.length - 1) {
+      if (currentIdx < roommateData.length - 1) {
         setCurrentIdx(currentIdx + 1);
       }
       setDirection(null);
@@ -273,11 +295,11 @@ function RoommateFinderPlaceholder() {
       {/* Tab Navigation */}
       <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
         {[
-          { id: 'browse', label: '=ƒöì Browse', icon: '=ƒöì' },
-          { id: 'profile', label: '=ƒæñ Profile', icon: '=ƒæñ' },
-          { id: 'requests', label: `=ƒôñ Sent (${sentRequests.length})`, icon: '=ƒôñ' },
-          { id: 'inbox', label: `=ƒôÑ Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})`, icon: '=ƒôÑ' },
-          { id: 'groups', label: '=ƒæÑ Groups', icon: '=ƒæÑ' },
+          { id: 'browse', label: 'Browse' },
+          { id: 'profile', label: 'Profile' },
+          { id: 'requests', label: `Sent (${sentRequests.length})` },
+          { id: 'inbox', label: `Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})` },
+          { id: 'groups', label: 'Groups' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -322,7 +344,7 @@ function RoommateFinderPlaceholder() {
               {/* Center Column - Main Swipe Card */}
               <div>
                 <div className="relative h-[500px] mb-4 perspective-1000">
-                  {currentIdx < roommates.length - 1 && (
+                  {currentIdx < roommateData.length - 1 && (
                     <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
                   )}
                   {current ? (
@@ -340,7 +362,7 @@ function RoommateFinderPlaceholder() {
                   )}
                 </div>
                 <div className="flex justify-between items-center mt-4">
-                  <span className="text-sm text-gray-400">{Math.max(0, roommates.length - currentIdx)} profiles remaining</span>
+                  <span className="text-sm text-gray-400">{Math.max(0, roommateData.length - currentIdx)} profiles remaining</span>
                   <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
                     <FaUndo /> Undo
                   </button>
@@ -387,7 +409,7 @@ function RoommateFinderPlaceholder() {
                   direction={direction}
                 />
                 <div className="flex justify-between w-full max-w-md mt-4 px-4">
-                  <span className="text-xs text-gray-400">{Math.max(0, roommates.length - currentIdx)} profiles left</span>
+                  <span className="text-xs text-gray-400">{Math.max(0, roommateData.length - currentIdx)} profiles left</span>
                   <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
                     <FaUndo /> Undo
                   </button>
@@ -506,7 +528,7 @@ function RoommateFinderPlaceholder() {
                       onClick={() => navigate('/chat', { state: { selectedRoommate: req.from, chatType: 'direct-message' } })}
                       className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
                     >
-                      =ƒÆ¼ Start Chat
+                      Start Chat
                     </button>
                   )}
                 </div>
@@ -542,7 +564,7 @@ function RoommateFinderPlaceholder() {
                       <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
                       <div className="flex-1">
                         <p className="text-white font-semibold text-sm">{roommate.name}</p>
-                        <p className="text-gray-400 text-xs">{roommate.age} GÇó {roommate.university}</p>
+                        <p className="text-gray-400 text-xs">{roommate.age} | {roommate.university}</p>
                       </div>
                       <FaCheckCircle className="text-green-400" />
                     </div>
@@ -583,7 +605,7 @@ function RoommateFinderPlaceholder() {
 function MapViewPlaceholder() {
   return (
     <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner">
-      <span className="mb-2">=ƒù¦n+Å</span>
+      <span className="mb-2">Map</span>
       Map View coming soon...
     </div>
   );
@@ -591,14 +613,16 @@ function MapViewPlaceholder() {
 
 // Define types
 interface Roommate {
-  id: number;
+  id: number | string;
   name: string;
+  email?: string;
   age: number;
   gender: string;
   university: string;
   bio: string;
   image: string;
   interests: string[];
+  mutualCount?: number;
 }
 
 interface Listing {
@@ -816,31 +840,31 @@ const getVacancyInfo = (vacancy: string, totalRooms: number, occupiedRooms: numb
   switch (vacancy) {
     case 'low':
       return { 
-        label: `=ƒö¦ ${totalRooms - occupiedRooms} Vacancy Left`, 
+        label: `${totalRooms - occupiedRooms} Vacancy Left`, 
         color: 'text-red-300', 
         bgColor: 'bg-red-500/20 border-red-500/30',
-        icon: '=ƒö¦'
+        icon: '!' 
       };
     case 'full':
       return { 
-        label: 'G¥î Fully Booked', 
+        label: 'Fully Booked', 
         color: 'text-gray-300', 
         bgColor: 'bg-gray-500/20 border-gray-500/30',
-        icon: 'G¥î'
+        icon: 'X'
       };
     case 'coming':
       return { 
-        label: 'GÅ¦ Coming Soon', 
+        label: 'Coming Soon', 
         color: 'text-blue-300', 
         bgColor: 'bg-blue-500/20 border-blue-500/30',
-        icon: 'GÅ¦'
+        icon: '...'
       };
     default: // 'available'
       return { 
-        label: `=ƒƒó ${totalRooms - occupiedRooms} Available`, 
+        label: `${totalRooms - occupiedRooms} Available`, 
         color: 'text-green-300', 
         bgColor: 'bg-green-500/20 border-green-500/30',
-        icon: '=ƒƒó'
+        icon: 'OK'
       };
   }
 };
@@ -900,7 +924,7 @@ const BookingForm: React.FC<{ listing: Listing | null; onClose: () => void; onSu
             <div className="flex items-center gap-2 text-sm">
               <FaBed className="text-cyan-400" />
               <div>
-                <p className="text-gray-300 text-xs">Selected Boarding Room GÇó ID: L001</p>
+                <p className="text-gray-300 text-xs">Selected Boarding Room ID: L001</p>
               </div>
             </div>
           </div>
@@ -1059,7 +1083,7 @@ const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: nu
     return `Rs. ${price.toLocaleString()}/mo`;
   };
 
-  const stars = 'Gÿà'.repeat(Math.floor(room.rating)) + (room.rating % 1 >= 0.5 ? '-+' : '');
+  const stars = 'â˜…'.repeat(Math.floor(room.rating)) + (room.rating % 1 >= 0.5 ? 'â˜†' : '');
 
   return (
     <div
@@ -1111,7 +1135,7 @@ const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: nu
               : 'bg-red-500/20 text-red-300 border-red-500/30'
           }`}
         >
-          {room.available ? 'G£à Available' : 'G¥î Occupied'}
+          {room.available ? 'Available' : 'Occupied'}
         </span>
 
         {/* Vacancy Badge */}
@@ -1331,7 +1355,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
 
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <FaMapMarkerAlt className="text-purple-400" />
-            <span>{listing.location} GÇó {listing.distance}km from SLIIT</span>
+            <span>{listing.location} | {listing.distance}km from SLIIT</span>
           </div>
 
           {/* Metadata Chips */}
@@ -1359,7 +1383,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
               return (
                 <div className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${vacancyInfo.bgColor}`}>
                   <span>{vacancyInfo.icon}</span>
-                  <span>{vacancyInfo.label.replace(/[=ƒö¦G¥îGÅ¦=ƒƒó]/g, '').trim()}</span>
+                  <span>{vacancyInfo.label}</span>
                 </div>
               );
             })()}
@@ -1386,7 +1410,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
 
         {/* Swipe Hint */}
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full md:hidden">
-          GåÉ Drag or tap buttons GåÆ
+          Drag or tap buttons
         </div>
       </div>
     );
@@ -1418,7 +1442,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
         <div className="flex items-center gap-1 text-xs text-gray-400 mb-2">
           <FaMapMarkerAlt className="text-purple-400 text-[10px]" />
           <span>{listing.location}</span>
-          <span className="mx-1">GÇó</span>
+          <span className="mx-1">|</span>
           <span>{listing.distance}km</span>
         </div>
         <div className="flex flex-wrap gap-1 mb-2">
@@ -1577,14 +1601,14 @@ const FiltersPanel: React.FC<{
   const { setPriceMax, setDist, setRoom, setAvail, setFacs, setRating } = setters;
 
   const facilityOptions = [
-    { name: 'WiFi', icon: '=ƒô¦' },
-    { name: 'Air-Cond', icon: 'G¥än+Å' },
-    { name: 'Meals', icon: '=ƒì+n+Å' },
-    { name: 'Private Bath', icon: '=ƒÜ+' },
-    { name: 'Parking', icon: '=ƒà+n+Å' },
-    { name: 'Laundry', icon: '=ƒæò' },
-    { name: 'Security', icon: '=ƒöÆ' },
-    { name: 'Gym', icon: '=ƒÆ¬' }
+    { name: 'WiFi', icon: 'WiFi' },
+    { name: 'Air-Cond', icon: 'AC' },
+    { name: 'Meals', icon: 'Meals' },
+    { name: 'Private Bath', icon: 'Bath' },
+    { name: 'Parking', icon: 'Parking' },
+    { name: 'Laundry', icon: 'Laundry' },
+    { name: 'Security', icon: 'Security' },
+    { name: 'Gym', icon: 'Gym' }
   ];
 
   const distanceOptions = [
@@ -1717,12 +1741,12 @@ const FiltersPanel: React.FC<{
                     rating >= star ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-300'
                   }`}
                 >
-                  Gÿà
+                  â˜…
                 </button>
               ))}
             </div>
             <span className="text-xs sm:text-sm font-medium text-gray-300 ml-auto sm:ml-0 pr-0 sm:pr-4">
-              {rating > 0 ? `${rating}Gÿà and above` : 'Any'}
+              {rating > 0 ? `${rating} stars and above` : 'Any'}
             </span>
           </div>
         </div>
@@ -1786,7 +1810,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-001',
     type: 'owner_approval',
-    title: 'G£à Booking Approved!',
+    title: 'Booking Approved!',
     message: 'Owner has approved your booking request for "Modern Boarding House near SLIIT". Please upload your payment slip to proceed.',
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     read: false,
@@ -1797,7 +1821,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-002',
     type: 'payment_verified',
-    title: '=ƒÆ¦ Payment Verified',
+    title: 'Payment Verified',
     message: 'Your payment for booking #BK001 has been verified. Receipt has been generated.',
     timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
     read: false,
@@ -1807,7 +1831,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-003',
     type: 'receipt_generated',
-    title: '=ƒôä Receipt Generated',
+    title: 'Receipt Generated',
     message: 'Your payment receipt for booking #BK001 is ready for download.',
     timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     read: false,
@@ -1817,7 +1841,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-004',
     type: 'booking_confirmed',
-    title: '=ƒÄë Booking Confirmed!',
+    title: 'Booking Confirmed!',
     message: 'Your booking for "Modern Boarding House near SLIIT" has been confirmed. Welcome!',
     timestamp: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
     read: true,
@@ -1827,7 +1851,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-005',
     type: 'checkin_reminder',
-    title: '=ƒôà Check-in Date Reminder',
+    title: 'Check-in Date Reminder',
     message: 'Please submit your check-in date for your confirmed booking. Your room is reserved until you confirm.',
     timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
     read: false,
@@ -1913,10 +1937,10 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
               paymentStatus === 'verified' ? 'bg-green-900/40 text-green-300 border border-green-500/30' :
               'bg-red-900/40 text-red-300 border border-red-500/30'
             }`}>
-              {paymentStatus === 'not_uploaded' && 'GÅ¦ Payment Pending'}
-              {paymentStatus === 'uploaded' && '=ƒöì Under Review'}
-              {paymentStatus === 'verified' && 'G£ô Payment Verified'}
-              {paymentStatus === 'rejected' && 'G£ù Payment Rejected'}
+              {paymentStatus === 'not_uploaded' && 'Payment Pending'}
+              {paymentStatus === 'uploaded' && 'Under Review'}
+              {paymentStatus === 'verified' && 'Payment Verified'}
+              {paymentStatus === 'rejected' && 'Payment Rejected'}
             </div>
           </div>
         </div>
@@ -1943,7 +1967,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                   </div>
                   <div className="flex items-center gap-2">
                     <FaMoneyBillWave className="text-emerald-400" size={16} />
-                    <span>LKR {mockBookingDetails.roomPrice.toLocaleString()}/month +ù {mockBookingDetails.duration} months</span>
+                    <span>LKR {mockBookingDetails.roomPrice.toLocaleString()}/month +ï¿½ {mockBookingDetails.duration} months</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <FaUserFriends className="text-amber-400" size={16} />
@@ -2008,7 +2032,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <span className="text-purple-400 font-semibold">LKR {(mockBookingDetails.totalAmount / 2).toLocaleString()}</span>
                   </div>
                   <div className="text-xs text-amber-300 bg-amber-900/20 p-2 rounded border border-amber-500/20 mt-2 flex items-start gap-1">
-                    <span>GÜí</span>
+                    <span>!</span>
                     <span>Upload slip for 1st installment now. 2nd installment due in 3 months.</span>
                   </div>
                 </div>
@@ -2018,7 +2042,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'not_uploaded' && (
               <div className="space-y-3">
                 <div className="text-sm text-amber-300 bg-amber-900/20 p-3 rounded-lg border border-amber-500/20 flex items-start gap-2">
-                  <span className="text-lg">GÜán+Å</span>
+                  <span className="text-lg">!</span>
                   <span>Please upload your payment slip to proceed</span>
                 </div>
                 <label className="block">
@@ -2026,7 +2050,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <FaMoneyBillWave className="text-3xl mx-auto mb-2 text-cyan-400" />
                     <div className="text-sm text-gray-300">
                       {uploadedFile ? (
-                        <span className="text-emerald-400 font-medium">G£ô {uploadedFile.name}</span>
+                        <span className="text-emerald-400 font-medium">{uploadedFile.name}</span>
                       ) : (
                         'Click to upload slip'
                       )}
@@ -2053,7 +2077,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'uploaded' && (
               <div className="space-y-3">
                 <div className="text-sm text-blue-300 bg-blue-900/20 p-3 rounded-lg border border-blue-500/20 text-center">
-                  =ƒöì Your payment is being verified by the owner
+                  Your payment is being verified by the owner
                 </div>
                 <div className="text-xs text-gray-400 text-center">
                   This usually takes 1-2 business days
@@ -2087,7 +2111,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'rejected' && (
               <div className="space-y-3">
                 <div className="text-sm text-red-300 bg-red-900/20 p-3 rounded-lg border border-red-500/20 flex items-start gap-2">
-                  <span className="text-lg">G£ù</span>
+                  <span className="text-lg">X</span>
                   <span>Payment rejected. Please upload a clear payment slip.</span>
                 </div>
                 <label className="block">
@@ -2095,7 +2119,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <FaMoneyBillWave className="text-3xl mx-auto mb-2 text-red-400" />
                     <div className="text-sm text-gray-300">
                       {uploadedFile ? (
-                        <span className="text-emerald-400 font-medium">G£ô {uploadedFile.name}</span>
+                        <span className="text-emerald-400 font-medium">{uploadedFile.name}</span>
                       ) : (
                         'Re-upload payment slip'
                       )}
@@ -2315,9 +2339,9 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
 <body>
   <div class="receipt-container">
     <div class="header">
-      <h1>=ƒÅá BOARDING PAYMENT RECEIPT</h1>
+      <h1>BOARDING PAYMENT RECEIPT</h1>
       <p>Official Payment Confirmation</p>
-      <div class="verified-badge">G£ô PAYMENT VERIFIED</div>
+      <div class="verified-badge">PAYMENT VERIFIED</div>
     </div>
 
     <div class="info-section">
@@ -2383,7 +2407,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
       </p>
     </div>
 
-    <button class="print-button" onclick="window.print()">=ƒû¿n+Å Print Receipt</button>
+    <button class="print-button" onclick="window.print()">Print Receipt</button>
   </div>
 </body>
 </html>
@@ -2426,12 +2450,145 @@ export default function SearchPage() {
   const [facs, setFacs] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState<boolean>(true);
   const [sortMode, setSortMode] = useState<'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance'>('discovery');
+  const [dbListings, setDbListings] = useState<Listing[]>([]);
+  const [dbRoommates, setDbRoommates] = useState<Roommate[]>([]);
+  const [currentUserEmail, setCurrentUserEmail] = useState('Guest');
+  const [currentUserImage, setCurrentUserImage] = useState('https://randomuser.me/api/portraits/lego/1.jpg');
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const normalizeInterestToken = (value: string) => value.trim().toLowerCase();
+
+    const loadSearchData = async () => {
+      try {
+        const token = localStorage.getItem('bb_access_token') || '';
+
+        const roomsResponse = await fetch(`${API_BASE_URL}/api/roommates/rooms`);
+        const housesResponse = await fetch(`${API_BASE_URL}/api/owner/public/houses`);
+        const [roomsJson, housesJson] = await Promise.all([roomsResponse.json(), housesResponse.json()]);
+
+        if (!isCancelled) {
+          const mappedRooms: Listing[] = roomsResponse.ok && roomsJson?.success && Array.isArray(roomsJson.data)
+            ? roomsJson.data.map((roomItem: any, index: number) => ({
+                id: index + 1,
+                title: roomItem.name || 'Room Listing',
+                images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
+                price: Number(roomItem.price) || 0,
+                location: roomItem.location || 'Unknown',
+                distance: 1,
+                distanceUnit: 'km',
+                travelTime: 'Near campus',
+                roomType: roomItem.roomType || 'Single Room',
+                genderPreference: roomItem.genderPreference || 'Any',
+                availableFrom: roomItem.availableFrom || '',
+                billsIncluded: Array.isArray(roomItem.facilities) ? roomItem.facilities.includes('Meals') : false,
+                verified: true,
+                badges: [roomItem.occupancy < roomItem.totalSpots ? 'Available' : 'Occupied'],
+                description: roomItem.description || '',
+                features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
+                deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
+                roommateCount: Number(roomItem.occupancy) || 0,
+              }))
+            : [];
+
+          const mappedHouses: Listing[] = housesResponse.ok && housesJson?.success && Array.isArray(housesJson.data)
+            ? housesJson.data.map((house: any, index: number) => ({
+                id: 100000 + index,
+                title: house.name || 'Boarding House',
+                images: Array.isArray(house.images) && house.images.length > 0
+                  ? house.images
+                  : (house.image ? [house.image] : [roomImages[index % roomImages.length]]),
+                price: Number(house.monthlyPrice) || 0,
+                location: house.address || 'Unknown',
+                distance: 1.2,
+                distanceUnit: 'km',
+                travelTime: 'Near city',
+                roomType: house.roomType || 'Single Room',
+                genderPreference: house.genderPreference || 'any',
+                availableFrom: house.availableFrom || '',
+                billsIncluded: false,
+                verified: true,
+                badges: [house.status === 'active' ? 'Available' : 'Occupied'],
+                description: house.description || '',
+                features: Array.isArray(house.features) ? house.features : [],
+                deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
+                roommateCount: Number(house.occupiedRooms) || 0,
+              }))
+            : [];
+
+          setDbListings([...mappedRooms, ...mappedHouses]);
+        }
+
+        if (!token) return;
+
+        const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const meJson = await meResponse.json();
+        const currentUser = meJson?.data || null;
+        const currentInterests: string[] = Array.isArray(currentUser?.lifestylePrefs)
+          ? currentUser.lifestylePrefs.map((i: string) => normalizeInterestToken(i))
+          : [];
+
+        if (!isCancelled && currentUser?.email) {
+          setCurrentUserEmail(currentUser.email);
+          if (currentUser.profilePicture) {
+            setCurrentUserImage(currentUser.profilePicture);
+          }
+        }
+
+        const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const roommateJson = await roommateResponse.json();
+
+        if (!isCancelled && roommateResponse.ok && roommateJson?.success && Array.isArray(roommateJson.data)) {
+          const mappedRoommates: Roommate[] = roommateJson.data.map((profile: any, index: number) => {
+            const profileInterests: string[] = [
+              ...(Array.isArray(profile.tags) ? profile.tags : []),
+              ...(typeof profile.preferences === 'string' ? profile.preferences.split(',') : []),
+            ]
+              .map((v: string) => normalizeInterestToken(v))
+              .filter(Boolean);
+
+            const mutualCount = profileInterests.filter((interest) => currentInterests.includes(interest)).length;
+
+            return {
+              id: profile._id || `profile-${index}`,
+              name: profile.name || 'Student',
+              email: profile.email || '',
+              age: 20,
+              gender: profile.gender || 'Any',
+              university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+              bio: profile.description || 'Looking for a compatible roommate.',
+              image: profile.image || 'https://randomuser.me/api/portraits/lego/1.jpg',
+              interests: profileInterests,
+              mutualCount,
+            };
+          });
+
+          setDbRoommates(mappedRoommates);
+        }
+      } catch {
+        // Keep static fallback data when API calls fail.
+      }
+    };
+
+    loadSearchData();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const effectiveListings = dbListings.length > 0 ? dbListings : listings;
+  const effectiveRoommates = dbRoommates.length > 0 ? dbRoommates : (roommates as Roommate[]);
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean);
 
   // Filter listings based on search and advanced filters
-  const filteredListings: Listing[] = listings.filter(listing => {
+  const filteredListings: Listing[] = effectiveListings.filter(listing => {
     // Search filter
     if (searchTerm && !listing.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
         !listing.location.toLowerCase().includes(searchTerm.toLowerCase())) {
@@ -2484,9 +2641,29 @@ export default function SearchPage() {
     return listingScore(b) - listingScore(a);
   });
 
-  // Filter ROOMS data based on advanced filters
+  const roomDataset: any[] = dbListings.length > 0
+    ? dbListings.map((listing, index) => ({
+        id: listing.id || index + 1,
+        name: listing.title,
+        location: listing.location,
+        campus: listing.location,
+        price: listing.price,
+        distKm: Number(listing.distance) || 1,
+        roomType: listing.roomType,
+        available: !String(listing.badges || []).toLowerCase().includes('occupied'),
+        facilities: Array.isArray(listing.features) ? listing.features : [],
+        rating: listing.rating || 4.0,
+        reviews: 10,
+        desc: listing.description || '',
+        vacancy: 'available',
+        totalRooms: 1,
+        occupiedRooms: 0,
+      }))
+    : (ROOMS as any[]);
+
+  // Filter room data based on advanced filters
   const getFilteredRooms = () => {
-    return ROOMS.filter((r: any) => {
+    return roomDataset.filter((r: any) => {
       // Search term
       if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
           !r.location.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -2518,7 +2695,7 @@ export default function SearchPage() {
   
   const filteredRooms = getFilteredRooms();
   
-  const roomScore = (roomItem: typeof ROOMS[0]): number => {
+  const roomScore = (roomItem: any): number => {
     let score = 0;
 
     if (!normalizedSearch) {
@@ -2566,7 +2743,7 @@ export default function SearchPage() {
     
     setTimeout(() => {
       setLikedListings([...likedListings, currentListing]);
-      setToastMessage(`Added to favorites! G£¿`);
+      setToastMessage('Added to favorites!');
       setShowToast(true);
       
       setTimeout(() => {
@@ -2738,24 +2915,6 @@ export default function SearchPage() {
                   Home
                 </button>
                 <button
-                  onClick={() => {
-                    setActiveTab('rooms');
-                    navigate('/find');
-                  }}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/find' && activeTab === 'rooms' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  Find Rooms
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab('roommate');
-                    navigate('/find');
-                  }}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${activeTab === 'roommate' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  Roommate Finder
-                </button>
-                <button
                   onClick={() => navigate('/chatbot')}
                   className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/chatbot' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
                 >
@@ -2770,16 +2929,6 @@ export default function SearchPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setActiveTab('rooms');
-                    navigate('/find');
-                  }}
-                  className="hidden md:inline-flex px-5 py-2 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 text-white font-semibold shadow-lg hover:opacity-90 transition"
-                >
-                  Find Rooms
-                </button>
-
                 <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
@@ -2889,6 +3038,15 @@ export default function SearchPage() {
                   </div>
                 )}
                 </div>
+
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
+                  title="Open profile settings"
+                >
+                  <img src={currentUserImage} alt="User" className="w-7 h-7 rounded-full object-cover border border-cyan-400/40" />
+                  <span className="text-xs text-cyan-100 max-w-[180px] truncate">{currentUserEmail}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2942,7 +3100,7 @@ export default function SearchPage() {
           <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full">
             {activeTab === 'rooms'
               ? (viewMode === 'card' 
-                  ? 'Drag cards left/right to pass or like GÇó Click buttons to act' 
+                  ? 'Drag cards left/right to pass or like. Click buttons to act.' 
                   : 'Browse all listings in grid view')
               : activeTab === 'map'
                 ? 'View all rooms on a map (coming soon)'
@@ -3121,8 +3279,8 @@ export default function SearchPage() {
                     </div>
 
                     <div className="flex justify-between px-8 mt-2 text-xs text-gray-500">
-                      <span>Pass GÇó Swipe Left</span>
-                      <span>Like GÇó Swipe Right</span>
+                      <span>Pass | Swipe Left</span>
+                      <span>Like | Swipe Right</span>
                     </div>
                   </div>
 
@@ -3170,7 +3328,7 @@ export default function SearchPage() {
                             listing={listing}
                             onLike={() => {
                               setLikedListings([...likedListings, listing]);
-                              setToastMessage(`Added to favorites! G£¿`);
+                              setToastMessage('Added to favorites!');
                               setShowToast(true);
                               setTimeout(() => setShowToast(false), 2000);
                             }}
@@ -3216,7 +3374,7 @@ export default function SearchPage() {
                             room={room}
                             onOpen={(id: number) => {
                               // Convert room to listing format for details modal
-                              const r = ROOMS.find((rm: any) => rm.id === id);
+                              const r = roomDataset.find((rm: any) => rm.id === id);
                               if (!r) return;
                               const listing: Listing = {
                                 id: r.id,
@@ -3319,8 +3477,8 @@ export default function SearchPage() {
 
                   {/* Action Labels - Mobile */}
                   <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
-                    <span>Pass GÇó Swipe Left</span>
-                    <span>Like GÇó Swipe Right</span>
+                    <span>Pass | Swipe Left</span>
+                    <span>Like | Swipe Right</span>
                   </div>
                 </>
               ) : (
@@ -3337,7 +3495,7 @@ export default function SearchPage() {
                             listing={listing}
                             onLike={() => {
                               setLikedListings([...likedListings, listing]);
-                              setToastMessage(`Added to favorites! G£¿`);
+                              setToastMessage('Added to favorites!');
                               setShowToast(true);
                               setTimeout(() => setShowToast(false), 2000);
                             }}
@@ -3365,7 +3523,7 @@ export default function SearchPage() {
                             key={room.id}
                             room={room}
                             onOpen={(id: number) => {
-                              const r = ROOMS.find((rm: any) => rm.id === id);
+                              const r = roomDataset.find((rm: any) => rm.id === id);
                               if (!r) return;
                               const listing: Listing = {
                                 id: r.id,
@@ -3410,7 +3568,7 @@ export default function SearchPage() {
         ) : activeTab === 'map' ? (
           <MapViewPlaceholder />
         ) : (
-          <RoommateFinderPlaceholder />
+          <RoommateFinderPlaceholder roommateData={effectiveRoommates} />
         )}
 
         {/* Toast Notification */}
@@ -3440,7 +3598,7 @@ export default function SearchPage() {
             listing={selectedRoomForBooking}
             onClose={() => setShowBooking(false)}
             onSubmit={(data) => {
-              setToastMessage(`G£à Booking request submitted for ${selectedRoomForBooking?.title}!`);
+              setToastMessage(`Booking request submitted for ${selectedRoomForBooking?.title}!`);
               setShowToast(true);
               setTimeout(() => setShowToast(false), 3000);
             }}
@@ -3533,7 +3691,7 @@ export default function SearchPage() {
                         return;
                       }
                       // Simulate submission
-                      setToastMessage(`G£à Check-in date submitted: ${new Date(checkinDate).toLocaleDateString()}`);
+                      setToastMessage(`Check-in date submitted: ${new Date(checkinDate).toLocaleDateString()}`);
                       setShowToast(true);
                       setTimeout(() => setShowToast(false), 3000);
                       setShowCheckinForm(false);

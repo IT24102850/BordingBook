@@ -222,20 +222,14 @@ export default function SignUpPage() {
         phoneNumber: role === 'owner' ? phoneNumber : undefined,
       });
 
-
-      if (signUpResult?.emailSent === false && signUpResult.verificationUrl) {
-        setSuccess('Account created. Email delivery is unavailable, redirecting to verification link for development.');
-        setTimeout(() => {
-          const verificationUrl = new URL(signUpResult.verificationUrl as string, window.location.origin);
-          navigate(`${verificationUrl.pathname}${verificationUrl.search}`);
-        }, 1200);
-        return;
-      }
-
-
-      setSuccess('Account created! Please verify your email.');
-      const redirectPath = `/verify-email?email=${encodeURIComponent(email)}`;
-      setTimeout(() => navigate(redirectPath), 1200);
+      setSuccess('Account created! Redirecting to email verification...');
+      
+      // Always redirect to verify-email with token (instant, no wait for email)
+      const redirectPath = signUpResult?.verificationUrl
+        ? `${new URL(signUpResult.verificationUrl).pathname}${new URL(signUpResult.verificationUrl).search}`
+        : `/verify-email?email=${encodeURIComponent(email)}`;
+      
+      setTimeout(() => navigate(redirectPath), 800);
     } catch (err) {
       if (err instanceof AuthApiError) {
         if (err.needsVerification) {

@@ -28,7 +28,7 @@ function getFrontendUrl() {
   if (!value && process.env.NODE_ENV === 'production') {
     throw new Error('Missing required environment variable in production: FRONTEND_URL');
   }
-  return value;
+  return value.replace(/\/$/, '');
 }
 
 
@@ -45,6 +45,8 @@ const env = {
   emailPort: Number(process.env.EMAIL_PORT || 587),
   emailUser: process.env.EMAIL_USER || '',
   emailPassword: process.env.EMAIL_PASSWORD || '',
+  emailFromName: process.env.EMAIL_FROM_NAME || 'Boarding Book',
+  emailFromAddress: process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || '',
 };
 
 module.exports = env;

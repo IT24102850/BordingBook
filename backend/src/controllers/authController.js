@@ -96,26 +96,35 @@ exports.signup = async (req, res) => {
 
     await user.save();
 
-    let emailResult = { success: false, reason: 'Email service unavailable' };
-    try {
-      emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError.message);
-      emailResult = { success: false, reason: emailError.message || 'Failed to send verification email' };
-    }
-
-    return res.status(201).json({
+    // Return response immediately with verification link (non-blocking email send)
+    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
+    
+    res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please check your email to verify your account.',
+      message: 'Account created successfully. Please verify your email.',
       data: {
         userId: user._id,
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
-        emailSent: Boolean(emailResult.success),
-        emailError: emailResult.success ? null : emailResult.reason || null,
-        verificationUrl: emailResult.verificationUrl || null,
+        verificationUrl: verificationUrl,
+        verificationToken: verificationToken, // For development/testing
       },
+    });
+
+    // Send email in the background (non-blocking)
+    setImmediate(async () => {
+      try {
+        const emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
+        if (emailResult.success) {
+          console.log(`Verification email sent to ${normalizedEmail}`);
+        } else {
+          console.warn(`Email not sent to ${normalizedEmail}: ${emailResult.reason}`);
+          console.warn(`Fallback: User can verify via: ${verificationUrl}`);
+        }
+      } catch (emailError) {
+        console.error('Background email send error:', emailError.message);
+      }
     });
   } catch (error) {
     console.error('Signup error:', error.message);
@@ -167,14 +176,17 @@ exports.verifyEmail = async (req, res) => {
     user.verificationTokenExpiry = undefined;
     await user.save();
 
-    try {
-      await emailService.sendWelcomeEmail(
-        user.email,
-        user.role === 'owner' ? user.fullName : user.email.split('@')[0]
-      );
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError.message);
-    }
+    // Send welcome email in background so verification response is never blocked by SMTP.
+    setImmediate(async () => {
+      try {
+        await emailService.sendWelcomeEmail(
+          user.email,
+          user.role === 'owner' ? user.fullName : user.email.split('@')[0]
+        );
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError.message);
+      }
+    });
 
     return res.status(200).json({
       success: true,
@@ -221,11 +233,32 @@ exports.resendVerification = async (req, res) => {
     const verificationToken = user.generateVerificationToken();
     await user.save();
 
-    await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
-
-    return res.status(200).json({
+    // Return response immediately with verification link (non-blocking email send)
+    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
+    
+    res.status(200).json({
       success: true,
-      message: 'Verification email sent successfully',
+      message: 'Verification link ready. Check your email or use the link below.',
+      data: {
+        email: user.email,
+        verificationUrl: verificationUrl,
+        verificationToken: verificationToken, // For development/testing
+      },
+    });
+
+    // Send email in the background (non-blocking)
+    setImmediate(async () => {
+      try {
+        const emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
+        if (emailResult.success) {
+          console.log(`Resend email sent to ${normalizedEmail}`);
+        } else {
+          console.warn(`Email not sent to ${normalizedEmail}: ${emailResult.reason}`);
+          console.warn(`Fallback: User can verify via: ${verificationUrl}`);
+        }
+      } catch (emailError) {
+        console.error('Background resend email error:', emailError.message);
+      }
     });
   } catch (error) {
     console.error('Resend verification error:', error.message);
@@ -291,9 +324,20 @@ exports.signin = async (req, res) => {
           email: user.email,
           role: user.role,
           fullName: user.fullName,
+          profilePicture: user.profilePicture,
+          bio: user.bio,
           phoneNumber: user.phoneNumber,
           companyName: user.companyName,
           propertyCount: user.propertyCount,
+          minBudget: user.minBudget,
+          maxBudget: user.maxBudget,
+          distance: user.distance,
+          selectedLocation: user.selectedLocation,
+          gender: user.gender,
+          academicYear: user.academicYear,
+          roommatePreference: user.roommatePreference,
+          roomType: user.roomType,
+          lifestylePrefs: user.lifestylePrefs,
           profileCompleted: user.profileCompleted,
           isVerified: user.isVerified,
         },
@@ -326,9 +370,20 @@ exports.getMe = async (req, res) => {
         email: user.email,
         role: user.role,
         fullName: user.fullName,
+        profilePicture: user.profilePicture,
+        bio: user.bio,
         phoneNumber: user.phoneNumber,
         companyName: user.companyName,
         propertyCount: user.propertyCount,
+        minBudget: user.minBudget,
+        maxBudget: user.maxBudget,
+        distance: user.distance,
+        selectedLocation: user.selectedLocation,
+        gender: user.gender,
+        academicYear: user.academicYear,
+        roommatePreference: user.roommatePreference,
+        roomType: user.roomType,
+        lifestylePrefs: user.lifestylePrefs,
         profileCompleted: user.profileCompleted,
         isVerified: user.isVerified,
       },
@@ -338,6 +393,93 @@ exports.getMe = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch user profile',
+    });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const {
+      profilePicture,
+      bio,
+      minBudget,
+      maxBudget,
+      distance,
+      selectedLocation,
+      gender,
+      academicYear,
+      roommatePreference,
+      roomType,
+      lifestylePrefs,
+    } = req.body;
+
+    if (typeof profilePicture === 'string') user.profilePicture = profilePicture.trim();
+    if (typeof bio === 'string') user.bio = bio.trim();
+    if (minBudget !== undefined) user.minBudget = Number(minBudget) || 0;
+    if (maxBudget !== undefined) user.maxBudget = Number(maxBudget) || 0;
+    if (distance !== undefined) user.distance = Number(distance) || 0;
+    if (typeof selectedLocation === 'string') user.selectedLocation = selectedLocation.trim();
+    if (typeof gender === 'string') user.gender = gender.trim();
+    if (typeof academicYear === 'string') user.academicYear = academicYear.trim();
+    if (typeof roommatePreference === 'string') user.roommatePreference = roommatePreference.trim();
+    if (typeof roomType === 'string') user.roomType = roomType.trim();
+    if (Array.isArray(lifestylePrefs)) {
+      user.lifestylePrefs = lifestylePrefs
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    if (user.role === 'student') {
+      const hasRequiredProfileFields =
+        Boolean(user.bio) &&
+        user.minBudget > 0 &&
+        user.maxBudget > 0 &&
+        user.distance > 0 &&
+        Boolean(user.gender) &&
+        Boolean(user.academicYear) &&
+        Boolean(user.roommatePreference);
+
+      user.profileCompleted = hasRequiredProfileFields;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        profileCompleted: user.profileCompleted,
+        profilePicture: user.profilePicture,
+        bio: user.bio,
+        minBudget: user.minBudget,
+        maxBudget: user.maxBudget,
+        distance: user.distance,
+        selectedLocation: user.selectedLocation,
+        gender: user.gender,
+        academicYear: user.academicYear,
+        roommatePreference: user.roommatePreference,
+        roomType: user.roomType,
+        lifestylePrefs: user.lifestylePrefs,
+      },
+    });
+  } catch (error) {
+    console.error('Update profile error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
     });
   }
 };

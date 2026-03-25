@@ -77,6 +77,8 @@ router.post('/resend-verification', resendValidation, validateRequest, authContr
 
 router.post('/signin', signinValidation, validateRequest, authController.signin);
 
+router.put('/profile', requireAuth, profileUpdateValidation, validateRequest, authController.updateProfile);
+
 router.get('/me', requireAuth, authController.getMe);
 
 
