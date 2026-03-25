@@ -11,7 +11,7 @@ import {
 import { MdOutlineVerified } from 'react-icons/md';
 import { RiUserSharedLine } from 'react-icons/ri';
 import { BiCurrentLocation } from 'react-icons/bi';
-import { ROOMS, distMap, fi } from '../data/rooms';
+import { distMap } from '../data/rooms';
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
@@ -1078,7 +1078,7 @@ const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> 
 };
 
 // Ranked Result Card Component - for list view display
-const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: number) => void }> = ({ room, onOpen }) => {
+const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = ({ room, onOpen }) => {
   const formatPrice = (price: number): string => {
     return `Rs. ${price.toLocaleString()}/mo`;
   };
@@ -2452,6 +2452,7 @@ export default function SearchPage() {
   const [sortMode, setSortMode] = useState<'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance'>('discovery');
   const [dbListings, setDbListings] = useState<Listing[]>([]);
   const [dbRoommates, setDbRoommates] = useState<Roommate[]>([]);
+  const [isListingsLoading, setIsListingsLoading] = useState<boolean>(true);
   const [currentUserEmail, setCurrentUserEmail] = useState('Guest');
   const [currentUserImage, setCurrentUserImage] = useState('https://randomuser.me/api/portraits/lego/1.jpg');
 
@@ -2571,7 +2572,11 @@ export default function SearchPage() {
           setDbRoommates(mappedRoommates);
         }
       } catch {
-        // Keep static fallback data when API calls fail.
+        setDbListings([]);
+      } finally {
+        if (!isCancelled) {
+          setIsListingsLoading(false);
+        }
       }
     };
 
@@ -2581,7 +2586,7 @@ export default function SearchPage() {
     };
   }, []);
 
-  const effectiveListings = dbListings.length > 0 ? dbListings : listings;
+  const effectiveListings = dbListings;
   const effectiveRoommates = dbRoommates.length > 0 ? dbRoommates : (roommates as Roommate[]);
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -2641,25 +2646,23 @@ export default function SearchPage() {
     return listingScore(b) - listingScore(a);
   });
 
-  const roomDataset: any[] = dbListings.length > 0
-    ? dbListings.map((listing, index) => ({
-        id: listing.id || index + 1,
-        name: listing.title,
-        location: listing.location,
-        campus: listing.location,
-        price: listing.price,
-        distKm: Number(listing.distance) || 1,
-        roomType: listing.roomType,
-        available: !String(listing.badges || []).toLowerCase().includes('occupied'),
-        facilities: Array.isArray(listing.features) ? listing.features : [],
-        rating: listing.rating || 4.0,
-        reviews: 10,
-        desc: listing.description || '',
-        vacancy: 'available',
-        totalRooms: 1,
-        occupiedRooms: 0,
-      }))
-    : (ROOMS as any[]);
+  const roomDataset: any[] = dbListings.map((listing, index) => ({
+    id: listing.id || index + 1,
+    name: listing.title,
+    location: listing.location,
+    campus: listing.location,
+    price: listing.price,
+    distKm: Number(listing.distance) || 1,
+    roomType: listing.roomType,
+    available: !String(listing.badges || []).toLowerCase().includes('occupied'),
+    facilities: Array.isArray(listing.features) ? listing.features : [],
+    rating: listing.rating || 4.0,
+    reviews: 10,
+    desc: listing.description || '',
+    vacancy: 'available',
+    totalRooms: 1,
+    occupiedRooms: 0,
+  }));
 
   // Filter room data based on advanced filters
   const getFilteredRooms = () => {
@@ -2827,6 +2830,17 @@ export default function SearchPage() {
     setSearchTerm('');
     setCurrentIndex(0);
   };
+
+  if (isListingsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-cyan-200 text-sm">Loading rooms and boarding data...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Empty state
   if (rankedListings.length === 0 || currentIndex >= rankedListings.length) {
@@ -3069,7 +3083,7 @@ export default function SearchPage() {
                 className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${activeTab === 'roommate' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg scale-105' : 'text-cyan-200 hover:bg-white/10'}`}
                 onClick={() => setActiveTab('roommate')}
               >
-                Roommate Finder
+                Matches
               </button>
             </div>
             {/* View Toggle for Rooms tab only */}
