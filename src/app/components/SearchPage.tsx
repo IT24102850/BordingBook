@@ -53,7 +53,7 @@ const roommates = [
 ];
 
 // Mini Roommate Card for passed/favorites columns
-const MiniRoommateCard: React.FC<{ roommate: typeof roommates[0]; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
+const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
   return (
     <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-lg overflow-hidden border border-white/10 hover:shadow-pink-500/10 transition-all mb-2">
       <div className="flex items-center gap-2 p-2">
@@ -221,17 +221,6 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
 // Roommate Finder tab content with swipe logic
 function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] }) {
   const navigate = useNavigate();
-  const fallbackRoommate = roommateData[0] || {
-    id: 'fallback',
-    name: 'Student',
-    email: '',
-    age: 20,
-    gender: 'Any',
-    university: 'SLIIT',
-    bio: 'Looking for a compatible roommate.',
-    image: 'https://randomuser.me/api/portraits/lego/1.jpg',
-    interests: [],
-  };
   const [roommateTab, setRoommateTab] = React.useState<'browse' | 'profile' | 'requests' | 'inbox' | 'groups'>('browse');
   const [currentIdx, setCurrentIdx] = React.useState(0);
   const [liked, setLiked] = React.useState<any[]>([]);
@@ -241,9 +230,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [myProfile, setMyProfile] = React.useState({ budget: 12000, gender: 'Select', preferences: '' });
   const [profileEdit, setProfileEdit] = React.useState(false);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
-  const [inboxRequests, setInboxRequests] = React.useState([
-    { id: 'req1', from: fallbackRoommate, message: 'Hi! Want to room together?', status: 'pending' }
-  ]);
+  const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
   const current = roommateData[currentIdx];
 
   const handleLike = () => {
@@ -2470,8 +2457,16 @@ export default function SearchPage() {
         const [roomsJson, housesJson] = await Promise.all([roomsResponse.json(), housesResponse.json()]);
 
         if (!isCancelled) {
-          const mappedRooms: Listing[] = roomsResponse.ok && roomsJson?.success && Array.isArray(roomsJson.data)
-            ? roomsJson.data.map((roomItem: any, index: number) => ({
+          const roomsData = Array.isArray(roomsJson?.data)
+            ? roomsJson.data
+            : (Array.isArray(roomsJson?.rooms) ? roomsJson.rooms : (Array.isArray(roomsJson) ? roomsJson : []));
+
+          const housesData = Array.isArray(housesJson?.data)
+            ? housesJson.data
+            : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
+
+          const mappedRooms: Listing[] = roomsResponse.ok && roomsData.length > 0
+            ? roomsData.map((roomItem: any, index: number) => ({
                 id: index + 1,
                 title: roomItem.name || 'Room Listing',
                 images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
@@ -2493,8 +2488,8 @@ export default function SearchPage() {
               }))
             : [];
 
-          const mappedHouses: Listing[] = housesResponse.ok && housesJson?.success && Array.isArray(housesJson.data)
-            ? housesJson.data.map((house: any, index: number) => ({
+          const mappedHouses: Listing[] = housesResponse.ok && housesData.length > 0
+            ? housesData.map((house: any, index: number) => ({
                 id: 100000 + index,
                 title: house.name || 'Boarding House',
                 images: Array.isArray(house.images) && house.images.length > 0
@@ -2544,8 +2539,12 @@ export default function SearchPage() {
         });
         const roommateJson = await roommateResponse.json();
 
-        if (!isCancelled && roommateResponse.ok && roommateJson?.success && Array.isArray(roommateJson.data)) {
-          const mappedRoommates: Roommate[] = roommateJson.data.map((profile: any, index: number) => {
+        if (!isCancelled && roommateResponse.ok) {
+          const roommateData = Array.isArray(roommateJson?.data)
+            ? roommateJson.data
+            : (Array.isArray(roommateJson?.profiles) ? roommateJson.profiles : (Array.isArray(roommateJson) ? roommateJson : []));
+
+          const mappedRoommates: Roommate[] = roommateData.map((profile: any, index: number) => {
             const profileInterests: string[] = [
               ...(Array.isArray(profile.tags) ? profile.tags : []),
               ...(typeof profile.preferences === 'string' ? profile.preferences.split(',') : []),
@@ -2587,7 +2586,7 @@ export default function SearchPage() {
   }, []);
 
   const effectiveListings = dbListings;
-  const effectiveRoommates = dbRoommates.length > 0 ? dbRoommates : (roommates as Roommate[]);
+  const effectiveRoommates = dbRoommates;
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean);
