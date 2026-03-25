@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FaUser,
   FaHome,
@@ -20,6 +20,8 @@ const sidebarLinks = [
 
 import StudentPayment from "./payment/StudentPayment";
 
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
+
 export default function UserProfileDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("Dashboard");
@@ -31,11 +33,52 @@ export default function UserProfileDashboard() {
     language: "English",
     timeZone: "GMT+5:30",
     email: "alexarawles@gmail.com",
+    profilePicture: "https://randomuser.me/api/portraits/women/44.jpg",
   });
   const [editing, setEditing] = useState(false);
   const [newEmail, setNewEmail] = useState("");
 
-  const handleChange = (e) => {
+  useEffect(() => {
+    const cached = localStorage.getItem('bb_current_user');
+    if (cached) {
+      try {
+        const user = JSON.parse(cached);
+        setProfile((prev) => ({
+          ...prev,
+          fullName: user.fullName || prev.fullName,
+          nickName: user.fullName ? String(user.fullName).split(' ')[0] : prev.nickName,
+          email: user.email || prev.email,
+          profilePicture: user.profilePicture || prev.profilePicture,
+        }));
+      } catch {
+        // Ignore cache parse errors.
+      }
+    }
+
+    const token = localStorage.getItem('bb_access_token');
+    if (!token) return;
+
+    fetch(`${API_BASE_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((result) => {
+        if (!result?.success || !result?.data) return;
+        const user = result.data;
+        setProfile((prev) => ({
+          ...prev,
+          fullName: user.fullName || prev.fullName,
+          nickName: user.fullName ? String(user.fullName).split(' ')[0] : prev.nickName,
+          email: user.email || prev.email,
+          profilePicture: user.profilePicture || prev.profilePicture,
+        }));
+      })
+      .catch(() => {
+        // Keep existing values when request fails.
+      });
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
@@ -63,7 +106,7 @@ export default function UserProfileDashboard() {
             className="hidden md:block px-3 py-2 rounded-xl bg-white border border-cyan-100 focus:ring-2 focus:ring-cyan-300 text-cyan-900 text-sm shadow-sm transition w-56"
           />
           <img
-            src="https://randomuser.me/api/portraits/women/44.jpg"
+            src={profile.profilePicture}
             alt="User avatar"
             className="w-10 h-10 rounded-full border-2 border-cyan-200 shadow-md object-cover"
           />
@@ -101,7 +144,7 @@ export default function UserProfileDashboard() {
                 {/* Profile Summary */}
                 <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
                   <img
-                    src="https://randomuser.me/api/portraits/women/44.jpg"
+                    src={profile.profilePicture}
                     alt="User avatar"
                     className="w-24 h-24 rounded-full border-4 border-cyan-200 shadow-lg object-cover"
                   />
