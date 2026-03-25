@@ -754,8 +754,6 @@ export default function OwnerDashboard() {
   const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>(mockHouses);
   const [rooms, setRooms] = useState<Room[]>(mockRooms);
-  const [houses, setHouses] = useState<BoardingHouse[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedHouse, setSelectedHouse] = useState<BoardingHouse | null>(null);
   const [showAddHouse, setShowAddHouse] = useState(false);
   const [showAddRoom, setShowAddRoom] = useState(false);
