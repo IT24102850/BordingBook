@@ -2841,59 +2841,6 @@ export default function SearchPage() {
     );
   }
 
-  // Empty state
-  if (rankedListings.length === 0 || currentIndex >= rankedListings.length) {
-    return (
-      <div className="min-h-screen flex flex-col items-center py-12 px-4 bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
-        <div className="w-full max-w-4xl mx-auto">
-          <div className="flex items-center gap-3 mb-6">
-            <button
-              onClick={() => window.history.back()}
-              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
-            >
-              <FaArrowLeft className="text-white text-sm" />
-            </button>
-            <h1 className="text-xl font-bold text-white">Find Your Boarding</h1>
-          </div>
-
-          <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl p-8 text-center border border-white/10 shadow-2xl max-w-md mx-auto">
-            <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
-              <FaSearch className="text-4xl text-cyan-400" />
-            </div>
-            
-            <h2 className="text-xl font-bold text-white mb-2">No More Listings</h2>
-            
-            {selectedFilters.length > 0 ? (
-              <>
-                <p className="text-gray-400 text-sm mb-6">
-                  Try adjusting your filters to see more rooms
-                </p>
-                <button
-                  onClick={clearFilters}
-                  className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
-                >
-                  Clear All Filters
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-gray-400 text-sm mb-6">
-                  You've seen all available rooms. Check back later for new listings!
-                </p>
-                <button
-                  onClick={() => window.location.href = '/dashboard'}
-                  className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
-                >
-                  Go to Dashboard
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
