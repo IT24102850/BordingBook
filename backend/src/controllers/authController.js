@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const emailService = require('../services/emailService');
+const { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } = require('../services/emailService');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
@@ -9,7 +9,8 @@ const jwt = require('jsonwebtoken');
  */
 exports.signup = async (req, res) => {
   try {
-    const { email, password, role, fullName, phoneNumber, companyName, propertyCount } = req.body;
+    const { email, password, role, fullName, phoneNumber, companyName, propertyCount,
+            firstName, lastName, studentId, nic, birthday, academicYear } = req.body;
 
     // Validate required fields
     if (!email || !password) {
@@ -53,46 +54,70 @@ exports.signup = async (req, res) => {
       });
     }
 
-    // Create new user (not verified yet)
+    // Owners are auto-verified; students must confirm email
+    const isOwner = role === 'owner';
+
     const userData = {
       email,
       password,
       role: role || 'student',
-      isVerified: false,
+      isVerified: isOwner,
     };
 
-    // Add owner-specific fields if role is owner
-    if (role === 'owner') {
+    // Add owner-specific fields
+    if (isOwner) {
       userData.fullName = fullName;
       userData.phoneNumber = phoneNumber;
       userData.companyName = companyName || '';
       userData.propertyCount = propertyCount || 0;
     }
 
+    // Add student-specific fields
+    if (role === 'student') {
+      userData.firstName = firstName || '';
+      userData.lastName = lastName || '';
+      userData.studentId = studentId || '';
+      userData.nic = nic || '';
+      userData.birthday = birthday || '';
+      userData.academicYear = academicYear || '';
+    }
+
     const user = new User(userData);
 
-    // Generate verification token
-    const verificationToken = user.generateVerificationToken();
-
-    // Save user to database
-    await user.save();
-
-    // Send verification email
-    try {
-      await emailService.sendVerificationEmail(email, verificationToken);
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError);
-      // Continue even if email fails - user can request resend
+    if (!isOwner) {
+      // Students: generate email verification token and send
+      const verificationToken = user.generateVerificationToken();
+      await user.save();
+      try {
+        await sendVerificationEmail(email, verificationToken);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+      }
+      return res.status(201).json({
+        success: true,
+        message: 'Account created. Please verify your email.',
+        data: { userId: user._id, email: user.email, role: user.role, isVerified: false },
+      });
     }
+
+    // Owners: save and return a JWT so they can immediately upload KYC
+    await user.save();
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please check your email to verify your account.',
+      message: 'Account created successfully.',
       data: {
         userId: user._id,
         email: user.email,
         role: user.role,
-        isVerified: user.isVerified,
+        isVerified: true,
+        token,
+        user: { id: user._id, email: user.email, role: user.role, fullName: user.fullName },
       },
     });
   } catch (error) {
@@ -155,7 +180,7 @@ exports.verifyEmail = async (req, res) => {
 
     // Send welcome email
     try {
-      await emailService.sendWelcomeEmail(
+      await sendWelcomeEmail(
         user.email,
         user.role === 'owner' ? user.fullName : user.email.split('@')[0]
       );
@@ -218,7 +243,7 @@ exports.resendVerification = async (req, res) => {
     await user.save();
 
     // Send verification email
-    await emailService.sendVerificationEmail(email, verificationToken);
+    await sendVerificationEmail(email, verificationToken);
 
     res.status(200).json({
       success: true,
@@ -279,12 +304,19 @@ exports.signin = async (req, res) => {
       });
     }
 
+    // Record login activity (keep last 20)
+    const now = new Date();
+    await User.findByIdAndUpdate(user._id, {
+      lastLogin: now,
+      $push: { loginHistory: { $each: [{ loginAt: now }], $slice: -20 } },
+    });
+
     // Generate JWT token
     const token = jwt.sign(
-      { 
-        userId: user._id, 
-        email: user.email, 
-        role: user.role 
+      {
+        userId: user._id,
+        email: user.email,
+        role: user.role
       },
       process.env.JWT_SECRET || 'your-secret-key-change-this',
       { expiresIn: '7d' }
@@ -311,5 +343,80 @@ exports.signin = async (req, res) => {
       message: 'Failed to sign in',
       error: error.message,
     });
+  }
+};
+
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ */
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.status(200).json({ success: true, message: 'If an account exists, a reset email has been sent.' });
+    }
+
+    const resetToken = user.generatePasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      await sendPasswordResetEmail(user.email, resetToken);
+    } catch (emailErr) {
+      user.passwordResetToken = undefined;
+      user.passwordResetTokenExpiry = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({ success: false, message: 'Failed to send reset email. Please try again.' });
+    }
+
+    res.status(200).json({ success: true, message: 'If an account exists, a reset email has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
+  }
+};
+
+/**
+ * Reset password with token
+ * POST /api/auth/reset-password
+ */
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ success: false, message: 'Token and new password are required' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetTokenExpiry: { $gt: Date.now() },
+    }).select('+password +passwordResetToken +passwordResetTokenExpiry');
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Reset link is invalid or has expired' });
+    }
+
+    user.password = password;
+    user.passwordResetToken = undefined;
+    user.passwordResetTokenExpiry = undefined;
+    user.isVerified = true;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password reset successfully. You can now sign in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password. Please try again.' });
   }
 };
