@@ -2465,29 +2465,59 @@ export default function SearchPage() {
         const token = localStorage.getItem('bb_access_token') || '';
 
         const roomsResponse = await fetch(`${API_BASE_URL}/api/roommates/rooms`);
-        const roomsJson = await roomsResponse.json();
-        if (!isCancelled && roomsResponse.ok && roomsJson?.success && Array.isArray(roomsJson.data)) {
-          const mappedListings: Listing[] = roomsJson.data.map((roomItem: any, index: number) => ({
-            id: index + 1,
-            title: roomItem.name || 'Room Listing',
-            images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
-            price: Number(roomItem.price) || 0,
-            location: roomItem.location || 'Unknown',
-            distance: 1,
-            distanceUnit: 'km',
-            travelTime: 'Near campus',
-            roomType: roomItem.roomType || 'Single Room',
-            genderPreference: roomItem.genderPreference || 'Any',
-            availableFrom: roomItem.availableFrom || '',
-            billsIncluded: Array.isArray(roomItem.facilities) ? roomItem.facilities.includes('Meals') : false,
-            verified: true,
-            badges: [roomItem.occupancy < roomItem.totalSpots ? 'Available' : 'Occupied'],
-            description: roomItem.description || '',
-            features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
-            deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
-            roommateCount: Number(roomItem.occupancy) || 0,
-          }));
-          setDbListings(mappedListings);
+        const housesResponse = await fetch(`${API_BASE_URL}/api/owner/public/houses`);
+        const [roomsJson, housesJson] = await Promise.all([roomsResponse.json(), housesResponse.json()]);
+
+        if (!isCancelled) {
+          const mappedRooms: Listing[] = roomsResponse.ok && roomsJson?.success && Array.isArray(roomsJson.data)
+            ? roomsJson.data.map((roomItem: any, index: number) => ({
+                id: index + 1,
+                title: roomItem.name || 'Room Listing',
+                images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
+                price: Number(roomItem.price) || 0,
+                location: roomItem.location || 'Unknown',
+                distance: 1,
+                distanceUnit: 'km',
+                travelTime: 'Near campus',
+                roomType: roomItem.roomType || 'Single Room',
+                genderPreference: roomItem.genderPreference || 'Any',
+                availableFrom: roomItem.availableFrom || '',
+                billsIncluded: Array.isArray(roomItem.facilities) ? roomItem.facilities.includes('Meals') : false,
+                verified: true,
+                badges: [roomItem.occupancy < roomItem.totalSpots ? 'Available' : 'Occupied'],
+                description: roomItem.description || '',
+                features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
+                deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
+                roommateCount: Number(roomItem.occupancy) || 0,
+              }))
+            : [];
+
+          const mappedHouses: Listing[] = housesResponse.ok && housesJson?.success && Array.isArray(housesJson.data)
+            ? housesJson.data.map((house: any, index: number) => ({
+                id: 100000 + index,
+                title: house.name || 'Boarding House',
+                images: Array.isArray(house.images) && house.images.length > 0
+                  ? house.images
+                  : (house.image ? [house.image] : [roomImages[index % roomImages.length]]),
+                price: Number(house.monthlyPrice) || 0,
+                location: house.address || 'Unknown',
+                distance: 1.2,
+                distanceUnit: 'km',
+                travelTime: 'Near city',
+                roomType: house.roomType || 'Single Room',
+                genderPreference: house.genderPreference || 'any',
+                availableFrom: house.availableFrom || '',
+                billsIncluded: false,
+                verified: true,
+                badges: [house.status === 'active' ? 'Available' : 'Occupied'],
+                description: house.description || '',
+                features: Array.isArray(house.features) ? house.features : [],
+                deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
+                roommateCount: Number(house.occupiedRooms) || 0,
+              }))
+            : [];
+
+          setDbListings([...mappedRooms, ...mappedHouses]);
         }
 
         if (!token) return;
