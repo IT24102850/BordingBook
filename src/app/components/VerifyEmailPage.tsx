@@ -29,6 +29,17 @@ export default function VerifyEmailPage() {
   const token = params.token || query.get('token') || '';
   const email = query.get('email') || '';
 
+  const buildFrontendVerificationUrl = (sourceUrl: string) => {
+    try {
+      const parsed = new URL(sourceUrl);
+      const extractedToken = parsed.searchParams.get('token');
+      if (!extractedToken) return '';
+      return `/verify-email?token=${encodeURIComponent(extractedToken)}${email ? `&email=${encodeURIComponent(email)}` : ''}`;
+    } catch {
+      return '';
+    }
+  };
+
   useEffect(() => {
     const verify = async () => {
       if (!token) return;
@@ -92,7 +103,8 @@ export default function VerifyEmailPage() {
 
       const returnedVerificationUrl = result?.data?.verificationUrl;
       if (typeof returnedVerificationUrl === 'string' && returnedVerificationUrl.trim()) {
-        setManualVerificationUrl(returnedVerificationUrl);
+        const frontendVerificationUrl = buildFrontendVerificationUrl(returnedVerificationUrl);
+        setManualVerificationUrl(frontendVerificationUrl || returnedVerificationUrl);
       }
 
       setStatus('idle');
@@ -167,7 +179,7 @@ export default function VerifyEmailPage() {
                 href={manualVerificationUrl}
                 className="mt-3 inline-block w-full text-center px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-500 hover:to-cyan-500 transition text-sm font-medium"
               >
-                Verify Manually Now
+                Verify With Fresh Link
               </a>
             )}
           </div>
