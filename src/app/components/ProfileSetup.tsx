@@ -15,6 +15,8 @@ import { MdDashboard, MdSettings, MdHelp, MdDragHandle, MdMyLocation, MdOutlineL
 import { BiCurrentLocation } from 'react-icons/bi';
 import './ProfileSetupAnimations.css';
 
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+
 const academicYears = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 const genders = ['Male', 'Female', 'Other'];
 // Roommate preference options (expanded)
@@ -735,6 +737,7 @@ function ProfileSetup() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showSkipOption, setShowSkipOption] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -839,16 +842,73 @@ function ProfileSetup() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep()) return;
-    
+
+    setError('');
     setSubmitting(true);
-    setTimeout(() => {
+
+    try {
+      const token = localStorage.getItem('bb_access_token');
+
+      if (!token) {
+        setError('Your session has expired. Please sign in again.');
+        setSubmitting(false);
+        navigate('/signin');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          profilePicture: photo || '',
+          bio: bio.trim(),
+          minBudget,
+          maxBudget,
+          distance,
+          selectedLocation: selectedLocation || '',
+          gender,
+          academicYear: year,
+          roommatePreference: roommate,
+          roomType,
+          lifestylePrefs,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Could not save profile');
+      }
+
+      const currentRaw = localStorage.getItem('bb_current_user');
+      if (currentRaw) {
+        try {
+          const currentUser = JSON.parse(currentRaw);
+          localStorage.setItem(
+            'bb_current_user',
+            JSON.stringify({
+              ...currentUser,
+              profileCompleted: Boolean(result?.data?.profileCompleted),
+            })
+          );
+        } catch {
+          // Ignore local cache parse issues and continue.
+        }
+      }
+
       setSubmitting(false);
       setSuccess('Profile completed! 🎉 You can now access all features');
       setTimeout(() => navigate('/find'), 2000);
-    }, 1200);
+    } catch (submitError) {
+      setSubmitting(false);
+      setError(submitError instanceof Error ? submitError.message : 'Failed to save profile');
+    }
   };
 
   const getStepStatus = (stepNum: number) => {
@@ -1337,6 +1397,12 @@ function ProfileSetup() {
             {success && (
               <div className="p-3 bg-green-500/20 border border-green-500/30 text-green-300 rounded-lg text-xs text-center animate-fade-in">
                 {success} 🎉
+              </div>
+            )}
+
+            {error && (
+              <div className="p-3 bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg text-xs text-center animate-fade-in">
+                {error}
               </div>
             )}
           </form>

@@ -1,17 +1,28 @@
 const nodemailer = require('nodemailer');
+const env = require('../config/env');
 
 class EmailService {
   constructor() {
-    // Create transporter
-    this.transporter = nodemailer.createTransporter({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: process.env.EMAIL_PORT || 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
+    const hasPlaceholderCredentials =
+      env.emailUser === 'your-email@gmail.com' ||
+      env.emailPassword === 'your-app-specific-password';
+
+    this.isConfigured = Boolean(env.emailHost && env.emailUser && env.emailPassword) && !hasPlaceholderCredentials;
+    this.configError = hasPlaceholderCredentials
+      ? 'Email credentials are placeholders. Set EMAIL_USER and EMAIL_PASSWORD in backend/.env'
+      : null;
+
+    this.transporter = this.isConfigured
+      ? nodemailer.createTransport({
+          host: env.emailHost,
+          port: env.emailPort,
+          secure: env.emailPort === 465,
+          auth: {
+            user: env.emailUser,
+            pass: env.emailPassword,
+          },
+        })
+      : null;
   }
 
   /**
@@ -20,10 +31,17 @@ class EmailService {
    * @param {string} verificationToken - Verification token
    */
   async sendVerificationEmail(email, verificationToken) {
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-    
+    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
+
+    if (!this.isConfigured || !this.transporter) {
+      const reason = this.configError || 'Email service is not configured. Skipping verification email send.';
+      console.warn(reason);
+      console.warn(`Development verification URL: ${verificationUrl}`);
+      return { success: false, skipped: true, reason, verificationUrl };
+    }
+
     const mailOptions = {
-      from: `"BoardingBook" <${process.env.EMAIL_USER}>`,
+      from: `"BoardingBook" <${env.emailUser}>`,
       to: email,
       subject: 'Verify Your Email Address',
       html: `
@@ -136,7 +154,11 @@ class EmailService {
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('Error sending verification email:', error);
-      throw new Error('Failed to send verification email');
+      return {
+        success: false,
+        reason: error.message || 'Failed to send verification email',
+        verificationUrl,
+      };
     }
   }
 
@@ -146,8 +168,15 @@ class EmailService {
    * @param {string} name - User's name
    */
   async sendWelcomeEmail(email, name) {
+
+    if (!this.isConfigured || !this.transporter) {
+      const reason = this.configError || 'Email service is not configured. Skipping welcome email send.';
+      console.warn(reason);
+      return { success: false, skipped: true, reason };
+    }
+
     const mailOptions = {
-      from: `"BoardingBook" <${process.env.EMAIL_USER}>`,
+      from: `"BoardingBook" <${env.emailUser}>`,
       to: email,
       subject: 'Welcome to BoardingBook! 🏠',
       html: `
@@ -207,7 +236,7 @@ class EmailService {
               </ul>
               
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL}/signin" class="button">Sign In Now</a>
+                <a href="${env.frontendUrl}/signin" class="button">Sign In Now</a>
               </div>
               
               <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; color: #666;">

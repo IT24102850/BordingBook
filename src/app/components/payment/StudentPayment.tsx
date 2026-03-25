@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Download, UploadCloud, AlertCircle, Info, Bell, BellOff, Navigation, XCircle } from 'lucide-react';
-import { generatePaymentReceiptPDF } from '../../utils/generateReceipt';
+import { generatePaymentReceiptPDF } from '../../helpers/generateReceipt';
 
 interface PaymentRecord {
   month: string;

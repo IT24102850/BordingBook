@@ -377,7 +377,7 @@ export default function BookingManagementSystem() {
 
                   {booking.status === 'approved' && booking.paymentStatus === 'uploaded' && (
                     <button
-                      onClick={() => navigate('/owner-payment-dashboard')}
+                      onClick={() => navigate('/payment-rental')}
                       className="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
                     >
                       <Eye size={16} />

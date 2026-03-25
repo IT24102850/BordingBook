@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
   FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
@@ -177,7 +177,7 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
       <div className="flex flex-col items-center p-6">
         <img src={roommate.image} alt={roommate.name} className="w-24 h-24 rounded-full object-cover border-4 border-pink-300 mb-3" />
         <h3 className="text-xl font-bold text-white mb-1">{roommate.name}, <span className="text-pink-300">{roommate.age}</span></h3>
-        <div className="text-sm text-pink-200 mb-1">{roommate.gender} ‚Ä¢ {roommate.university}</div>
+        <div className="text-sm text-pink-200 mb-1">{roommate.gender} G«Û {roommate.university}</div>
         <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio}</div>
         <div className="flex flex-wrap gap-2 mb-4">
           {roommate.interests.map((interest: string, idx: number) => (
@@ -273,11 +273,11 @@ function RoommateFinderPlaceholder() {
       {/* Tab Navigation */}
       <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
         {[
-          { id: 'browse', label: 'üîç Browse', icon: 'üîç' },
-          { id: 'profile', label: 'üë§ Profile', icon: 'üë§' },
-          { id: 'requests', label: `üì§ Sent (${sentRequests.length})`, icon: 'üì§' },
-          { id: 'inbox', label: `üì• Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})`, icon: 'üì•' },
-          { id: 'groups', label: 'üë• Groups', icon: 'üë•' },
+          { id: 'browse', label: '=ÉˆÏ Browse', icon: '=ÉˆÏ' },
+          { id: 'profile', label: '=ÉÊÒ Profile', icon: '=ÉÊÒ' },
+          { id: 'requests', label: `=ÉÙÒ Sent (${sentRequests.length})`, icon: '=ÉÙÒ' },
+          { id: 'inbox', label: `=ÉÙ— Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})`, icon: '=ÉÙ—' },
+          { id: 'groups', label: '=ÉÊ— Groups', icon: '=ÉÊ—' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -506,7 +506,7 @@ function RoommateFinderPlaceholder() {
                       onClick={() => navigate('/chat', { state: { selectedRoommate: req.from, chatType: 'direct-message' } })}
                       className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
                     >
-                      üí¨ Start Chat
+                      =É∆º Start Chat
                     </button>
                   )}
                 </div>
@@ -542,7 +542,7 @@ function RoommateFinderPlaceholder() {
                       <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
                       <div className="flex-1">
                         <p className="text-white font-semibold text-sm">{roommate.name}</p>
-                        <p className="text-gray-400 text-xs">{roommate.age} ‚Ä¢ {roommate.university}</p>
+                        <p className="text-gray-400 text-xs">{roommate.age} G«Û {roommate.university}</p>
                       </div>
                       <FaCheckCircle className="text-green-400" />
                     </div>
@@ -583,7 +583,7 @@ function RoommateFinderPlaceholder() {
 function MapViewPlaceholder() {
   return (
     <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner">
-      <span className="mb-2">üó∫Ô∏è</span>
+      <span className="mb-2">=É˘¶n+≈</span>
       Map View coming soon...
     </div>
   );
@@ -816,31 +816,31 @@ const getVacancyInfo = (vacancy: string, totalRooms: number, occupiedRooms: numb
   switch (vacancy) {
     case 'low':
       return { 
-        label: `üî¥ ${totalRooms - occupiedRooms} Vacancy Left`, 
+        label: `=Éˆ¶ ${totalRooms - occupiedRooms} Vacancy Left`, 
         color: 'text-red-300', 
         bgColor: 'bg-red-500/20 border-red-500/30',
-        icon: 'üî¥'
+        icon: '=Éˆ¶'
       };
     case 'full':
       return { 
-        label: '‚ùå Fully Booked', 
+        label: 'G•Ó Fully Booked', 
         color: 'text-gray-300', 
         bgColor: 'bg-gray-500/20 border-gray-500/30',
-        icon: '‚ùå'
+        icon: 'G•Ó'
       };
     case 'coming':
       return { 
-        label: '‚è∞ Coming Soon', 
+        label: 'G≈¶ Coming Soon', 
         color: 'text-blue-300', 
         bgColor: 'bg-blue-500/20 border-blue-500/30',
-        icon: '‚è∞'
+        icon: 'G≈¶'
       };
     default: // 'available'
       return { 
-        label: `üü¢ ${totalRooms - occupiedRooms} Available`, 
+        label: `=ÉÉÛ ${totalRooms - occupiedRooms} Available`, 
         color: 'text-green-300', 
         bgColor: 'bg-green-500/20 border-green-500/30',
-        icon: 'üü¢'
+        icon: '=ÉÉÛ'
       };
   }
 };
@@ -900,7 +900,7 @@ const BookingForm: React.FC<{ listing: Listing | null; onClose: () => void; onSu
             <div className="flex items-center gap-2 text-sm">
               <FaBed className="text-cyan-400" />
               <div>
-                <p className="text-gray-300 text-xs">Selected Boarding Room ‚Ä¢ ID: L001</p>
+                <p className="text-gray-300 text-xs">Selected Boarding Room G«Û ID: L001</p>
               </div>
             </div>
           </div>
@@ -1059,7 +1059,7 @@ const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: nu
     return `Rs. ${price.toLocaleString()}/mo`;
   };
 
-  const stars = '‚òÖ'.repeat(Math.floor(room.rating)) + (room.rating % 1 >= 0.5 ? '¬Ω' : '');
+  const stars = 'Gˇ‡'.repeat(Math.floor(room.rating)) + (room.rating % 1 >= 0.5 ? '-+' : '');
 
   return (
     <div
@@ -1111,7 +1111,7 @@ const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: nu
               : 'bg-red-500/20 text-red-300 border-red-500/30'
           }`}
         >
-          {room.available ? '‚úÖ Available' : '‚ùå Occupied'}
+          {room.available ? 'G£‡ Available' : 'G•Ó Occupied'}
         </span>
 
         {/* Vacancy Badge */}
@@ -1331,7 +1331,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
 
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <FaMapMarkerAlt className="text-purple-400" />
-            <span>{listing.location} ‚Ä¢ {listing.distance}km from SLIIT</span>
+            <span>{listing.location} G«Û {listing.distance}km from SLIIT</span>
           </div>
 
           {/* Metadata Chips */}
@@ -1359,7 +1359,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
               return (
                 <div className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${vacancyInfo.bgColor}`}>
                   <span>{vacancyInfo.icon}</span>
-                  <span>{vacancyInfo.label.replace(/[üî¥‚ùå‚è∞üü¢]/g, '').trim()}</span>
+                  <span>{vacancyInfo.label.replace(/[=Éˆ¶G•ÓG≈¶=ÉÉÛ]/g, '').trim()}</span>
                 </div>
               );
             })()}
@@ -1386,7 +1386,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
 
         {/* Swipe Hint */}
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full md:hidden">
-          ‚Üê Drag or tap buttons ‚Üí
+          GÂ… Drag or tap buttons GÂ∆
         </div>
       </div>
     );
@@ -1418,7 +1418,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
         <div className="flex items-center gap-1 text-xs text-gray-400 mb-2">
           <FaMapMarkerAlt className="text-purple-400 text-[10px]" />
           <span>{listing.location}</span>
-          <span className="mx-1">‚Ä¢</span>
+          <span className="mx-1">G«Û</span>
           <span>{listing.distance}km</span>
         </div>
         <div className="flex flex-wrap gap-1 mb-2">
@@ -1577,14 +1577,14 @@ const FiltersPanel: React.FC<{
   const { setPriceMax, setDist, setRoom, setAvail, setFacs, setRating } = setters;
 
   const facilityOptions = [
-    { name: 'WiFi', icon: 'üì∂' },
-    { name: 'Air-Cond', icon: '‚ùÑÔ∏è' },
-    { name: 'Meals', icon: 'üçΩÔ∏è' },
-    { name: 'Private Bath', icon: 'üöø' },
-    { name: 'Parking', icon: 'üÖøÔ∏è' },
-    { name: 'Laundry', icon: 'üëï' },
-    { name: 'Security', icon: 'üîí' },
-    { name: 'Gym', icon: 'üí™' }
+    { name: 'WiFi', icon: '=ÉÙ¶' },
+    { name: 'Air-Cond', icon: 'G•‰n+≈' },
+    { name: 'Meals', icon: '=ÉÏ+n+≈' },
+    { name: 'Private Bath', icon: '=É‹+' },
+    { name: 'Parking', icon: '=É‡+n+≈' },
+    { name: 'Laundry', icon: '=ÉÊÚ' },
+    { name: 'Security', icon: '=Éˆ∆' },
+    { name: 'Gym', icon: '=É∆¨' }
   ];
 
   const distanceOptions = [
@@ -1717,12 +1717,12 @@ const FiltersPanel: React.FC<{
                     rating >= star ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-300'
                   }`}
                 >
-                  ‚òÖ
+                  Gˇ‡
                 </button>
               ))}
             </div>
             <span className="text-xs sm:text-sm font-medium text-gray-300 ml-auto sm:ml-0 pr-0 sm:pr-4">
-              {rating > 0 ? `${rating}‚òÖ and above` : 'Any'}
+              {rating > 0 ? `${rating}Gˇ‡ and above` : 'Any'}
             </span>
           </div>
         </div>
@@ -1786,7 +1786,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-001',
     type: 'owner_approval',
-    title: '‚úÖ Booking Approved!',
+    title: 'G£‡ Booking Approved!',
     message: 'Owner has approved your booking request for "Modern Boarding House near SLIIT". Please upload your payment slip to proceed.',
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     read: false,
@@ -1797,7 +1797,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-002',
     type: 'payment_verified',
-    title: 'üí∞ Payment Verified',
+    title: '=É∆¶ Payment Verified',
     message: 'Your payment for booking #BK001 has been verified. Receipt has been generated.',
     timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
     read: false,
@@ -1807,7 +1807,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-003',
     type: 'receipt_generated',
-    title: 'üìÑ Receipt Generated',
+    title: '=ÉÙ‰ Receipt Generated',
     message: 'Your payment receipt for booking #BK001 is ready for download.',
     timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     read: false,
@@ -1817,7 +1817,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-004',
     type: 'booking_confirmed',
-    title: 'üéâ Booking Confirmed!',
+    title: '=ÉƒÎ Booking Confirmed!',
     message: 'Your booking for "Modern Boarding House near SLIIT" has been confirmed. Welcome!',
     timestamp: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
     read: true,
@@ -1827,7 +1827,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-005',
     type: 'checkin_reminder',
-    title: 'üìÖ Check-in Date Reminder',
+    title: '=ÉÙ‡ Check-in Date Reminder',
     message: 'Please submit your check-in date for your confirmed booking. Your room is reserved until you confirm.',
     timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
     read: false,
@@ -1913,10 +1913,10 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
               paymentStatus === 'verified' ? 'bg-green-900/40 text-green-300 border border-green-500/30' :
               'bg-red-900/40 text-red-300 border border-red-500/30'
             }`}>
-              {paymentStatus === 'not_uploaded' && '‚è≥ Payment Pending'}
-              {paymentStatus === 'uploaded' && 'üîç Under Review'}
-              {paymentStatus === 'verified' && '‚úì Payment Verified'}
-              {paymentStatus === 'rejected' && '‚úó Payment Rejected'}
+              {paymentStatus === 'not_uploaded' && 'G≈¶ Payment Pending'}
+              {paymentStatus === 'uploaded' && '=ÉˆÏ Under Review'}
+              {paymentStatus === 'verified' && 'G£Ù Payment Verified'}
+              {paymentStatus === 'rejected' && 'G£˘ Payment Rejected'}
             </div>
           </div>
         </div>
@@ -1943,7 +1943,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                   </div>
                   <div className="flex items-center gap-2">
                     <FaMoneyBillWave className="text-emerald-400" size={16} />
-                    <span>LKR {mockBookingDetails.roomPrice.toLocaleString()}/month √ó {mockBookingDetails.duration} months</span>
+                    <span>LKR {mockBookingDetails.roomPrice.toLocaleString()}/month +˘ {mockBookingDetails.duration} months</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <FaUserFriends className="text-amber-400" size={16} />
@@ -2008,7 +2008,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <span className="text-purple-400 font-semibold">LKR {(mockBookingDetails.totalAmount / 2).toLocaleString()}</span>
                   </div>
                   <div className="text-xs text-amber-300 bg-amber-900/20 p-2 rounded border border-amber-500/20 mt-2 flex items-start gap-1">
-                    <span>‚ö°</span>
+                    <span>G‹Ì</span>
                     <span>Upload slip for 1st installment now. 2nd installment due in 3 months.</span>
                   </div>
                 </div>
@@ -2018,7 +2018,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'not_uploaded' && (
               <div className="space-y-3">
                 <div className="text-sm text-amber-300 bg-amber-900/20 p-3 rounded-lg border border-amber-500/20 flex items-start gap-2">
-                  <span className="text-lg">‚ö†Ô∏è</span>
+                  <span className="text-lg">G‹·n+≈</span>
                   <span>Please upload your payment slip to proceed</span>
                 </div>
                 <label className="block">
@@ -2026,7 +2026,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <FaMoneyBillWave className="text-3xl mx-auto mb-2 text-cyan-400" />
                     <div className="text-sm text-gray-300">
                       {uploadedFile ? (
-                        <span className="text-emerald-400 font-medium">‚úì {uploadedFile.name}</span>
+                        <span className="text-emerald-400 font-medium">G£Ù {uploadedFile.name}</span>
                       ) : (
                         'Click to upload slip'
                       )}
@@ -2053,7 +2053,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'uploaded' && (
               <div className="space-y-3">
                 <div className="text-sm text-blue-300 bg-blue-900/20 p-3 rounded-lg border border-blue-500/20 text-center">
-                  üîç Your payment is being verified by the owner
+                  =ÉˆÏ Your payment is being verified by the owner
                 </div>
                 <div className="text-xs text-gray-400 text-center">
                   This usually takes 1-2 business days
@@ -2087,7 +2087,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'rejected' && (
               <div className="space-y-3">
                 <div className="text-sm text-red-300 bg-red-900/20 p-3 rounded-lg border border-red-500/20 flex items-start gap-2">
-                  <span className="text-lg">‚úó</span>
+                  <span className="text-lg">G£˘</span>
                   <span>Payment rejected. Please upload a clear payment slip.</span>
                 </div>
                 <label className="block">
@@ -2095,7 +2095,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <FaMoneyBillWave className="text-3xl mx-auto mb-2 text-red-400" />
                     <div className="text-sm text-gray-300">
                       {uploadedFile ? (
-                        <span className="text-emerald-400 font-medium">‚úì {uploadedFile.name}</span>
+                        <span className="text-emerald-400 font-medium">G£Ù {uploadedFile.name}</span>
                       ) : (
                         'Re-upload payment slip'
                       )}
@@ -2315,9 +2315,9 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
 <body>
   <div class="receipt-container">
     <div class="header">
-      <h1>üè† BOARDING PAYMENT RECEIPT</h1>
+      <h1>=É≈· BOARDING PAYMENT RECEIPT</h1>
       <p>Official Payment Confirmation</p>
-      <div class="verified-badge">‚úì PAYMENT VERIFIED</div>
+      <div class="verified-badge">G£Ù PAYMENT VERIFIED</div>
     </div>
 
     <div class="info-section">
@@ -2383,7 +2383,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
       </p>
     </div>
 
-    <button class="print-button" onclick="window.print()">üñ®Ô∏è Print Receipt</button>
+    <button class="print-button" onclick="window.print()">=É˚øn+≈ Print Receipt</button>
   </div>
 </body>
 </html>
@@ -2392,6 +2392,8 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
 }
 
 export default function SearchPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
   const [passedListings, setPassedListings] = useState<Listing[]>([]);
@@ -2564,7 +2566,7 @@ export default function SearchPage() {
     
     setTimeout(() => {
       setLikedListings([...likedListings, currentListing]);
-      setToastMessage(`Added to favorites! ‚ú®`);
+      setToastMessage(`Added to favorites! G£ø`);
       setShowToast(true);
       
       setTimeout(() => {
@@ -2707,129 +2709,187 @@ export default function SearchPage() {
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
         {/* Header */}
         <div className="flex flex-col items-center w-full mb-6">
-          <div className="flex items-center gap-3 mb-4 w-full md:max-w-3xl md:mx-auto">
-            <button
-              onClick={() => window.history.back()}
-              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
-            >
-              <FaArrowLeft className="text-white text-sm" />
-            </button>
-            <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent flex-1 text-center">
-              Find Your Room
-            </h1>
-            {/* Notification Bell */}
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors relative"
-              >
-                <FaBell className="text-white text-lg" />
-                {notifications.filter(n => !n.read).length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-lg">
-                    {notifications.filter(n => !n.read).length}
-                  </span>
-                )}
-              </button>
-              
-              {/* Notification Dropdown */}
-              {showNotifications && (
-                <div className="absolute right-0 top-full mt-2 w-96 max-h-[600px] overflow-y-auto bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-50">
-                  <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-white font-bold text-lg">Notifications</h3>
-                      <button
-                        onClick={() => {
-                          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-                        }}
-                        className="text-xs text-cyan-400 hover:text-cyan-300"
-                      >
-                        Mark all read
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-2">
-                    {notifications.length === 0 ? (
-                      <div className="text-center py-8 text-gray-400">
-                        <FaBell className="text-4xl mx-auto mb-2 opacity-50" />
-                        <p>No notifications</p>
-                      </div>
-                    ) : (
-                      notifications.map((notif) => (
-                        <div
-                          key={notif.id}
-                          className={`p-4 mb-2 rounded-lg cursor-pointer transition-all ${
-                            notif.read
-                              ? 'bg-white/5 hover:bg-white/10'
-                              : 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 hover:border-cyan-500/40'
-                          }`}
+          <div className="w-full mb-4 md:max-w-5xl md:mx-auto rounded-2xl border border-white/10 bg-[#0f172a]/70 backdrop-blur-xl shadow-2xl px-3 py-3 md:px-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { window.location.href = '/'; }}
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                  aria-label="Go to home"
+                >
+                  <FaArrowLeft className="text-white text-sm" />
+                </button>
+                <button
+                  onClick={() => { window.location.href = '/'; }}
+                  className="text-left"
+                >
+                  <h1 className="text-base md:text-xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent leading-tight">
+                    BoardingBook
+                  </h1>
+                  <p className="text-[10px] md:text-xs text-cyan-100/70">Find & Search</p>
+                </button>
+              </div>
+
+              <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
+                <button
+                  onClick={() => navigate('/')}
+                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                >
+                  Home
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('rooms');
+                    navigate('/find');
+                  }}
+                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/find' && activeTab === 'rooms' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                >
+                  Find Rooms
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('roommate');
+                    navigate('/find');
+                  }}
+                  className={`px-4 py-2 text-sm rounded-xl border transition ${activeTab === 'roommate' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                >
+                  Roommate Finder
+                </button>
+                <button
+                  onClick={() => navigate('/chatbot')}
+                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/chatbot' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                >
+                  AI Chatbot
+                </button>
+                <button
+                  onClick={() => navigate('/owner-dashboard')}
+                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/owner-dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                >
+                  List Your Property
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setActiveTab('rooms');
+                    navigate('/find');
+                  }}
+                  className="hidden md:inline-flex px-5 py-2 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 text-white font-semibold shadow-lg hover:opacity-90 transition"
+                >
+                  Find Rooms
+                </button>
+
+                <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors relative"
+                >
+                  <FaBell className="text-white text-lg" />
+                  {notifications.filter(n => !n.read).length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-lg">
+                      {notifications.filter(n => !n.read).length}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 top-full mt-2 w-96 max-h-[600px] overflow-y-auto bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-50">
+                    <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-white font-bold text-lg">Notifications</h3>
+                        <button
                           onClick={() => {
-                            setNotifications(prev =>
-                              prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
-                            );
-                            
-                            // Handle different notification types
-                            if (notif.type === 'owner_approval' || notif.type === 'payment_pending') {
-                              setSelectedNotificationBooking(notif.bookingId || null);
-                              setShowPaymentPortal(true);
-                              setShowNotifications(false);
-                            } else if (notif.type === 'checkin_reminder') {
-                              setSelectedNotificationBooking(notif.bookingId || null);
-                              setShowCheckinForm(true);
-                              setShowNotifications(false);
-                            } else if (notif.type === 'receipt_generated' || notif.type === 'payment_verified') {
-                              setSelectedNotificationBooking(notif.bookingId || null);
-                              setShowPaymentPortal(true);
-                              setShowNotifications(false);
-                            }
+                            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
                           }}
+                          className="text-xs text-cyan-400 hover:text-cyan-300"
                         >
-                          <div className="flex items-start gap-3">
-                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                              notif.type === 'owner_approval' ? 'bg-green-500/20' :
-                              notif.type === 'payment_verified' ? 'bg-emerald-500/20' :
-                              notif.type === 'receipt_generated' ? 'bg-blue-500/20' :
-                              notif.type === 'booking_confirmed' ? 'bg-purple-500/20' :
-                              'bg-amber-500/20'
-                            }`}>
-                              {notif.type === 'owner_approval' && <FaCheckCircle className="text-green-400" />}
-                              {notif.type === 'payment_verified' && <FaCheckCircle className="text-emerald-400" />}
-                              {notif.type === 'receipt_generated' && <FaMoneyBillWave className="text-blue-400" />}
-                              {notif.type === 'booking_confirmed' && <FaCheckCircle className="text-purple-400" />}
-                              {notif.type === 'checkin_reminder' && <FaCalendarAlt className="text-amber-400" />}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="text-white font-semibold text-sm">{notif.title}</h4>
-                                {!notif.read && (
-                                  <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
-                                )}
+                          Mark all read
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-2">
+                      {notifications.length === 0 ? (
+                        <div className="text-center py-8 text-gray-400">
+                          <FaBell className="text-4xl mx-auto mb-2 opacity-50" />
+                          <p>No notifications</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            className={`p-4 mb-2 rounded-lg cursor-pointer transition-all ${
+                              notif.read
+                                ? 'bg-white/5 hover:bg-white/10'
+                                : 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 hover:border-cyan-500/40'
+                            }`}
+                            onClick={() => {
+                              setNotifications(prev =>
+                                prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
+                              );
+
+                              if (notif.type === 'owner_approval' || notif.type === 'payment_pending') {
+                                setSelectedNotificationBooking(notif.bookingId || null);
+                                setShowPaymentPortal(true);
+                                setShowNotifications(false);
+                              } else if (notif.type === 'checkin_reminder') {
+                                setSelectedNotificationBooking(notif.bookingId || null);
+                                setShowCheckinForm(true);
+                                setShowNotifications(false);
+                              } else if (notif.type === 'receipt_generated' || notif.type === 'payment_verified') {
+                                setSelectedNotificationBooking(notif.bookingId || null);
+                                setShowPaymentPortal(true);
+                                setShowNotifications(false);
+                              }
+                            }}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                                notif.type === 'owner_approval' ? 'bg-green-500/20' :
+                                notif.type === 'payment_verified' ? 'bg-emerald-500/20' :
+                                notif.type === 'receipt_generated' ? 'bg-blue-500/20' :
+                                notif.type === 'booking_confirmed' ? 'bg-purple-500/20' :
+                                'bg-amber-500/20'
+                              }`}>
+                                {notif.type === 'owner_approval' && <FaCheckCircle className="text-green-400" />}
+                                {notif.type === 'payment_verified' && <FaCheckCircle className="text-emerald-400" />}
+                                {notif.type === 'receipt_generated' && <FaMoneyBillWave className="text-blue-400" />}
+                                {notif.type === 'booking_confirmed' && <FaCheckCircle className="text-purple-400" />}
+                                {notif.type === 'checkin_reminder' && <FaCalendarAlt className="text-amber-400" />}
                               </div>
-                              <p className="text-gray-300 text-xs mb-2">{notif.message}</p>
-                              <div className="flex items-center justify-between">
-                                <span className="text-gray-500 text-xs">
-                                  {new Date(notif.timestamp).toLocaleString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
-                                {notif.actionRequired && (
-                                  <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30">
-                                    Action Required
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="text-white font-semibold text-sm">{notif.title}</h4>
+                                  {!notif.read && <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>}
+                                </div>
+                                <p className="text-gray-300 text-xs mb-2">{notif.message}</p>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-gray-500 text-xs">
+                                    {new Date(notif.timestamp).toLocaleString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
                                   </span>
-                                )}
+                                  {notif.actionRequired && (
+                                    <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30">
+                                      Action Required
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
+                )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
           {/* Segmented Tab Switcher */}
@@ -2882,7 +2942,7 @@ export default function SearchPage() {
           <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full">
             {activeTab === 'rooms'
               ? (viewMode === 'card' 
-                  ? 'Drag cards left/right to pass or like ‚Ä¢ Click buttons to act' 
+                  ? 'Drag cards left/right to pass or like G«Û Click buttons to act' 
                   : 'Browse all listings in grid view')
               : activeTab === 'map'
                 ? 'View all rooms on a map (coming soon)'
@@ -3061,8 +3121,8 @@ export default function SearchPage() {
                     </div>
 
                     <div className="flex justify-between px-8 mt-2 text-xs text-gray-500">
-                      <span>Pass ‚Ä¢ Swipe Left</span>
-                      <span>Like ‚Ä¢ Swipe Right</span>
+                      <span>Pass G«Û Swipe Left</span>
+                      <span>Like G«Û Swipe Right</span>
                     </div>
                   </div>
 
@@ -3110,7 +3170,7 @@ export default function SearchPage() {
                             listing={listing}
                             onLike={() => {
                               setLikedListings([...likedListings, listing]);
-                              setToastMessage(`Added to favorites! ‚ú®`);
+                              setToastMessage(`Added to favorites! G£ø`);
                               setShowToast(true);
                               setTimeout(() => setShowToast(false), 2000);
                             }}
@@ -3259,8 +3319,8 @@ export default function SearchPage() {
 
                   {/* Action Labels - Mobile */}
                   <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
-                    <span>Pass ‚Ä¢ Swipe Left</span>
-                    <span>Like ‚Ä¢ Swipe Right</span>
+                    <span>Pass G«Û Swipe Left</span>
+                    <span>Like G«Û Swipe Right</span>
                   </div>
                 </>
               ) : (
@@ -3277,7 +3337,7 @@ export default function SearchPage() {
                             listing={listing}
                             onLike={() => {
                               setLikedListings([...likedListings, listing]);
-                              setToastMessage(`Added to favorites! ‚ú®`);
+                              setToastMessage(`Added to favorites! G£ø`);
                               setShowToast(true);
                               setTimeout(() => setShowToast(false), 2000);
                             }}
@@ -3380,7 +3440,7 @@ export default function SearchPage() {
             listing={selectedRoomForBooking}
             onClose={() => setShowBooking(false)}
             onSubmit={(data) => {
-              setToastMessage(`‚úÖ Booking request submitted for ${selectedRoomForBooking?.title}!`);
+              setToastMessage(`G£‡ Booking request submitted for ${selectedRoomForBooking?.title}!`);
               setShowToast(true);
               setTimeout(() => setShowToast(false), 3000);
             }}
@@ -3473,7 +3533,7 @@ export default function SearchPage() {
                         return;
                       }
                       // Simulate submission
-                      setToastMessage(`‚úÖ Check-in date submitted: ${new Date(checkinDate).toLocaleDateString()}`);
+                      setToastMessage(`G£‡ Check-in date submitted: ${new Date(checkinDate).toLocaleDateString()}`);
                       setShowToast(true);
                       setTimeout(() => setShowToast(false), 3000);
                       setShowCheckinForm(false);

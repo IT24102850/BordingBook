@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema(
       required: function() {
         return this.role === 'owner';
       },
+      trim: true,
     },
     companyName: {
       type: String,
@@ -67,6 +68,51 @@ const userSchema = new mongoose.Schema(
     bio: {
       type: String,
       default: '',
+    },
+    minBudget: {
+      type: Number,
+      default: 0,
+    },
+    maxBudget: {
+      type: Number,
+      default: 0,
+    },
+    distance: {
+      type: Number,
+      default: 0,
+    },
+    selectedLocation: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    gender: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    academicYear: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    roommatePreference: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    roomType: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    lifestylePrefs: {
+      type: [String],
+      default: [],
+    },
+    profileCompleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {
