@@ -3,8 +3,11 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
-    "build": "vite build",
+    "build": "node ./node_modules/vite/bin/vite.js build",
     "dev": "vite",
     "start": "vite"
   },
@@ -46,6 +49,7 @@
     "date-fns": "3.6.0",
     "embla-carousel-react": "8.6.0",
     "input-otp": "1.4.2",
+    "jspdf": "^4.2.0",
     "lucide-react": "0.487.0",
     "motion": "12.23.24",
     "next-themes": "0.4.6",

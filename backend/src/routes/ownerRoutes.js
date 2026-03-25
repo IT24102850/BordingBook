@@ -6,7 +6,9 @@ const ownerController = require('../controllers/ownerController');
 
 const router = express.Router();
 
+
 router.get('/public/houses', ownerController.getPublicHouses);
+
 
 router.get('/houses', requireAuth, ownerController.getHouses);
 

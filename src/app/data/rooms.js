@@ -7,7 +7,8 @@ export const ROOMS = [
         facilities: ["WiFi", "AC", "Bathroom"],
         available: true, rating: 4.8, reviews: 52, owner: "Ruwan Silva",
         img: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80",
-        desc: "Modern, well-furnished single room 300m from SLIIT Malabe. Includes attached bathroom, 24/7 water, and fiber WiFi. Ideal for first-year students."
+        desc: "Modern, well-furnished single room 300m from SLIIT Malabe. Includes attached bathroom, 24/7 water, and fiber WiFi. Ideal for first-year students.",
+        vacancy: "low", totalRooms: 5, occupiedRooms: 4
     },
     {
         id: 2, name: "Nugegoda Student Inn",
@@ -16,7 +17,8 @@ export const ROOMS = [
         facilities: ["WiFi", "Meals", "Security"],
         available: true, rating: 4.5, reviews: 38, owner: "Chaminda Perera",
         img: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80",
-        desc: "Budget-friendly sharing room near University of Moratuwa. Home-cooked meals provided twice daily. Safe, gated premises with CCTV."
+        desc: "Budget-friendly sharing room near University of Moratuwa. Home-cooked meals provided twice daily. Safe, gated premises with CCTV.",
+        vacancy: "available", totalRooms: 8, occupiedRooms: 3
     },
     {
         id: 3, name: "Nawala Residency",
@@ -25,7 +27,8 @@ export const ROOMS = [
         facilities: ["WiFi", "AC", "Bathroom", "Parking"],
         available: true, rating: 4.9, reviews: 67, owner: "Dilani Jayawardena",
         img: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80",
-        desc: "Spacious master room with king bed, AC, and en-suite bath near Jayawardenepura University. Secure parking available for bikes."
+        desc: "Spacious master room with king bed, AC, and en-suite bath near Jayawardenepura University. Secure parking available for bikes.",
+        vacancy: "available", totalRooms: 12, occupiedRooms: 4
     },
     {
         id: 4, name: "Kirulapone Budget Boarding",
@@ -34,7 +37,8 @@ export const ROOMS = [
         facilities: ["WiFi", "Security"],
         available: true, rating: 4.2, reviews: 29, owner: "Pradeep Fernando",
         img: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80",
-        desc: "Affordable sharing room close to University of Colombo. Great for students on a tight budget. Common study room available."
+        desc: "Affordable sharing room close to University of Colombo. Great for students on a tight budget. Common study room available.",
+        vacancy: "full", totalRooms: 6, occupiedRooms: 6
     },
     {
         id: 5, name: "Homagama Horizon",
@@ -43,7 +47,8 @@ export const ROOMS = [
         facilities: ["WiFi", "AC", "Meals", "Bathroom"],
         available: true, rating: 4.7, reviews: 44, owner: "Tharanga Bandara",
         img: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80",
-        desc: "Modern single annex 500m from NSBM Green University. Includes daily meals, AC, private bath, and superfast WiFi."
+        desc: "Modern single annex 500m from NSBM Green University. Includes daily meals, AC, private bath, and superfast WiFi.",
+        vacancy: "coming", totalRooms: 4, occupiedRooms: 2
     },
     {
         id: 6, name: "Malabe Premium Annex",
@@ -52,7 +57,8 @@ export const ROOMS = [
         facilities: ["WiFi", "AC", "Bathroom", "Parking", "Security", "Laundry"],
         available: true, rating: 5.0, reviews: 12, owner: "Indika Jayasuriya",
         img: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80",
-        desc: "Luxury annex 200m from SLIIT Malabe gate. Brand new, fully furnished with smart TV, inverter AC, geyser, and fiber internet."
+        desc: "Luxury annex 200m from SLIIT Malabe gate. Brand new, fully furnished with smart TV, inverter AC, geyser, and fiber internet.",
+        vacancy: "available", totalRooms: 10, occupiedRooms: 2
     },
     {
         id: 7, name: "Nugegoda Premium Stay",
@@ -61,7 +67,8 @@ export const ROOMS = [
         facilities: ["WiFi", "AC", "Bathroom", "Meals", "Security"],
         available: true, rating: 4.7, reviews: 45, owner: "Nimal Perera",
         img: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=80",
-        desc: "Premium master room with all facilities near University of Moratuwa. Daily meals included with vegetarian options."
+        desc: "Premium master room with all facilities near University of Moratuwa. Daily meals included with vegetarian options.",
+        vacancy: "low", totalRooms: 3, occupiedRooms: 2
     },
     {
         id: 8, name: "Colombo City Boarding",
@@ -70,7 +77,8 @@ export const ROOMS = [
         facilities: ["WiFi", "AC", "Security"],
         available: true, rating: 4.1, reviews: 17, owner: "Malini Dias",
         img: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=600&q=80",
-        desc: "Flat share in central Colombo 3, walking distance from UOC campus. AC, fiber WiFi, modern kitchen."
+        desc: "Flat share in central Colombo 3, walking distance from UOC campus. AC, fiber WiFi, modern kitchen.",
+        vacancy: "available", totalRooms: 9, occupiedRooms: 1
     }
 ];
 
@@ -351,4 +359,17 @@ export const distMap = {
   '0-5': 5,
   '0-10': 10,
   'any': 9999
+ISTANCE MAP FOR FILTERING ──────────────────────
+export const distMap = {
+  'walking': 1,
+  'cycling': 2.5,
+  'bus': 5,
+  'any': 100
+};
+
+// ─── FACILITY ICON FUNCTION ──────────────────────────
+export const fi = (facility) => {
+  const icon = facIco[facility];
+  return icon ? `${icon} ${facility}` : facility;
+
 };

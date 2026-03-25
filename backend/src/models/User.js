@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema(
       required: function() {
         return this.role === 'owner';
       },
+      trim: true,
     },
     companyName: {
       type: String,

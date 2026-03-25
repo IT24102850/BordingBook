@@ -1,8 +1,8 @@
 const express = require('express');
+const { body, query } = require('express-validator');
 const router = express.Router();
 const authController = require('../controllers/authController');
-<<<<<<< Updated upstream
-=======
+
 const validateRequest = require('../middleware/validateRequest');
 const { requireAuth } = require('../middleware/auth');
 
@@ -25,6 +25,7 @@ const signinValidation = [
 	body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
 	body('password').notEmpty().withMessage('Password is required'),
 ];
+
 const profileUpdateValidation = [
 	body('bio').optional().isString().isLength({ max: 180 }).withMessage('Bio must be 180 characters or less'),
 	body('profilePicture').optional().isString(),
@@ -38,21 +39,21 @@ const profileUpdateValidation = [
 	body('roomType').optional().isString(),
 	body('lifestylePrefs').optional().isArray().withMessage('Lifestyle preferences must be an array'),
 ];
->>>>>>> Stashed changes
+
 
 /**
  * @route   POST /api/auth/signup
  * @desc    Register a new user (student or owner)
  * @access  Public
  */
-router.post('/signup', authController.signup);
+router.post('/signup', signupValidation, validateRequest, authController.signup);
 
 /**
  * @route   GET /api/auth/verify-email
  * @desc    Verify user email with token
  * @access  Public
  */
-router.get('/verify-email', authController.verifyEmail);
+router.get('/verify-email', verifyEmailValidation, validateRequest, authController.verifyEmail);
 
 /**
  * @route   GET /api/auth/verify-email/:token
@@ -66,20 +67,24 @@ router.get('/verify-email/:token', authController.verifyEmail);
  * @desc    Resend verification email
  * @access  Public
  */
-router.post('/resend-verification', authController.resendVerification);
+router.post('/resend-verification', resendValidation, validateRequest, authController.resendVerification);
 
 /**
  * @route   POST /api/auth/signin
  * @desc    Sign in user
  * @access  Public
  */
-<<<<<<< Updated upstream
+
 router.post('/signin', authController.signin);
-=======
+
 router.post('/signin', signinValidation, validateRequest, authController.signin);
 
 router.get('/me', requireAuth, authController.getMe);
 router.put('/profile', requireAuth, profileUpdateValidation, validateRequest, authController.updateProfile);
->>>>>>> Stashed changes
+
+router.post('/signin', signinValidation, validateRequest, authController.signin);
+
+router.get('/me', requireAuth, authController.getMe);
+
 
 module.exports = router;

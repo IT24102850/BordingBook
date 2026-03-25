@@ -59,11 +59,17 @@ exports.createOrUpdateProfile = async (req, res) => {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
 
+
       const displayName = user.fullName || user.name || user.email.split('@')[0];
 
       profile = new RoommateProfile({
         userId,
         name: displayName,
+
+      profile = new RoommateProfile({
+        userId,
+        name: user.name,
+
         email: user.email,
         description,
         image,
