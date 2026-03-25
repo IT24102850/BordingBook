@@ -30,6 +30,8 @@ exports.signup = async (req, res) => {
   try {
     const { email, password, role = 'student', fullName, phoneNumber, companyName, propertyCount } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
+    const normalizedFullName = typeof fullName === 'string' ? fullName.trim() : '';
+    const normalizedPhoneNumber = typeof phoneNumber === 'string' ? phoneNumber.trim() : '';
 
     const rolePasswordError = validatePasswordByRole(password, role);
     if (rolePasswordError) {
@@ -51,7 +53,7 @@ exports.signup = async (req, res) => {
         });
       }
 
-      if (!fullName || !phoneNumber) {
+      if (!normalizedFullName || !normalizedPhoneNumber) {
         return res.status(400).json({
           success: false,
           message: 'Full name and phone number are required for property owners',
@@ -75,8 +77,8 @@ exports.signup = async (req, res) => {
     };
 
     if (role === 'owner') {
-      userData.fullName = fullName.trim();
-      userData.phoneNumber = phoneNumber.trim();
+      userData.fullName = normalizedFullName;
+      userData.phoneNumber = normalizedPhoneNumber;
       userData.companyName = (companyName || '').trim();
       userData.propertyCount = Number(propertyCount) || 0;
     }
@@ -86,10 +88,12 @@ exports.signup = async (req, res) => {
 
     await user.save();
 
+    let emailResult = { success: false, reason: 'Email service unavailable' };
     try {
-      await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
+      emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError.message);
+      emailResult = { success: false, reason: emailError.message || 'Failed to send verification email' };
     }
 
     return res.status(201).json({
@@ -100,13 +104,16 @@ exports.signup = async (req, res) => {
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
+        emailSent: Boolean(emailResult.success),
+        emailError: emailResult.success ? null : emailResult.reason || null,
+        verificationUrl: emailResult.verificationUrl || null,
       },
     });
   } catch (error) {
     console.error('Signup error:', error.message);
     return res.status(500).json({
       success: false,
-      message: 'Failed to create account',
+      message: error.name === 'ValidationError' ? 'Please fill all required fields correctly' : 'Failed to create account',
     });
   }
 };
@@ -117,7 +124,14 @@ exports.signup = async (req, res) => {
  */
 exports.verifyEmail = async (req, res) => {
   try {
-    const { token } = req.query;
+    const token = req.query.token || req.params.token;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification token is required',
+      });
+    }
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
