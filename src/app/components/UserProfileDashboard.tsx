@@ -98,6 +98,17 @@ export default function UserProfileDashboard() {
               <StudentPayment />
             ) : (
               <>
+                {/* Payment Button for Dashboard */}
+                {activeSection === 'Dashboard' && (
+                  <div className="flex justify-end mb-6">
+                    <button
+                      className="px-6 py-3 rounded-xl font-bold bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 text-white shadow-md hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                      onClick={() => setActiveSection('Payments')}
+                    >
+                      Go to Payment
+                    </button>
+                  </div>
+                )}
                 {/* Profile Summary */}
                 <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
                   <img

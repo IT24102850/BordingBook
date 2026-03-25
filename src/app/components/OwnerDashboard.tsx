@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Building, Home, Bed, Users, Star, Download, Edit, Trash2, 
   Plus, Wifi, Coffee, Bath, Wind, Upload, 
@@ -707,6 +708,7 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
 // ============================================
 
 export default function OwnerDashboard() {
+  const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>(mockHouses);
   const [rooms, setRooms] = useState<Room[]>(mockRooms);
   const [selectedHouse, setSelectedHouse] = useState<BoardingHouse | null>(null);
@@ -1046,6 +1048,12 @@ export default function OwnerDashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                <button
+                  className="px-6 py-2 rounded-xl font-bold bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 text-white shadow-md hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  onClick={() => navigate('/payment-rental')}
+                >
+                  Manage Payments
+                </button>
                 <button className="p-2 hover:bg-white/5 rounded-lg transition-colors relative">
                   <Bell className="text-gray-400 hover:text-white transition-colors" size={20} />
                   {unreadNotifications > 0 && (
@@ -1438,7 +1446,15 @@ export default function OwnerDashboard() {
           {/* Payments Tab - Desktop */}
           {activeTab === 'payments' && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white">Payments & Receipts</h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold text-white">Payments & Receipts</h2>
+                <button
+                  onClick={() => navigate('/payment-rental')}
+                  className="px-6 py-2 rounded-xl font-bold bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 text-white shadow-md hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                >
+                  View Rental Payments
+                </button>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10 col-span-2">
@@ -1690,6 +1706,32 @@ export default function OwnerDashboard() {
   // Mobile view continues from here  
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
+      {/* Header - Mobile */}
+      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Building className="text-cyan-400" size={24} />
+              <h1 className="text-lg font-bold text-white">Owner Dashboard</h1>
+            </div>
+            <button className="p-2 hover:bg-white/5 rounded-lg relative">
+              <Bell className="text-gray-400 hover:text-white" size={20} />
+              {unreadNotifications > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              )}
+            </button>
+          </div>
+          
+          {/* Payment Button - Mobile */}
+          <button
+            className="w-full px-4 py-2 rounded-lg font-bold bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 text-white shadow-md hover:scale-105 transition text-sm"
+            onClick={() => navigate('/payment-rental')}
+          >
+            Manage Payments
+          </button>
+        </div>
+      </div>
+      
       <div className="text-center py-20 text-white">
         <p>Mobile view - Work in progress</p>
       </div>

@@ -1,3 +1,16 @@
+function PaymentNavButton() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex justify-end mb-4">
+      <button
+        className="px-6 py-2 rounded-xl font-bold bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 text-white shadow-md hover:scale-105 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
+        onClick={() => navigate('/student-payment')}
+      >
+        Go to Payment
+      </button>
+    </div>
+  );
+}
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -2393,6 +2406,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
 
 export default function SearchPage() {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  // ...existing code...
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
   const [passedListings, setPassedListings] = useState<Listing[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -2705,6 +2719,9 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
+        {/* Payment Button */}
+        <PaymentNavButton />
+        
         {/* Header */}
         <div className="flex flex-col items-center w-full mb-6">
           <div className="flex items-center gap-3 mb-4 w-full md:max-w-3xl md:mx-auto">
