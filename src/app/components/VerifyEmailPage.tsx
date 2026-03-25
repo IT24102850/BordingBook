@@ -115,24 +115,56 @@ export default function VerifyEmailPage() {
         </div>
 
         <h1 className="text-3xl font-bold text-cyan-300 text-center mb-4">Verify Your Email</h1>
-        <p className="text-cyan-100 text-center max-w-md mx-auto">{message}</p>
+        <p className={`text-center max-w-md mx-auto ${
+          status === 'error' ? 'text-rose-100' : 
+          status === 'success' ? 'text-emerald-100' : 
+          'text-cyan-100'
+        }`}>
+          {message}
+        </p>
 
-        <div className="mt-8 flex flex-col sm:flex-row gap-3">
+        {!isVerifying && !isResending && status !== 'success' && token && (
+          <div className="mt-6 p-4 bg-blue-900/20 border border-blue-600/40 rounded-lg">
+            <p className="text-blue-100 text-sm mb-3">
+              <strong>Verify via direct link:</strong>
+            </p>
+            <a
+              href={`${API_BASE_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block w-full text-center px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-500 hover:to-cyan-500 transition text-sm font-medium break-all"
+            >
+              Click Here to Verify Email
+            </a>
+            <p className="text-blue-200/70 text-xs mt-2">
+              Opens in a new tab. You'll see a confirmation message after verification.
+            </p>
+          </div>
+        )}
+
+        {!token && email && (
+          <div className="mt-6 p-4 bg-amber-900/20 border border-amber-600/40 rounded-lg">
+            <p className="text-amber-100 text-sm mb-3">
+              <strong>If you didn't receive the email:</strong>
+            </p>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={isResending}
+              className="w-full px-4 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-lg hover:from-amber-500 hover:to-orange-500 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isResending ? 'Resending...' : 'Resend Verification Email'}
+            </button>
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-col gap-3">
           <button
             type="button"
             onClick={() => navigate('/signin')}
-            className="flex-1 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 py-2.5 font-semibold hover:bg-cyan-500/30 transition"
+            className="w-full rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 py-2.5 font-semibold hover:bg-cyan-500/30 transition"
           >
             Go to Sign In
-          </button>
-
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={isResending || !email}
-            className="flex-1 rounded-lg bg-white/10 border border-white/20 text-white py-2.5 font-semibold hover:bg-white/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isResending ? 'Resending...' : 'Resend Email'}
           </button>
         </div>
 
