@@ -348,7 +348,18 @@ export function buildReply(extracted) {
 // ─── FACILITY ICONS ───────────────────────────────────
 export const facIco = { WiFi: '📶', AC: '❄️', Meals: '🍽️', Bathroom: '🚿', Parking: '🅿️', Security: '🔒', Laundry: '👕' };
 
-// ─── DISTANCE MAP FOR FILTERING ──────────────────────
+// ─── FACILITY FORMATTER ───────────────────────────────────
+export const fi = (facility) => `${facIco[facility] || '✨'} ${facility}`;
+
+// ─── DISTANCE MAP ───────────────────────────────────────
+export const distMap = {
+  '0-1': 1,
+  '0-2': 2,
+  '0-3': 3,
+  '0-5': 5,
+  '0-10': 10,
+  'any': 9999
+ISTANCE MAP FOR FILTERING ──────────────────────
 export const distMap = {
   'walking': 1,
   'cycling': 2.5,
@@ -360,4 +371,5 @@ export const distMap = {
 export const fi = (facility) => {
   const icon = facIco[facility];
   return icon ? `${icon} ${facility}` : facility;
+
 };

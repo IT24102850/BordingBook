@@ -1,12 +1,23 @@
+/// <reference types="vite/client" />
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, MailCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_API_URL?: string;
+  }
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
 export default function VerifyEmailPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const params = useParams<{ token?: string }>();
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -14,7 +25,7 @@ export default function VerifyEmailPage() {
   const [message, setMessage] = useState('We’ve sent a verification link to your email address. Please check your inbox and follow the instructions to activate your account.');
 
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const token = query.get('token') || '';
+  const token = params.token || query.get('token') || '';
   const email = query.get('email') || '';
 
   useEffect(() => {
@@ -44,6 +55,19 @@ export default function VerifyEmailPage() {
 
     verify();
   }, [token]);
+
+  useEffect(() => {
+    if (status !== 'success') return;
+
+    const timeout = setTimeout(() => {
+      const destination = email
+        ? `/signin?email=${encodeURIComponent(email)}`
+        : '/signin';
+      navigate(destination);
+    }, 1200);
+
+    return () => clearTimeout(timeout);
+  }, [status, email, navigate]);
 
   const handleResend = async () => {
     if (!email) {

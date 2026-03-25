@@ -1,4 +1,8 @@
+
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
+
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+
 
 interface ApiResponse<T> {
   success: boolean;
@@ -22,6 +26,18 @@ interface SignUpPayload {
   propertyCount?: number;
 }
 
+
+interface SignUpResult {
+  userId: string;
+  email: string;
+  role: 'student' | 'owner' | 'admin';
+  isVerified: boolean;
+  emailSent: boolean;
+  emailError?: string | null;
+  verificationUrl?: string | null;
+}
+
+
 interface SignInResult {
   token: string;
   user: {
@@ -29,9 +45,11 @@ interface SignInResult {
     email: string;
     role: 'student' | 'owner' | 'admin';
     fullName?: string;
+
     phoneNumber?: string;
     companyName?: string;
     propertyCount?: number;
+
     isVerified: boolean;
   };
 }
@@ -76,18 +94,28 @@ async function signIn(payload: SignInPayload): Promise<SignInResult> {
   return result.data;
 }
 
+async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined> {
+
 async function signUp(payload: SignUpPayload): Promise<void> {
+
   const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 
+
+  const result = await parseJson<SignUpResult>(response);
+
   const result = await parseJson(response);
 
   if (!response.ok || !result.success) {
     throw new AuthApiError(result.message || 'Sign up failed', response.status);
   }
+
+
+  return result.data;
+
 }
 
 export const authApi = {

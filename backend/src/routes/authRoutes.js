@@ -2,6 +2,7 @@ const express = require('express');
 const { body, query } = require('express-validator');
 const router = express.Router();
 const authController = require('../controllers/authController');
+
 const validateRequest = require('../middleware/validateRequest');
 const { requireAuth } = require('../middleware/auth');
 
@@ -25,6 +26,21 @@ const signinValidation = [
 	body('password').notEmpty().withMessage('Password is required'),
 ];
 
+const profileUpdateValidation = [
+	body('bio').optional().isString().isLength({ max: 180 }).withMessage('Bio must be 180 characters or less'),
+	body('profilePicture').optional().isString(),
+	body('minBudget').optional().isNumeric().withMessage('Minimum budget must be a number'),
+	body('maxBudget').optional().isNumeric().withMessage('Maximum budget must be a number'),
+	body('distance').optional().isNumeric().withMessage('Distance must be a number'),
+	body('selectedLocation').optional().isString(),
+	body('gender').optional().isString(),
+	body('academicYear').optional().isString(),
+	body('roommatePreference').optional().isString(),
+	body('roomType').optional().isString(),
+	body('lifestylePrefs').optional().isArray().withMessage('Lifestyle preferences must be an array'),
+];
+
+
 /**
  * @route   POST /api/auth/signup
  * @desc    Register a new user (student or owner)
@@ -40,6 +56,13 @@ router.post('/signup', signupValidation, validateRequest, authController.signup)
 router.get('/verify-email', verifyEmailValidation, validateRequest, authController.verifyEmail);
 
 /**
+ * @route   GET /api/auth/verify-email/:token
+ * @desc    Verify user email with token path param
+ * @access  Public
+ */
+router.get('/verify-email/:token', authController.verifyEmail);
+
+/**
  * @route   POST /api/auth/resend-verification
  * @desc    Resend verification email
  * @access  Public
@@ -51,8 +74,17 @@ router.post('/resend-verification', resendValidation, validateRequest, authContr
  * @desc    Sign in user
  * @access  Public
  */
+
+router.post('/signin', authController.signin);
+
 router.post('/signin', signinValidation, validateRequest, authController.signin);
 
 router.get('/me', requireAuth, authController.getMe);
+router.put('/profile', requireAuth, profileUpdateValidation, validateRequest, authController.updateProfile);
+
+router.post('/signin', signinValidation, validateRequest, authController.signin);
+
+router.get('/me', requireAuth, authController.getMe);
+
 
 module.exports = router;

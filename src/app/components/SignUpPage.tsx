@@ -76,8 +76,6 @@ export default function SignUpPage() {
   // Owner-specific fields
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [propertyCount, setPropertyCount] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -213,8 +211,26 @@ export default function SignUpPage() {
     setSuccess('');
     setIsLoading(true);
 
+
+    // UI-only testing mode - no backend calls
+    setTimeout(() => {
+      setSuccess('Account created successfully!');
+      setTimeout(() => {
+        // Redirect based on role
+        if (role === 'student') {
+          navigate('/find'); // Student goes to find rooms
+        } else {
+          navigate('/owner-dashboard'); // Owner goes to owner dashboard
+        }
+      }, 1000);
+    }, 800);
+
     try {
+
+      const signUpResult = await authApi.signUp({
+
       await authApi.signUp({
+
         email,
         password,
         role,
@@ -224,18 +240,34 @@ export default function SignUpPage() {
         propertyCount: role === 'owner' ? Number(propertyCount || 0) : undefined,
       });
 
+
+      if (signUpResult?.emailSent === false && signUpResult.verificationUrl) {
+        setSuccess('Account created. Email delivery is unavailable, redirecting to verification link for development.');
+        setTimeout(() => {
+          const verificationUrl = new URL(signUpResult.verificationUrl as string, window.location.origin);
+          navigate(`${verificationUrl.pathname}${verificationUrl.search}`);
+        }, 1200);
+        return;
+      }
+
+
       setSuccess('Account created! Please verify your email.');
       const redirectPath = `/verify-email?email=${encodeURIComponent(email)}`;
       setTimeout(() => navigate(redirectPath), 1200);
     } catch (err) {
       if (err instanceof AuthApiError) {
         setError(err.message);
+
+      } else if (err instanceof Error) {
+        setError(err.message);
+
       } else {
         setError('Unable to create account right now. Please try again.');
       }
     } finally {
       setIsLoading(false);
     }
+
   };
 
   const handleBack = () => {
@@ -471,41 +503,6 @@ export default function SignUpPage() {
                           {phoneNumberError}
                         </p>
                       )}
-                    </div>
-
-                    {/* Company & Properties */}
-                    <div className="grid grid-cols-2 gap-2 md:gap-3">
-                      <div className="relative">
-                        <label className="absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] text-gray-400 bg-[#1e253f] z-10">
-                          Company
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={companyName}
-                            onChange={e => setCompanyName(e.target.value)}
-                            className="w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 border-white/10 bg-white/5 text-white text-sm md:text-base focus:border-purple-400 focus:outline-none transition-all"
-                            placeholder="Your Co."
-                          />
-                          <Briefcase className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-gray-400" size={isRedmiNote13 ? 12 : 14} />
-                        </div>
-                      </div>
-                      <div className="relative">
-                        <label className="absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] text-gray-400 bg-[#1e253f] z-10">
-                          Properties
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={propertyCount}
-                            onChange={e => setPropertyCount(e.target.value)}
-                            className="w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 border-white/10 bg-white/5 text-white text-sm md:text-base focus:border-purple-400 focus:outline-none transition-all"
-                            placeholder="5"
-                            min="0"
-                          />
-                          <Home className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-gray-400" size={isRedmiNote13 ? 12 : 14} />
-                        </div>
-                      </div>
                     </div>
                   </div>
                 )}

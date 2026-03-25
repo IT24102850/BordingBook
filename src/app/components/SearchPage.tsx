@@ -11,6 +11,17 @@ import {
 import { MdOutlineVerified } from 'react-icons/md';
 import { RiUserSharedLine } from 'react-icons/ri';
 import { BiCurrentLocation } from 'react-icons/bi';
+
+import FiltersPanel from './boarding/FiltersPanel';
+import RoomCard from './boarding/RoomCard';
+import { ROOMS, distMap, fi } from '../data/rooms';
+
+
+import FiltersPanel from './boarding/FiltersPanel';
+import RoomCard from './boarding/RoomCard';
+import { ROOMS, distMap, fi } from '../data/rooms';
+
+
 import { ROOMS, distMap, fi } from '../data/rooms';
 
 // Mock roommate data
@@ -47,6 +58,67 @@ const roommates = [
   },
 ];
 
+
+// Mini Roommate Card for passed/favorites columns
+const MiniRoommateCard: React.FC<{ roommate: Roommate; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
+
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
+
+type FinderProfile = {
+  id: string;
+  userId?: string;
+  name: string;
+  age: number;
+  gender: string;
+  university: string;
+  bio: string;
+  image: string;
+  interests: string[];
+  budget: number;
+  preferences: string;
+  roomType?: string;
+  availableFrom?: string;
+  academicYear?: string;
+  matchScore?: number;
+};
+
+// Mini Roommate Card for passed/favorites columns
+const MiniRoommateCard: React.FC<{ roommate: FinderProfile; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
+
+  return (
+    <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-lg overflow-hidden border border-white/10 hover:shadow-pink-500/10 transition-all mb-2">
+      <div className="flex items-center gap-2 p-2">
+        <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+          <img 
+            src={roommate.image} 
+            alt={roommate.name}
+            className="w-full h-full object-cover"
+          />
+          <div className={`absolute inset-0 ${type === 'passed' ? 'bg-red-500/20' : 'bg-green-500/20'} flex items-center justify-center`}>
+            {type === 'passed' ? (
+              <FaRegTimesCircle className="text-red-400 text-xs" />
+            ) : (
+              <FaHeart className="text-green-400 text-xs" />
+            )}
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-xs font-bold text-white truncate">{roommate.name}, {roommate.age}</h4>
+          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+            <FaUserFriends className="text-pink-400" />
+            <span className="truncate">{roommate.university}</span>
+          </div>
+          <div className="text-[10px] text-pink-400 truncate">
+            {roommate.gender}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+
 // Mini Roommate Card for passed/favorites columns
 const MiniRoommateCard: React.FC<{ roommate: typeof roommates[0]; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
   return (
@@ -82,7 +154,11 @@ const MiniRoommateCard: React.FC<{ roommate: typeof roommates[0]; type: 'passed'
 };
 
 // Roommate swipe card component
+
 function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }: { roommate: any; onLike: () => void; onPass: () => void; isAnimating: boolean; direction: string | null }) {
+
+function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }: { roommate: FinderProfile; onLike: () => void; onPass: () => void; isAnimating: boolean; direction: string | null }) {
+
   const cardRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
   const touchCurrentX = useRef(0);
@@ -161,6 +237,8 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
     resetCardTransform();
   };
 
+
+
   return (
     <div
       ref={cardRef}
@@ -177,6 +255,7 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
       <div className="flex flex-col items-center p-6">
         <img src={roommate.image} alt={roommate.name} className="w-24 h-24 rounded-full object-cover border-4 border-pink-300 mb-3" />
         <h3 className="text-xl font-bold text-white mb-1">{roommate.name}, <span className="text-pink-300">{roommate.age}</span></h3>
+        <div className="text-xs text-cyan-300 mb-1 font-semibold">{roommate.matchScore ?? 0}% Match</div>
         <div className="text-sm text-pink-200 mb-1">{roommate.gender} • {roommate.university}</div>
         <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio}</div>
         <div className="flex flex-wrap gap-2 mb-4">
@@ -209,23 +288,220 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
 
 // Roommate Finder tab content with swipe logic
 function RoommateFinderPlaceholder() {
+
   const navigate = useNavigate();
   const [roommateTab, setRoommateTab] = React.useState<'browse' | 'profile' | 'requests' | 'inbox' | 'groups'>('browse');
+  const [roommates, setRoommates] = React.useState<FinderProfile[]>([]);
+
+  const navigate = useNavigate();
+  const [roommateTab, setRoommateTab] = React.useState<'browse' | 'profile' | 'requests' | 'inbox' | 'groups'>('browse');
+
   const [currentIdx, setCurrentIdx] = React.useState(0);
-  const [liked, setLiked] = React.useState<any[]>([]);
-  const [passed, setPassed] = React.useState<any[]>([]);
+  const [liked, setLiked] = React.useState<FinderProfile[]>([]);
+  const [passed, setPassed] = React.useState<FinderProfile[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
+
+  const [loading, setLoading] = React.useState(false);
+  const [finderError, setFinderError] = React.useState('');
+  const [profileEdit, setProfileEdit] = React.useState(false);
+  const [sentRequests, setSentRequests] = React.useState<any[]>([]);
+  const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
+  const [groups, setGroups] = React.useState<any[]>([]);
+  const [myProfile, setMyProfile] = React.useState({
+    budget: 12000,
+    gender: 'Male',
+    preferences: '',
+    academicYear: '1st Year',
+    roomType: 'Shared Room',
+    availableFrom: new Date().toISOString().slice(0, 10),
+    description: '',
+  });
+
+
   const [myProfile, setMyProfile] = React.useState({ budget: 12000, gender: 'Select', preferences: '' });
   const [profileEdit, setProfileEdit] = React.useState(false);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState([
     { id: 'req1', from: roommates[0], message: 'Hi! Want to room together?', status: 'pending' }
   ]);
+
   const current = roommates[currentIdx];
 
-  const handleLike = () => {
+  const authHeaders = () => {
+    const token = localStorage.getItem('bb_access_token') || '';
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
+  const parseProfile = (profile: any): FinderProfile => {
+    const tags = Array.isArray(profile?.tags) ? profile.tags : [];
+    return {
+      id: String(profile?._id || profile?.id || ''),
+      userId: profile?.userId ? String(profile.userId) : undefined,
+      name: profile?.name || 'Unknown Student',
+      age: 22,
+      gender: profile?.gender || 'Other',
+      university: profile?.boardingHouse || 'SLIIT',
+      bio: profile?.description || 'Looking for a compatible roommate.',
+      image: profile?.image || 'https://randomuser.me/api/portraits/lego/1.jpg',
+      interests: tags,
+      budget: Number(profile?.budget) || 12000,
+      preferences: profile?.preferences || '',
+      roomType: profile?.roomType || 'Shared Room',
+      availableFrom: profile?.availableFrom ? new Date(profile.availableFrom).toISOString().slice(0, 10) : undefined,
+      academicYear: profile?.academicYear || '',
+      matchScore: 0,
+    };
+  };
+
+  const calculateMatchScore = (
+    candidate: FinderProfile,
+    baseProfile: { budget: number; roomType: string; gender: string; preferences: string; availableFrom: string }
+  ) => {
+    let score = 45;
+
+    const budgetDiff = Math.abs((candidate.budget || 0) - (baseProfile.budget || 0));
+    if (budgetDiff <= 3000) score += 20;
+    else if (budgetDiff <= 7000) score += 12;
+    else if (budgetDiff <= 12000) score += 5;
+    else score -= 8;
+
+    if ((candidate.roomType || '').toLowerCase() === (baseProfile.roomType || '').toLowerCase()) {
+      score += 18;
+    }
+
+    if (baseProfile.gender && baseProfile.gender !== 'Other' && candidate.gender === baseProfile.gender) {
+      score += 7;
+    }
+
+    const myTokens = new Set(
+      (baseProfile.preferences || '')
+        .toLowerCase()
+        .split(/[\s,]+/)
+        .map((v) => v.trim())
+        .filter((v) => v.length > 2)
+    );
+
+    const candidateTokens = new Set(
+      [candidate.preferences, ...(candidate.interests || [])]
+        .join(' ')
+        .toLowerCase()
+        .split(/[\s,]+/)
+        .map((v) => v.trim())
+        .filter((v) => v.length > 2)
+    );
+
+    let overlap = 0;
+    myTokens.forEach((t) => {
+      if (candidateTokens.has(t)) overlap += 1;
+    });
+    score += Math.min(15, overlap * 4);
+
+    const myDate = baseProfile.availableFrom ? new Date(baseProfile.availableFrom).getTime() : NaN;
+    const candidateDate = candidate.availableFrom ? new Date(candidate.availableFrom).getTime() : NaN;
+    if (!Number.isNaN(myDate) && !Number.isNaN(candidateDate)) {
+      const dayDiff = Math.abs(myDate - candidateDate) / (1000 * 60 * 60 * 24);
+      if (dayDiff <= 14) score += 10;
+      else if (dayDiff <= 30) score += 6;
+      else if (dayDiff <= 60) score += 2;
+    }
+
+    return Math.max(1, Math.min(99, Math.round(score)));
+  };
+
+  const fetchJson = async (url: string, options: RequestInit = {}) => {
+    const response = await fetch(url, options);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body?.success) {
+      throw new Error(body?.message || 'Request failed');
+    }
+    return body;
+  };
+
+  const loadFinderData = React.useCallback(async () => {
+    const token = localStorage.getItem('bb_access_token');
+    if (!token) {
+      setFinderError('Please sign in to use Roommate Finder.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setFinderError('');
+
+      const [browse, likedProfiles, sent, inbox, userGroups, profile] = await Promise.all([
+        fetchJson(`${API_BASE_URL}/api/roommates/browse`, { headers: authHeaders() }),
+        fetchJson(`${API_BASE_URL}/api/roommates/liked`, { headers: authHeaders() }),
+        fetchJson(`${API_BASE_URL}/api/roommates/request/sent`, { headers: authHeaders() }),
+        fetchJson(`${API_BASE_URL}/api/roommates/request/inbox`, { headers: authHeaders() }),
+        fetchJson(`${API_BASE_URL}/api/roommates/groups`, { headers: authHeaders() }),
+        fetch(`${API_BASE_URL}/api/roommates/profile`, { headers: authHeaders() }),
+      ]);
+
+      setLiked((likedProfiles.data || []).filter(Boolean).map(parseProfile));
+      setSentRequests(sent.data || []);
+      setInboxRequests(inbox.data || []);
+      setGroups(userGroups.data || []);
+
+      let baseProfile = {
+        budget: 12000,
+        gender: 'Male',
+        preferences: '',
+        roomType: 'Shared Room',
+        availableFrom: new Date().toISOString().slice(0, 10),
+      };
+
+      if (profile.ok) {
+        const profileBody = await profile.json().catch(() => null);
+        if (profileBody?.success && profileBody?.data) {
+          const p = profileBody.data;
+          const normalizedProfile = {
+            budget: Number(p.budget) || 12000,
+            gender: p.gender || 'Male',
+            preferences: p.preferences || '',
+            academicYear: p.academicYear || '1st Year',
+            roomType: p.roomType || 'Shared Room',
+            availableFrom: p.availableFrom ? new Date(p.availableFrom).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+            description: p.description || '',
+          };
+          setMyProfile(normalizedProfile);
+          baseProfile = {
+            budget: normalizedProfile.budget,
+            gender: normalizedProfile.gender,
+            preferences: normalizedProfile.preferences,
+            roomType: normalizedProfile.roomType,
+            availableFrom: normalizedProfile.availableFrom,
+          };
+        }
+      }
+
+      const parsedBrowse: FinderProfile[] = (browse.data || []).map((profile: any) => parseProfile(profile));
+      const rankedBrowse: FinderProfile[] = parsedBrowse
+        .map((candidate) => ({
+          ...candidate,
+          matchScore: calculateMatchScore(candidate, baseProfile),
+        }))
+        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+
+      setRoommates(rankedBrowse);
+      setCurrentIdx(0);
+    } catch (error) {
+      setFinderError((error as Error).message || 'Failed to load roommate data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadFinderData();
+  }, [loadFinderData]);
+
+  const handleLike = async () => {
     if (!current || isAnimating) return;
+
     setIsAnimating(true);
     setDirection('right');
     setTimeout(() => {
@@ -269,6 +545,169 @@ function RoommateFinderPlaceholder() {
   };
 
   return (
+
+    <>
+      {/* Desktop View - 3 Column Layout */}
+      <div className="hidden md:block">
+        <div className="grid grid-cols-3 gap-6">
+          {/* Left Column - Passed Roommates */}
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-4">
+              <FaHistory className="text-red-400" />
+              <h3 className="text-sm font-bold text-white">Passed</h3>
+              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">
+                {passed.length}
+              </span>
+            </div>
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {passed.length > 0 ? (
+                passed.map((roommate) => (
+                  <MiniRoommateCard key={roommate.id} roommate={roommate} type="passed" />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-gray-500">No passed profiles yet</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
+
+
+    try {
+      setIsAnimating(true);
+      setDirection('right');
+
+      await fetchJson(`${API_BASE_URL}/api/roommates/swipe`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ profileId: current.id, action: 'like' }),
+      });
+
+      if (current.userId) {
+        await fetchJson(`${API_BASE_URL}/api/roommates/request/send`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            recipientId: current.userId,
+            message: 'Hi! I think we would be great roommates. Interested in connecting?',
+          }),
+        });
+      }
+
+      setLiked((prev) => [...prev, current]);
+      setSentRequests((prev) => [
+        {
+          _id: `local-${Date.now()}`,
+          recipientId: { name: current.name, email: '' },
+          message: 'Hi! I think we would be great roommates. Interested in connecting?',
+          status: 'pending',
+        },
+        ...prev,
+      ]);
+      if (currentIdx < roommates.length - 1) {
+        setCurrentIdx(currentIdx + 1);
+      }
+    } catch (error) {
+      alert((error as Error).message || 'Failed to like profile');
+    } finally {
+      setTimeout(() => {
+        setDirection(null);
+        setIsAnimating(false);
+      }, 250);
+    }
+  };
+
+  const handlePass = async () => {
+    if (!current || isAnimating) return;
+
+    try {
+      setIsAnimating(true);
+      setDirection('left');
+      await fetchJson(`${API_BASE_URL}/api/roommates/swipe`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ profileId: current.id, action: 'pass' }),
+      });
+      setPassed((prev) => [...prev, current]);
+      if (currentIdx < roommates.length - 1) {
+        setCurrentIdx(currentIdx + 1);
+      }
+    } catch (error) {
+      alert((error as Error).message || 'Failed to pass profile');
+    } finally {
+      setTimeout(() => {
+        setDirection(null);
+        setIsAnimating(false);
+      }, 250);
+    }
+  };
+
+  const handleUndo = () => {
+    alert('Undo is not available once a swipe is saved to the database.');
+  };
+
+  const handleRequestResponse = async (requestId: string, accept: boolean) => {
+    try {
+      await fetchJson(`${API_BASE_URL}/api/roommates/request/${requestId}/${accept ? 'accept' : 'reject'}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+      });
+
+      setInboxRequests((prev) =>
+        prev.map((req) =>
+          req._id === requestId ? { ...req, status: accept ? 'accepted' : 'rejected' } : req
+        )
+      );
+    } catch (error) {
+      alert((error as Error).message || 'Failed to update request');
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      await fetchJson(`${API_BASE_URL}/api/roommates/profile`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          budget: Number(myProfile.budget),
+          gender: myProfile.gender,
+          academicYear: myProfile.academicYear,
+          roomType: myProfile.roomType,
+          availableFrom: myProfile.availableFrom,
+          preferences: myProfile.preferences,
+          description: myProfile.description,
+          billsIncluded: false,
+          tags: myProfile.preferences
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+          lookingFor: myProfile.roomType,
+        }),
+      });
+
+      setProfileEdit(false);
+      alert('Profile saved successfully');
+      loadFinderData();
+    } catch (error) {
+      alert((error as Error).message || 'Failed to save profile');
+    }
+  };
+
+  const handleCreateGroup = async () => {
+    const name = window.prompt('Enter group name');
+    if (!name) return;
+
+    try {
+      await fetchJson(`${API_BASE_URL}/api/roommates/group`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ name }),
+      });
+      await loadFinderData();
+    } catch (error) {
+      alert((error as Error).message || 'Failed to create group');
+    }
+  };
+
+  return (
+
     <div className="space-y-4">
       {/* Tab Navigation */}
       <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
@@ -277,7 +716,11 @@ function RoommateFinderPlaceholder() {
           { id: 'profile', label: '👤 Profile', icon: '👤' },
           { id: 'requests', label: `📤 Sent (${sentRequests.length})`, icon: '📤' },
           { id: 'inbox', label: `📥 Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})`, icon: '📥' },
+
+          { id: 'groups', label: `👥 Groups (${groups.length})`, icon: '👥' },
+
           { id: 'groups', label: '👥 Groups', icon: '👥' },
+
         ].map((tab) => (
           <button
             key={tab.id}
@@ -293,6 +736,15 @@ function RoommateFinderPlaceholder() {
         ))}
       </div>
 
+
+      {finderError && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-sm px-3 py-2">
+          {finderError}
+        </div>
+      )}
+
+      {loading && <p className="text-sm text-gray-400">Loading roommate data...</p>}
+
       {/* BROWSE TAB */}
       {roommateTab === 'browse' && (
         <>
@@ -304,6 +756,23 @@ function RoommateFinderPlaceholder() {
                   <FaHistory className="text-red-400" />
                   <h3 className="text-sm font-bold text-white">Passed</h3>
                   <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">{passed.length}</span>
+
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Center Column - Main Swipe Card */}
+          <div>
+            <div className="relative h-[500px] mb-4 perspective-1000">
+              {/* Stack effect - next card behind */}
+              {currentIdx < roommates.length - 1 && (
+                <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+              )}
+              
+              {/* Current Card */}
+              {current && (
+
                 </div>
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {passed.length > 0 ? (
@@ -379,6 +848,7 @@ function RoommateFinderPlaceholder() {
           <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
             {current ? (
               <>
+
                 <RoommateSwipeCard
                   roommate={current}
                   onLike={handleLike}
@@ -386,6 +856,9 @@ function RoommateFinderPlaceholder() {
                   isAnimating={isAnimating}
                   direction={direction}
                 />
+
+              )}
+
                 <div className="flex justify-between w-full max-w-md mt-4 px-4">
                   <span className="text-xs text-gray-400">{Math.max(0, roommates.length - currentIdx)} profiles left</span>
                   <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
@@ -422,6 +895,47 @@ function RoommateFinderPlaceholder() {
                 <div>
                   <label className="text-sm text-gray-300">Gender</label>
                   <select value={myProfile.gender} onChange={(e) => setMyProfile({...myProfile, gender: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
+
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-300">Academic Year</label>
+                  <select value={myProfile.academicYear} onChange={(e) => setMyProfile({...myProfile, academicYear: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
+                    <option>1st Year</option>
+                    <option>2nd Year</option>
+                    <option>3rd Year</option>
+                    <option>4th Year</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-300">Preferred Room Type</label>
+                  <select value={myProfile.roomType} onChange={(e) => setMyProfile({...myProfile, roomType: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
+                    <option>Single Room</option>
+                    <option>Shared Room</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-300">Available From</label>
+                  <input type="date" value={myProfile.availableFrom} onChange={(e) => setMyProfile({...myProfile, availableFrom: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-300">Description</label>
+                  <textarea value={myProfile.description} onChange={(e) => setMyProfile({...myProfile, description: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" rows={2} />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-300">Preferences</label>
+                  <textarea value={myProfile.preferences} onChange={(e) => setMyProfile({...myProfile, preferences: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" placeholder="e.g., Early riser, non-smoker" rows={2} />
+                </div>
+                <button
+                  onClick={handleSaveProfile}
+                  className="w-full mt-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold"
+                >
+                  Save Profile
+                </button>
+
                     <option>Select</option>
                     <option>Male</option>
                     <option>Female</option>
@@ -431,11 +945,16 @@ function RoommateFinderPlaceholder() {
                   <label className="text-sm text-gray-300">Preferences</label>
                   <textarea value={myProfile.preferences} onChange={(e) => setMyProfile({...myProfile, preferences: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" placeholder="e.g., Early riser, non-smoker" rows={2} />
                 </div>
+
               </>
             ) : (
               <>
                 <p className="text-gray-300"><span className="text-gray-400">Budget:</span> Rs. {myProfile.budget.toLocaleString()}</p>
                 <p className="text-gray-300"><span className="text-gray-400">Gender:</span> {myProfile.gender}</p>
+
+                <p className="text-gray-300"><span className="text-gray-400">Academic Year:</span> {myProfile.academicYear}</p>
+                <p className="text-gray-300"><span className="text-gray-400">Room Type:</span> {myProfile.roomType}</p>
+
                 <p className="text-gray-300"><span className="text-gray-400">Preferences:</span> {myProfile.preferences || 'Not specified'}</p>
               </>
             )}
@@ -450,11 +969,19 @@ function RoommateFinderPlaceholder() {
           <div className="space-y-3">
             {sentRequests.length > 0 ? (
               sentRequests.map((req) => (
+
+                <div key={req._id} className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="" className="w-12 h-12 rounded-full object-cover border border-pink-400" />
+                    <div>
+                      <p className="text-white font-semibold">{req.recipientId?.fullName || req.recipientId?.name || 'User'}</p>
+
                 <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <img src={req.from.image} alt="" className="w-12 h-12 rounded-full object-cover border border-pink-400" />
                     <div>
                       <p className="text-white font-semibold">{req.from.name}</p>
+
                       <p className="text-xs text-gray-400">{req.message}</p>
                     </div>
                   </div>
@@ -477,6 +1004,15 @@ function RoommateFinderPlaceholder() {
           <div className="space-y-3">
             {inboxRequests.length > 0 ? (
               inboxRequests.map((req) => (
+
+                <div key={req._id} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="" className="w-12 h-12 rounded-full object-cover border border-pink-400" />
+                      <div>
+                        <p className="text-white font-semibold">{req.senderId?.fullName || req.senderId?.name || 'User'}</p>
+                        <p className="text-xs text-gray-400">{req.senderId?.email || ''}</p>
+
                 <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -484,6 +1020,7 @@ function RoommateFinderPlaceholder() {
                       <div>
                         <p className="text-white font-semibold">{req.from.name}</p>
                         <p className="text-xs text-gray-400">{req.from.university}</p>
+
                       </div>
                     </div>
                     <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>
@@ -493,17 +1030,28 @@ function RoommateFinderPlaceholder() {
                   <p className="text-gray-300 mb-3 text-sm">{req.message}</p>
                   {req.status === 'pending' && (
                     <div className="flex gap-2">
+
+                      <button onClick={() => handleRequestResponse(req._id, true)} className="flex-1 px-3 py-2 bg-green-600/30 border border-green-600 text-green-300 rounded-lg hover:bg-green-600/50 text-xs font-semibold">
+                        Accept
+                      </button>
+                      <button onClick={() => handleRequestResponse(req._id, false)} className="flex-1 px-3 py-2 bg-red-600/30 border border-red-600 text-red-300 rounded-lg hover:bg-red-600/50 text-xs font-semibold">
+
                       <button onClick={() => handleRequestResponse(req.id, true)} className="flex-1 px-3 py-2 bg-green-600/30 border border-green-600 text-green-300 rounded-lg hover:bg-green-600/50 text-xs font-semibold">
                         Accept
                       </button>
                       <button onClick={() => handleRequestResponse(req.id, false)} className="flex-1 px-3 py-2 bg-red-600/30 border border-red-600 text-red-300 rounded-lg hover:bg-red-600/50 text-xs font-semibold">
+
                         Decline
                       </button>
                     </div>
                   )}
                   {req.status === 'accepted' && (
                     <button
+
+                      onClick={() => navigate('/chat', { state: { selectedRoommate: req.senderId, chatType: 'direct-message' } })}
+
                       onClick={() => navigate('/chat', { state: { selectedRoommate: req.from, chatType: 'direct-message' } })}
+
                       className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
                     >
                       💬 Start Chat
@@ -524,7 +1072,11 @@ function RoommateFinderPlaceholder() {
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-white">Groups</h3>
             <button 
+
+              onClick={handleCreateGroup}
+
               onClick={() => navigate('/roommate-group', { state: { selectedRoommates: liked } })}
+
               className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition"
             >
               <FaPlus size={16} />
@@ -532,6 +1084,19 @@ function RoommateFinderPlaceholder() {
             </button>
           </div>
           
+
+          {groups.length > 0 ? (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
+                <h4 className="text-white font-semibold mb-4">Your Groups ({groups.length})</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {groups.map((group) => (
+                    <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
+                      <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt={group.name} className="w-12 h-12 rounded-full object-cover" />
+                      <div className="flex-1">
+                        <p className="text-white font-semibold text-sm">{group.name}</p>
+                        <p className="text-gray-400 text-xs">{group.members?.length || 0} members • {group.status}</p>
+
           {liked.length > 0 ? (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
@@ -543,12 +1108,89 @@ function RoommateFinderPlaceholder() {
                       <div className="flex-1">
                         <p className="text-white font-semibold text-sm">{roommate.name}</p>
                         <p className="text-gray-400 text-xs">{roommate.age} • {roommate.university}</p>
+
                       </div>
                       <FaCheckCircle className="text-green-400" />
                     </div>
                   ))}
                 </div>
                 <p className="text-sm text-gray-300 mb-4">
+
+                  Manage your roommate groups in real-time from the database.
+                </p>
+                <button 
+                  onClick={handleCreateGroup}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <FaUserFriends size={18} />
+                  Create New Group
+                </button>
+              </div>
+
+            </div>
+            
+            {/* Results Count & Undo */}
+            <div className="flex justify-between items-center mt-4">
+              <span className="text-sm text-gray-400">
+                {roommates.length - currentIdx} profiles remaining
+              </span>
+              <button
+                onClick={handleUndo}
+                className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+              >
+                <FaUndo /> Undo
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column - Liked Roommates */}
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-4">
+              <FaBookmark className="text-green-400" />
+              <h3 className="text-sm font-bold text-white">Favorites</h3>
+              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">
+                {liked.length}
+              </span>
+            </div>
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {liked.length > 0 ? (
+                liked.map((roommate) => (
+                  <MiniRoommateCard key={roommate.id} roommate={roommate} type="liked" />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-gray-500">No favorites yet</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
+                </div>
+              )}
+            </div>
+            
+            {/* View All Button */}
+            {liked.length > 0 && (
+              <button className="w-full mt-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                View All Favorites
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile View - Single Card */}
+      <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
+        <RoommateSwipeCard
+          roommate={current}
+          onLike={handleLike}
+          onPass={handlePass}
+          isAnimating={isAnimating}
+          direction={direction}
+        />
+        <div className="flex justify-between w-full max-w-md mt-4 px-4">
+          <span className="text-xs text-gray-400">{roommates.length - currentIdx} profiles left</span>
+          <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><FaUndo /> Undo</button>
+        </div>
+      </div>
+    </>
+
                   Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
                 </p>
                 <button 
@@ -576,6 +1218,7 @@ function RoommateFinderPlaceholder() {
         </div>
       )}
     </div>
+
   );
 }
 
@@ -627,6 +1270,8 @@ interface Listing {
   totalRooms?: number;
   occupiedRooms?: number;
 }
+
+type SearchRoom = (typeof ROOMS)[number];
 
 interface ListingCardProps {
   listing: Listing;
@@ -1105,14 +1750,25 @@ const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: nu
       {/* Availability Badge + Facilities */}
       <div className="flex items-center gap-2 flex-wrap">
         <span
+
+          className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+            room.available
+              ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+              : 'bg-red-500/20 text-red-300 border border-red-500/30'
+
           className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 border ${
             room.available
               ? 'bg-green-500/20 text-green-300 border-green-500/30'
               : 'bg-red-500/20 text-red-300 border-red-500/30'
+
           }`}
         >
           {room.available ? '✅ Available' : '❌ Occupied'}
         </span>
+
+
+        {/* Facilities Tags */}
+        {room.facilities.slice(0, 3).map((fac, idx) => (
 
         {/* Vacancy Badge */}
         {room.vacancy && (() => {
@@ -1126,11 +1782,16 @@ const RankedResultCard: React.FC<{ room: (typeof ROOMS)[number]; onOpen: (id: nu
 
         {/* Facilities Tags */}
         {room.facilities.slice(0, 3).map((fac: string, idx: number) => (
+
           <span
             key={idx}
             className="px-2 py-1 rounded-full text-xs bg-cyan-500/20 text-cyan-300 border border-cyan-500/20 flex-shrink-0"
           >
+
+            {fi(fac)}
+
             {fac}
+
           </span>
         ))}
         {room.facilities.length > 3 && (
@@ -2393,7 +3054,10 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
 
 export default function SearchPage() {
   const navigate = useNavigate();
+
+
   const location = useLocation();
+
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
   const [passedListings, setPassedListings] = useState<Listing[]>([]);
@@ -2407,6 +3071,9 @@ export default function SearchPage() {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'grid'>('grid');
   const [activeTab, setActiveTab] = useState<'rooms' | 'map' | 'roommate'>('rooms');
+
+  
+
   const [showBooking, setShowBooking] = useState<boolean>(false);
   const [selectedRoomForBooking, setSelectedRoomForBooking] = useState<Listing | null>(null);
   
@@ -2419,11 +3086,165 @@ export default function SearchPage() {
   const [checkinDate, setCheckinDate] = useState<string>('');
   
   // Advanced filter states matching the image
+
   const [priceMax, setPriceMax] = useState<number>(50000);
   const [dist, setDist] = useState<string>('any');
   const [room, setRoom] = useState<string>('any');
   const [avail, setAvail] = useState<string>('all');
   const [facs, setFacs] = useState<string[]>([]);
+
+  const [rating, setRating] = useState<number>(0);
+  const [showFilters, setShowFilters] = useState<boolean>(true);
+  const [sortMode, setSortMode] = useState<'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance'>('discovery');
+  const [roomsData, setRoomsData] = useState<SearchRoom[]>([]);
+  const [roomsLoadError, setRoomsLoadError] = useState<string>('');
+
+  const parseDistanceKm = (text: string): number => {
+    const match = text.match(/(\d+(?:\.\d+)?)\s*km/i);
+    if (!match) {
+      return 1;
+    }
+    const value = Number(match[1]);
+    return Number.isFinite(value) ? value : 1;
+  };
+
+  const getVacancyStatus = (totalRooms: number, occupiedRooms: number): 'available' | 'low' | 'full' => {
+    const available = Math.max(0, totalRooms - occupiedRooms);
+    if (available === 0) return 'full';
+    if (available <= 2) return 'low';
+    return 'available';
+  };
+
+  const mapSearchRoomToListing = (roomItem: SearchRoom): Listing => ({
+    id: roomItem.id,
+    title: roomItem.name,
+    images: [roomItem.img],
+    price: roomItem.price,
+    location: roomItem.location,
+    distance: roomItem.distKm,
+    distanceUnit: 'km',
+    travelTime: roomItem.distKm < 1 ? `${Math.round(roomItem.distKm * 1000)}m walk` : `${roomItem.distKm}km from ${roomItem.campus}`,
+    roomType: roomItem.roomType,
+    genderPreference: 'Any',
+    availableFrom: new Date().toISOString(),
+    billsIncluded: roomItem.facilities.includes('Meals'),
+    verified: true,
+    badges: roomItem.available ? ['Available'] : ['Occupied'],
+    description: roomItem.desc,
+    features: roomItem.facilities,
+    deposit: roomItem.price * 2,
+    roommateCount: roomItem.roomType.toLowerCase().includes('sharing') || roomItem.roomType.toLowerCase().includes('shared') ? 2 : 0,
+    vacancy: roomItem.vacancy,
+    totalRooms: roomItem.totalRooms,
+    occupiedRooms: roomItem.occupiedRooms,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSearchData = async () => {
+      try {
+        setRoomsLoadError('');
+
+        const [roomsResponse, housesResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/roommates/rooms`),
+          fetch(`${API_BASE_URL}/api/owner/public/houses`),
+        ]);
+
+        const mappedRooms: SearchRoom[] = [];
+
+        if (roomsResponse.ok) {
+          const roomBody = await roomsResponse.json();
+          const roomData = Array.isArray(roomBody?.data) ? roomBody.data : [];
+
+          roomData.forEach((item: any, index: number) => {
+            const totalRooms = Number(item.totalSpots) || Number(item.bedCount) || 1;
+            const occupiedRooms = Number(item.occupancy) || 0;
+            const distKm = parseDistanceKm(String(item.location || ''));
+            const firstImage = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
+
+            mappedRooms.push({
+              id: index + 1,
+              name: item.name || `Room ${item.roomNumber || index + 1}`,
+              location: item.location || 'Near SLIIT',
+              campus: 'SLIIT',
+              distKm,
+              price: Number(item.price) || 0,
+              roomType: item.roomType || 'Single Room',
+              facilities: Array.isArray(item.facilities) ? item.facilities : [],
+              available: occupiedRooms < totalRooms,
+              rating: 4.5,
+              reviews: 0,
+              owner: item.owner || 'Owner',
+              img: firstImage || 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+              desc: item.description || 'Comfortable room near campus.',
+              vacancy: getVacancyStatus(totalRooms, occupiedRooms),
+              totalRooms,
+              occupiedRooms,
+            });
+          });
+        }
+
+        if (housesResponse.ok) {
+          const houseBody = await housesResponse.json();
+          const houseData = Array.isArray(houseBody?.data) ? houseBody.data : [];
+
+          houseData.forEach((item: any, index: number) => {
+            const totalRooms = Number(item.totalRooms) || 1;
+            const occupiedRooms = Number(item.occupiedRooms) || 0;
+            const distKm = parseDistanceKm(String(item.address || ''));
+            const imageFromList = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : '';
+            const monthlyPrice = Number(item.monthlyPrice) || Number(item.deposit) || 0;
+
+            mappedRooms.push({
+              id: mappedRooms.length + index + 1,
+              name: item.name || `Boarding House ${index + 1}`,
+              location: item.address || 'Near SLIIT',
+              campus: 'SLIIT',
+              distKm,
+              price: monthlyPrice,
+              roomType: item.roomType || 'Single Room',
+              facilities: Array.isArray(item.features) ? item.features : [],
+              available: occupiedRooms < totalRooms,
+              rating: Number(item.rating) || 4.5,
+              reviews: Number(item.totalReviews) || 0,
+              owner: 'Owner',
+              img: item.image || imageFromList || 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+              desc: item.description || 'Boarding house listing.',
+              vacancy: getVacancyStatus(totalRooms, occupiedRooms),
+              totalRooms,
+              occupiedRooms,
+            });
+          });
+        }
+
+        if (!isMounted) return;
+
+        setRoomsData(mappedRooms);
+        if (mappedRooms.length === 0) {
+          setRoomsLoadError('No listings found in the database yet.');
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setRoomsData([]);
+        setRoomsLoadError((error as Error).message || 'Failed to load listings from database.');
+      }
+    };
+
+    loadSearchData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean);
+  const listingsFromDatabase: Listing[] = roomsData.map(mapSearchRoomToListing);
+
+  // Filter listings based on search and advanced filters
+  const filteredListings: Listing[] = listingsFromDatabase.filter(listing => {
+
   const [showFilters, setShowFilters] = useState<boolean>(true);
   const [sortMode, setSortMode] = useState<'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance'>('discovery');
 
@@ -2432,6 +3253,7 @@ export default function SearchPage() {
 
   // Filter listings based on search and advanced filters
   const filteredListings: Listing[] = listings.filter(listing => {
+
     // Search filter
     if (searchTerm && !listing.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
         !listing.location.toLowerCase().includes(searchTerm.toLowerCase())) {
@@ -2486,7 +3308,13 @@ export default function SearchPage() {
 
   // Filter ROOMS data based on advanced filters
   const getFilteredRooms = () => {
+
+    return ROOMS.filter(r => {
+
+    return roomsData.filter((r: SearchRoom) => {
+
     return ROOMS.filter((r: any) => {
+
       // Search term
       if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
           !r.location.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -2508,17 +3336,33 @@ export default function SearchPage() {
       if (avail === 'occupied' && r.available) return false;
       
       // Facilities
+
+      if (facs.length > 0 && !facs.every(f => r.facilities.map(fac => fac.toLowerCase()).includes(f.toLowerCase()))) {
+        return false;
+      }
+      
+      // Rating
+      if (rating > 0 && r.rating < rating) return false;
+
       if (facs.length > 0 && !facs.every(f => r.facilities.map((fac: string) => fac.toLowerCase()).includes(f.toLowerCase()))) {
         return false;
       }
       
+
       return true;
     });
   };
   
   const filteredRooms = getFilteredRooms();
+
+  const roomScore = (roomItem: typeof ROOMS[number]): number => {
+
+  
+  const roomScore = (roomItem: SearchRoom): number => {
+
   
   const roomScore = (roomItem: typeof ROOMS[0]): number => {
+
     let score = 0;
 
     if (!normalizedSearch) {
@@ -2658,7 +3502,7 @@ export default function SearchPage() {
         <div className="w-full max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-6">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => navigate('/')}
               className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
             >
               <FaArrowLeft className="text-white text-sm" />
@@ -2709,6 +3553,18 @@ export default function SearchPage() {
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 pt-24 md:pt-28 pb-6 md:pb-8">
         {/* Header */}
         <div className="flex flex-col items-center w-full mb-6">
+
+          <div className="flex items-center gap-3 mb-4 w-full md:max-w-3xl md:mx-auto">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+            >
+              <FaArrowLeft className="text-white text-sm" />
+            </button>
+            <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent flex-1 text-center">
+              Find Your Room
+            </h1>
+
           <div className="w-full fixed top-0 left-0 flex items-center justify-between h-14 md:h-16 px-6 md:px-24 bg-[#232b47] backdrop-blur-xl border-b-2 border-zinc-700/15 shadow-xl z-[10000] transition-all duration-300 navbar" style={{height: '64px',minHeight: '64px',borderBottomWidth: '2px',borderBottomColor: 'rgba(113,113,122,0.15)',borderImage: 'linear-gradient(to right, rgba(99,102,241,.18), rgba(34,211,238,.18)) 1',borderBottomStyle: 'solid'}}>
             <div className="w-full flex items-center justify-between gap-4">
               <button onClick={() => navigate('/')} className="text-3xl font-extrabold tracking-tight text-zinc-100 drop-shadow-lg select-none">
@@ -2740,6 +3596,7 @@ export default function SearchPage() {
                 </button>
               </div>
             </div>
+
           </div>
           {/* Segmented Tab Switcher */}
           <div className="flex flex-col items-center w-full mt-2 md:mt-3">
@@ -2798,6 +3655,12 @@ export default function SearchPage() {
                 : 'Find your ideal roommate!'}
           </span>
         </div>
+
+        {activeTab === 'rooms' && roomsLoadError && (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            {roomsLoadError}
+          </div>
+        )}
 
         {/* Search and Filters Section (only for Rooms tab) */}
         {activeTab === 'rooms' && (
@@ -2874,14 +3737,24 @@ export default function SearchPage() {
                     dist,
                     room,
                     avail,
+
+                    facs,
+                    rating
+
                     facs
+
                   }}
                   setters={{
                     setPriceMax,
                     setDist,
                     setRoom,
                     setAvail,
+
+                    setFacs,
+                    setRating
+
                     setFacs
+
                   }}
                   onReset={() => {
                     setPriceMax(50000);
@@ -2889,6 +3762,9 @@ export default function SearchPage() {
                     setRoom('any');
                     setAvail('all');
                     setFacs([]);
+
+                    setRating(0);
+
                   }}
                 />
               </div>
@@ -3040,7 +3916,11 @@ export default function SearchPage() {
                       <h2 className="text-xl font-bold text-white">
                         All Available Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
                       </h2>
+
+                      {(priceMax < 50000 || dist !== 'any' || room !== 'any' || avail !== 'all' || facs.length > 0 || rating > 0) && (
+
                       {(priceMax < 50000 || dist !== 'any' || room !== 'any' || avail !== 'all' || facs.length > 0) && (
+
                         <button
                           onClick={() => {
                             setPriceMax(50000);
@@ -3048,6 +3928,9 @@ export default function SearchPage() {
                             setRoom('any');
                             setAvail('all');
                             setFacs([]);
+
+                            setRating(0);
+
                           }}
                           className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition-colors"
                         >
@@ -3065,7 +3948,11 @@ export default function SearchPage() {
                             room={room}
                             onOpen={(id: number) => {
                               // Convert room to listing format for details modal
+
+                              const r = ROOMS.find(rm => rm.id === id);
+
                               const r = ROOMS.find((rm: any) => rm.id === id);
+
                               if (!r) return;
                               const listing: Listing = {
                                 id: r.id,
@@ -3085,12 +3972,22 @@ export default function SearchPage() {
                                 description: r.desc,
                                 features: r.facilities,
                                 deposit: r.price * 2,
+
+                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0
+                              };
+                              handleViewDetails(listing);
+
+                              const r = roomsData.find((rm) => rm.id === id);
+                              if (!r) return;
+                              handleViewDetails(mapSearchRoomToListing(r));
+
                                 roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0,
                                 vacancy: r.vacancy,
                                 totalRooms: r.totalRooms,
                                 occupiedRooms: r.occupiedRooms
                               };
                               handleViewDetails(listing);
+
                             }}
                           />
                         ))}
@@ -3214,7 +4111,11 @@ export default function SearchPage() {
                             key={room.id}
                             room={room}
                             onOpen={(id: number) => {
+
+                              const r = ROOMS.find(rm => rm.id === id);
+
                               const r = ROOMS.find((rm: any) => rm.id === id);
+
                               if (!r) return;
                               const listing: Listing = {
                                 id: r.id,
@@ -3234,12 +4135,22 @@ export default function SearchPage() {
                                 description: r.desc,
                                 features: r.facilities,
                                 deposit: r.price * 2,
+
+                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0
+                              };
+                              handleViewDetails(listing);
+
+                              const r = roomsData.find((rm) => rm.id === id);
+                              if (!r) return;
+                              handleViewDetails(mapSearchRoomToListing(r));
+
                                 roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0,
                                 vacancy: r.vacancy,
                                 totalRooms: r.totalRooms,
                                 occupiedRooms: r.occupiedRooms
                               };
                               handleViewDetails(listing);
+
                             }}
                           />
                         ))}
