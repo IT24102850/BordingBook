@@ -19,6 +19,17 @@ exports.getHouses = async (req, res) => {
   }
 };
 
+
+exports.getPublicHouses = async (req, res) => {
+  try {
+    const houses = await BoardingHouse.find({ status: 'active' }).sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, data: houses });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch houses', error: error.message });
+  }
+};
+
+
 exports.createHouse = async (req, res) => {
   if (!ensureOwnerRole(req, res)) return;
   try {

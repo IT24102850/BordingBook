@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
+
 import { authApi, AuthApiError } from '../api/authApi';
+
 import { useNavigate } from 'react-router-dom';
+=======
+import { authApi, AuthApiError } from '../api/authApi';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import { 
   Lock, Mail, ShieldCheck, UserCheck, ArrowLeft, Eye, EyeOff, 
   AlertCircle, Loader2, HelpCircle, FileText, Shield,
@@ -76,7 +82,17 @@ export default function SignIn() {
     password: false
   });
   
+  const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const search = new URLSearchParams(location.search);
+    const emailFromQuery = search.get('email');
+
+    if (emailFromQuery) {
+      setEmail(emailFromQuery);
+    }
+  }, [location.search]);
 
   // Handle window resize for responsive adjustments
   useEffect(() => {
@@ -125,10 +141,14 @@ export default function SignIn() {
       localStorage.setItem('bb_access_token', result.token);
       localStorage.setItem('bb_current_user', JSON.stringify(result.user));
       setSuccess('Signed in successfully!');
+
+      setTimeout(() => navigate('/profile-setup'), 800);
+
       
       // Redirect based on user role
       const redirectPath = result.user.role === 'owner' ? '/owner-dashboard' : '/find';
       setTimeout(() => navigate(redirectPath), 800);
+
     } catch (err) {
       if (err instanceof AuthApiError) {
         if (err.needsVerification) {
@@ -156,8 +176,12 @@ export default function SignIn() {
     setIsLoading(true);
     setTimeout(() => {
       setSuccess('Signed in with Google!');
+
+      setTimeout(() => navigate('/profile-setup'), 1000);
+
       // Note: In production, retrieve user role from Google auth response
       setTimeout(() => navigate('/find'), 1000);
+
       setIsLoading(false);
     }, 1500);
   };
