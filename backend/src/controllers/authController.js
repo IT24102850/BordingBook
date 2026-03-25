@@ -374,3 +374,90 @@ exports.getMe = async (req, res) => {
     });
   }
 };
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const {
+      profilePicture,
+      bio,
+      minBudget,
+      maxBudget,
+      distance,
+      selectedLocation,
+      gender,
+      academicYear,
+      roommatePreference,
+      roomType,
+      lifestylePrefs,
+    } = req.body;
+
+    if (typeof profilePicture === 'string') user.profilePicture = profilePicture.trim();
+    if (typeof bio === 'string') user.bio = bio.trim();
+    if (minBudget !== undefined) user.minBudget = Number(minBudget) || 0;
+    if (maxBudget !== undefined) user.maxBudget = Number(maxBudget) || 0;
+    if (distance !== undefined) user.distance = Number(distance) || 0;
+    if (typeof selectedLocation === 'string') user.selectedLocation = selectedLocation.trim();
+    if (typeof gender === 'string') user.gender = gender.trim();
+    if (typeof academicYear === 'string') user.academicYear = academicYear.trim();
+    if (typeof roommatePreference === 'string') user.roommatePreference = roommatePreference.trim();
+    if (typeof roomType === 'string') user.roomType = roomType.trim();
+    if (Array.isArray(lifestylePrefs)) {
+      user.lifestylePrefs = lifestylePrefs
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    if (user.role === 'student') {
+      const hasRequiredProfileFields =
+        Boolean(user.bio) &&
+        user.minBudget > 0 &&
+        user.maxBudget > 0 &&
+        user.distance > 0 &&
+        Boolean(user.gender) &&
+        Boolean(user.academicYear) &&
+        Boolean(user.roommatePreference);
+
+      user.profileCompleted = hasRequiredProfileFields;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        profileCompleted: user.profileCompleted,
+        profilePicture: user.profilePicture,
+        bio: user.bio,
+        minBudget: user.minBudget,
+        maxBudget: user.maxBudget,
+        distance: user.distance,
+        selectedLocation: user.selectedLocation,
+        gender: user.gender,
+        academicYear: user.academicYear,
+        roommatePreference: user.roommatePreference,
+        roomType: user.roomType,
+        lifestylePrefs: user.lifestylePrefs,
+      },
+    });
+  } catch (error) {
+    console.error('Update profile error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+    });
+  }
+};
