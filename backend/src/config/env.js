@@ -28,7 +28,7 @@ function getFrontendUrl() {
   if (!value && process.env.NODE_ENV === 'production') {
     throw new Error('Missing required environment variable in production: FRONTEND_URL');
   }
-  return value;
+  return value.replace(/\/$/, '');
 }
 
 

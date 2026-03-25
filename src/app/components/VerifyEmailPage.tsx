@@ -1,4 +1,4 @@
-/// <reference types="vite/client" />
+ /// <reference types="vite/client" />
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, MailCheck, AlertCircle, CheckCircle2 } from 'lucide-react';

@@ -17,6 +17,9 @@ class EmailService {
           host: env.emailHost,
           port: env.emailPort,
           secure: env.emailPort === 465,
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 10000,
           auth: {
             user: env.emailUser,
             pass: env.emailPassword,

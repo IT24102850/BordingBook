@@ -176,14 +176,17 @@ exports.verifyEmail = async (req, res) => {
     user.verificationTokenExpiry = undefined;
     await user.save();
 
-    try {
-      await emailService.sendWelcomeEmail(
-        user.email,
-        user.role === 'owner' ? user.fullName : user.email.split('@')[0]
-      );
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError.message);
-    }
+    // Send welcome email in background so verification response is never blocked by SMTP.
+    setImmediate(async () => {
+      try {
+        await emailService.sendWelcomeEmail(
+          user.email,
+          user.role === 'owner' ? user.fullName : user.email.split('@')[0]
+        );
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError.message);
+      }
+    });
 
     return res.status(200).json({
       success: true,
