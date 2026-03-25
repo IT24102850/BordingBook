@@ -1,19 +1,36 @@
 const app = require('./app');
 const mongoose = require('mongoose');
+const env = require('./config/env');
+const { connectDatabase } = require('./config/database');
 
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
+let server;
 
-mongoose.connect(MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('MongoDB connected');
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-})
-.catch((err) => {
-  console.error('MongoDB connection error:', err);
-});
+async function startServer() {
+  try {
+    await connectDatabase();
+
+    server = app.listen(env.port, () => {
+      console.log(`Server running on port ${env.port}`);
+    });
+  } catch (error) {
+    console.error('Server startup failed:', error.message);
+    process.exit(1);
+  }
+}
+
+function shutdown(signal) {
+  console.log(`${signal} received. Closing server...`);
+  if (server) {
+    server.close(async () => {
+      await mongoose.connection.close(false);
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+startServer();
