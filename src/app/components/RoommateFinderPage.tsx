@@ -64,19 +64,6 @@ const roommateProfiles = [
   }
 ];
 
-const filterChips = [
-  { id: 'budget', label: 'Budget < 13k', icon: <FaMoneyBillWave /> },
-  { id: 'single', label: 'Single Room', icon: <FaBed /> },
-  { id: 'shared', label: 'Shared Room', icon: <FaUserFriends /> },
-  { id: 'bills', label: 'Bills Included', icon: <FaBolt /> },
-];
-
-const genderChips = [
-  { id: 'any', label: 'Any', icon: <RiUserSharedLine /> },
-  { id: 'female', label: 'Female', icon: <RiUserSharedLine /> },
-  { id: 'male', label: 'Male', icon: <RiUserSharedLine /> },
-];
-
 interface MiniProfileCardProps {
   profile: typeof roommateProfiles[number];
   type: 'passed' | 'liked';
@@ -252,19 +239,7 @@ export default function RoommateFinderPage() {
   const [passed, setPassed] = useState<typeof roommateProfiles>([]);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [genderFilter, setGenderFilter] = useState<'any' | 'female' | 'male'>('any');
-
-  // Filter logic
-  const filteredProfiles = roommateProfiles.filter(profile => {
-    if (selectedFilters.includes('budget') && profile.budget > 13000) return false;
-    if (selectedFilters.includes('single') && profile.roomType !== 'Single Room') return false;
-    if (selectedFilters.includes('shared') && profile.roomType !== 'Shared Room') return false;
-    if (selectedFilters.includes('bills') && !profile.billsIncluded) return false;
-    if (genderFilter === 'female' && profile.gender !== 'Female') return false;
-    if (genderFilter === 'male' && profile.gender !== 'Male') return false;
-    return true;
-  });
+  const filteredProfiles = roommateProfiles;
 
   const currentProfile = filteredProfiles[index];
 
@@ -291,23 +266,6 @@ export default function RoommateFinderPage() {
     }
   };
 
-  const toggleFilter = (filterId: string) => {
-    if (selectedFilters.includes(filterId)) setSelectedFilters(selectedFilters.filter(f => f !== filterId));
-    else setSelectedFilters([...selectedFilters, filterId]);
-    setIndex(0);
-  };
-
-  const handleGenderSelect = (id: 'any' | 'female' | 'male') => {
-    setGenderFilter(id);
-    setIndex(0);
-  };
-
-  const clearFilters = () => {
-    setSelectedFilters([]);
-    setGenderFilter('any');
-    setIndex(0);
-  };
-
   // Mobile view - properly arranged filters
   if (typeof window !== 'undefined' && window.innerWidth < 768) {
     return (
@@ -323,80 +281,6 @@ export default function RoommateFinderPage() {
             <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full text-center">
               Drag cards left/right to pass or like • Click buttons to act
             </span>
-          </div>
-
-          {/* Filter Section - Properly Organized */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/10">
-            {/* Main Filters */}
-            <div className="mb-3">
-              <h3 className="text-xs font-medium text-gray-400 mb-2">Filters</h3>
-              <div className="flex flex-wrap gap-2">
-                {filterChips.map(chip => (
-                  <button
-                    key={chip.id}
-                    onClick={() => toggleFilter(chip.id)}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                      selectedFilters.includes(chip.id)
-                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white border-cyan-400 shadow-lg'
-                        : 'bg-transparent border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'
-                    }`}
-                    type="button"
-                  >
-                    <span>{chip.icon}</span>
-                    <span>{chip.label}</span>
-                    {selectedFilters.includes(chip.id) && (
-                      <span className="ml-1 text-white">
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                          <path d="M5 10.5l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Gender Filter */}
-            <div>
-              <h3 className="text-xs font-medium text-gray-400 mb-2">Looking for</h3>
-              <div className="flex flex-wrap gap-2">
-                {genderChips.map(chip => (
-                  <button
-                    key={chip.id}
-                    onClick={() => handleGenderSelect(chip.id as 'any' | 'female' | 'male')}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                      genderFilter === chip.id
-                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white border-cyan-400 shadow-lg'
-                        : 'bg-transparent border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'
-                    }`}
-                    type="button"
-                  >
-                    <span>{chip.icon}</span>
-                    <span>{chip.label}</span>
-                    {genderFilter === chip.id && (
-                      <span className="ml-1 text-white">
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                          <path d="M5 10.5l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Clear Filters Link */}
-            {(selectedFilters.length > 0 || genderFilter !== 'any') && (
-              <div className="mt-3 flex justify-end">
-                <button 
-                  onClick={clearFilters} 
-                  className="text-xs text-cyan-400 underline hover:text-cyan-200 px-2 py-1" 
-                  type="button"
-                >
-                  Clear all filters
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Main Card */}
@@ -456,18 +340,6 @@ export default function RoommateFinderPage() {
             <span>Like • Swipe Right</span>
           </div>
 
-          {/* Clear All Filters Button */}
-          {selectedFilters.length > 0 && (
-            <div className="flex justify-center mt-8">
-              <button 
-                onClick={clearFilters} 
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all" 
-                type="button"
-              >
-                Clear All Filters
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Global Animations */}
@@ -500,56 +372,6 @@ export default function RoommateFinderPage() {
         <div className="flex items-center justify-center gap-2 mb-4">
           <FaInfoCircle className="text-cyan-400" />
           <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full">Drag cards left/right to pass or like • Click buttons to act</span>
-        </div>
-        
-        {/* Filter Chips */}
-        <div className="flex flex-wrap gap-2 mb-2 items-center">
-          {filterChips.map(chip => (
-            <button
-              key={chip.id}
-              onClick={() => toggleFilter(chip.id)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all relative ${
-                selectedFilters.includes(chip.id)
-                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white border-cyan-400 shadow-lg'
-                  : 'bg-transparent border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'}`}
-              aria-pressed={selectedFilters.includes(chip.id)}
-              type="button"
-            >
-              <span>{chip.icon}</span>
-              <span>{chip.label}</span>
-              {selectedFilters.includes(chip.id) && (
-                <span className="ml-1 text-white"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 10.5l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
-              )}
-            </button>
-          ))}
-          
-          {/* Gender Filter Group */}
-          <div className="flex items-center gap-1 ml-4">
-            <span className="text-xs text-cyan-300 font-semibold mr-1">Looking for:</span>
-            {genderChips.map(chip => (
-              <button
-                key={chip.id}
-                onClick={() => handleGenderSelect(chip.id as 'any' | 'female' | 'male')}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all relative ${
-                  genderFilter === chip.id
-                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white border-cyan-400 shadow-lg'
-                    : 'bg-transparent border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'}`}
-                aria-pressed={genderFilter === chip.id}
-                type="button"
-              >
-                <span>{chip.icon}</span>
-                <span>{chip.label}</span>
-                {genderFilter === chip.id && (
-                  <span className="ml-1 text-white"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 10.5l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
-                )}
-              </button>
-            ))}
-          </div>
-          
-          {/* Clear Filters Link */}
-          {(selectedFilters.length > 0 || genderFilter !== 'any') && (
-            <button onClick={clearFilters} className="ml-auto text-xs text-cyan-400 underline hover:text-cyan-200 px-2 py-1 bg-transparent border-0" type="button">Clear filters</button>
-          )}
         </div>
         
         {/* Main Content - Three Column Layout */}
@@ -647,15 +469,6 @@ export default function RoommateFinderPage() {
             )}
           </div>
         </div>
-        
-        {/* Clear Filters Button */}
-        {selectedFilters.length > 0 && (
-          <div className="flex justify-center mt-8">
-            <button onClick={clearFilters} className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all" type="button">
-              Clear All Filters
-            </button>
-          </div>
-        )}
         
         {/* Global Animations */}
         <style>{`

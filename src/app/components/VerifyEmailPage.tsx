@@ -1,8 +1,18 @@
+/// <reference types="vite/client" />
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, MailCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_API_URL?: string;
+  }
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
 export default function VerifyEmailPage() {
   const location = useLocation();
