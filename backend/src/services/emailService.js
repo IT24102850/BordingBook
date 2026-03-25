@@ -23,6 +23,8 @@ class EmailService {
           },
         })
       : null;
+
+      this.fromHeader = `"${env.emailFromName}" <${env.emailFromAddress || env.emailUser}>`;
   }
 
   /**
@@ -41,7 +43,7 @@ class EmailService {
     }
 
     const mailOptions = {
-      from: `"BoardingBook" <${env.emailUser}>`,
+      from: this.fromHeader,
       to: email,
       subject: 'Verify Your Email Address',
       html: `
@@ -176,7 +178,7 @@ class EmailService {
     }
 
     const mailOptions = {
-      from: `"BoardingBook" <${env.emailUser}>`,
+      from: this.fromHeader,
       to: email,
       subject: 'Welcome to BoardingBook! 🏠',
       html: `

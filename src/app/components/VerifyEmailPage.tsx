@@ -21,6 +21,7 @@ export default function VerifyEmailPage() {
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [manualVerificationUrl, setManualVerificationUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('We’ve sent a verification link to your email address. Please check your inbox and follow the instructions to activate your account.');
 
@@ -89,8 +90,13 @@ export default function VerifyEmailPage() {
         throw new Error(result.message || 'Could not resend verification email');
       }
 
+      const returnedVerificationUrl = result?.data?.verificationUrl;
+      if (typeof returnedVerificationUrl === 'string' && returnedVerificationUrl.trim()) {
+        setManualVerificationUrl(returnedVerificationUrl);
+      }
+
       setStatus('idle');
-      setMessage('A new verification link has been sent. Please check your inbox.');
+      setMessage('Verification link is ready. Check your inbox or use the manual verify button below.');
     } catch (error) {
       setStatus('error');
       setMessage(error instanceof Error ? error.message : 'Could not resend verification email');
@@ -155,6 +161,15 @@ export default function VerifyEmailPage() {
             >
               {isResending ? 'Resending...' : 'Resend Verification Email'}
             </button>
+
+            {manualVerificationUrl && (
+              <a
+                href={manualVerificationUrl}
+                className="mt-3 inline-block w-full text-center px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-500 hover:to-cyan-500 transition text-sm font-medium"
+              >
+                Verify Manually Now
+              </a>
+            )}
           </div>
         )}
 
