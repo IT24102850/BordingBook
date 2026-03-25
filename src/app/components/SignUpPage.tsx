@@ -211,20 +211,6 @@ export default function SignUpPage() {
     setSuccess('');
     setIsLoading(true);
 
-
-    // UI-only testing mode - no backend calls
-    setTimeout(() => {
-      setSuccess('Account created successfully!');
-      setTimeout(() => {
-        // Redirect based on role
-        if (role === 'student') {
-          navigate('/find'); // Student goes to find rooms
-        } else {
-          navigate('/owner-dashboard'); // Owner goes to owner dashboard
-        }
-      }, 1000);
-    }, 800);
-
     try {
 
       const signUpResult = await authApi.signUp({
@@ -234,8 +220,6 @@ export default function SignUpPage() {
         role,
         fullName: role === 'owner' ? fullName : undefined,
         phoneNumber: role === 'owner' ? phoneNumber : undefined,
-        companyName: role === 'owner' ? companyName : undefined,
-        propertyCount: role === 'owner' ? Number(propertyCount || 0) : undefined,
       });
 
 
