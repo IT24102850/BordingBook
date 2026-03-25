@@ -50,4 +50,14 @@ router.post(
 router.patch('/rooms/:roomId', requireAuth, ownerController.updateRoom);
 router.delete('/rooms/:roomId', requireAuth, ownerController.deleteRoom);
 
+// Payment-related endpoints
+router.get('/payment-slips', requireAuth, ownerController.getPendingPaymentSlips);
+router.get('/payment-slips/:slipId/download', requireAuth, ownerController.downloadPaymentSlip);
+router.post('/payment-slips/:slipId/approve', requireAuth, ownerController.approvePaymentSlip);
+router.post('/payment-slips/:slipId/reject', requireAuth, ownerController.rejectPaymentSlip);
+
+// Financial overview
+router.get('/financial-overview', requireAuth, ownerController.getFinancialOverview);
+router.get('/payment-history', requireAuth, ownerController.getPaymentHistory);
+
 module.exports = router;

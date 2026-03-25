@@ -221,3 +221,212 @@ exports.deleteRoom = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to delete room', error: error.message });
   }
 };
+
+// Payment-related controllers
+exports.getPendingPaymentSlips = async (req, res) => {
+  if (!['owner', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Only owners can view payment slips' });
+  }
+  try {
+    const { status = 'pending' } = req.query;
+    
+    // Get all rooms for this owner
+    const rooms = await Room.find({ ownerId: req.user.userId }).populate('houseId');
+    
+    // Get booking groups that are in "ready" or "forming" status (not yet booked/paid)
+    const BookingGroup = require('../models/BookingGroup');
+    const pendingBookings = await BookingGroup.find({ 
+      status: { $in: ['forming', 'ready'] }
+    }).populate('members.userId');
+    
+    // Build payment slips from pending bookings
+    const slips = [];
+    
+    for (const booking of pendingBookings) {
+      // Find the room associated with this booking
+      const room = rooms.find(r => r._id.toString() === booking.boardingHouse || 
+                                   r.name === booking.boardingHouse);
+      
+      if (room && booking.members && booking.members.length > 0) {
+        for (const member of booking.members) {
+          if (member.status === 'accepted' || member.status === 'pending') {
+            slips.push({
+              id: `bs-${booking._id}-${member.userId}`,
+              tenantName: member.name || member.email,
+              roomNumber: room.roomNumber || room.name,
+              placeId: room.houseId?._id?.toString() || room.houseId,
+              placeName: room.houseId?.name || 'Boarding House',
+              amount: booking.totalBudget ? Math.floor(booking.totalBudget / booking.members.length) : room.price,
+              originalRent: room.price,
+              date: new Date(member.joinedAt).toISOString().split('T')[0],
+              trustScore: member.status === 'accepted' ? 'high' : 'medium',
+              status: 'pending',
+              slipUrl: null
+            });
+          }
+        }
+      }
+    }
+    
+    return res.status(200).json({ success: true, data: slips });
+  } catch (error) {
+    console.error('Error fetching payment slips:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch payment slips', error: error.message });
+  }
+};
+
+exports.downloadPaymentSlip = async (req, res) => {
+  if (!['owner', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Only owners can download slips' });
+  }
+  try {
+    const { slipId } = req.params;
+    
+    // TODO: Implement file download logic
+    // For now, returning placeholder
+    return res.status(200).json({ success: true, message: 'Download initiated' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to download slip', error: error.message });
+  }
+};
+
+exports.approvePaymentSlip = async (req, res) => {
+  if (!['owner', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Only owners can approve slips' });
+  }
+  try {
+    const { slipId } = req.params;
+    
+    // TODO: Implement payment slip approval logic
+    // Database update to mark slip as approved
+    
+    return res.status(200).json({ success: true, message: 'Payment slip approved', data: { slipId, status: 'approved' } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to approve slip', error: error.message });
+  }
+};
+
+exports.rejectPaymentSlip = async (req, res) => {
+  if (!['owner', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Only owners can reject slips' });
+  }
+  try {
+    const { slipId } = req.params;
+    const { reason } = req.body;
+    
+    if (!reason || reason.trim().length < 10) {
+      return res.status(400).json({ success: false, message: 'Rejection reason must be at least 10 characters' });
+    }
+    
+    // TODO: Implement payment slip rejection logic
+    // Database update to mark slip as rejected with reason
+    
+    return res.status(200).json({ success: true, message: 'Payment slip rejected', data: { slipId, status: 'rejected', reason } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to reject slip', error: error.message });
+  }
+};
+
+exports.getFinancialOverview = async (req, res) => {
+  if (!['owner', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Only owners can view financial data' });
+  }
+  try {
+    // Get all rooms for this owner
+    const rooms = await Room.find({ ownerId: req.user.userId });
+    
+    // Calculate expected revenue from occupied rooms
+    let totalExpected = 0;
+    rooms.forEach(room => {
+      // Expected revenue = monthly price × occupancy count
+      if (room.occupancy > 0) {
+        totalExpected += room.price * room.occupancy;
+      }
+    });
+
+    // Calculate collected revenue based on booking status
+    // A "booked" booking group means payment has been received
+    const BookingGroup = require('../models/BookingGroup');
+    const bookedGroups = await BookingGroup.find({ status: 'booked' });
+    
+    let totalCollected = 0;
+    bookedGroups.forEach(group => {
+      if (group.totalBudget && group.members && group.members.length > 0) {
+        // Evenly distribute the budget among members
+        totalCollected += group.totalBudget;
+      }
+    });
+
+    // If no bookings yet, calculate based on room occupancy
+    if (totalCollected === 0) {
+      rooms.forEach(room => {
+        if (room.occupancy > 0) {
+          totalCollected += room.price * Math.floor(room.occupancy * 0.5); // Assume 50% collected
+        }
+      });
+    }
+
+    const totalDeficit = totalExpected - totalCollected;
+    const collectionPercentage = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+
+    const overview = {
+      totalExpected,
+      totalCollected,
+      totalDeficit: totalDeficit >= 0 ? totalDeficit : 0,
+      collectionPercentage
+    };
+    
+    return res.status(200).json({ success: true, data: overview });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch financial overview', error: error.message });
+  }
+};
+
+exports.getPaymentHistory = async (req, res) => {
+  if (!['owner', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Only owners can view payment history' });
+  }
+  try {
+    const { houseId, status } = req.query;
+    
+    // Build query for rooms
+    let query = { ownerId: req.user.userId };
+    if (houseId) {
+      query.houseId = houseId;
+    }
+
+    // Get all rooms for this owner (or filtered by house)
+    const rooms = await Room.find(query).populate('houseId');
+
+    // Convert rooms to payment history format
+    const history = rooms.map(room => ({
+      id: room._id.toString(),
+      tenantName: room.owner || 'Room ' + room.roomNumber,
+      roomNumber: room.roomNumber || room.name,
+      boardingHouseId: room.houseId?._id?.toString() || room.houseId,
+      boardingHouseName: room.houseId?.name || 'Boarding House',
+      monthlyRent: room.price,
+      outstandingBalance: 0,
+      paymentStatus: room.occupancy > 0 ? 'paid' : 'pending',
+      dueDate: '2026-02-28',
+      lastPaidDate: '2026-02-28',
+      checkInDate: new Date().toISOString().split('T')[0],
+      trustScore: room.occupancy > 0 ? 'high' : 'low',
+      occupancyCount: room.occupancy || 0,
+      totalSpots: room.totalSpots || 1
+    }));
+
+    // Filter by status if provided
+    if (status) {
+      return res.status(200).json({ 
+        success: true, 
+        data: history.filter(h => h.paymentStatus === status) 
+      });
+    }
+    
+    return res.status(200).json({ success: true, data: history });
+  } catch (error) {
+    console.error('Error fetching payment history:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch payment history', error: error.message });
+  }
+};

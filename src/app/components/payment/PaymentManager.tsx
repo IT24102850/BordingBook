@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Eye, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Eye, CheckCircle, XCircle, Loader2, Download, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { generatePaymentReceiptPDF } from '../../helpers/generateReceipt';
+import * as paymentApi from '../../api/paymentApi';
 
 interface Tenant {
   id: string;
@@ -29,103 +30,122 @@ interface BoardingHouse {
   rooms: Room[];
 }
 
-// Utility function to calculate days overdue
-const getDaysOverdue = (dueDate: string) => {
-  const today = new Date();
-  const due = new Date(dueDate);
-  const diffTime = today.getTime() - due.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays > 0 ? diffDays : 0;
-};
-
-// Utility function to check if overdue 10+ days
-const isOverdue10Plus = (dueDate: string) => getDaysOverdue(dueDate) >= 10;
-
-// Mock boarding places with rooms and tenants
-const mockBoardingPlaces: BoardingHouse[] = [
-  {
-    id: '1',
-    name: 'Sunrise Boarding House',
-    address: '123 Malabe, Colombo',
-    rooms: [
-      {
-        id: '101',
-        roomNumber: '101',
-        bedCount: 2,
-        tenants: [
-          { id: 't1', name: 'Alice Perera', roomId: '101', paymentStatus: 'paid', monthlyRent: 15000, outstandingBalance: 0, dueDate: '2026-02-28', checkInDate: '2024-01-15', trustScore: 'high' },
-          { id: 't2', name: 'Bob Silva', roomId: '101', paymentStatus: 'overdue', monthlyRent: 15000, outstandingBalance: 15000, dueDate: '2026-02-05', checkInDate: '2024-02-01', trustScore: 'low' },
-        ]
-      },
-      {
-        id: '102',
-        roomNumber: '102',
-        bedCount: 3,
-        tenants: [
-          { id: 't3', name: 'Charlie Brown', roomId: '102', paymentStatus: 'overdue', monthlyRent: 18000, outstandingBalance: 18000, dueDate: '2026-01-15', checkInDate: '2024-01-10', trustScore: 'low' },
-          { id: 't4', name: 'Dana White', roomId: '102', paymentStatus: 'pending', monthlyRent: 18000, outstandingBalance: 18000, dueDate: '2026-03-05', checkInDate: '2024-03-01', trustScore: 'high' },
-        ]
-      },
-    ]
-  },
-  {
-    id: '2',
-    name: 'Green Villa Boarding',
-    address: '45 Kaduwela, Colombo',
-    rooms: [
-      {
-        id: '201',
-        roomNumber: '201',
-        bedCount: 2,
-        tenants: [
-          { id: 't5', name: 'Eve Johnson', roomId: '201', paymentStatus: 'paid', monthlyRent: 12000, outstandingBalance: 0, dueDate: '2026-02-25', checkInDate: '2024-02-01', trustScore: 'high' },
-          { id: 't6', name: 'Frank Miller', roomId: '201', paymentStatus: 'paid', monthlyRent: 12000, outstandingBalance: 0, dueDate: '2026-03-10', checkInDate: '2024-03-10', trustScore: 'high' },
-        ]
-      },
-      {
-        id: '202',
-        roomNumber: '202',
-        bedCount: 2,
-        tenants: [
-          { id: 't7', name: 'Grace Lee', roomId: '202', paymentStatus: 'overdue', monthlyRent: 12000, outstandingBalance: 12000, dueDate: '2026-01-10', checkInDate: '2024-01-10', trustScore: 'medium' },
-        ]
-      },
-    ]
-  },
-];
+interface PaymentSlip {
+  id: string;
+  tenantName: string;
+  roomNumber: string;
+  placeId: string;
+  placeName: string;
+  amount: number;
+  originalRent: number;
+  date: string;
+  trustScore?: 'high' | 'medium' | 'low';
+  slipUrl?: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
 
 export default function PaymentManager() {
   const navigate = useNavigate();
 
+  // State management
+  const [boardingHouses, setBoardingHouses] = useState<BoardingHouse[]>([]);
+  const [pendingSlips, setPendingSlips] = useState<PaymentSlip[]>([]);
+  const [financialOverview, setFinancialOverview] = useState({
+    totalExpected: 0,
+    totalCollected: 0,
+    totalDeficit: 0,
+    collectionPercentage: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [processingSlipId, setProcessingSlipId] = useState<string | null>(null);
   const [rejectingSlip, setRejectingSlip] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectError, setRejectError] = useState('');
+  const [viewingSlip, setViewingSlip] = useState<PaymentSlip | null>(null);
+  const [downloadingSlipId, setDownloadingSlipId] = useState<string | null>(null);
 
-  // Calculate Financial Overview Metrics
-  const totalExpected = mockBoardingPlaces.reduce((sum, place) =>
-    sum + place.rooms.reduce((rSum, room) =>
-      rSum + room.tenants.reduce((tSum, t) => tSum + t.monthlyRent, 0), 0), 0);
+  // Fetch data from API
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const totalCollected = mockBoardingPlaces.reduce((sum, place) =>
-    sum + place.rooms.reduce((rSum, room) =>
-      rSum + room.tenants.reduce((tSum, t) => tSum + (t.monthlyRent - (t.outstandingBalance || 0)), 0), 0), 0);
+      // Fetch boarding houses
+      const housesData = await paymentApi.getBoardingHouses(localStorage.getItem('userId') || '');
+      setBoardingHouses(housesData || []);
 
-  const totalDeficit = totalExpected - totalCollected;
-  const collectionPercentage = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+      // Fetch pending payment slips
+      const slipsData = await paymentApi.getPendingPaymentSlips();
+      setPendingSlips(slipsData || []);
 
-  // Mock pending slips for demo
-  const [pendingSlips, setPendingSlips] = useState([
-    { id: 'ps1', tenantName: 'Dana White', roomNumber: '102', placeId: '1', placeName: 'Sunrise Boarding House', amount: 9000, originalRent: 18000, date: '2026-03-05', trustScore: 'high' },
-    { id: 'ps2', tenantName: 'Grace Lee', roomNumber: '202', placeId: '2', placeName: 'Green Villa Boarding', amount: 12000, originalRent: 12000, date: '2026-01-10', trustScore: 'medium' }
-  ]);
+      // Fetch financial overview
+      const overviewData = await paymentApi.getFinancialOverview();
+      setFinancialOverview(overviewData || {
+        totalExpected: 0,
+        totalCollected: 0,
+        totalDeficit: 0,
+        collectionPercentage: 0,
+      });
+    } catch (err: any) {
+      console.error('Error fetching payment data:', err);
+      setError(err?.message || 'Failed to load payment data. Please try again.');
+      // Use fallback mock data for demo
+      setFallbackMockData();
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleApproveSlip = (slip: any) => {
+  // Fallback to mock data if API fails
+  const setFallbackMockData = () => {
+    const mockHouses: BoardingHouse[] = [
+      {
+        id: '1',
+        name: 'Sunrise Boarding House',
+        address: '123 Malabe, Colombo',
+        rooms: [
+          {
+            id: '101',
+            roomNumber: '101',
+            bedCount: 2,
+            tenants: [
+              { id: 't1', name: 'Alice Perera', roomId: '101', paymentStatus: 'paid', monthlyRent: 15000, outstandingBalance: 0, dueDate: '2026-02-28', checkInDate: '2024-01-15', trustScore: 'high' },
+              { id: 't2', name: 'Bob Silva', roomId: '101', paymentStatus: 'overdue', monthlyRent: 15000, outstandingBalance: 15000, dueDate: '2026-02-05', checkInDate: '2024-02-01', trustScore: 'low' },
+            ]
+          },
+        ]
+      },
+    ];
+
+    setBoardingHouses(mockHouses);
+    setPendingSlips([
+      { id: 'ps1', tenantName: 'Dana White', roomNumber: '102', placeId: '1', placeName: 'Sunrise Boarding House', amount: 9000, originalRent: 18000, date: '2026-03-05', trustScore: 'high', status: 'pending' },
+    ]);
+
+    setFinancialOverview({
+      totalExpected: 30000,
+      totalCollected: 15000,
+      totalDeficit: 15000,
+      collectionPercentage: 50,
+    });
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleApproveSlip = async (slip: PaymentSlip) => {
     if (!window.confirm(`Approve Rs.${slip.amount.toLocaleString()} payment from ${slip.tenantName}?\n\nThis will generate an official receipt and notify the tenant.`)) {
       return;
     }
+
     setProcessingSlipId(slip.id);
-    setTimeout(() => {
+    try {
+      // Call API to approve slip
+      await paymentApi.approvePaymentSlip(slip.id);
+
+      // Generate receipt PDF
       const doc = generatePaymentReceiptPDF({
         tenantName: slip.tenantName,
         roomNumber: slip.roomNumber,
@@ -136,50 +156,122 @@ export default function PaymentManager() {
         paymentMethod: 'Bank Transfer'
       });
       doc.save(`receipt_${slip.tenantName.replace(/\s+/g, '_')}_${slip.date}.pdf`);
+
+      // Remove slip from pending list
       setPendingSlips(prev => prev.filter(s => s.id !== slip.id));
+    } catch (err) {
+      console.error('Error approving slip:', err);
+      alert('Failed to approve payment slip. Please try again.');
+    } finally {
       setProcessingSlipId(null);
-    }, 1500);
+    }
   };
 
-  const handleConfirmReject = () => {
+  const handleConfirmReject = async () => {
     if (rejectReason.trim().length < 10) {
       setRejectError('Please provide a reason of at least 10 characters so the student knows why their slip was rejected.');
       return;
     }
-    setRejectError('');
-    setPendingSlips(prev => prev.filter(s => s.id !== rejectingSlip.id));
-    setRejectingSlip(null);
-    setRejectReason('');
+
+    setProcessingSlipId(rejectingSlip.id);
+    try {
+      // Call API to reject slip
+      await paymentApi.rejectPaymentSlip(rejectingSlip.id, rejectReason);
+
+      // Remove slip from pending list
+      setPendingSlips(prev => prev.filter(s => s.id !== rejectingSlip.id));
+      setRejectingSlip(null);
+      setRejectReason('');
+      setRejectError('');
+    } catch (err) {
+      console.error('Error rejecting slip:', err);
+      alert('Failed to reject payment slip. Please try again.');
+    } finally {
+      setProcessingSlipId(null);
+    }
   };
+
+  const handleDownloadSlip = async (slip: PaymentSlip) => {
+    if (!slip.slipUrl) {
+      alert('Payment slip image is not available for download.');
+      return;
+    }
+
+    setDownloadingSlipId(slip.id);
+    try {
+      const url = await paymentApi.downloadPaymentSlip(slip.id);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payment-slip-${slip.tenantName}-${slip.date}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error downloading slip:', err);
+      alert('Failed to download payment slip. Please try again.');
+    } finally {
+      setDownloadingSlipId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="animate-spin text-cyan-400 mb-3" size={32} />
+        <p className="text-white text-sm font-medium">Loading payment data...</p>
+        <p className="text-gray-400 text-xs mt-1">This may take a moment</p>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white">Owner Payment Dashboard</h2>
+        <button
+          onClick={() => fetchData()}
+          disabled={loading}
+          className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 text-xs font-medium transition-all border border-white/10"
+          title="Refresh data"
+        >
+          <RefreshCw size={14} />
+          Refresh
+        </button>
       </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3">
+          <AlertCircle size={18} className="text-rose-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-rose-300">{error}</p>
+            <p className="text-xs text-rose-300/60 mt-1">Using fallback mock data for demonstration.</p>
+          </div>
+        </div>
+      )}
 
       {/* Financial Overview Analytics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl p-6 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
           <p className="text-sm font-medium text-gray-400 mb-1">Expected Revenue</p>
-          <p className="text-3xl font-bold text-white tracking-tight">Rs. {totalExpected.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-white tracking-tight">Rs. {financialOverview.totalExpected.toLocaleString()}</p>
           <p className="text-xs text-gray-500 mt-2">Total rent for occupied rooms</p>
         </div>
 
         <div className="bg-gradient-to-br from-emerald-900/40 to-slate-900 border border-emerald-500/20 rounded-2xl p-6 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
           <p className="text-sm font-medium text-emerald-400/80 mb-1">Total Collected</p>
-          <p className="text-3xl font-bold text-emerald-400 tracking-tight">Rs. {totalCollected.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-emerald-400 tracking-tight">Rs. {financialOverview.totalCollected.toLocaleString()}</p>
           <div className="mt-3">
             <div className="flex justify-between text-xs mb-1">
               <span className="text-gray-400">Collection Rate</span>
-              <span className="text-emerald-400 font-medium">{collectionPercentage}%</span>
+              <span className="text-emerald-400 font-medium">{financialOverview.collectionPercentage}%</span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-emerald-500 h-1.5 rounded-full"
-                style={{ width: `${collectionPercentage}%` }}
+                style={{ width: `${financialOverview.collectionPercentage}%` }}
               ></div>
             </div>
           </div>
@@ -188,7 +280,7 @@ export default function PaymentManager() {
         <div className="bg-gradient-to-br from-rose-900/40 to-slate-900 border border-rose-500/20 rounded-2xl p-6 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
           <p className="text-sm font-medium text-rose-400/80 mb-1">Outstanding Deficit</p>
-          <p className="text-3xl font-bold text-rose-400 tracking-tight">Rs. {totalDeficit.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-rose-400 tracking-tight">Rs. {financialOverview.totalDeficit.toLocaleString()}</p>
           <p className="text-xs text-rose-400/60 mt-2 flex items-center gap-1">
             <AlertCircle size={12} /> Needs follow-up
           </p>
@@ -196,9 +288,9 @@ export default function PaymentManager() {
       </div>
 
       {/* Review Payment Slips Section */}
-      <div className="bg-white/5 rounded-xl p-6 border border-white/10 shadow-lg relative">
+      <div className="bg-white/5 rounded-xl p-6 border border-white/10 shadow-lg relative mb-6">
         <h3 className="text-lg font-semibold text-amber-400 mb-4 flex items-center gap-2">
-          New Payment Slips to Review
+          <ImageIcon size={18} /> Payment Slip Review Gallery
           {pendingSlips.length > 0 && (
             <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full text-xs">
               {pendingSlips.length}
@@ -206,6 +298,58 @@ export default function PaymentManager() {
           )}
         </h3>
 
+        {pendingSlips.length > 0 ? (
+          // Thumbnail Gallery
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+            {pendingSlips.map(slip => (
+              <div key={slip.id} className="group relative">
+                <div className="relative overflow-hidden rounded-lg bg-white/5 border border-white/10 hover:border-amber-500/50 transition-all cursor-pointer h-32">
+                  {slip.slipUrl ? (
+                    <>
+                      <img
+                        src={slip.slipUrl}
+                        alt={`Payment slip from ${slip.tenantName}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2">
+                        <div className="text-white text-[10px] font-semibold">
+                          <p>{slip.tenantName}</p>
+                          <p className="text-amber-300">Rs. {slip.amount.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                      <ImageIcon size={20} className="mb-1" />
+                      <p className="text-[10px]">No image</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Actions Overlay */}
+                <div className="absolute -bottom-10 left-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-hover:-bottom-11 transition-all">
+                  <button
+                    onClick={() => setViewingSlip(slip)}
+                    className="flex-1 flex items-center justify-center p-1.5 bg-cyan-500/20 hover:bg-cyan-500/40 rounded text-cyan-400 text-[10px] font-semibold"
+                    title="View full slip"
+                  >
+                    <Eye size={12} /> View
+                  </button>
+                  <button
+                    onClick={() => handleDownloadSlip(slip)}
+                    disabled={downloadingSlipId === slip.id}
+                    className="flex-1 flex items-center justify-center p-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 rounded text-emerald-400 text-[10px] font-semibold"
+                    title="Download slip"
+                  >
+                    {downloadingSlipId === slip.id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {/* Detailed List View */}
         <div className="space-y-3">
           {pendingSlips.length > 0 ? (
             pendingSlips.map(slip => (
@@ -236,8 +380,20 @@ export default function PaymentManager() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 rounded-lg text-cyan-400 transition-colors border border-white/10" title="View Uploaded Slip">
+                    <button
+                      onClick={() => setViewingSlip(slip)}
+                      className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 rounded-lg text-cyan-400 transition-colors border border-white/10"
+                      title="View payment slip"
+                    >
                       <Eye size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDownloadSlip(slip)}
+                      disabled={downloadingSlipId === slip.id}
+                      className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 rounded-lg text-indigo-400 transition-colors border border-white/10 disabled:opacity-50"
+                      title="Download slip"
+                    >
+                      {downloadingSlipId === slip.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                     </button>
                     <button
                       onClick={() => handleApproveSlip(slip)}
@@ -275,7 +431,7 @@ export default function PaymentManager() {
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm rounded-xl flex items-center justify-center z-10 transition-all">
             <div className="bg-slate-800 border border-cyan-500/30 p-4 rounded-xl shadow-2xl flex items-center gap-3">
               <Loader2 className="animate-spin text-cyan-400" size={20} />
-              <span className="text-sm font-medium text-cyan-50">Saving to payment_receipts server folder...</span>
+              <span className="text-sm font-medium text-cyan-50">Processing payment slip...</span>
             </div>
           </div>
         )}
@@ -286,36 +442,108 @@ export default function PaymentManager() {
         <h3 className="text-lg font-semibold text-white mb-4">Manage Boarding Places</h3>
         <p className="text-xs text-gray-400 mb-6">Select a boarding place to view detailed payment status, overdue tenants, and management options.</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {mockBoardingPlaces.map(place => {
-            const allTenantsInPlace = place.rooms.flatMap(r => r.tenants);
-            const overdueCount = allTenantsInPlace.filter(t => t.paymentStatus === 'overdue').length;
+        {boardingHouses.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {boardingHouses.map(place => {
+              const allTenantsInPlace = place.rooms.flatMap(r => r.tenants);
+              const overdueCount = allTenantsInPlace.filter(t => t.paymentStatus === 'overdue').length;
 
-            return (
-              <div
-                key={place.id}
-                onClick={() => navigate(`/payment-rental/${place.id}`)}
-                className="group p-5 bg-white/5 border border-white/10 rounded-xl hover:border-cyan-500/50 hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/10 rounded-full -mr-8 -mt-8 blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
-                <div className="relative z-10">
-                  <h4 className="text-sm font-semibold text-white mb-2">{place.name}</h4>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="text-center">
-                      <p className="text-gray-400 mb-1">TENANTS</p>
-                      <p className="text-white font-bold text-lg">{allTenantsInPlace.length}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-gray-400 mb-1">OVERDUE</p>
-                      <p className={`font-bold text-lg ${overdueCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>{overdueCount}</p>
+              return (
+                <div
+                  key={place.id}
+                  onClick={() => navigate(`/payment-rental/${place.id}`)}
+                  className="group p-5 bg-white/5 border border-white/10 rounded-xl hover:border-cyan-500/50 hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/10 rounded-full -mr-8 -mt-8 blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
+                  <div className="relative z-10">
+                    <h4 className="text-sm font-semibold text-white mb-2">{place.name}</h4>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="text-center">
+                        <p className="text-gray-400 mb-1">TENANTS</p>
+                        <p className="text-white font-bold text-lg">{allTenantsInPlace.length}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-gray-400 mb-1">OVERDUE</p>
+                        <p className={`font-bold text-lg ${overdueCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>{overdueCount}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-400">
+            <p className="text-sm">No boarding houses found. Please add one first.</p>
+          </div>
+        )}
       </div>
+
+      {/* View Slip Modal */}
+      {viewingSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 ring-1 ring-white/10 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-white/10 bg-cyan-500/5">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <ImageIcon size={18} className="text-cyan-400" /> Payment Slip - {viewingSlip.tenantName}
+              </h3>
+              <button onClick={() => setViewingSlip(null)} className="text-gray-500 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-all">
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {viewingSlip.slipUrl ? (
+                <img src={viewingSlip.slipUrl} alt="Payment slip" className="w-full rounded-lg border border-white/10" />
+              ) : (
+                <div className="w-full h-64 bg-white/5 rounded-lg border-2 border-dashed border-white/10 flex items-center justify-center">
+                  <div className="text-center text-gray-400">
+                    <ImageIcon size={32} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No payment slip image available</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-400 text-xs font-medium mb-1">TENANT</p>
+                  <p className="text-white font-semibold">{viewingSlip.tenantName}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-xs font-medium mb-1">AMOUNT</p>
+                  <p className="text-white font-semibold">Rs. {viewingSlip.amount.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-xs font-medium mb-1">ROOM</p>
+                  <p className="text-white font-semibold">Room {viewingSlip.roomNumber}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-xs font-medium mb-1">DATE</p>
+                  <p className="text-white font-semibold">{viewingSlip.date}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => {
+                    handleDownloadSlip(viewingSlip);
+                    setViewingSlip(null);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-500/20 hover:bg-indigo-500/40 rounded-lg text-indigo-400 text-sm font-semibold transition-all border border-indigo-500/30"
+                >
+                  <Download size={16} /> Download
+                </button>
+                <button
+                  onClick={() => setViewingSlip(null)}
+                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 text-sm font-semibold transition-all border border-white/10"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reject Reason Modal */}
       {rejectingSlip && (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Building, Home, Bed, Users, Star, Download, Edit, Trash2, 
   Plus, Wifi, Coffee, Bath, Wind, Upload, 
@@ -750,6 +751,7 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
 // ============================================
 
 export default function OwnerDashboard() {
+  const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedHouse, setSelectedHouse] = useState<BoardingHouse | null>(null);
@@ -1410,29 +1412,40 @@ export default function OwnerDashboard() {
                 { id: 'houses', label: 'Houses', icon: <Building size={16} /> },
                 { id: 'rooms', label: 'Rooms', icon: <Bed size={16} /> },
                 { id: 'tenants', label: 'Tenants', icon: <Users size={16} /> },
-                { id: 'payments', label: 'Payments', icon: <CreditCard size={16} /> },
                 { id: 'bookings', label: 'Bookings', icon: <FileText size={16} /> },
                 { id: 'notices', label: 'Notices', icon: <Mail size={16} /> },
                 { id: 'profile', label: 'Profile', icon: <Settings size={16} /> },
-                { id: 'notifications', label: 'Alerts', icon: <Bell size={16} />, badge: unreadNotifications }
+                { id: 'notifications', label: 'Alerts', icon: <Bell size={16} />, badge: unreadNotifications },
+                { id: 'payment-btn', label: 'Payment', icon: <DollarSign size={16} />, isButton: true }
               ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/25'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                  {tab.badge && tab.badge > 0 && (
-                    <span className="ml-1.5 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
+                tab.isButton ? (
+                  <button
+                    key={tab.id}
+                    onClick={() => navigate('/payment-rental')}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:shadow-lg shadow-purple-500/25"
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ) : (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/25'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                    {tab.badge && tab.badge > 0 && (
+                      <span className="ml-1.5 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                )
               ))}
             </div>
           </div>
@@ -1500,12 +1513,15 @@ export default function OwnerDashboard() {
                           <p className="text-xs text-gray-400">{overdueCount} tenants • Rs.{overdueAmount.toLocaleString()}</p>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => setActiveTab('payments')}
-                        className="w-full mt-2 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors"
-                      >
-                        View Details
-                      </button>
+                      <div className="flex gap-2 mt-2">
+                        <button 
+                          onClick={() => navigate('/payment-rental')}
+                          className="flex-1 py-1.5 bg-red-500/40 text-red-300 rounded-lg text-xs font-medium hover:bg-red-500/50 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <DollarSign size={14} />
+                          Payment Portal
+                        </button>
+                      </div>
                     </div>
                   )}
 
