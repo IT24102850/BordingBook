@@ -1355,7 +1355,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
 
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <FaMapMarkerAlt className="text-purple-400" />
-            <span>{listing.location} G�� {listing.distance}km from SLIIT</span>
+            <span>{listing.location} | {listing.distance}km from SLIIT</span>
           </div>
 
           {/* Metadata Chips */}
@@ -1383,7 +1383,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
               return (
                 <div className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${vacancyInfo.bgColor}`}>
                   <span>{vacancyInfo.icon}</span>
-                  <span>{vacancyInfo.label.replace(/[=���G��GŦ=���]/g, '').trim()}</span>
+                  <span>{vacancyInfo.label}</span>
                 </div>
               );
             })()}
@@ -1442,7 +1442,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
         <div className="flex items-center gap-1 text-xs text-gray-400 mb-2">
           <FaMapMarkerAlt className="text-purple-400 text-[10px]" />
           <span>{listing.location}</span>
-          <span className="mx-1">G��</span>
+          <span className="mx-1">|</span>
           <span>{listing.distance}km</span>
         </div>
         <div className="flex flex-wrap gap-1 mb-2">
@@ -1601,14 +1601,14 @@ const FiltersPanel: React.FC<{
   const { setPriceMax, setDist, setRoom, setAvail, setFacs, setRating } = setters;
 
   const facilityOptions = [
-    { name: 'WiFi', icon: '=���' },
-    { name: 'Air-Cond', icon: 'G��n+�' },
-    { name: 'Meals', icon: '=��+n+�' },
-    { name: 'Private Bath', icon: '=��+' },
-    { name: 'Parking', icon: '=��+n+�' },
-    { name: 'Laundry', icon: '=���' },
-    { name: 'Security', icon: '=���' },
-    { name: 'Gym', icon: '=�Ƭ' }
+    { name: 'WiFi', icon: 'WiFi' },
+    { name: 'Air-Cond', icon: 'AC' },
+    { name: 'Meals', icon: 'Meals' },
+    { name: 'Private Bath', icon: 'Bath' },
+    { name: 'Parking', icon: 'Parking' },
+    { name: 'Laundry', icon: 'Laundry' },
+    { name: 'Security', icon: 'Security' },
+    { name: 'Gym', icon: 'Gym' }
   ];
 
   const distanceOptions = [
@@ -1741,12 +1741,12 @@ const FiltersPanel: React.FC<{
                     rating >= star ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-300'
                   }`}
                 >
-                  G��
+                  ★
                 </button>
               ))}
             </div>
             <span className="text-xs sm:text-sm font-medium text-gray-300 ml-auto sm:ml-0 pr-0 sm:pr-4">
-              {rating > 0 ? `${rating}G�� and above` : 'Any'}
+              {rating > 0 ? `${rating} stars and above` : 'Any'}
             </span>
           </div>
         </div>
@@ -1810,7 +1810,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-001',
     type: 'owner_approval',
-    title: 'G�� Booking Approved!',
+    title: 'Booking Approved!',
     message: 'Owner has approved your booking request for "Modern Boarding House near SLIIT". Please upload your payment slip to proceed.',
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     read: false,
@@ -1821,7 +1821,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-002',
     type: 'payment_verified',
-    title: '=�Ʀ Payment Verified',
+    title: 'Payment Verified',
     message: 'Your payment for booking #BK001 has been verified. Receipt has been generated.',
     timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
     read: false,
@@ -1831,7 +1831,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-003',
     type: 'receipt_generated',
-    title: '=��� Receipt Generated',
+    title: 'Receipt Generated',
     message: 'Your payment receipt for booking #BK001 is ready for download.',
     timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     read: false,
@@ -1841,7 +1841,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-004',
     type: 'booking_confirmed',
-    title: '=��� Booking Confirmed!',
+    title: 'Booking Confirmed!',
     message: 'Your booking for "Modern Boarding House near SLIIT" has been confirmed. Welcome!',
     timestamp: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
     read: true,
@@ -1851,7 +1851,7 @@ const mockNotifications: Notification[] = [
   {
     id: 'notif-005',
     type: 'checkin_reminder',
-    title: '=��� Check-in Date Reminder',
+    title: 'Check-in Date Reminder',
     message: 'Please submit your check-in date for your confirmed booking. Your room is reserved until you confirm.',
     timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
     read: false,
@@ -1937,10 +1937,10 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
               paymentStatus === 'verified' ? 'bg-green-900/40 text-green-300 border border-green-500/30' :
               'bg-red-900/40 text-red-300 border border-red-500/30'
             }`}>
-              {paymentStatus === 'not_uploaded' && 'GŦ Payment Pending'}
-              {paymentStatus === 'uploaded' && '=��� Under Review'}
-              {paymentStatus === 'verified' && 'G�� Payment Verified'}
-              {paymentStatus === 'rejected' && 'G�� Payment Rejected'}
+              {paymentStatus === 'not_uploaded' && 'Payment Pending'}
+              {paymentStatus === 'uploaded' && 'Under Review'}
+              {paymentStatus === 'verified' && 'Payment Verified'}
+              {paymentStatus === 'rejected' && 'Payment Rejected'}
             </div>
           </div>
         </div>
@@ -2032,7 +2032,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <span className="text-purple-400 font-semibold">LKR {(mockBookingDetails.totalAmount / 2).toLocaleString()}</span>
                   </div>
                   <div className="text-xs text-amber-300 bg-amber-900/20 p-2 rounded border border-amber-500/20 mt-2 flex items-start gap-1">
-                    <span>G��</span>
+                    <span>!</span>
                     <span>Upload slip for 1st installment now. 2nd installment due in 3 months.</span>
                   </div>
                 </div>
@@ -2042,7 +2042,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'not_uploaded' && (
               <div className="space-y-3">
                 <div className="text-sm text-amber-300 bg-amber-900/20 p-3 rounded-lg border border-amber-500/20 flex items-start gap-2">
-                  <span className="text-lg">G��n+�</span>
+                  <span className="text-lg">!</span>
                   <span>Please upload your payment slip to proceed</span>
                 </div>
                 <label className="block">
@@ -2050,7 +2050,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <FaMoneyBillWave className="text-3xl mx-auto mb-2 text-cyan-400" />
                     <div className="text-sm text-gray-300">
                       {uploadedFile ? (
-                        <span className="text-emerald-400 font-medium">G�� {uploadedFile.name}</span>
+                        <span className="text-emerald-400 font-medium">{uploadedFile.name}</span>
                       ) : (
                         'Click to upload slip'
                       )}
@@ -2077,7 +2077,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'uploaded' && (
               <div className="space-y-3">
                 <div className="text-sm text-blue-300 bg-blue-900/20 p-3 rounded-lg border border-blue-500/20 text-center">
-                  =��� Your payment is being verified by the owner
+                  Your payment is being verified by the owner
                 </div>
                 <div className="text-xs text-gray-400 text-center">
                   This usually takes 1-2 business days
@@ -2111,7 +2111,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
             {paymentStatus === 'rejected' && (
               <div className="space-y-3">
                 <div className="text-sm text-red-300 bg-red-900/20 p-3 rounded-lg border border-red-500/20 flex items-start gap-2">
-                  <span className="text-lg">G��</span>
+                  <span className="text-lg">X</span>
                   <span>Payment rejected. Please upload a clear payment slip.</span>
                 </div>
                 <label className="block">
@@ -2119,7 +2119,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                     <FaMoneyBillWave className="text-3xl mx-auto mb-2 text-red-400" />
                     <div className="text-sm text-gray-300">
                       {uploadedFile ? (
-                        <span className="text-emerald-400 font-medium">G�� {uploadedFile.name}</span>
+                        <span className="text-emerald-400 font-medium">{uploadedFile.name}</span>
                       ) : (
                         'Re-upload payment slip'
                       )}
@@ -2339,9 +2339,9 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
 <body>
   <div class="receipt-container">
     <div class="header">
-      <h1>=��� BOARDING PAYMENT RECEIPT</h1>
+      <h1>BOARDING PAYMENT RECEIPT</h1>
       <p>Official Payment Confirmation</p>
-      <div class="verified-badge">G�� PAYMENT VERIFIED</div>
+      <div class="verified-badge">PAYMENT VERIFIED</div>
     </div>
 
     <div class="info-section">
@@ -2407,7 +2407,7 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
       </p>
     </div>
 
-    <button class="print-button" onclick="window.print()">=���n+� Print Receipt</button>
+    <button class="print-button" onclick="window.print()">Print Receipt</button>
   </div>
 </body>
 </html>
@@ -2713,7 +2713,7 @@ export default function SearchPage() {
     
     setTimeout(() => {
       setLikedListings([...likedListings, currentListing]);
-      setToastMessage(`Added to favorites! G��`);
+      setToastMessage('Added to favorites!');
       setShowToast(true);
       
       setTimeout(() => {
@@ -3298,7 +3298,7 @@ export default function SearchPage() {
                             listing={listing}
                             onLike={() => {
                               setLikedListings([...likedListings, listing]);
-                              setToastMessage(`Added to favorites! G��`);
+                              setToastMessage('Added to favorites!');
                               setShowToast(true);
                               setTimeout(() => setShowToast(false), 2000);
                             }}
@@ -3465,7 +3465,7 @@ export default function SearchPage() {
                             listing={listing}
                             onLike={() => {
                               setLikedListings([...likedListings, listing]);
-                              setToastMessage(`Added to favorites! G��`);
+                              setToastMessage('Added to favorites!');
                               setShowToast(true);
                               setTimeout(() => setShowToast(false), 2000);
                             }}
@@ -3568,7 +3568,7 @@ export default function SearchPage() {
             listing={selectedRoomForBooking}
             onClose={() => setShowBooking(false)}
             onSubmit={(data) => {
-              setToastMessage(`G�� Booking request submitted for ${selectedRoomForBooking?.title}!`);
+              setToastMessage(`Booking request submitted for ${selectedRoomForBooking?.title}!`);
               setShowToast(true);
               setTimeout(() => setShowToast(false), 3000);
             }}
@@ -3661,7 +3661,7 @@ export default function SearchPage() {
                         return;
                       }
                       // Simulate submission
-                      setToastMessage(`G�� Check-in date submitted: ${new Date(checkinDate).toLocaleDateString()}`);
+                      setToastMessage(`Check-in date submitted: ${new Date(checkinDate).toLocaleDateString()}`);
                       setShowToast(true);
                       setTimeout(() => setShowToast(false), 3000);
                       setShowCheckinForm(false);

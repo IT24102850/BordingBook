@@ -175,6 +175,64 @@ exports.browseProfiles = async (req, res) => {
       .limit(50)
       .lean();
 
+    if (profiles.length === 0) {
+      const userFilter = {
+        _id: { $ne: userId },
+        role: 'student',
+        isVerified: true,
+        profileCompleted: true,
+      };
+
+      if (gender && gender !== 'Any') {
+        userFilter.gender = gender;
+      }
+
+      if (academicYear) {
+        userFilter.academicYear = academicYear;
+      }
+
+      if (roomType && roomType !== 'Any') {
+        userFilter.roomType = roomType;
+      }
+
+      if (minBudget || maxBudget) {
+        userFilter.maxBudget = {};
+        if (minBudget) userFilter.maxBudget.$gte = parseInt(minBudget, 10);
+        if (maxBudget) userFilter.maxBudget.$lte = parseInt(maxBudget, 10);
+      }
+
+      const fallbackUsers = await User.find(userFilter)
+        .select('fullName email profilePicture bio minBudget maxBudget gender academicYear roommatePreference roomType lifestylePrefs selectedLocation')
+        .limit(50)
+        .lean();
+
+      const fallbackProfiles = fallbackUsers.map((u) => ({
+        _id: u._id,
+        userId: u._id,
+        name: u.fullName || (u.email ? u.email.split('@')[0] : 'Student'),
+        email: u.email || '',
+        description: u.bio || '',
+        image: u.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+        budget: Number(u.maxBudget) || Number(u.minBudget) || 10000,
+        gender: u.gender || 'Other',
+        academicYear: u.academicYear || '1st Year',
+        preferences: u.roommatePreference || '',
+        roomType: u.roomType || 'Shared Room',
+        billsIncluded: false,
+        availableFrom: new Date(),
+        tags: Array.isArray(u.lifestylePrefs) ? u.lifestylePrefs : [],
+        boardingHouse: u.selectedLocation || '',
+        lookingFor: u.roommatePreference || 'Shared Room',
+        isActive: true,
+      }));
+
+      return res.status(200).json({
+        success: true,
+        count: fallbackProfiles.length,
+        data: fallbackProfiles,
+      });
+    }
+
     res.status(200).json({
       success: true,
       count: profiles.length,
