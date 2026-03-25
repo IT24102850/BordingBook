@@ -65,11 +65,6 @@ exports.createOrUpdateProfile = async (req, res) => {
       profile = new RoommateProfile({
         userId,
         name: displayName,
-
-      profile = new RoommateProfile({
-        userId,
-        name: user.name,
-
         email: user.email,
         description,
         image,

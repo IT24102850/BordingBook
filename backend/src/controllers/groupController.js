@@ -2,12 +2,6 @@ const BookingGroup = require('../models/BookingGroup');
 const RoommateProfile = require('../models/RoommateProfile');
 const User = require('../models/User');
 
-
-function getDisplayName(userLike) {
-  return userLike?.fullName || userLike?.name || (userLike?.email ? String(userLike.email).split('@')[0] : 'User');
-}
-
-
 /**
  * @desc Create a new booking group
  * @route POST /api/roommates/group
@@ -42,11 +36,7 @@ exports.createGroup = async (req, res) => {
         {
           userId: creatorId,
           email: req.user.email,
-
-          name: getDisplayName(req.user),
-
           name: req.user.name,
-
           status: 'accepted', // Creator is auto-accepted
         },
       ],
@@ -60,11 +50,7 @@ exports.createGroup = async (req, res) => {
           group.members.push({
             userId: user._id,
             email: user.email,
-
-            name: getDisplayName(user),
-
             name: user.name,
-
             status: 'pending',
           });
         }
@@ -129,11 +115,7 @@ exports.getGroup = async (req, res) => {
 
     const group = await BookingGroup.findById(groupId).populate(
       'members.userId',
-
-      'fullName email'
-
       'name email'
-
     );
 
     if (!group) {

@@ -12,11 +12,8 @@ function requireEnv(name) {
 }
 
 function parseAllowedOrigins() {
-
   const devDefaultOrigin = process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '';
   const raw = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || devDefaultOrigin;
-
-  const raw = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
   return raw
     .split(',')
@@ -41,9 +38,7 @@ const env = {
   mongoUri: requireEnv('MONGO_URI'),
   jwtSecret: requireEnv('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-<<<<<<
   frontendUrl: getFrontendUrl(),
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
   allowedOrigins: parseAllowedOrigins(),
   emailHost: process.env.EMAIL_HOST || '',

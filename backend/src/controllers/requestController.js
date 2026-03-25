@@ -85,11 +85,7 @@ exports.getInboxRequests = async (req, res) => {
     }
 
     const requests = await RoommateRequest.find(filter)
-
-      .populate('senderId', 'fullName email')
-
       .populate('senderId', 'name email')
-
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -122,11 +118,7 @@ exports.getSentRequests = async (req, res) => {
     }
 
     const requests = await RoommateRequest.find(filter)
-
-      .populate('recipientId', 'fullName email')
-
       .populate('recipientId', 'name email')
-
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -243,13 +235,8 @@ exports.getRequest = async (req, res) => {
     const { requestId } = req.params;
 
     const request = await RoommateRequest.findById(requestId)
-
-      .populate('senderId', 'fullName email')
-      .populate('recipientId', 'fullName email');
-
       .populate('senderId', 'name email')
       .populate('recipientId', 'name email');
-
 
     if (!request) {
       return res.status(404).json({

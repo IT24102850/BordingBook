@@ -3,18 +3,6 @@ const env = require('../config/env');
 
 class EmailService {
   constructor() {
-
-    // Create transporter
-    this.transporter = nodemailer.createTransporter({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: process.env.EMAIL_PORT || 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
     const hasPlaceholderCredentials =
       env.emailUser === 'your-email@gmail.com' ||
       env.emailPassword === 'your-app-specific-password';
@@ -23,9 +11,6 @@ class EmailService {
     this.configError = hasPlaceholderCredentials
       ? 'Email credentials are placeholders. Set EMAIL_USER and EMAIL_PASSWORD in backend/.env'
       : null;
-
-
-    this.isConfigured = Boolean(env.emailHost && env.emailUser && env.emailPassword);
 
     this.transporter = this.isConfigured
       ? nodemailer.createTransport({
@@ -38,8 +23,6 @@ class EmailService {
           },
         })
       : null;
-
-
   }
 
   /**
@@ -48,9 +31,6 @@ class EmailService {
    * @param {string} verificationToken - Verification token
    */
   async sendVerificationEmail(email, verificationToken) {
-
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-
     const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
 
     if (!this.isConfigured || !this.transporter) {
@@ -60,14 +40,6 @@ class EmailService {
       return { success: false, skipped: true, reason, verificationUrl };
     }
 
-    if (!this.isConfigured || !this.transporter) {
-      console.warn('Email service is not configured. Skipping verification email send.');
-      return { success: false, skipped: true };
-    }
-
-    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
-
-    
     const mailOptions = {
       from: `"BoardingBook" <${env.emailUser}>`,
       to: email,
@@ -202,13 +174,6 @@ class EmailService {
       console.warn(reason);
       return { success: false, skipped: true, reason };
     }
-
-
-    if (!this.isConfigured || !this.transporter) {
-      console.warn('Email service is not configured. Skipping welcome email send.');
-      return { success: false, skipped: true };
-    }
-
 
     const mailOptions = {
       from: `"BoardingBook" <${env.emailUser}>`,
