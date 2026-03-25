@@ -96,26 +96,35 @@ exports.signup = async (req, res) => {
 
     await user.save();
 
-    let emailResult = { success: false, reason: 'Email service unavailable' };
-    try {
-      emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError.message);
-      emailResult = { success: false, reason: emailError.message || 'Failed to send verification email' };
-    }
-
-    return res.status(201).json({
+    // Return response immediately with verification link (non-blocking email send)
+    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
+    
+    res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please check your email to verify your account.',
+      message: 'Account created successfully. Please verify your email.',
       data: {
         userId: user._id,
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
-        emailSent: Boolean(emailResult.success),
-        emailError: emailResult.success ? null : emailResult.reason || null,
-        verificationUrl: emailResult.verificationUrl || null,
+        verificationUrl: verificationUrl,
+        verificationToken: verificationToken, // For development/testing
       },
+    });
+
+    // Send email in the background (non-blocking)
+    setImmediate(async () => {
+      try {
+        const emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
+        if (emailResult.success) {
+          console.log(`Verification email sent to ${normalizedEmail}`);
+        } else {
+          console.warn(`Email not sent to ${normalizedEmail}: ${emailResult.reason}`);
+          console.warn(`Fallback: User can verify via: ${verificationUrl}`);
+        }
+      } catch (emailError) {
+        console.error('Background email send error:', emailError.message);
+      }
     });
   } catch (error) {
     console.error('Signup error:', error.message);
@@ -221,11 +230,32 @@ exports.resendVerification = async (req, res) => {
     const verificationToken = user.generateVerificationToken();
     await user.save();
 
-    await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
-
-    return res.status(200).json({
+    // Return response immediately with verification link (non-blocking email send)
+    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
+    
+    res.status(200).json({
       success: true,
-      message: 'Verification email sent successfully',
+      message: 'Verification link ready. Check your email or use the link below.',
+      data: {
+        email: user.email,
+        verificationUrl: verificationUrl,
+        verificationToken: verificationToken, // For development/testing
+      },
+    });
+
+    // Send email in the background (non-blocking)
+    setImmediate(async () => {
+      try {
+        const emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
+        if (emailResult.success) {
+          console.log(`Resend email sent to ${normalizedEmail}`);
+        } else {
+          console.warn(`Email not sent to ${normalizedEmail}: ${emailResult.reason}`);
+          console.warn(`Fallback: User can verify via: ${verificationUrl}`);
+        }
+      } catch (emailError) {
+        console.error('Background resend email error:', emailError.message);
+      }
     });
   } catch (error) {
     console.error('Resend verification error:', error.message);

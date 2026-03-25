@@ -29,9 +29,8 @@ interface SignUpResult {
   email: string;
   role: 'student' | 'owner' | 'admin';
   isVerified: boolean;
-  emailSent: boolean;
-  emailError?: string | null;
-  verificationUrl?: string | null;
+  verificationUrl: string;
+  verificationToken?: string;
 }
 
 
