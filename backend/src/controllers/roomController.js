@@ -1,5 +1,49 @@
 const Room = require('../models/Room');
 
+const fallbackRoomImages = [
+  'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1598928636135-d146006ff4be?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?auto=format&fit=crop&w=1200&q=80',
+];
+
+const getFallbackRooms = () => [
+  {
+    _id: 'dummy-room-1',
+    name: 'Modern Student Room - Malabe',
+    location: 'Malabe',
+    price: 18000,
+    totalSpots: 2,
+    occupancy: 1,
+    facilities: ['WiFi', 'Laundry', 'Meals'],
+    images: [fallbackRoomImages[0], fallbackRoomImages[1]],
+    roomType: 'Shared Room',
+    genderPreference: 'Any',
+    availableFrom: new Date().toISOString(),
+    deposit: 36000,
+    description: 'Fully furnished student room near campus with fast internet.',
+    isActive: true,
+    isDummy: true,
+  },
+  {
+    _id: 'dummy-room-2',
+    name: 'Quiet Single Room - Kaduwela',
+    location: 'Kaduwela',
+    price: 14000,
+    totalSpots: 1,
+    occupancy: 0,
+    facilities: ['WiFi', 'Parking', 'Security'],
+    images: [fallbackRoomImages[2], fallbackRoomImages[3]],
+    roomType: 'Single Room',
+    genderPreference: 'Female',
+    availableFrom: new Date().toISOString(),
+    deposit: 28000,
+    description: 'Comfortable single room in a secure boarding environment.',
+    isActive: true,
+    isDummy: true,
+  },
+];
+
 /**
  * @desc Get all available rooms
  * @route GET /api/roommates/rooms
@@ -72,7 +116,11 @@ exports.getAllRooms = async (req, res) => {
       query = query.sort({ createdAt: -1 });
     }
 
-    const rooms = await query;
+    let rooms = await query;
+
+    if (!Array.isArray(rooms) || rooms.length === 0) {
+      rooms = getFallbackRooms();
+    }
 
     res.status(200).json({
       success: true,

@@ -1,6 +1,54 @@
 const BoardingHouse = require('../models/BoardingHouse');
 const Room = require('../models/Room');
 
+const fallbackHouseImages = [
+  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1560185007-cde436f6a4d0?auto=format&fit=crop&w=1200&q=80',
+];
+
+const getFallbackHouses = () => [
+  {
+    _id: 'dummy-house-1',
+    name: 'Campus View Boarding House',
+    address: 'Malabe',
+    totalRooms: 8,
+    occupiedRooms: 5,
+    monthlyPrice: 16500,
+    roomType: 'Single Room',
+    availableFrom: new Date().toISOString(),
+    deposit: 33000,
+    roommateCount: 'None (Private)',
+    description: 'Clean and modern boarding house with easy access to universities.',
+    features: ['WiFi', 'Laundry', 'Security'],
+    image: fallbackHouseImages[0],
+    images: [fallbackHouseImages[0], fallbackHouseImages[1]],
+    status: 'active',
+    genderPreference: 'any',
+    isDummy: true,
+  },
+  {
+    _id: 'dummy-house-2',
+    name: 'Green Garden Bodim',
+    address: 'Kaduwela',
+    totalRooms: 6,
+    occupiedRooms: 2,
+    monthlyPrice: 12500,
+    roomType: 'Shared Room',
+    availableFrom: new Date().toISOString(),
+    deposit: 25000,
+    roommateCount: '2',
+    description: 'Budget-friendly bodim with spacious common areas and garden.',
+    features: ['Meals', 'Parking', 'WiFi'],
+    image: fallbackHouseImages[2],
+    images: [fallbackHouseImages[2], fallbackHouseImages[3]],
+    status: 'active',
+    genderPreference: 'any',
+    isDummy: true,
+  },
+];
+
 function ensureOwnerRole(req, res) {
   if (!['owner', 'admin'].includes(req.user.role)) {
     res.status(403).json({ success: false, message: 'Only owners can manage boarding data' });
@@ -22,7 +70,12 @@ exports.getHouses = async (req, res) => {
 
 exports.getPublicHouses = async (req, res) => {
   try {
-    const houses = await BoardingHouse.find({ status: 'active' }).sort({ createdAt: -1 });
+    let houses = await BoardingHouse.find({ status: 'active' }).sort({ createdAt: -1 });
+
+    if (!Array.isArray(houses) || houses.length === 0) {
+      houses = getFallbackHouses();
+    }
+
     return res.status(200).json({ success: true, data: houses });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch houses', error: error.message });
