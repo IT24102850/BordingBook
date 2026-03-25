@@ -1,9 +1,4 @@
 import React, { useState, useEffect } from 'react';
-
-import { authApi, AuthApiError } from '../api/authApi';
-
-import { useNavigate } from 'react-router-dom';
-=======
 import { authApi, AuthApiError } from '../api/authApi';
 import { useLocation, useNavigate } from 'react-router-dom';
 

@@ -359,17 +359,4 @@ export const distMap = {
   '0-5': 5,
   '0-10': 10,
   'any': 9999
-ISTANCE MAP FOR FILTERING ──────────────────────
-export const distMap = {
-  'walking': 1,
-  'cycling': 2.5,
-  'bus': 5,
-  'any': 100
-};
-
-// ─── FACILITY ICON FUNCTION ──────────────────────────
-export const fi = (facility) => {
-  const icon = facIco[facility];
-  return icon ? `${icon} ${facility}` : facility;
-
 };

@@ -1,7 +1,4 @@
-
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
-
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
 
 
 interface ApiResponse<T> {
@@ -95,27 +92,19 @@ async function signIn(payload: SignInPayload): Promise<SignInResult> {
 }
 
 async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined> {
-
-async function signUp(payload: SignUpPayload): Promise<void> {
-
   const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 
-
   const result = await parseJson<SignUpResult>(response);
-
-  const result = await parseJson(response);
 
   if (!response.ok || !result.success) {
     throw new AuthApiError(result.message || 'Sign up failed', response.status);
   }
 
-
   return result.data;
-
 }
 
 export const authApi = {

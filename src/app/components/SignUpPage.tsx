@@ -229,8 +229,6 @@ export default function SignUpPage() {
 
       const signUpResult = await authApi.signUp({
 
-      await authApi.signUp({
-
         email,
         password,
         role,
