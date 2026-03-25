@@ -3069,7 +3069,7 @@ export default function SearchPage() {
                 className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${activeTab === 'roommate' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg scale-105' : 'text-cyan-200 hover:bg-white/10'}`}
                 onClick={() => setActiveTab('roommate')}
               >
-                Roommate Finder
+                Matches
               </button>
             </div>
             {/* View Toggle for Rooms tab only */}
