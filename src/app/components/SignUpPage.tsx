@@ -238,6 +238,10 @@ export default function SignUpPage() {
       setTimeout(() => navigate(redirectPath), 1200);
     } catch (err) {
       if (err instanceof AuthApiError) {
+        if (err.needsVerification) {
+          navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+          return;
+        }
         setError(err.message);
 
       } else if (err instanceof Error) {

@@ -63,6 +63,14 @@ exports.signup = async (req, res) => {
 
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
+      if (!existingUser.isVerified) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email already exists. Please verify your email.',
+          needsVerification: true,
+        });
+      }
+
       return res.status(409).json({
         success: false,
         message: 'An account with this email already exists',
@@ -286,6 +294,7 @@ exports.signin = async (req, res) => {
           phoneNumber: user.phoneNumber,
           companyName: user.companyName,
           propertyCount: user.propertyCount,
+          profileCompleted: user.profileCompleted,
           isVerified: user.isVerified,
         },
       },
@@ -320,6 +329,7 @@ exports.getMe = async (req, res) => {
         phoneNumber: user.phoneNumber,
         companyName: user.companyName,
         propertyCount: user.propertyCount,
+        profileCompleted: user.profileCompleted,
         isVerified: user.isVerified,
       },
     });

@@ -46,6 +46,7 @@ interface SignInResult {
     phoneNumber?: string;
     companyName?: string;
     propertyCount?: number;
+    profileCompleted?: boolean;
 
     isVerified: boolean;
   };
@@ -101,7 +102,11 @@ async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined>
   const result = await parseJson<SignUpResult>(response);
 
   if (!response.ok || !result.success) {
-    throw new AuthApiError(result.message || 'Sign up failed', response.status);
+    throw new AuthApiError(
+      result.message || 'Sign up failed',
+      response.status,
+      Boolean(result.needsVerification)
+    );
   }
 
   return result.data;

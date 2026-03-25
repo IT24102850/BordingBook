@@ -137,11 +137,10 @@ export default function SignIn() {
       localStorage.setItem('bb_current_user', JSON.stringify(result.user));
       setSuccess('Signed in successfully!');
 
-      setTimeout(() => navigate('/profile-setup'), 800);
-
-      
-      // Redirect based on user role
-      const redirectPath = result.user.role === 'owner' ? '/owner-dashboard' : '/find';
+      // Students complete profile only once; owners go to dashboard.
+      const redirectPath = result.user.role === 'owner'
+        ? '/owner-dashboard'
+        : (result.user.profileCompleted ? '/find' : '/profile-setup');
       setTimeout(() => navigate(redirectPath), 800);
 
     } catch (err) {
