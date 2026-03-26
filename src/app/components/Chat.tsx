@@ -685,6 +685,22 @@ export default function Chat() {
     [cleanupMedia, cleanupPeer]
   );
 
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyOverscroll = (document.body.style as any).overscrollBehavior;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = 'hidden';
+    (document.body.style as any).overscrollBehavior = 'none';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      (document.body.style as any).overscrollBehavior = previousBodyOverscroll;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
   if (!token || !currentUser) {
     return (
       <div className="min-h-screen bg-[#0b132b] flex items-center justify-center p-6">
