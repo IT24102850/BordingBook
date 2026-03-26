@@ -235,7 +235,6 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
       <div className="flex flex-col items-center p-6">
         <h3 className="text-xl font-bold text-white mb-1">{displayName}, <span className="text-pink-300">{roommate.age || 20}</span></h3>
         <div className="text-sm text-pink-200 mb-1">{roommate.gender || 'Any'} | {roommate.university || 'SLIIT'}</div>
-        {roommate.email && <div className="text-xs text-cyan-300 mb-1">{roommate.email}</div>}
         <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio || 'Looking for a compatible roommate.'}</div>
         {typeof roommate.mutualCount === 'number' && roommate.mutualCount > 0 && (
           <div className="mb-3 text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-400/30">
