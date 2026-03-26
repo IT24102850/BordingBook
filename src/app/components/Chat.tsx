@@ -203,21 +203,28 @@ export default function Chat() {
     [activeCall, cleanupMedia, cleanupPeer]
   );
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (preferredConversationId?: string) => {
     if (!token) return;
     try {
       setLoadingConversations(true);
       const data = await apiFetch<ChatConversation[]>('/conversations', token);
-      setConversations(data || []);
-      if (!selectedConversationId && data?.length) {
-        setSelectedConversationId(data[0].id);
+      const nextConversations = data || [];
+      setConversations(nextConversations);
+
+      const selectedId = preferredConversationId || selectedConversationIdRef.current;
+      if (selectedId && nextConversations.some((conversation) => conversation.id === selectedId)) {
+        setSelectedConversationId(selectedId);
+      } else if (nextConversations.length > 0) {
+        setSelectedConversationId(nextConversations[0].id);
+      } else {
+        setSelectedConversationId('');
       }
     } catch (fetchError) {
       setError((fetchError as Error).message || 'Unable to load conversations');
     } finally {
       setLoadingConversations(false);
     }
-  }, [selectedConversationId, token]);
+  }, [token]);
 
   const fetchMessages = useCallback(
     async (conversationId: string) => {
@@ -262,7 +269,7 @@ export default function Chat() {
         body: JSON.stringify({ recipientId }),
       });
       setSelectedConversationId(data.id);
-      await fetchConversations();
+      await fetchConversations(data.id);
     } catch (createError) {
       setError((createError as Error).message || 'Unable to open direct conversation');
     }
@@ -297,7 +304,7 @@ export default function Chat() {
         setSelectedConversationId(data.id);
         setShowNewChatModal(false);
         setContactSearchQuery('');
-        await fetchConversations();
+        await fetchConversations(data.id);
       } catch (createError) {
         setError((createError as Error).message || 'Unable to create direct conversation');
       }
