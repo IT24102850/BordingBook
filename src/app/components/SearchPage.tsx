@@ -2725,6 +2725,7 @@ export default function SearchPage() {
   const [showCheckinForm, setShowCheckinForm] = useState<boolean>(false);
   const [selectedNotificationBooking, setSelectedNotificationBooking] = useState<string | null>(null);
   const [checkinDate, setCheckinDate] = useState<string>('');
+  const [notificationPanelPos, setNotificationPanelPos] = useState<{ top: number; left: number }>({ top: 96, left: 16 });
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
   
@@ -2991,6 +2992,34 @@ export default function SearchPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const updatePanelPosition = () => {
+      const trigger = notificationButtonRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const panelWidth = Math.min(window.innerWidth * 0.94, 416);
+      const minLeft = 12;
+      const maxLeft = Math.max(minLeft, window.innerWidth - panelWidth - 12);
+      const alignedLeft = rect.right - panelWidth;
+      const left = Math.min(maxLeft, Math.max(minLeft, alignedLeft));
+      const top = rect.bottom + 8;
+
+      setNotificationPanelPos({ top, left });
+    };
+
+    updatePanelPosition();
+    window.addEventListener('resize', updatePanelPosition);
+    window.addEventListener('scroll', updatePanelPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePanelPosition);
+      window.removeEventListener('scroll', updatePanelPosition, true);
     };
   }, [showNotifications]);
 
@@ -3470,7 +3499,8 @@ export default function SearchPage() {
                 {showNotifications && typeof document !== 'undefined' && (createPortal(
                   <div
                     ref={notificationPanelRef}
-                    className="fixed right-3 md:right-6 top-24 w-[min(94vw,26rem)] max-h-[72vh] overflow-hidden bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-[9999]"
+                    className="fixed w-[min(94vw,26rem)] max-h-[72vh] overflow-hidden bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-[9999]"
+                    style={{ top: notificationPanelPos.top, left: notificationPanelPos.left }}
                   >
                     <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10">
                       <div className="flex items-center justify-between">
