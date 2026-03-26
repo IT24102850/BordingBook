@@ -207,7 +207,7 @@ exports.browseProfiles = async (req, res) => {
         .lean();
 
       const fallbackProfiles = fallbackUsers.map((u) => ({
-        _id: u._id,
+        _id: `user-${u._id}`,
         userId: u._id,
         name: u.fullName || (u.email ? u.email.split('@')[0] : 'Student'),
         email: u.email || '',

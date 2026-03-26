@@ -1,5 +1,5 @@
 const RoommateRequest = require('../models/RoommateRequest');
-const RoommateProfile = require('../models/RoommateProfile');
+const User = require('../models/User');
 
 /**
  * @desc Send roommate request to another user
@@ -25,9 +25,9 @@ exports.sendRequest = async (req, res) => {
       });
     }
 
-    // Check if recipient exists
-    const recipientProfile = await RoommateProfile.findOne({ userId: recipientId });
-    if (!recipientProfile) {
+    // Check if recipient user exists
+    const recipientUser = await User.findById(recipientId);
+    if (!recipientUser) {
       return res.status(404).json({
         success: false,
         message: 'Recipient not found',
