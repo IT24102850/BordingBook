@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FaUser,
-  FaMapMarkerAlt,
-  FaEnvelope,
   FaPen,
   FaSave,
   FaTimes,
@@ -20,13 +18,11 @@ type ProfileForm = {
   email: string;
   profilePicture: string;
   profilePictures: string[];
-  mobileNumber: string;
   bio: string;
-  selectedLocation: string;
-  gender: string;
   academicYear: string;
-  roommatePreference: string;
+  otherInterests: string;
   roomType: string;
+  age: string;
 };
 
 const initialProfile: ProfileForm = {
@@ -34,13 +30,11 @@ const initialProfile: ProfileForm = {
   email: "",
   profilePicture: "https://randomuser.me/api/portraits/lego/1.jpg",
   profilePictures: [],
-  mobileNumber: "",
   bio: "",
-  selectedLocation: "",
-  gender: "",
   academicYear: "",
-  roommatePreference: "",
+  otherInterests: "",
   roomType: "",
+  age: "",
 };
 
 export default function UserProfileDashboard() {
@@ -90,13 +84,11 @@ export default function UserProfileDashboard() {
           email: user.email || "",
           profilePicture: user.profilePicture || initialProfile.profilePicture,
           profilePictures: Array.isArray(user.profilePictures) ? user.profilePictures : [],
-          mobileNumber: user.mobileNumber || "",
           bio: user.bio || "",
-          selectedLocation: user.selectedLocation || "",
-          gender: user.gender || "",
           academicYear: user.academicYear || "",
-          roommatePreference: user.roommatePreference || "",
+          otherInterests: user.roommatePreference || (Array.isArray(user.lifestylePrefs) ? user.lifestylePrefs.join(", ") : ""),
           roomType: user.roomType || "",
+          age: user.age ? String(user.age) : "",
         });
       } catch (loadError) {
         if (!cancelled) {
@@ -118,6 +110,40 @@ export default function UserProfileDashboard() {
     setProfile((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleProfilePictureFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === "string" ? reader.result : "";
+      setProfile((prev) => ({ ...prev, profilePicture: value || prev.profilePicture }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGalleryFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const value = typeof reader.result === "string" ? reader.result : "";
+        if (!value) return;
+        setProfile((prev) => ({ ...prev, profilePictures: [...prev.profilePictures, value] }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeGalleryImage = (indexToRemove: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      profilePictures: prev.profilePictures.filter((_, index) => index !== indexToRemove),
+    }));
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -137,15 +163,17 @@ export default function UserProfileDashboard() {
         },
         body: JSON.stringify({
           fullName: profile.fullName,
-          mobileNumber: profile.mobileNumber,
           profilePicture: profile.profilePicture,
           profilePictures: profile.profilePictures,
           bio: profile.bio,
-          selectedLocation: profile.selectedLocation,
-          gender: profile.gender,
           academicYear: profile.academicYear,
-          roommatePreference: profile.roommatePreference,
+          roommatePreference: profile.otherInterests,
+          lifestylePrefs: profile.otherInterests
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
           roomType: profile.roomType,
+          age: Number(profile.age) || 0,
         }),
       });
 
@@ -200,7 +228,7 @@ export default function UserProfileDashboard() {
                 />
                 <div className="text-sm">
                   <div className="font-semibold">{profile.fullName || "Student"}</div>
-                  <div className="text-cyan-100/80 flex items-center gap-2"><FaEnvelope /> {profile.email || "No email"}</div>
+                  <div className="text-cyan-100/80">{profile.email || "No email"}</div>
                 </div>
               </div>
             </div>
@@ -281,24 +309,16 @@ export default function UserProfileDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-sm text-cyan-100 mb-1">Mobile Number</label>
+                    <label className="block text-sm text-cyan-100 mb-1">Age</label>
                     <input
-                      name="mobileNumber"
-                      value={profile.mobileNumber}
+                      name="age"
+                      type="number"
+                      min={16}
+                      max={100}
+                      value={profile.age}
                       onChange={handleChange}
                       disabled={!editing}
-                      placeholder="e.g., +94771234567"
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-cyan-100 mb-1">Email</label>
-                    <input
-                      name="email"
-                      value={profile.email}
-                      onChange={handleChange}
-                      disabled
+                      placeholder="Enter your age"
                       className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
                     />
                   </div>
@@ -315,19 +335,43 @@ export default function UserProfileDashboard() {
                     />
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm text-cyan-100 mb-2">Additional Images (Tinder-style swipe) - Paste URLs separated by newlines</label>
-                    <textarea
-                      value={profile.profilePictures.join('\n')}
-                      onChange={(e) => {
-                        const urls = e.target.value.split('\n').filter(url => url.trim().length > 0);
-                        setProfile(prev => ({ ...prev, profilePictures: urls }));
-                      }}
+                  <div>
+                    <label className="block text-sm text-cyan-100 mb-1">Change Profile Picture</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureFileChange}
                       disabled={!editing}
-                      rows={3}
-                      placeholder="https://image1.url&#10;https://image2.url&#10;https://image3.url"
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 font-mono text-sm"
+                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
                     />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-cyan-100 mb-2">Additional Images (Telegram-style gallery)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleGalleryFilesChange}
+                      disabled={!editing}
+                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
+                    />
+                    <div className="mt-3 grid grid-cols-3 md:grid-cols-5 gap-2">
+                      {profile.profilePictures.map((img, idx) => (
+                        <div key={`${img}-${idx}`} className="relative group">
+                          <img src={img} alt={`Gallery ${idx + 1}`} className="w-full h-20 object-cover rounded-lg border border-cyan-500/30" />
+                          {editing && (
+                            <button
+                              type="button"
+                              onClick={() => removeGalleryImage(idx)}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs opacity-0 group-hover:opacity-100 transition"
+                            >
+                              x
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                     <p className="text-xs text-cyan-400/70 mt-1">{profile.profilePictures.length} image(s) added</p>
                   </div>
 
@@ -342,36 +386,6 @@ export default function UserProfileDashboard() {
                       placeholder="Tell others about yourself..."
                       className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-cyan-100 mb-1">Location</label>
-                    <div className="relative">
-                      <FaMapMarkerAlt className="absolute left-3 top-3 text-cyan-300" />
-                      <input
-                        name="selectedLocation"
-                        value={profile.selectedLocation}
-                        onChange={handleChange}
-                        disabled={!editing}
-                        className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 pl-9 pr-3 py-2 text-cyan-50"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-cyan-100 mb-1">Gender</label>
-                    <select
-                      name="gender"
-                      value={profile.gender}
-                      onChange={handleChange}
-                      disabled={!editing}
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
-                    >
-                      <option value="">Select</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
                   </div>
 
                   <div>
@@ -392,17 +406,18 @@ export default function UserProfileDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-sm text-cyan-100 mb-1">Roommate Preference</label>
+                    <label className="block text-sm text-cyan-100 mb-1">Other Interests</label>
                     <input
-                      name="roommatePreference"
-                      value={profile.roommatePreference}
+                      name="otherInterests"
+                      value={profile.otherInterests}
                       onChange={handleChange}
                       disabled={!editing}
+                      placeholder="Music, Reading, Sports"
                       className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
                     />
                   </div>
 
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-sm text-cyan-100 mb-1">Room Type</label>
                     <select
                       name="roomType"

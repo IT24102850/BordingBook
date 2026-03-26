@@ -325,6 +325,8 @@ exports.signin = async (req, res) => {
           role: user.role,
           fullName: user.fullName,
           profilePicture: user.profilePicture,
+          profilePictures: user.profilePictures,
+          age: user.age,
           bio: user.bio,
           phoneNumber: user.phoneNumber,
           companyName: user.companyName,
@@ -371,6 +373,8 @@ exports.getMe = async (req, res) => {
         role: user.role,
         fullName: user.fullName,
         profilePicture: user.profilePicture,
+        profilePictures: user.profilePictures,
+        age: user.age,
         bio: user.bio,
         phoneNumber: user.phoneNumber,
         companyName: user.companyName,
@@ -409,7 +413,10 @@ exports.updateProfile = async (req, res) => {
     }
 
     const {
+      fullName,
       profilePicture,
+      profilePictures,
+      age,
       bio,
       minBudget,
       maxBudget,
@@ -422,7 +429,15 @@ exports.updateProfile = async (req, res) => {
       lifestylePrefs,
     } = req.body;
 
+    if (typeof fullName === 'string') user.fullName = fullName.trim();
     if (typeof profilePicture === 'string') user.profilePicture = profilePicture.trim();
+    if (Array.isArray(profilePictures)) {
+      user.profilePictures = profilePictures
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    if (age !== undefined) user.age = Number(age) || 0;
     if (typeof bio === 'string') user.bio = bio.trim();
     if (minBudget !== undefined) user.minBudget = Number(minBudget) || 0;
     if (maxBudget !== undefined) user.maxBudget = Number(maxBudget) || 0;
@@ -441,13 +456,12 @@ exports.updateProfile = async (req, res) => {
 
     if (user.role === 'student') {
       const hasRequiredProfileFields =
+        Boolean(user.fullName) &&
+        user.age > 0 &&
         Boolean(user.bio) &&
-        user.minBudget > 0 &&
-        user.maxBudget > 0 &&
-        user.distance > 0 &&
-        Boolean(user.gender) &&
         Boolean(user.academicYear) &&
-        Boolean(user.roommatePreference);
+        Boolean(user.roommatePreference) &&
+        Boolean(user.roomType);
 
       user.profileCompleted = hasRequiredProfileFields;
     }
@@ -463,6 +477,8 @@ exports.updateProfile = async (req, res) => {
         role: user.role,
         profileCompleted: user.profileCompleted,
         profilePicture: user.profilePicture,
+        profilePictures: user.profilePictures,
+        age: user.age,
         bio: user.bio,
         minBudget: user.minBudget,
         maxBudget: user.maxBudget,
