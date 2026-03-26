@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { 
   FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
   FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
@@ -3466,10 +3467,10 @@ export default function SearchPage() {
                   )}
                 </button>
 
-                {showNotifications && (
+                {showNotifications && typeof document !== 'undefined' && (createPortal(
                   <div
                     ref={notificationPanelRef}
-                    className="fixed right-3 md:right-6 top-24 w-[min(94vw,26rem)] max-h-[72vh] overflow-hidden bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-[150]"
+                    className="fixed right-3 md:right-6 top-24 w-[min(94vw,26rem)] max-h-[72vh] overflow-hidden bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-[9999]"
                   >
                     <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10">
                       <div className="flex items-center justify-between">
@@ -3568,8 +3569,9 @@ export default function SearchPage() {
                         ))
                       )}
                     </div>
-                  </div>
-                )}
+                  </div>,
+                  document.body
+                ) as any)}
                 </div>
 
                 <button
