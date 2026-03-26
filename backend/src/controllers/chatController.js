@@ -115,16 +115,21 @@ exports.getDirectContacts = async (req, res) => {
     const search = String(req.query.search || '').trim();
     const limit = Math.min(Number(req.query.limit || 50), 100);
 
+    console.log('[Chat] getDirectContacts - Current user:', currentUserId);
+
     const userFilter = { _id: { $ne: currentUserId } };
     if (search) {
       const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       userFilter.$or = [{ fullName: regex }, { email: regex }];
+      console.log('[Chat] getDirectContacts - Search filter:', search);
     }
 
     const users = await User.find(userFilter)
       .select('fullName email profilePicture role')
       .sort({ updatedAt: -1 })
       .limit(limit);
+
+    console.log('[Chat] getDirectContacts - Found users:', users.length, users.map(u => ({ id: String(u._id), fullName: u.fullName, email: u.email })));
 
     const directConversations = await ChatConversation.find({
       type: 'direct',
@@ -152,6 +157,7 @@ exports.getDirectContacts = async (req, res) => {
 
     return res.status(200).json({ success: true, data });
   } catch (error) {
+    console.error('[Chat] Error in getDirectContacts:', error);
     return res.status(500).json({ success: false, message: 'Error fetching contacts', error: error.message });
   }
 };
@@ -161,7 +167,16 @@ exports.getOrCreateDirectConversation = async (req, res) => {
     const currentUserId = req.user.userId;
     const recipientId = req.body.recipientId;
 
-    if (!recipientId || !mongoose.Types.ObjectId.isValid(recipientId)) {
+    console.log('[Chat] Creating direct conversation from:', currentUserId, 'to:', recipientId);
+
+    if (!recipientId) {
+      return res.status(400).json({ success: false, message: 'recipientId is required' });
+    }
+
+    // Convert to ObjectId if it's a valid string ID
+    let recipientObjectId = recipientId;
+    if (!mongoose.Types.ObjectId.isValid(recipientId)) {
+      console.log('[Chat] Invalid recipientId format:', recipientId);
       return res.status(400).json({ success: false, message: 'Valid recipientId is required' });
     }
 
@@ -169,10 +184,13 @@ exports.getOrCreateDirectConversation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot create direct chat with yourself' });
     }
 
-    const recipient = await User.findById(recipientId).select('fullName email profilePicture role');
+    const recipient = await User.findById(recipientObjectId).select('fullName email profilePicture role');
     if (!recipient) {
+      console.log('[Chat] Recipient not found:', recipientId);
       return res.status(404).json({ success: false, message: 'Recipient user not found' });
     }
+
+    console.log('[Chat] Recipient found:', recipient.email);
 
     const key = directKeyFromUsers(currentUserId, recipientId);
 
@@ -181,21 +199,27 @@ exports.getOrCreateDirectConversation = async (req, res) => {
       .populate('lastMessage.sender', 'fullName email profilePicture role');
 
     if (!conversation) {
+      console.log('[Chat] Creating new conversation with key:', key);
       conversation = await ChatConversation.create({
         type: 'direct',
         directKey: key,
-        participants: [{ user: currentUserId }, { user: recipientId }],
+        participants: [{ user: currentUserId }, { user: recipientObjectId }],
       });
 
       conversation = await ChatConversation.findById(conversation._id)
         .populate('participants.user', 'fullName email profilePicture role')
         .populate('lastMessage.sender', 'fullName email profilePicture role');
+
+      console.log('[Chat] Conversation created:', conversation._id);
+    } else {
+      console.log('[Chat] Conversation already exists:', conversation._id);
     }
 
     const mapped = await mapConversation(conversation, currentUserId);
 
     return res.status(200).json({ success: true, data: mapped });
   } catch (error) {
+    console.error('[Chat] Error in getOrCreateDirectConversation:', error);
     return res.status(500).json({ success: false, message: 'Error creating direct conversation', error: error.message });
   }
 };

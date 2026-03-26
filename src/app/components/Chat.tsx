@@ -92,8 +92,19 @@ async function apiFetch<T>(path: string, token: string, options: RequestInit = {
   });
 
   const json = await response.json().catch(() => ({}));
-  if (!response.ok || json?.success === false) {
-    throw new Error(json?.message || 'Chat request failed');
+  
+  if (!response.ok) {
+    console.error('[Chat API] Error response:', {
+      status: response.status,
+      statusText: response.statusText,
+      body: json,
+    });
+    throw new Error(json?.message || json?.error || `API error: ${response.status}`);
+  }
+
+  if (json?.success === false) {
+    console.error('[Chat API] API returned success:false:', json);
+    throw new Error(json?.message || 'API request failed');
   }
 
   return json?.data as T;
@@ -298,17 +309,21 @@ export default function Chat() {
     async (recipientId: string) => {
       try {
         setError('');
+        console.log('[Chat] Starting direct conversation with:', recipientId);
         const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
           method: 'POST',
           body: JSON.stringify({ recipientId }),
         });
 
+        console.log('[Chat] Conversation created:', data.id);
         setSelectedConversationId(data.id);
         setShowNewChatModal(false);
         setContactSearchQuery('');
         await fetchConversations(data.id);
       } catch (createError) {
-        setError((createError as Error).message || 'Unable to create direct conversation');
+        const errorMsg = (createError as Error).message || 'Unable to create direct conversation';
+        console.error('[Chat] Error creating conversation:', errorMsg, createError);
+        setError(errorMsg);
       }
     },
     [fetchConversations, token]
