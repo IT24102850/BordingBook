@@ -25,6 +25,16 @@ exports.createGroup = async (req, res) => {
       });
     }
 
+    const creator = await User.findById(creatorId).select('fullName email');
+    if (!creator) {
+      return res.status(404).json({
+        success: false,
+        message: 'Creator not found',
+      });
+    }
+
+    const creatorName = creator.fullName || creator.email.split('@')[0];
+
     // Create group with creator as first member
     const group = new BookingGroup({
       name,
@@ -35,8 +45,8 @@ exports.createGroup = async (req, res) => {
       members: [
         {
           userId: creatorId,
-          email: req.user.email,
-          name: req.user.name,
+          email: creator.email,
+          name: creatorName,
           status: 'accepted', // Creator is auto-accepted
         },
       ],
@@ -50,7 +60,7 @@ exports.createGroup = async (req, res) => {
           group.members.push({
             userId: user._id,
             email: user.email,
-            name: user.name,
+            name: user.fullName || user.email.split('@')[0],
             status: 'pending',
           });
         }
@@ -88,7 +98,7 @@ exports.getUserGroups = async (req, res) => {
         { creatorId: userId },
         { 'members.userId': userId },
       ],
-    }).populate('members.userId', 'name email');
+    }).populate('members.userId', 'fullName email profilePicture academicYear');
 
     res.status(200).json({
       success: true,
@@ -115,7 +125,7 @@ exports.getGroup = async (req, res) => {
 
     const group = await BookingGroup.findById(groupId).populate(
       'members.userId',
-      'name email'
+      'fullName email profilePicture academicYear'
     );
 
     if (!group) {
@@ -195,7 +205,7 @@ exports.addGroupMember = async (req, res) => {
     group.members.push({
       userId: user._id,
       email: user.email,
-      name: user.name,
+      name: user.fullName || user.email.split('@')[0],
       status: 'pending',
     });
 

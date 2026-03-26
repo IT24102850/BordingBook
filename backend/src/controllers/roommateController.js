@@ -136,6 +136,10 @@ exports.browseProfiles = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { gender, minBudget, maxBudget, roomType, academicYear } = req.query;
+    const currentUser = await User.findById(userId).select('lifestylePrefs').lean();
+    const currentInterests = Array.isArray(currentUser?.lifestylePrefs)
+      ? currentUser.lifestylePrefs.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
+      : [];
 
     // Build filter
     const filter = { userId: { $ne: userId }, isActive: true };
@@ -206,7 +210,13 @@ exports.browseProfiles = async (req, res) => {
         .limit(50)
         .lean();
 
-      const fallbackProfiles = fallbackUsers.map((u) => ({
+      const fallbackProfiles = fallbackUsers.map((u) => {
+        const profileTags = Array.isArray(u.lifestylePrefs)
+          ? u.lifestylePrefs.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
+          : [];
+        const mutualCount = profileTags.filter((interest) => currentInterests.includes(interest)).length;
+
+        return {
         _id: u._id,
         userId: u._id,
         name: u.fullName || (u.email ? u.email.split('@')[0] : 'Student'),
@@ -224,7 +234,9 @@ exports.browseProfiles = async (req, res) => {
         boardingHouse: u.selectedLocation || '',
         lookingFor: u.roommatePreference || 'Shared Room',
         isActive: true,
-      }));
+        mutualCount,
+      };
+      });
 
       return res.status(200).json({
         success: true,
@@ -233,10 +245,22 @@ exports.browseProfiles = async (req, res) => {
       });
     }
 
+    const enrichedProfiles = profiles.map((profile) => {
+      const profileTags = Array.isArray(profile.tags)
+        ? profile.tags.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
+        : [];
+      const mutualCount = profileTags.filter((interest) => currentInterests.includes(interest)).length;
+
+      return {
+        ...profile,
+        mutualCount,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      count: profiles.length,
-      data: profiles,
+      count: enrichedProfiles.length,
+      data: enrichedProfiles,
     });
   } catch (error) {
     res.status(500).json({

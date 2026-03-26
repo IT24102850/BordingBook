@@ -278,135 +278,119 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [passed, setPassed] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
-  const [myProfile, setMyProfile] = React.useState({
-    budget: 12000,
-    gender: 'Select',
-    preferences: '',
-    academicYear: '1st Year',
-    roomType: 'Shared Room',
-  });
+  const [myProfile, setMyProfile] = React.useState({ budget: 12000, gender: 'Select', preferences: '' });
   const [profileEdit, setProfileEdit] = React.useState(false);
   const [showSidePanels, setShowSidePanels] = React.useState(false);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
   const [dbGroups, setDbGroups] = React.useState<any[]>([]);
+  const [isSyncing, setIsSyncing] = React.useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = React.useState(false);
+  const [syncError, setSyncError] = React.useState('');
+  const token = localStorage.getItem('bb_access_token') || '';
   const current = roommateData[currentIdx];
 
-  const authToken = localStorage.getItem('bb_access_token') || '';
-  const apiHeaders = React.useMemo(() => ({
-    Authorization: `Bearer ${authToken}`,
-    'Content-Type': 'application/json',
-  }), [authToken]);
+  const authHeaders = React.useMemo(
+    () => ({
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    }),
+    [token]
+  );
 
-  const loadRoommateData = React.useCallback(async () => {
-    if (!authToken) return;
+  const getDisplayName = (user: any) => user?.fullName || user?.name || user?.email?.split('@')?.[0] || 'Student';
+
+  const mapProfileToRoommate = (profile: any) => ({
+    id: profile?._id || profile?.id,
+    profileId: profile?._id,
+    userId: profile?.userId || profile?._id,
+    name: profile?.name || profile?.fullName || profile?.email?.split('@')?.[0] || 'Student',
+    email: profile?.email || '',
+    age: Number(profile?.age || 20),
+    gender: profile?.gender || 'Any',
+    university: profile?.boardingHouse || profile?.academicYear || 'SLIIT',
+    bio: profile?.description || profile?.bio || 'Looking for a compatible roommate.',
+    image: profile?.image || profile?.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+    interests: Array.isArray(profile?.tags)
+      ? profile.tags
+      : (Array.isArray(profile?.lifestylePrefs) ? profile.lifestylePrefs : []),
+  });
+
+  const loadRoommateDbData = React.useCallback(async () => {
+    if (!token) return;
+    setIsSyncing(true);
+    setSyncError('');
+
     try {
-      const [profileRes, sentRes, inboxRes, groupsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/roommates/profile`, { headers: apiHeaders }),
-        fetch(`${API_BASE_URL}/api/roommates/request/sent`, { headers: apiHeaders }),
-        fetch(`${API_BASE_URL}/api/roommates/request/inbox`, { headers: apiHeaders }),
-        fetch(`${API_BASE_URL}/api/roommates/groups`, { headers: apiHeaders }),
+      const [likedRes, sentRes, inboxRes, groupsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/roommates/liked`, { headers: authHeaders }),
+        fetch(`${API_BASE_URL}/api/roommates/request/sent`, { headers: authHeaders }),
+        fetch(`${API_BASE_URL}/api/roommates/request/inbox`, { headers: authHeaders }),
+        fetch(`${API_BASE_URL}/api/roommates/groups`, { headers: authHeaders }),
       ]);
 
-      const [profileJson, sentJson, inboxJson, groupsJson] = await Promise.all([
-        profileRes.json().catch(() => ({})),
-        sentRes.json().catch(() => ({})),
-        inboxRes.json().catch(() => ({})),
-        groupsRes.json().catch(() => ({})),
+      const [likedJson, sentJson, inboxJson, groupsJson] = await Promise.all([
+        likedRes.json(),
+        sentRes.json(),
+        inboxRes.json(),
+        groupsRes.json(),
       ]);
 
-      if (profileRes.ok && profileJson?.data) {
-        const p = profileJson.data;
-        setMyProfile({
-          budget: Number(p.budget) || 12000,
-          gender: p.gender || 'Select',
-          preferences: p.preferences || '',
-          academicYear: p.academicYear || '1st Year',
-          roomType: p.roomType || 'Shared Room',
-        });
+      if (likedRes.ok) {
+        const likedProfiles = Array.isArray(likedJson?.data) ? likedJson.data : [];
+        setLiked(likedProfiles.map(mapProfileToRoommate));
       }
 
-      const normalizeRequest = (request: any, type: 'sent' | 'inbox') => {
-        const fromUser = type === 'sent' ? request?.recipientId : request?.senderId;
-        return {
-          id: request?._id || `req_${Date.now()}`,
-          from: {
-            id: fromUser?._id || '',
-            name: fromUser?.name || fromUser?.fullName || 'Student',
-            email: fromUser?.email || '',
-            image: 'https://randomuser.me/api/portraits/lego/1.jpg',
-            university: 'SLIIT',
-          },
-          message: request?.message || '',
-          status: request?.status || 'pending',
-        };
-      };
-
-      if (sentRes.ok && Array.isArray(sentJson?.data)) {
-        setSentRequests(sentJson.data.map((req: any) => normalizeRequest(req, 'sent')));
+      if (sentRes.ok) {
+        const sentData = Array.isArray(sentJson?.data) ? sentJson.data : [];
+        setSentRequests(
+          sentData.map((req: any) => ({
+            id: req._id,
+            from: {
+              id: req.recipientId?._id,
+              name: getDisplayName(req.recipientId),
+              email: req.recipientId?.email || '',
+              image: req.recipientId?.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+              university: req.recipientId?.academicYear || 'SLIIT',
+            },
+            message: req.message,
+            status: req.status,
+          }))
+        );
       }
 
-      if (inboxRes.ok && Array.isArray(inboxJson?.data)) {
-        setInboxRequests(inboxJson.data.map((req: any) => normalizeRequest(req, 'inbox')));
+      if (inboxRes.ok) {
+        const inboxData = Array.isArray(inboxJson?.data) ? inboxJson.data : [];
+        setInboxRequests(
+          inboxData.map((req: any) => ({
+            id: req._id,
+            from: {
+              id: req.senderId?._id,
+              name: getDisplayName(req.senderId),
+              email: req.senderId?.email || '',
+              image: req.senderId?.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+              university: req.senderId?.academicYear || 'SLIIT',
+            },
+            message: req.message,
+            status: req.status,
+          }))
+        );
       }
 
-      if (groupsRes.ok && Array.isArray(groupsJson?.data)) {
-        setDbGroups(groupsJson.data);
+      if (groupsRes.ok) {
+        const groupsData = Array.isArray(groupsJson?.data) ? groupsJson.data : [];
+        setDbGroups(groupsData);
       }
     } catch {
-      // Keep UI usable even when API calls fail
+      setSyncError('Could not sync roommate data right now.');
+    } finally {
+      setIsSyncing(false);
     }
-  }, [authToken, apiHeaders]);
+  }, [authHeaders, token]);
 
   React.useEffect(() => {
-    loadRoommateData();
-  }, [loadRoommateData]);
-
-  const saveMyProfile = React.useCallback(async () => {
-    if (!authToken) return;
-    try {
-      await fetch(`${API_BASE_URL}/api/roommates/profile`, {
-        method: 'POST',
-        headers: apiHeaders,
-        body: JSON.stringify({
-          budget: myProfile.budget,
-          gender: myProfile.gender === 'Select' ? 'Other' : myProfile.gender,
-          academicYear: myProfile.academicYear,
-          roomType: myProfile.roomType,
-          availableFrom: new Date().toISOString(),
-          preferences: myProfile.preferences,
-          description: myProfile.preferences,
-        }),
-      });
-      loadRoommateData();
-    } catch {
-      // Ignore save failure in UI fallback mode
-    }
-  }, [authToken, apiHeaders, myProfile, loadRoommateData]);
-
-  const createGroupFromLiked = React.useCallback(async () => {
-    if (!authToken || liked.length === 0) return;
-    try {
-      const memberEmails = liked
-        .map((item) => item?.email)
-        .filter((email) => typeof email === 'string' && email.length > 0);
-
-      if (memberEmails.length === 0) return;
-
-      await fetch(`${API_BASE_URL}/api/roommates/group`, {
-        method: 'POST',
-        headers: apiHeaders,
-        body: JSON.stringify({
-          name: `Roommate Group ${new Date().toLocaleDateString('en-US')}`,
-          memberEmails,
-        }),
-      });
-
-      loadRoommateData();
-    } catch {
-      // Ignore group creation failure in UI fallback mode
-    }
-  }, [authToken, apiHeaders, liked, loadRoommateData]);
+    loadRoommateDbData();
+  }, [loadRoommateDbData]);
 
   const handleLike = () => {
     if (!current || isAnimating) return;
@@ -414,18 +398,28 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     setDirection('right');
     setTimeout(() => {
       setLiked([...liked, current]);
-      if (authToken && current.userId) {
+
+      if (token && current?.profileId) {
+        fetch(`${API_BASE_URL}/api/roommates/swipe`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ profileId: current.profileId, action: 'like' }),
+        }).catch(() => undefined);
+      }
+
+      if (token && current?.userId) {
         fetch(`${API_BASE_URL}/api/roommates/request/send`, {
           method: 'POST',
-          headers: apiHeaders,
+          headers: authHeaders,
           body: JSON.stringify({
             recipientId: current.userId,
-            message: 'Hi! I think we would be great roommates!',
+            message: 'Hi! I think we would be great roommates.',
           }),
-        }).then(() => loadRoommateData()).catch(() => undefined);
-      } else {
-        setSentRequests([...sentRequests, { id: `req_${Date.now()}`, from: current, message: 'Hi! I think we would be great roommates!', status: 'pending' }]);
+        })
+          .then(() => loadRoommateDbData())
+          .catch(() => undefined);
       }
+
       if (currentIdx < roommateData.length - 1) {
         setCurrentIdx(currentIdx + 1);
       }
@@ -440,6 +434,15 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     setDirection('left');
     setTimeout(() => {
       setPassed([...passed, current]);
+
+      if (token && current?.profileId) {
+        fetch(`${API_BASE_URL}/api/roommates/swipe`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ profileId: current.profileId, action: 'pass' }),
+        }).catch(() => undefined);
+      }
+
       if (currentIdx < roommateData.length - 1) {
         setCurrentIdx(currentIdx + 1);
       }
@@ -455,23 +458,68 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     }
   };
 
-  const handleRequestResponse = (requestId: string, accept: boolean) => {
-    if (!authToken) {
-      setInboxRequests(
-        inboxRequests.map((req) =>
+  const handleRequestResponse = async (requestId: string, accept: boolean) => {
+    if (!token) return;
+
+    try {
+      await fetch(
+        `${API_BASE_URL}/api/roommates/request/${requestId}/${accept ? 'accept' : 'reject'}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders,
+        }
+      );
+
+      setInboxRequests((prev) =>
+        prev.map((req) =>
           req.id === requestId ? { ...req, status: accept ? 'accepted' : 'rejected' } : req
         )
       );
+
+      loadRoommateDbData();
+    } catch {
+      setSyncError('Could not update request. Please try again.');
+    }
+  };
+
+  const handleCreateGroupFromLiked = async () => {
+    if (!token) return;
+
+    const memberEmails = liked
+      .map((roommate) => roommate.email)
+      .filter((email: string) => Boolean(email));
+
+    if (memberEmails.length === 0) {
+      setSyncError('Like roommates with valid emails before creating a group.');
       return;
     }
 
-    const action = accept ? 'accept' : 'reject';
-    fetch(`${API_BASE_URL}/api/roommates/request/${requestId}/${action}`, {
-      method: 'PATCH',
-      headers: apiHeaders,
-    })
-      .then(() => loadRoommateData())
-      .catch(() => undefined);
+    setIsCreatingGroup(true);
+    setSyncError('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/roommates/group`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          name: `Roommate Group ${new Date().toLocaleDateString()}`,
+          memberEmails,
+          description: 'Created from roommate finder likes',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({}));
+        throw new Error(errorJson?.message || 'Failed to create group');
+      }
+
+      await loadRoommateDbData();
+      setRoommateTab('groups');
+    } catch (err) {
+      setSyncError((err as Error).message || 'Failed to create group');
+    } finally {
+      setIsCreatingGroup(false);
+    }
   };
 
   return (
@@ -498,6 +546,18 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
           </button>
         ))}
       </div>
+
+      {syncError && (
+        <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">
+          {syncError}
+        </div>
+      )}
+
+      {isSyncing && (
+        <div className="text-xs text-cyan-200 bg-cyan-500/10 border border-cyan-500/30 px-3 py-2 rounded-lg">
+          Syncing roommate activity...
+        </div>
+      )}
 
       {/* BROWSE TAB */}
       {roommateTab === 'browse' && (
@@ -645,12 +705,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-white">My Roommate Profile</h3>
             <button
-              onClick={() => {
-                if (profileEdit) {
-                  saveMyProfile();
-                }
-                setProfileEdit(!profileEdit);
-              }}
+              onClick={() => setProfileEdit(!profileEdit)}
               className="px-4 py-2 bg-cyan-500/30 border border-cyan-500 text-cyan-300 rounded-lg hover:bg-cyan-500/50 text-xs font-semibold"
             >
               {profileEdit ? 'Done' : 'Edit'}
@@ -675,30 +730,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   <label className="text-sm text-gray-300">Preferences</label>
                   <textarea value={myProfile.preferences} onChange={(e) => setMyProfile({...myProfile, preferences: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" placeholder="e.g., Early riser, non-smoker" rows={2} />
                 </div>
-                <div>
-                  <label className="text-sm text-gray-300">Academic Year</label>
-                  <select value={myProfile.academicYear} onChange={(e) => setMyProfile({...myProfile, academicYear: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
-                    <option>1st Year</option>
-                    <option>2nd Year</option>
-                    <option>3rd Year</option>
-                    <option>4th Year</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-300">Room Type</label>
-                  <select value={myProfile.roomType} onChange={(e) => setMyProfile({...myProfile, roomType: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
-                    <option>Shared Room</option>
-                    <option>Single Room</option>
-                  </select>
-                </div>
               </>
             ) : (
               <>
                 <p className="text-gray-300"><span className="text-gray-400">Budget:</span> Rs. {myProfile.budget.toLocaleString()}</p>
                 <p className="text-gray-300"><span className="text-gray-400">Gender:</span> {myProfile.gender}</p>
                 <p className="text-gray-300"><span className="text-gray-400">Preferences:</span> {myProfile.preferences || 'Not specified'}</p>
-                <p className="text-gray-300"><span className="text-gray-400">Academic Year:</span> {myProfile.academicYear}</p>
-                <p className="text-gray-300"><span className="text-gray-400">Room Type:</span> {myProfile.roomType}</p>
               </>
             )}
           </div>
@@ -786,73 +823,70 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-white">Groups</h3>
             <button 
-              onClick={createGroupFromLiked}
+              onClick={handleCreateGroupFromLiked}
+              disabled={isCreatingGroup}
               className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition"
             >
               <FaPlus size={16} />
-              Create Group From Likes
+              {isCreatingGroup ? 'Creating...' : 'Create Group'}
             </button>
           </div>
 
-          {dbGroups.length > 0 && (
-            <div className="space-y-3 mb-6">
-              {dbGroups.map((group: any) => (
-                <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-white font-semibold">{group.name}</p>
-                      <p className="text-xs text-gray-400">Members: {Array.isArray(group.members) ? group.members.length : 0}</p>
-                    </div>
-                    <span className="text-xs px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                      {group.status || 'forming'}
-                    </span>
-                  </div>
+          <div className="space-y-4">
+            {dbGroups.length > 0 ? (
+              <div className="bg-white/5 rounded-lg border border-white/10 p-4">
+                <h4 className="text-white font-semibold mb-3">Your Database Groups ({dbGroups.length})</h4>
+                <div className="space-y-3">
+                  {dbGroups.map((group) => {
+                    const acceptedMembers = Array.isArray(group.members)
+                      ? group.members.filter((m: any) => m.status === 'accepted').length
+                      : 0;
+                    return (
+                      <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-white font-semibold text-sm">{group.name}</p>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                            {group.status || 'forming'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">{acceptedMembers} accepted member(s)</p>
+                        <button
+                          onClick={() => navigate('/chat', { state: { selectedGroup: group, chatType: 'group-chat' } })}
+                          className="mt-3 text-xs px-3 py-1.5 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50"
+                        >
+                          Open Group Chat
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
-          
-          {liked.length > 0 ? (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
-                <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  {liked.map((roommate) => (
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-white/5 rounded-lg border border-white/10">
+                <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
+                <p className="text-gray-300 font-semibold mb-2">No groups in database yet</p>
+                <p className="text-sm text-gray-400">Like roommates and create your first group.</p>
+              </div>
+            )}
+
+            {liked.length > 0 && (
+              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-4 border border-cyan-500/30">
+                <h4 className="text-white font-semibold mb-3">Liked Roommates Ready for Group ({liked.length})</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {liked.slice(0, 6).map((roommate) => (
                     <div key={roommate.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
-                      <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
+                      <img src={roommate.image} alt={roommate.name} className="w-10 h-10 rounded-full object-cover" />
                       <div className="flex-1">
-                        <p className="text-white font-semibold text-sm">{roommate.name}</p>
-                        <p className="text-gray-400 text-xs">{roommate.age} | {roommate.university}</p>
+                        <p className="text-white font-semibold text-xs">{roommate.name}</p>
+                        <p className="text-gray-400 text-[11px]">{roommate.university}</p>
                       </div>
                       <FaCheckCircle className="text-green-400" />
                     </div>
                   ))}
                 </div>
-                <p className="text-sm text-gray-300 mb-4">
-                  Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
-                </p>
-                <button 
-                  onClick={createGroupFromLiked}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
-                >
-                  <FaUserFriends size={18} />
-                  Create Group with These Members
-                </button>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
-              <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
-              <p className="text-gray-300 font-semibold mb-2">No groups yet</p>
-              <p className="text-sm text-gray-400 mb-4">Start by liking roommates in the Browse tab</p>
-              <button 
-                onClick={() => setRoommateTab('browse')}
-                className="px-4 py-2 bg-white/10 border border-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition"
-              >
-                Browse Roommates
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -872,6 +906,7 @@ function MapViewPlaceholder() {
 // Define types
 interface Roommate {
   id: number | string;
+  profileId?: string;
   userId?: string;
   name: string;
   email?: string;
@@ -880,6 +915,7 @@ interface Roommate {
   university: string;
   bio: string;
   image: string;
+  profilePictures?: string[];
   interests: string[];
   mutualCount?: number;
 }
@@ -2853,7 +2889,8 @@ export default function SearchPage() {
 
             return {
               id: profile._id || `profile-${index}`,
-              userId: profile.userId || profile._id || '',
+              profileId: profile._id || '',
+              userId: profile.userId || '',
               name: profile.name || 'Student',
               email: profile.email || '',
               age: 20,
@@ -2861,8 +2898,9 @@ export default function SearchPage() {
               university: profile.boardingHouse || profile.academicYear || 'SLIIT',
               bio: profile.description || 'Looking for a compatible roommate.',
               image: profile.image || 'https://randomuser.me/api/portraits/lego/1.jpg',
+              profilePictures: Array.isArray(profile.profilePictures) ? profile.profilePictures : [],
               interests: profileInterests,
-              mutualCount,
+              mutualCount: typeof profile.mutualCount === 'number' ? profile.mutualCount : mutualCount,
             };
           });
 
