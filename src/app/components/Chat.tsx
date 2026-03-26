@@ -702,10 +702,10 @@ export default function Chat() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex">
-      <div className="w-full lg:flex">
-        <div className={`w-full lg:w-96 border-r border-white/10 ${selectedConversation ? 'hidden lg:block' : 'block'}`}>
-          <div className="p-4 border-b border-white/10">
+    <div className="h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden">
+      <div className="w-full lg:flex h-full overflow-hidden">
+        <div className={`w-full lg:w-96 border-r border-white/10 h-full overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'} flex-col`}>
+          <div className="p-4 border-b border-white/10 flex-shrink-0">
             <div className="mb-3 flex items-center justify-between">
               <button
                 onClick={() => navigate(-1)}
@@ -740,7 +740,7 @@ export default function Chat() {
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[calc(100vh-120px)]">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {loadingConversations && (
               <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin" /> Loading conversations...
@@ -783,7 +783,7 @@ export default function Chat() {
         </div>
 
         {selectedConversation && (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5">
               <div className="flex items-center gap-3">
                 <button onClick={() => setSelectedConversationId('')} className="text-cyan-400 hover:text-cyan-300" title="Close conversation">
@@ -844,7 +844,7 @@ export default function Chat() {
 
             {error && <div className="text-xs text-red-200 bg-red-500/10 border-b border-red-500/30 px-4 py-2">{error}</div>}
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
               {loadingMessages && (
                 <div className="text-xs text-gray-400 flex items-center gap-2">
                   <Loader2 size={14} className="animate-spin" /> Loading messages...
