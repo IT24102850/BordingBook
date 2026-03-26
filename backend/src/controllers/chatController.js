@@ -213,6 +213,8 @@ exports.getOrCreateDirectConversation = async (req, res) => {
     const currentUserId = req.user.userId;
     const recipientId = req.body.recipientId;
 
+    console.log('[Chat] Creating direct conversation:', { currentUserId, recipientId });
+
     if (!recipientId) {
       return res.status(400).json({ success: false, message: 'recipientId is required' });
     }
@@ -230,16 +232,21 @@ exports.getOrCreateDirectConversation = async (req, res) => {
 
     const recipient = await User.findById(recipientObjectId).select('fullName email profilePicture role');
     if (!recipient) {
+      console.log('[Chat] Recipient not found:', recipientObjectId);
       return res.status(404).json({ success: false, message: 'Recipient user not found' });
     }
 
+    console.log('[Chat] Found recipient:', recipient.fullName);
+
     const key = directKeyFromUsers(currentUserId, recipientId);
+    console.log('[Chat] Direct key:', key);
 
     let conversation = await ChatConversation.findOne({ directKey: key })
       .populate('participants.user', 'fullName email profilePicture role')
       .populate('lastMessage.sender', 'fullName email profilePicture role');
 
     if (!conversation) {
+      console.log('[Chat] Creating new conversation');
       conversation = await ChatConversation.create({
         type: 'direct',
         directKey: key,
@@ -249,12 +256,17 @@ exports.getOrCreateDirectConversation = async (req, res) => {
       conversation = await ChatConversation.findById(conversation._id)
         .populate('participants.user', 'fullName email profilePicture role')
         .populate('lastMessage.sender', 'fullName email profilePicture role');
+      console.log('[Chat] Conversation created:', conversation._id);
+    } else {
+      console.log('[Chat] Using existing conversation:', conversation._id);
     }
 
     const mapped = await mapConversation(conversation, currentUserId);
+    console.log('[Chat] Mapped conversation:', mapped);
 
     return res.status(200).json({ success: true, data: mapped });
   } catch (error) {
+    console.error('[Chat] Error creating direct conversation:', error);
     return res.status(500).json({ success: false, message: 'Error creating direct conversation', error: error.message });
   }
 };

@@ -703,19 +703,19 @@ export default function Chat() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#0a1124] to-[#131d3a] border-b border-white/10 p-4">
-        <div className="flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 lg:hidden">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="text-xl font-bold text-white">Messages</h1>
-          <div className="w-8" />
-        </div>
-      </div>
-
-      <div className="w-full lg:flex pt-16">
+      <div className="w-full lg:flex">
         <div className={`w-full lg:w-96 border-r border-white/10 ${selectedConversation ? 'hidden lg:block' : 'block'}`}>
           <div className="p-4 border-b border-white/10">
+            <div className="mb-3 flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors text-xs font-semibold"
+                title="Back"
+              >
+                <ArrowLeft size={14} />
+                Back
+              </button>
+            </div>
             <div className="mb-3 flex items-center justify-between gap-2">
               <p className="text-xs text-gray-400">Start direct chat with mutual matches only</p>
               <button
@@ -740,7 +740,7 @@ export default function Chat() {
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[calc(100vh-64px)]">
+          <div className="overflow-y-auto max-h-[calc(100vh-120px)]">
             {loadingConversations && (
               <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin" /> Loading conversations...
@@ -786,7 +786,7 @@ export default function Chat() {
           <div className="flex-1 flex flex-col">
             <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5">
               <div className="flex items-center gap-3">
-                <button onClick={() => setSelectedConversationId('')} className="lg:hidden text-cyan-400 hover:text-cyan-300">
+                <button onClick={() => setSelectedConversationId('')} className="text-cyan-400 hover:text-cyan-300" title="Close conversation">
                   <ArrowLeft size={20} />
                 </button>
                 <img

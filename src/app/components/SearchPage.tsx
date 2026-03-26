@@ -15,6 +15,34 @@ import { distMap } from '../data/rooms';
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
+function deriveProfileAge(profile: any): number {
+  const numericAge = Number(profile?.age);
+  if (Number.isFinite(numericAge) && numericAge > 0) {
+    return Math.floor(numericAge);
+  }
+
+  const dobRaw = profile?.dateOfBirth || profile?.dob || profile?.birthDate;
+  if (dobRaw) {
+    const dob = new Date(dobRaw);
+    if (!Number.isNaN(dob.getTime())) {
+      const today = new Date();
+      let years = today.getFullYear() - dob.getFullYear();
+      const monthDelta = today.getMonth() - dob.getMonth();
+      const beforeBirthday = monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate());
+      if (beforeBirthday) years -= 1;
+      if (years > 0) return years;
+    }
+  }
+
+  const yearToken = String(profile?.academicYear || '').toLowerCase();
+  if (yearToken.includes('1')) return 19;
+  if (yearToken.includes('2')) return 20;
+  if (yearToken.includes('3')) return 21;
+  if (yearToken.includes('4')) return 22;
+
+  return 18;
+}
+
 // Mock roommate data
 const roommates = [
   {
@@ -319,7 +347,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     userId: profile.userId || profile._id,
     name: profile.name || profile.fullName || (profile.email ? profile.email.split('@')[0] : 'Student'),
     email: profile.email || '',
-    age: Number(profile.age) || 20,
+    age: deriveProfileAge(profile),
     gender: profile.gender || 'Any',
     university: profile.boardingHouse || profile.academicYear || 'SLIIT',
     bio: profile.description || profile.bio || 'Looking for a compatible roommate.',
@@ -593,6 +621,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
 
               {/* Center Column - Main Swipe Card */}
               <div className={showSidePanels ? '' : 'max-w-2xl mx-auto'}>
+                <div className="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center justify-between">
+                  <span className="text-xs text-cyan-200">
+                    Profile {Math.min(currentIdx + 1, Math.max(1, roommateData.length))} of {roommateData.length}
+                  </span>
+                  <span className="text-xs text-gray-400">{Math.max(0, roommateData.length - currentIdx)} remaining</span>
+                </div>
                 <div className="relative h-[460px] mb-4 perspective-1000">
                   {currentIdx < roommateData.length - 1 && (
                     <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
@@ -611,9 +645,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                     </div>
                   )}
                 </div>
-                <div className="flex justify-between items-center mt-4">
-                  <span className="text-sm text-gray-400">{Math.max(0, roommateData.length - currentIdx)} profiles remaining</span>
-                  <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                <div className="relative z-20 flex justify-end items-center mt-5">
+                  <button
+                    onClick={handleUndo}
+                    disabled={currentIdx === 0}
+                    className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
                     <FaUndo /> Undo
                   </button>
                 </div>
@@ -652,6 +689,14 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
 
           {/* Mobile View */}
           <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
+            <div className="w-full max-w-md mb-3 px-4">
+              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center justify-between">
+                <span className="text-xs text-cyan-200">
+                  Profile {Math.min(currentIdx + 1, Math.max(1, roommateData.length))} of {roommateData.length}
+                </span>
+                <span className="text-xs text-gray-400">{Math.max(0, roommateData.length - currentIdx)} left</span>
+              </div>
+            </div>
             {current ? (
               <>
                 <RoommateSwipeCard
@@ -661,9 +706,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   isAnimating={isAnimating}
                   direction={direction}
                 />
-                <div className="flex justify-between w-full max-w-md mt-4 px-4">
-                  <span className="text-xs text-gray-400">{Math.max(0, roommateData.length - currentIdx)} profiles left</span>
-                  <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                <div className="relative z-20 flex justify-end w-full max-w-md mt-5 px-4">
+                  <button
+                    onClick={handleUndo}
+                    disabled={currentIdx === 0}
+                    className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
                     <FaUndo /> Undo
                   </button>
                 </div>
@@ -2047,7 +2095,19 @@ const FiltersPanel: React.FC<{
 // Notification Interface
 interface Notification {
   id: string;
-  type: 'owner_approval' | 'payment_pending' | 'payment_verified' | 'receipt_generated' | 'booking_confirmed' | 'checkin_reminder';
+  type:
+    | 'owner_approval'
+    | 'payment_pending'
+    | 'payment_verified'
+    | 'receipt_generated'
+    | 'booking_confirmed'
+    | 'checkin_reminder'
+    | 'roommate_request_received'
+    | 'roommate_request_accepted'
+    | 'roommate_request_rejected'
+    | 'group_invitation'
+    | 'group_status_ready'
+    | 'group_status_booked';
   title: string;
   message: string;
   timestamp: string;
@@ -2057,60 +2117,30 @@ interface Notification {
   roomTitle?: string;
 }
 
-// Mock Notifications Data
-const mockNotifications: Notification[] = [
-  {
-    id: 'notif-001',
-    type: 'owner_approval',
-    title: 'Booking Approved!',
-    message: 'Owner has approved your booking request for "Modern Boarding House near SLIIT". Please upload your payment slip to proceed.',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    read: false,
-    actionRequired: true,
-    bookingId: 'BK002',
-    roomTitle: 'Modern Boarding House near SLIIT'
-  },
-  {
-    id: 'notif-002',
-    type: 'payment_verified',
-    title: 'Payment Verified',
-    message: 'Your payment for booking #BK001 has been verified. Receipt has been generated.',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    read: false,
-    actionRequired: false,
-    bookingId: 'BK001'
-  },
-  {
-    id: 'notif-003',
-    type: 'receipt_generated',
-    title: 'Receipt Generated',
-    message: 'Your payment receipt for booking #BK001 is ready for download.',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    read: false,
-    actionRequired: false,
-    bookingId: 'BK001'
-  },
-  {
-    id: 'notif-004',
-    type: 'booking_confirmed',
-    title: 'Booking Confirmed!',
-    message: 'Your booking for "Modern Boarding House near SLIIT" has been confirmed. Welcome!',
-    timestamp: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
-    read: true,
-    actionRequired: false,
-    bookingId: 'BK001'
-  },
-  {
-    id: 'notif-005',
-    type: 'checkin_reminder',
-    title: 'Check-in Date Reminder',
-    message: 'Please submit your check-in date for your confirmed booking. Your room is reserved until you confirm.',
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    read: false,
-    actionRequired: true,
-    bookingId: 'BK001'
+const READ_NOTIFICATIONS_STORAGE_KEY = 'bb_read_notification_ids';
+
+const extractResponseArray = (payload: any): any[] => {
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
+
+const getStoredReadNotificationIds = (): Set<string> => {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(READ_NOTIFICATIONS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
   }
-];
+};
+
+const saveReadNotificationIds = (notifications: Notification[]) => {
+  if (typeof window === 'undefined') return;
+  const ids = notifications.filter((n) => n.read).map((n) => n.id);
+  window.localStorage.setItem(READ_NOTIFICATIONS_STORAGE_KEY, JSON.stringify(ids));
+};
 
 // Student Payment Portal Content Component
 function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }) {
@@ -2687,12 +2717,15 @@ export default function SearchPage() {
   const [selectedRoomForBooking, setSelectedRoomForBooking] = useState<Listing | null>(null);
   
   // Notification states
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [showPaymentPortal, setShowPaymentPortal] = useState<boolean>(false);
   const [showCheckinForm, setShowCheckinForm] = useState<boolean>(false);
   const [selectedNotificationBooking, setSelectedNotificationBooking] = useState<string | null>(null);
   const [checkinDate, setCheckinDate] = useState<string>('');
+  const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
+  const notificationPanelRef = useRef<HTMLDivElement | null>(null);
   
   // Advanced filter states matching the image
   const [priceMax, setPriceMax] = useState<number>(50000);
@@ -2705,9 +2738,260 @@ export default function SearchPage() {
   const [dbListings, setDbListings] = useState<Listing[]>([]);
   const [dbRoommates, setDbRoommates] = useState<Roommate[]>([]);
   const [isListingsLoading, setIsListingsLoading] = useState<boolean>(true);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState('Guest');
   const [currentUserName, setCurrentUserName] = useState('');
   const [currentUserImage, setCurrentUserImage] = useState('https://randomuser.me/api/portraits/lego/1.jpg');
+  const [popupNotification, setPopupNotification] = useState<Notification | null>(null);
+  const seenNotificationIdsRef = useRef<Set<string>>(new Set());
+  const popupHideTimerRef = useRef<number | null>(null);
+  const unreadNotificationCount = notifications.filter((n) => !n.read).length;
+
+  const dismissPopupNotification = React.useCallback(() => {
+    setPopupNotification(null);
+    if (popupHideTimerRef.current) {
+      window.clearTimeout(popupHideTimerRef.current);
+      popupHideTimerRef.current = null;
+    }
+  }, []);
+
+  const openNotification = React.useCallback((notif: Notification) => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n));
+      saveReadNotificationIds(updated);
+      return updated;
+    });
+
+    if (notif.type === 'owner_approval' || notif.type === 'payment_pending') {
+      setSelectedNotificationBooking(notif.bookingId || null);
+      setShowPaymentPortal(true);
+      setShowNotifications(false);
+    } else if (notif.type === 'checkin_reminder') {
+      setSelectedNotificationBooking(notif.bookingId || null);
+      setShowCheckinForm(true);
+      setShowNotifications(false);
+    } else if (notif.type === 'receipt_generated' || notif.type === 'payment_verified') {
+      setSelectedNotificationBooking(notif.bookingId || null);
+      setShowPaymentPortal(true);
+      setShowNotifications(false);
+    } else if (
+      notif.type === 'roommate_request_received' ||
+      notif.type === 'roommate_request_accepted' ||
+      notif.type === 'roommate_request_rejected' ||
+      notif.type === 'group_invitation' ||
+      notif.type === 'group_status_ready' ||
+      notif.type === 'group_status_booked'
+    ) {
+      setActiveTab('roommate');
+      setShowNotifications(false);
+    }
+  }, []);
+
+  const fetchLatestNotifications = React.useCallback(
+    async (token: string, userId: string, options?: { withLoader?: boolean; suppressPopup?: boolean }) => {
+      const withLoader = options?.withLoader ?? false;
+      const suppressPopup = options?.suppressPopup ?? false;
+
+      if (!token || !userId) return;
+
+      if (withLoader) {
+        setIsNotificationsLoading(true);
+      }
+
+      try {
+        const [inboxResponse, sentResponse, groupsResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/roommates/request/inbox`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_BASE_URL}/api/roommates/request/sent`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_BASE_URL}/api/roommates/groups`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        const [inboxJson, sentJson, groupsJson] = await Promise.all([
+          inboxResponse.json(),
+          sentResponse.json(),
+          groupsResponse.json(),
+        ]);
+
+        const inboxItems = inboxResponse.ok ? extractResponseArray(inboxJson) : [];
+        const sentItems = sentResponse.ok ? extractResponseArray(sentJson) : [];
+        const groupItems = groupsResponse.ok ? extractResponseArray(groupsJson) : [];
+
+        const inboxNotifications: Notification[] = inboxItems.map((req: any) => {
+          const senderName = req?.senderId?.fullName || req?.senderId?.email || 'A student';
+          const baseTitle = req?.status === 'accepted'
+            ? 'Roommate Request Accepted'
+            : req?.status === 'rejected'
+            ? 'Roommate Request Rejected'
+            : 'New Roommate Request';
+
+          const type: Notification['type'] = req?.status === 'accepted'
+            ? 'roommate_request_accepted'
+            : req?.status === 'rejected'
+            ? 'roommate_request_rejected'
+            : 'roommate_request_received';
+
+          return {
+            id: `request-inbox-${req?._id || Math.random().toString(36).slice(2)}`,
+            type,
+            title: baseTitle,
+            message: req?.status === 'pending'
+              ? `${senderName} sent you a roommate request${req?.message ? `: "${req.message}"` : '.'}`
+              : `${senderName} request status is now ${req?.status || 'updated'}.`,
+            timestamp: req?.respondedAt || req?.createdAt || new Date().toISOString(),
+            read: false,
+            actionRequired: req?.status === 'pending',
+          };
+        });
+
+        const sentNotifications: Notification[] = sentItems
+          .filter((req: any) => req?.status === 'accepted' || req?.status === 'rejected')
+          .map((req: any) => {
+            const recipientName = req?.recipientId?.fullName || req?.recipientId?.email || 'the recipient';
+            const accepted = req?.status === 'accepted';
+            return {
+              id: `request-sent-${req?._id || Math.random().toString(36).slice(2)}-${req?.status || 'pending'}`,
+              type: accepted ? 'roommate_request_accepted' : 'roommate_request_rejected',
+              title: accepted ? 'Request Accepted' : 'Request Rejected',
+              message: `${recipientName} has ${accepted ? 'accepted' : 'rejected'} your roommate request.`,
+              timestamp: req?.respondedAt || req?.createdAt || new Date().toISOString(),
+              read: false,
+              actionRequired: false,
+            };
+          });
+
+        const groupNotifications: Notification[] = groupItems.flatMap((group: any) => {
+          const members = Array.isArray(group?.members) ? group.members : [];
+          const invitation = members.find((member: any) => {
+            const memberId = String(member?.userId?._id || member?.userId || '');
+            return memberId === userId && member?.status === 'pending';
+          });
+
+          const mapped: Notification[] = [];
+
+          if (invitation) {
+            mapped.push({
+              id: `group-invite-${group?._id || Math.random().toString(36).slice(2)}`,
+              type: 'group_invitation',
+              title: 'Group Invitation',
+              message: `You were invited to join the group "${group?.name || 'Booking Group'}".`,
+              timestamp: group?.updatedAt || group?.createdAt || new Date().toISOString(),
+              read: false,
+              actionRequired: true,
+            });
+          }
+
+          if (group?.status === 'ready') {
+            mapped.push({
+              id: `group-ready-${group?._id || Math.random().toString(36).slice(2)}`,
+              type: 'group_status_ready',
+              title: 'Group Is Ready',
+              message: `Your group "${group?.name || 'Booking Group'}" is now ready for booking.`,
+              timestamp: group?.updatedAt || group?.createdAt || new Date().toISOString(),
+              read: false,
+              actionRequired: true,
+            });
+          }
+
+          if (group?.status === 'booked') {
+            mapped.push({
+              id: `group-booked-${group?._id || Math.random().toString(36).slice(2)}`,
+              type: 'group_status_booked',
+              title: 'Booking Confirmed',
+              message: `Booking has been confirmed for group "${group?.name || 'Booking Group'}".`,
+              timestamp: group?.updatedAt || group?.createdAt || new Date().toISOString(),
+              read: false,
+              actionRequired: false,
+            });
+          }
+
+          return mapped;
+        });
+
+        const allNotifications = [...inboxNotifications, ...sentNotifications, ...groupNotifications].sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        const readIds = getStoredReadNotificationIds();
+        const hydrated = allNotifications.map((notification) => ({
+          ...notification,
+          read: readIds.has(notification.id),
+        }));
+
+        if (!suppressPopup && seenNotificationIdsRef.current.size > 0) {
+          const incoming = hydrated.find((notification) => !seenNotificationIdsRef.current.has(notification.id));
+          if (incoming) {
+            setPopupNotification(incoming);
+            if (popupHideTimerRef.current) {
+              window.clearTimeout(popupHideTimerRef.current);
+            }
+            popupHideTimerRef.current = window.setTimeout(() => {
+              setPopupNotification(null);
+              popupHideTimerRef.current = null;
+            }, 6000);
+          }
+        }
+
+        seenNotificationIdsRef.current = new Set(hydrated.map((n) => n.id));
+        setNotifications(hydrated);
+      } catch {
+        setNotifications([]);
+      } finally {
+        if (withLoader) {
+          setIsNotificationsLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const token = localStorage.getItem('bb_access_token') || '';
+    if (!token) return;
+
+    const intervalId = window.setInterval(() => {
+      void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [currentUserId, fetchLatestNotifications]);
+
+  useEffect(() => {
+    return () => {
+      if (popupHideTimerRef.current) {
+        window.clearTimeout(popupHideTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        notificationPanelRef.current &&
+        !notificationPanelRef.current.contains(target) &&
+        notificationButtonRef.current &&
+        !notificationButtonRef.current.contains(target)
+      ) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -2794,11 +3078,16 @@ export default function SearchPage() {
           : [];
 
         if (!isCancelled && currentUser?.email) {
+          setCurrentUserId(String(currentUser._id || currentUser.id || ''));
           setCurrentUserEmail(currentUser.email);
           setCurrentUserName(currentUser.fullName || '');
           if (currentUser.profilePicture) {
             setCurrentUserImage(currentUser.profilePicture);
           }
+        }
+        const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
+        if (!isCancelled) {
+          await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
         }
 
         const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
@@ -2826,7 +3115,7 @@ export default function SearchPage() {
               userId: profile.userId || profile._id,
               name: profile.name || 'Student',
               email: profile.email || '',
-              age: 20,
+              age: deriveProfileAge(profile),
               gender: profile.gender || 'Any',
               university: profile.boardingHouse || profile.academicYear || 'SLIIT',
               bio: profile.description || 'Looking for a compatible roommate.',
@@ -3165,25 +3454,33 @@ export default function SearchPage() {
               <div className="flex items-center gap-2">
                 <div className="relative">
                 <button
+                  ref={notificationButtonRef}
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors relative"
                 >
                   <FaBell className="text-white text-lg" />
-                  {notifications.filter(n => !n.read).length > 0 && (
+                  {unreadNotificationCount > 0 && (
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-white text-xs flex items-center justify-center font-bold shadow-lg">
-                      {notifications.filter(n => !n.read).length}
+                      {unreadNotificationCount}
                     </span>
                   )}
                 </button>
 
                 {showNotifications && (
-                  <div className="absolute right-0 top-full mt-2 w-96 max-h-[600px] overflow-y-auto bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-50">
+                  <div
+                    ref={notificationPanelRef}
+                    className="absolute right-0 top-full mt-2 w-[min(94vw,26rem)] max-h-[72vh] overflow-hidden bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-50"
+                  >
                     <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10">
                       <div className="flex items-center justify-between">
                         <h3 className="text-white font-bold text-lg">Notifications</h3>
                         <button
                           onClick={() => {
-                            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                            setNotifications((prev) => {
+                              const updated = prev.map((n) => ({ ...n, read: true }));
+                              saveReadNotificationIds(updated);
+                              return updated;
+                            });
                           }}
                           className="text-xs text-cyan-400 hover:text-cyan-300"
                         >
@@ -3192,11 +3489,16 @@ export default function SearchPage() {
                       </div>
                     </div>
 
-                    <div className="p-2">
-                      {notifications.length === 0 ? (
+                    <div className="p-2 overflow-y-auto max-h-[calc(72vh-4.5rem)] scrollbar-thin">
+                      {isNotificationsLoading ? (
+                        <div className="text-center py-10 text-gray-400">
+                          <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-3" />
+                          <p className="text-sm">Loading notifications...</p>
+                        </div>
+                      ) : notifications.length === 0 ? (
                         <div className="text-center py-8 text-gray-400">
                           <FaBell className="text-4xl mx-auto mb-2 opacity-50" />
-                          <p>No notifications</p>
+                          <p>No notifications yet</p>
                         </div>
                       ) : (
                         notifications.map((notif) => (
@@ -3208,23 +3510,8 @@ export default function SearchPage() {
                                 : 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 hover:border-cyan-500/40'
                             }`}
                             onClick={() => {
-                              setNotifications(prev =>
-                                prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
-                              );
-
-                              if (notif.type === 'owner_approval' || notif.type === 'payment_pending') {
-                                setSelectedNotificationBooking(notif.bookingId || null);
-                                setShowPaymentPortal(true);
-                                setShowNotifications(false);
-                              } else if (notif.type === 'checkin_reminder') {
-                                setSelectedNotificationBooking(notif.bookingId || null);
-                                setShowCheckinForm(true);
-                                setShowNotifications(false);
-                              } else if (notif.type === 'receipt_generated' || notif.type === 'payment_verified') {
-                                setSelectedNotificationBooking(notif.bookingId || null);
-                                setShowPaymentPortal(true);
-                                setShowNotifications(false);
-                              }
+                              dismissPopupNotification();
+                              openNotification(notif);
                             }}
                           >
                             <div className="flex items-start gap-3">
@@ -3233,6 +3520,12 @@ export default function SearchPage() {
                                 notif.type === 'payment_verified' ? 'bg-emerald-500/20' :
                                 notif.type === 'receipt_generated' ? 'bg-blue-500/20' :
                                 notif.type === 'booking_confirmed' ? 'bg-purple-500/20' :
+                                notif.type === 'roommate_request_received' ? 'bg-cyan-500/20' :
+                                notif.type === 'roommate_request_accepted' ? 'bg-green-500/20' :
+                                notif.type === 'roommate_request_rejected' ? 'bg-red-500/20' :
+                                notif.type === 'group_invitation' ? 'bg-indigo-500/20' :
+                                notif.type === 'group_status_ready' ? 'bg-amber-500/20' :
+                                notif.type === 'group_status_booked' ? 'bg-violet-500/20' :
                                 'bg-amber-500/20'
                               }`}>
                                 {notif.type === 'owner_approval' && <FaCheckCircle className="text-green-400" />}
@@ -3240,6 +3533,12 @@ export default function SearchPage() {
                                 {notif.type === 'receipt_generated' && <FaMoneyBillWave className="text-blue-400" />}
                                 {notif.type === 'booking_confirmed' && <FaCheckCircle className="text-purple-400" />}
                                 {notif.type === 'checkin_reminder' && <FaCalendarAlt className="text-amber-400" />}
+                                {notif.type === 'roommate_request_received' && <FaUserFriends className="text-cyan-400" />}
+                                {notif.type === 'roommate_request_accepted' && <FaCheckCircle className="text-green-400" />}
+                                {notif.type === 'roommate_request_rejected' && <FaRegTimesCircle className="text-red-400" />}
+                                {notif.type === 'group_invitation' && <RiUserSharedLine className="text-indigo-300" />}
+                                {notif.type === 'group_status_ready' && <FaCalendarAlt className="text-amber-400" />}
+                                {notif.type === 'group_status_booked' && <FaCheckCircle className="text-violet-300" />}
                               </div>
 
                               <div className="flex-1 min-w-0">
@@ -3813,6 +4112,36 @@ export default function SearchPage() {
           <RoommateFinderPlaceholder roommateData={effectiveRoommates} />
         )}
 
+        {popupNotification && (
+          <div className="fixed bottom-24 right-4 w-[min(92vw,22rem)] z-50 animate-fade-in-up">
+            <div className="rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-[#101a36] to-[#0b132b] shadow-2xl backdrop-blur-xl overflow-hidden">
+              <div className="flex items-start gap-3 p-4">
+                <div className="w-9 h-9 rounded-full bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center flex-shrink-0">
+                  <FaBell className="text-cyan-300 text-sm" />
+                </div>
+                <button
+                  onClick={() => {
+                    openNotification(popupNotification);
+                    dismissPopupNotification();
+                  }}
+                  className="flex-1 min-w-0 text-left"
+                >
+                  <p className="text-xs text-cyan-200/80 mb-1">New notification</p>
+                  <p className="text-sm font-semibold text-white truncate">{popupNotification.title}</p>
+                  <p className="text-xs text-gray-300 mt-1 line-clamp-2">{popupNotification.message}</p>
+                </button>
+                <button
+                  onClick={dismissPopupNotification}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+                  aria-label="Dismiss notification"
+                >
+                  <FaTimes className="text-xs" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Toast Notification */}
         {showToast && (
           <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-gray-800 to-gray-900 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-fade-in-up z-50">
@@ -3943,7 +4272,11 @@ export default function SearchPage() {
                       setCheckinDate('');
                       
                       // Remove the check-in reminder notification
-                      setNotifications(prev => prev.filter(n => n.type !== 'checkin_reminder' || n.bookingId !== selectedNotificationBooking));
+                      setNotifications((prev) => {
+                        const updated = prev.filter((n) => n.type !== 'checkin_reminder' || n.bookingId !== selectedNotificationBooking);
+                        saveReadNotificationIds(updated);
+                        return updated;
+                      });
                     }}
                     disabled={!checkinDate}
                     className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"

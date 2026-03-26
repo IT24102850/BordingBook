@@ -1,7 +1,20 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+// Load from backend's .env first  
+const backendEnvPath = path.resolve(__dirname, '../../.env');
+const result = dotenv.config({ path: backendEnvPath });
+if (result.error) {
+  console.warn(`[ENV] Warning: Could not load from ${backendEnvPath}`);
+} else {
+  console.log(`[ENV] Loaded from ${backendEnvPath}, variables: ${Object.keys(result.parsed || {}).join(', ')}`);
+}
+
+// Also try from root as fallback
+const rootEnvPath = path.resolve(process.cwd(), '.env');
+if (rootEnvPath !== backendEnvPath) {
+  dotenv.config({ path: rootEnvPath });
+}
 
 function requireEnv(name) {
   const value = process.env[name];
