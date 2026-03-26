@@ -214,8 +214,8 @@ export default function Chat() {
     [activeCall, cleanupMedia, cleanupPeer]
   );
 
-  const fetchConversations = useCallback(async (preferredConversationId?: string) => {
-    if (!token) return;
+  const fetchConversations = useCallback(async (preferredConversationId?: string): Promise<ChatConversation[]> => {
+    if (!token) return [];
     try {
       setLoadingConversations(true);
       const data = await apiFetch<ChatConversation[]>('/conversations', token);
@@ -232,8 +232,10 @@ export default function Chat() {
         // On initial load with no selection, keep it empty - let user choose
         setSelectedConversationId('');
       }
+      return nextConversations;
     } catch (fetchError) {
       setError((fetchError as Error).message || 'Unable to load conversations');
+      return [];
     } finally {
       setLoadingConversations(false);
     }
@@ -277,16 +279,42 @@ export default function Chat() {
     );
     if (!recipientId) return;
     if (lastRecipientBootstrapRef.current === recipientId) return;
-    lastRecipientBootstrapRef.current = recipientId;
+
+    const normalizedName = String(selectedRoommate?.name || '').trim().toLowerCase();
+    const normalizedEmail = String(selectedRoommate?.email || '').trim().toLowerCase();
+
+    const findMatchingConversation = (items: ChatConversation[]): ChatConversation | undefined => {
+      return items.find((conversation) => {
+        const hasParticipantById = conversation.participants.some((participant) => participant.id === recipientId);
+        const hasParticipantByEmail = normalizedEmail
+          ? conversation.participants.some((participant) => participant.email?.toLowerCase() === normalizedEmail)
+          : false;
+        const hasNameMatch = normalizedName ? conversation.name.toLowerCase().includes(normalizedName) : false;
+
+        return hasParticipantById || hasParticipantByEmail || hasNameMatch;
+      });
+    };
 
     try {
       const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
         method: 'POST',
         body: JSON.stringify({ recipientId }),
       });
+      lastRecipientBootstrapRef.current = recipientId;
+      setError('');
       setSelectedConversationId(data.id);
       await fetchConversations(data.id);
     } catch (createError) {
+      const latest = await fetchConversations();
+      const fallback = findMatchingConversation(latest);
+
+      if (fallback) {
+        lastRecipientBootstrapRef.current = recipientId;
+        setError('');
+        setSelectedConversationId(fallback.id);
+        return;
+      }
+
       setError((createError as Error).message || 'Unable to open direct conversation');
     }
   }, [fetchConversations, location.search, location.state, token]);
