@@ -23,19 +23,31 @@ const userSchema = new mongoose.Schema(
       default: 'student',
     },
     
-    // Owner-specific fields
+    // Owner and Student fields
     fullName: {
       type: String,
       required: function() {
         return this.role === 'owner';
       },
+      default: '',
+      trim: true,
     },
     phoneNumber: {
       type: String,
       required: function() {
         return this.role === 'owner';
       },
+      default: '',
       trim: true,
+    },
+    mobileNumber: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    age: {
+      type: Number,
+      default: 0,
     },
     companyName: {
       type: String,
@@ -107,6 +119,10 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     lifestylePrefs: {
+      type: [String],
+      default: [],
+    },
+    profilePictures: {
       type: [String],
       default: [],
     },

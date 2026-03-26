@@ -27,8 +27,12 @@ const signinValidation = [
 ];
 
 const profileUpdateValidation = [
+	body('fullName').optional().isString().trim(),
+	body('mobileNumber').optional().isString().trim(),
+	body('age').optional().isNumeric().withMessage('Age must be a number'),
 	body('bio').optional().isString().isLength({ max: 180 }).withMessage('Bio must be 180 characters or less'),
 	body('profilePicture').optional().isString(),
+	body('profilePictures').optional().isArray().withMessage('Profile pictures must be an array'),
 	body('minBudget').optional().isNumeric().withMessage('Minimum budget must be a number'),
 	body('maxBudget').optional().isNumeric().withMessage('Maximum budget must be a number'),
 	body('distance').optional().isNumeric().withMessage('Distance must be a number'),

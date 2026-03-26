@@ -370,7 +370,10 @@ exports.getMe = async (req, res) => {
         email: user.email,
         role: user.role,
         fullName: user.fullName,
+        mobileNumber: user.mobileNumber,
+        age: user.age,
         profilePicture: user.profilePicture,
+        profilePictures: user.profilePictures,
         bio: user.bio,
         phoneNumber: user.phoneNumber,
         companyName: user.companyName,
@@ -409,7 +412,11 @@ exports.updateProfile = async (req, res) => {
     }
 
     const {
+      fullName,
+      mobileNumber,
+      age,
       profilePicture,
+      profilePictures,
       bio,
       minBudget,
       maxBudget,
@@ -422,7 +429,26 @@ exports.updateProfile = async (req, res) => {
       lifestylePrefs,
     } = req.body;
 
+    // Update fullName for both students and owners
+    if (typeof fullName === 'string') user.fullName = fullName.trim();
+    
+    // Update mobileNumber
+    if (typeof mobileNumber === 'string') user.mobileNumber = mobileNumber.trim();
+    
+    // Update age
+    if (age !== undefined) user.age = Number(age) || 0;
+    
+    // Update profile picture
     if (typeof profilePicture === 'string') user.profilePicture = profilePicture.trim();
+    
+    // Update profile pictures gallery
+    if (Array.isArray(profilePictures)) {
+      user.profilePictures = profilePictures
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    
     if (typeof bio === 'string') user.bio = bio.trim();
     if (minBudget !== undefined) user.minBudget = Number(minBudget) || 0;
     if (maxBudget !== undefined) user.maxBudget = Number(maxBudget) || 0;
@@ -461,8 +487,12 @@ exports.updateProfile = async (req, res) => {
         id: user._id,
         email: user.email,
         role: user.role,
+        fullName: user.fullName,
+        mobileNumber: user.mobileNumber,
+        age: user.age,
         profileCompleted: user.profileCompleted,
         profilePicture: user.profilePicture,
+        profilePictures: user.profilePictures,
         bio: user.bio,
         minBudget: user.minBudget,
         maxBudget: user.maxBudget,
