@@ -3084,11 +3084,11 @@ export default function SearchPage() {
 
                 <button
                   onClick={() => navigate('/profile')}
-                  className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
+                  className="flex items-center gap-2 px-2 md:px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
                   title="Open profile settings"
                 >
                   <img src={currentUserImage} alt="User" className="w-7 h-7 rounded-full object-cover border border-cyan-400/40" />
-                  <span className="text-xs text-cyan-100 max-w-[180px] truncate">{currentUserName || currentUserEmail}</span>
+                  <span className="hidden md:inline text-xs text-cyan-100 max-w-[180px] truncate">{currentUserName || currentUserEmail}</span>
                 </button>
                 <button
                   onClick={handleLogout}
