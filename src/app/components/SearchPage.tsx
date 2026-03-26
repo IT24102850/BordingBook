@@ -3082,7 +3082,7 @@ export default function SearchPage() {
                   title="Open profile settings"
                 >
                   <img src={currentUserImage} alt="User" className="w-7 h-7 rounded-full object-cover border border-cyan-400/40" />
-                  <span className="text-xs text-cyan-100 max-w-[180px] truncate">{currentUserEmail}</span>
+                  <span className="text-xs text-cyan-100 max-w-[180px] truncate">{currentUserName || currentUserEmail}</span>
                 </button>
               </div>
             </div>
