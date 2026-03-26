@@ -6,7 +6,7 @@ import {
   FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
   FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
   FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
-  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell
+  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
 } from 'react-icons/fa';
 import { MdOutlineVerified } from 'react-icons/md';
 import { RiUserSharedLine } from 'react-icons/ri';
@@ -186,7 +186,7 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
       style={{ minHeight: 340, touchAction: 'pan-y' }}
     >
       {/* Image Carousel */}
-      <div className="relative h-48 bg-gray-800 overflow-hidden">
+      <div className="relative w-full aspect-square bg-gray-800 overflow-hidden">
         <img 
           src={images[imageIndex]} 
           alt={displayName} 
@@ -2907,6 +2907,12 @@ export default function SearchPage() {
     setCurrentIndex(0);
   };
 
+  const handleLogout = (): void => {
+    localStorage.removeItem('bb_access_token');
+    localStorage.removeItem('bb_current_user');
+    navigate('/signin');
+  };
+
   if (isListingsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4">
@@ -3083,6 +3089,14 @@ export default function SearchPage() {
                 >
                   <img src={currentUserImage} alt="User" className="w-7 h-7 rounded-full object-cover border border-cyan-400/40" />
                   <span className="text-xs text-cyan-100 max-w-[180px] truncate">{currentUserName || currentUserEmail}</span>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-2 md:px-3 py-2 rounded-xl border border-red-400/30 bg-red-500/10 hover:bg-red-500/20 transition text-red-200"
+                  title="Logout"
+                >
+                  <FaSignOutAlt className="text-xs" />
+                  <span className="hidden md:inline text-xs">Logout</span>
                 </button>
               </div>
             </div>

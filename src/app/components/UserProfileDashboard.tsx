@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaUser,
   FaEnvelope,
@@ -7,6 +8,7 @@ import {
   FaTimes,
   FaCheckCircle,
   FaSpinner,
+  FaSignOutAlt,
 } from "react-icons/fa";
 import StudentPayment from "./payment/StudentPayment";
 
@@ -41,6 +43,7 @@ const initialProfile: ProfileForm = {
 };
 
 export default function UserProfileDashboard() {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<Section>("Profile");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -225,6 +228,12 @@ export default function UserProfileDashboard() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("bb_access_token");
+    localStorage.removeItem("bb_current_user");
+    navigate("/signin");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#071126] via-[#0d1f3a] to-[#13314f] text-white">
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
@@ -249,7 +258,7 @@ export default function UserProfileDashboard() {
             </div>
           </div>
 
-          <div className="p-4 md:p-6 flex flex-wrap gap-3 border-b border-cyan-300/10 bg-[#0c1c36]">
+          <div className="p-4 md:p-6 flex flex-wrap items-center gap-3 border-b border-cyan-300/10 bg-[#0c1c36]">
             <button
               onClick={() => setActiveSection("Profile")}
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
@@ -265,6 +274,12 @@ export default function UserProfileDashboard() {
               }`}
             >
               Payments
+            </button>
+            <button
+              onClick={handleLogout}
+              className="md:ml-auto px-4 py-2 rounded-xl text-sm font-semibold transition bg-red-500/15 border border-red-400/30 hover:bg-red-500/25 text-red-100"
+            >
+              <FaSignOutAlt className="inline mr-2" /> Logout
             </button>
           </div>
 

@@ -6,7 +6,7 @@ import {
   Calendar, AlertCircle, DollarSign,
   Camera, Eye, Settings,
   BarChart, CreditCard, Award, TrendingUp, Menu, X,
-  Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight
+  Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight, LogOut
 } from 'lucide-react';
 import BookingManagementSystem from './booking/BookingManagementSystem';
 import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
@@ -871,6 +871,12 @@ export default function OwnerDashboard() {
     .map((word) => word.charAt(0).toUpperCase())
     .join('') || 'OW';
 
+  const handleLogout = () => {
+    localStorage.removeItem('bb_access_token');
+    localStorage.removeItem('bb_current_user');
+    navigate('/signin');
+  };
+
   const mapHouseDtoToUi = (house: OwnerHouseDto): BoardingHouse => ({
     id: house._id,
     name: house.name,
@@ -1384,6 +1390,14 @@ export default function OwnerDashboard() {
                   {unreadNotifications > 0 && (
                     <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                   )}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-400/30 text-red-200 hover:bg-red-500/20 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut size={16} />
+                  <span className="text-sm font-medium">Logout</span>
                 </button>
                 <div className="flex items-center gap-3 pl-3 border-l border-white/10">
                   <div className="text-right">

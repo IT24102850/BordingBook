@@ -563,6 +563,11 @@ const NavigationBar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isOnboardingComp
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const handleLogout = () => {
+    localStorage.removeItem('bb_access_token');
+    localStorage.removeItem('bb_current_user');
+    navigate('/signin');
+  };
 
   return (
     <>
@@ -636,6 +641,13 @@ const NavigationBar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isOnboardingComp
           <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
             <FaUser className="text-cyan-500 text-xs" />
           </div>
+        </button>
+        <button
+          onClick={handleLogout}
+          className="ml-1 p-1.5 rounded-lg bg-red-500/15 border border-red-400/30 text-red-600 hover:bg-red-500/25 transition-colors"
+          title="Logout"
+        >
+          <FaSignOutAlt className="text-sm" />
         </button>
       </nav>
 
@@ -711,6 +723,16 @@ const NavigationBar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isOnboardingComp
                 </button>
               );
             })}
+            <button
+              onClick={() => {
+                handleLogout();
+                setIsMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-xs hover:bg-red-50 text-red-600"
+            >
+              <FaSignOutAlt className="text-sm" />
+              <span className="font-medium">Logout</span>
+            </button>
           </div>
         )}
       </div>
@@ -725,6 +747,7 @@ function ProfileSetup() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoError, setPhotoError] = useState('');
   const [bio, setBio] = useState('');
+  const [fullName, setFullName] = useState('');
   const [minBudget, setMinBudget] = useState(15000);
   const [maxBudget, setMaxBudget] = useState(50000);
   const [distance, setDistance] = useState(3);
@@ -757,6 +780,19 @@ function ProfileSetup() {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location]);
+
+  useEffect(() => {
+    try {
+      const currentRaw = localStorage.getItem('bb_current_user');
+      if (!currentRaw) return;
+      const currentUser = JSON.parse(currentRaw);
+      if (typeof currentUser?.fullName === 'string') {
+        setFullName(currentUser.fullName);
+      }
+    } catch {
+      // Ignore parse errors for local cache
+    }
+  }, []);
 
   useEffect(() => {
     if (step === 1) {
@@ -866,6 +902,7 @@ function ProfileSetup() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          fullName: fullName.trim(),
           profilePicture: photo || '',
           bio: bio.trim(),
           minBudget,
@@ -894,6 +931,7 @@ function ProfileSetup() {
             'bb_current_user',
             JSON.stringify({
               ...currentUser,
+              fullName: fullName.trim() || currentUser.fullName,
               profileCompleted: Boolean(result?.data?.profileCompleted),
             })
           );
@@ -1235,6 +1273,19 @@ function ProfileSetup() {
 
                   {step === 4 && (
                     <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-cyan-200 mb-1">
+                          <FaUser className="inline mr-1 text-cyan-400 text-sm" />
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full rounded-lg border border-cyan-500/30 bg-[#0a1124] text-cyan-100 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                          value={fullName}
+                          onChange={e => setFullName(e.target.value)}
+                          placeholder="Enter your full name"
+                        />
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-cyan-200 mb-1">
                           <FaUser className="inline mr-1 text-pink-400 text-sm" />
