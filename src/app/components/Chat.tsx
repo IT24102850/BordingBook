@@ -124,6 +124,16 @@ function appendMessageIfMissing(existing: ChatMessage[], incoming: ChatMessage):
   return [...existing, incoming];
 }
 
+function normalizeId(input: any): string {
+  if (!input) return '';
+  if (typeof input === 'string') return input;
+  if (typeof input === 'object') {
+    if (input._id) return String(input._id);
+    if (input.id) return String(input.id);
+  }
+  return String(input);
+}
+
 export default function Chat() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -268,8 +278,8 @@ export default function Chat() {
 
     const state = (location.state || {}) as any;
     const selectedRoommate = state?.selectedRoommate;
-    const queryRecipientId = new URLSearchParams(location.search).get('recipientId');
-    const recipientId = String(
+    const queryRecipientId = normalizeId(new URLSearchParams(location.search).get('recipientId'));
+    const recipientId = normalizeId(
       selectedRoommate?.userId ||
       state?.recipientId ||
       queryRecipientId ||

@@ -44,6 +44,16 @@ function deriveProfileAge(profile: any): number {
   return 18;
 }
 
+function normalizeIdValue(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    if (value._id) return String(value._id);
+    if (value.id) return String(value.id);
+  }
+  return String(value);
+}
+
 // Mock roommate data
 const roommates = [
   {
@@ -344,8 +354,8 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   );
 
   const mapProfileToRoommate = React.useCallback((profile: any) => ({
-    id: profile._id || profile.id,
-    userId: profile.userId || profile._id,
+    id: normalizeIdValue(profile._id || profile.id),
+    userId: normalizeIdValue(profile.userId || profile._id || profile.id),
     name: profile.name || profile.fullName || (profile.email ? profile.email.split('@')[0] : 'Student'),
     email: profile.email || '',
     age: deriveProfileAge(profile),
@@ -3151,8 +3161,8 @@ export default function SearchPage() {
             const mutualCount = profileInterests.filter((interest) => currentInterests.includes(interest)).length;
 
             return {
-              id: profile._id || `profile-${index}`,
-              userId: profile.userId || profile._id,
+              id: normalizeIdValue(profile._id || profile.id) || `profile-${index}`,
+              userId: normalizeIdValue(profile.userId || profile._id || profile.id),
               name: profile.name || 'Student',
               email: profile.email || '',
               age: deriveProfileAge(profile),
