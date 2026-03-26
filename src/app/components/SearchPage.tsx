@@ -574,7 +574,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                 {mutualMatches.slice(0, 6).map((match) => (
                   <button
                     key={match.id}
-                    onClick={() => navigate('/chat', { state: { selectedRoommate: match, chatType: 'direct-message' } })}
+                    onClick={() => {
+                      const recipientId = String(match.userId || match.id || '');
+                      navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
+                        state: { selectedRoommate: match, chatType: 'direct-message', recipientId },
+                      });
+                    }}
                     className="flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
                   >
                     <img src={match.image} alt={match.name} className="w-6 h-6 rounded-full object-cover" />
@@ -784,7 +789,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   )}
                   {req.status === 'accepted' && (
                     <button
-                      onClick={() => navigate('/chat', { state: { selectedRoommate: req.from, chatType: 'direct-message' } })}
+                      onClick={() => {
+                        const recipientId = String(req.from.userId || req.from.id || '');
+                        navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
+                          state: { selectedRoommate: req.from, chatType: 'direct-message', recipientId },
+                        });
+                      }}
                       className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
                     >
                       Start Chat

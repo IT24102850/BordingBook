@@ -151,7 +151,7 @@ export default function Chat() {
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const bootstrappedFromStateRef = useRef(false);
+  const lastRecipientBootstrapRef = useRef('');
   const selectedConversationIdRef = useRef('');
   const activeCallRef = useRef<ActiveCall | null>(null);
 
@@ -262,19 +262,22 @@ export default function Chat() {
   );
 
   const ensureDirectConversationFromRouteState = useCallback(async () => {
-    if (bootstrappedFromStateRef.current || !token) return;
-    bootstrappedFromStateRef.current = true;
+    if (!token) return;
 
     const state = (location.state || {}) as any;
     const selectedRoommate = state?.selectedRoommate;
+    const queryRecipientId = new URLSearchParams(location.search).get('recipientId');
     const recipientId = String(
       selectedRoommate?.userId ||
-      selectedRoommate?.id ||
       state?.recipientId ||
+      queryRecipientId ||
+      selectedRoommate?.id ||
       state?.selectedUserId ||
       ''
     );
     if (!recipientId) return;
+    if (lastRecipientBootstrapRef.current === recipientId) return;
+    lastRecipientBootstrapRef.current = recipientId;
 
     try {
       const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
@@ -286,7 +289,7 @@ export default function Chat() {
     } catch (createError) {
       setError((createError as Error).message || 'Unable to open direct conversation');
     }
-  }, [fetchConversations, location.state, token]);
+  }, [fetchConversations, location.search, location.state, token]);
 
   const fetchContacts = useCallback(
     async (search = '') => {
