@@ -1,3 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
 /* Accessibility: High-contrast focus states and accessible sizing */
 .focus-visible:focus-visible, .focus-ring:focus-visible, .focus-outline:focus-visible {
 	outline: 4px solid #22d3ee; /* cyan-400 */
@@ -44,7 +49,3 @@ input, select, button {
 	-ms-overflow-style: none;
 	scrollbar-width: none;
 }
-
-@import './fonts.css';
-@import './tailwind.css';
-@import './theme.css';

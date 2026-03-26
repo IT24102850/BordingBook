@@ -93,6 +93,13 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
   const touchCurrentX = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
+  const [imageIndex, setImageIndex] = useState(0);
+
+  const images = Array.isArray(roommate.profileImages) && roommate.profileImages.length > 0 
+    ? roommate.profileImages 
+    : [roommate.image || 'https://randomuser.me/api/portraits/lego/1.jpg'];
+  const currentImage = images[imageIndex];
+  const hasMultipleImages = images.length > 1;
 
   const resetCardTransform = () => {
     if (!cardRef.current) return;
@@ -179,9 +186,38 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
       className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden border border-white/10 w-full max-w-md mx-auto transition-all duration-300 cursor-grab active:cursor-grabbing ${direction === 'left' ? 'animate-swipe-left' : ''} ${direction === 'right' ? 'animate-swipe-right' : ''}`}
       style={{ minHeight: 340, touchAction: 'pan-y' }}
     >
+      {/* Image Gallery with Navigation */}
+      <div className="relative h-48 bg-gradient-to-b from-black/20 to-transparent">
+        <img src={currentImage} alt={roommate.name} className="w-full h-full object-cover" />
+        
+        {/* Image Counter */}
+        {hasMultipleImages && (
+          <div className="absolute top-3 right-3 bg-black/50 px-2 py-1 rounded-full text-xs text-white">
+            {imageIndex + 1} / {images.length}
+          </div>
+        )}
+        
+        {/* Image Navigation Buttons */}
+        {hasMultipleImages && (
+          <>
+            <button
+              onClick={() => setImageIndex((prev) => (prev - 1 + images.length) % images.length)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 rounded-full p-2 text-white transition z-10"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => setImageIndex((prev) => (prev + 1) % images.length)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 rounded-full p-2 text-white transition z-10"
+            >
+              ›
+            </button>
+          </>
+        )}
+      </div>
+
       <div className="flex flex-col items-center p-6">
-        <img src={roommate.image} alt={roommate.name} className="w-24 h-24 rounded-full object-cover border-4 border-pink-300 mb-3" />
-        <h3 className="text-xl font-bold text-white mb-1">{roommate.name}, <span className="text-pink-300">{roommate.age}</span></h3>
+        <h3 className="text-xl font-bold text-white mb-1">{roommate.name || 'Student'}, <span className="text-pink-300">{roommate.age}</span></h3>
         <div className="text-sm text-pink-200 mb-1">{roommate.gender} | {roommate.university}</div>
         {roommate.email && <div className="text-xs text-cyan-300 mb-1">{roommate.email}</div>}
         <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio}</div>
@@ -2441,7 +2477,9 @@ export default function SearchPage() {
   const [dbRoommates, setDbRoommates] = useState<Roommate[]>([]);
   const [isListingsLoading, setIsListingsLoading] = useState<boolean>(true);
   const [currentUserEmail, setCurrentUserEmail] = useState('Guest');
+  const [currentUserName, setCurrentUserName] = useState('');
   const [currentUserImage, setCurrentUserImage] = useState('https://randomuser.me/api/portraits/lego/1.jpg');
+  const [roommateImageIndex, setRoommateImageIndex] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     let isCancelled = false;
@@ -2529,6 +2567,7 @@ export default function SearchPage() {
 
         if (!isCancelled && currentUser?.email) {
           setCurrentUserEmail(currentUser.email);
+          setCurrentUserName(currentUser.fullName || '');
           if (currentUser.profilePicture) {
             setCurrentUserImage(currentUser.profilePicture);
           }
@@ -2638,6 +2677,8 @@ export default function SearchPage() {
     return score;
   };
 
+  const displayUserIdentifier = currentUserName || currentUserEmail;
+
   const rankedListings: Listing[] = [...filteredListings].sort((a, b) => {
     if (sortMode === 'price-low') return a.price - b.price;
     if (sortMode === 'price-high') return b.price - a.price;
@@ -2735,7 +2776,42 @@ export default function SearchPage() {
     return roomScore(b) - roomScore(a);
   });
 
-  const currentListing: Listing | undefined = rankedListings[currentIndex];
+  // Merge rooms and bodims into single list
+  const mergedListings: Listing[] = [...rankedListings, ...rankedRooms.map(room => {
+    const roomListing: Listing = {
+      id: room.id,
+      title: room.name,
+      images: [room.image || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&h=400&fit=crop'],
+      description: room.desc,
+      price: room.price,
+      distance: room.distKm,
+      distanceUnit: 'km',
+      travelTime: room.distKm < 1 ? `${Math.round(room.distKm * 1000)}m walk` : `${room.distKm}km away`,
+      location: room.location,
+      roomType: room.roomType,
+      genderPreference: 'Any',
+      availableFrom: new Date().toISOString(),
+      billsIncluded: room.facilities.includes('Meals'),
+      verified: true,
+      badges: room.available ? [] : ['Occupied'],
+      features: room.facilities,
+      deposit: room.price * 2,
+      roommateCount: room.roomType.toLowerCase().includes('sharing') ? 2 : 0,
+      rating: room.rating,
+      campus: [room.campus],
+      vacancy: room.vacancy,
+      totalRooms: room.totalRooms,
+      occupiedRooms: room.occupiedRooms
+    };
+    return roomListing;
+  })].sort((a, b) => {
+    if (sortMode === 'price-low') return a.price - b.price;
+    if (sortMode === 'price-high') return b.price - a.price;
+    if (sortMode === 'distance') return (a.distance || 0) - (b.distance || 0);
+    return listingScore(b) - listingScore(a);
+  });
+
+  const currentListing: Listing | undefined = mergedListings[currentIndex];
 
   const handleLike = (): void => {
     if (!currentListing || isAnimating) return;
@@ -2749,10 +2825,10 @@ export default function SearchPage() {
       setShowToast(true);
       
       setTimeout(() => {
-        if (currentIndex < rankedListings.length - 1) {
+        if (currentIndex < mergedListings.length - 1) {
           setCurrentIndex(currentIndex + 1);
         } else {
-          setCurrentIndex(rankedListings.length);
+          setCurrentIndex(mergedListings.length);
         }
         setDirection(null);
         setIsAnimating(false);
@@ -2776,10 +2852,10 @@ export default function SearchPage() {
       setShowToast(true);
       
       setTimeout(() => {
-        if (currentIndex < rankedListings.length - 1) {
+        if (currentIndex < mergedListings.length - 1) {
           setCurrentIndex(currentIndex + 1);
         } else {
-          setCurrentIndex(rankedListings.length);
+          setCurrentIndex(mergedListings.length);
         }
         setDirection(null);
         setIsAnimating(false);
@@ -2797,9 +2873,9 @@ export default function SearchPage() {
       const lastPassed = passedListings[passedListings.length - 1];
       const lastLiked = likedListings[likedListings.length - 1];
       
-      if (lastPassed && lastPassed.id === rankedListings[currentIndex - 1]?.id) {
+      if (lastPassed && lastPassed.id === mergedListings[currentIndex - 1]?.id) {
         setPassedListings(passedListings.slice(0, -1));
-      } else if (lastLiked && lastLiked.id === rankedListings[currentIndex - 1]?.id) {
+      } else if (lastLiked && lastLiked.id === mergedListings[currentIndex - 1]?.id) {
         setLikedListings(likedListings.slice(0, -1));
       }
       
@@ -3005,7 +3081,7 @@ export default function SearchPage() {
                   title="Open profile settings"
                 >
                   <img src={currentUserImage} alt="User" className="w-7 h-7 rounded-full object-cover border border-cyan-400/40" />
-                  <span className="text-xs text-cyan-100 max-w-[180px] truncate">{currentUserEmail}</span>
+                  <span className="text-xs text-cyan-100 max-w-[180px] truncate">{displayUserIdentifier}</span>
                 </button>
               </div>
             </div>
@@ -3199,7 +3275,7 @@ export default function SearchPage() {
                   <div>
                     <div className="relative h-[500px] mb-4 perspective-1000">
                       {/* Stack effect - next card behind */}
-                      {currentIndex < rankedListings.length - 1 && (
+                      {currentIndex < mergedListings.length - 1 && (
                         <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
                       )}
                       
@@ -3277,37 +3353,11 @@ export default function SearchPage() {
               ) : (
                 /* Grid View (Desktop) */
                 <>
-                  {/* Original Listings Grid */}
-                  {rankedListings.length > 0 && (
-                    <>
-                      <h2 className="text-xl font-bold text-white mb-4">Your Saved Searches</h2>
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                        {rankedListings.map((listing) => (
-                          <ListingCard
-                            key={listing.id}
-                            listing={listing}
-                            onLike={() => {
-                              setLikedListings([...likedListings, listing]);
-                              setToastMessage('Added to favorites!');
-                              setShowToast(true);
-                              setTimeout(() => setShowToast(false), 2000);
-                            }}
-                            onPass={() => {}}
-                            onViewDetails={handleViewDetails}
-                            isAnimating={false}
-                            direction={null}
-                            viewMode="grid"
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Advanced Filtered Rooms Grid */}
+                  {/* Merged Listings Grid */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-xl font-bold text-white">
-                        All Available Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
+                        All Available Rooms & Boarding {mergedListings.length > 0 && `(${mergedListings.length})`}
                       </h2>
                       {(priceMax < 50000 || dist !== 'any' || room !== 'any' || avail !== 'all' || facs.length > 0) && (
                         <button
@@ -3326,41 +3376,23 @@ export default function SearchPage() {
                       )}
                     </div>
                     
-                    {rankedRooms.length > 0 ? (
-                      <div className="space-y-2 max-h-screen overflow-y-auto pr-2 custom-scrollbar">
-                        {rankedRooms.map((room) => (
-                          <RankedResultCard
-                            key={room.id}
-                            room={room}
-                            onOpen={(id: number) => {
-                              // Convert room to listing format for details modal
-                              const r = roomDataset.find((rm: any) => rm.id === id);
-                              if (!r) return;
-                              const listing: Listing = {
-                                id: r.id,
-                                title: r.name,
-                                images: [r.img],
-                                price: r.price,
-                                location: r.location,
-                                distance: r.distKm,
-                                distanceUnit: 'km',
-                                travelTime: r.distKm < 1 ? `${Math.round(r.distKm * 1000)}m walk` : `${r.distKm}km from ${r.campus}`,
-                                roomType: r.roomType,
-                                genderPreference: 'Any',
-                                availableFrom: new Date().toISOString(),
-                                billsIncluded: r.facilities.includes('Meals'),
-                                verified: true,
-                                badges: r.available ? ['Available'] : ['Occupied'],
-                                description: r.desc,
-                                features: r.facilities,
-                                deposit: r.price * 2,
-                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0,
-                                vacancy: r.vacancy,
-                                totalRooms: r.totalRooms,
-                                occupiedRooms: r.occupiedRooms
-                              };
-                              handleViewDetails(listing);
+                    {mergedListings.length > 0 ? (
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        {mergedListings.map((listing) => (
+                          <ListingCard
+                            key={listing.id}
+                            listing={listing}
+                            onLike={() => {
+                              setLikedListings([...likedListings, listing]);
+                              setToastMessage('Added to favorites!');
+                              setShowToast(true);
+                              setTimeout(() => setShowToast(false), 2000);
                             }}
+                            onPass={() => {}}
+                            onViewDetails={handleViewDetails}
+                            isAnimating={false}
+                            direction={null}
+                            viewMode="grid"
                           />
                         ))}
                       </div>
@@ -3383,7 +3415,7 @@ export default function SearchPage() {
                   {/* Card View (Swipe) */}
                   <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
                     {/* Stack effect - next card behind */}
-                    {currentIndex < rankedListings.length - 1 && (
+                    {currentIndex < mergedListings.length - 1 && (
                       <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
                     )}
                     
@@ -3404,7 +3436,7 @@ export default function SearchPage() {
                   {/* Results Count & Undo - Mobile */}
                   <div className="flex justify-between items-center mb-4 max-w-md mx-auto">
                     <span className="text-sm text-gray-400">
-                      {rankedListings.length - currentIndex} rooms remaining
+                      {mergedListings.length - currentIndex} rooms remaining
                     </span>
                     <button
                       onClick={handleUndo}
@@ -3444,12 +3476,15 @@ export default function SearchPage() {
               ) : (
                 /* Grid View (Mobile) - DEFAULT */
                 <>
-                  {/* Original Listings Grid */}
-                  {rankedListings.length > 0 && (
-                    <>
-                      <h2 className="text-lg font-bold text-white mb-3 px-2">Your Saved Searches</h2>
-                      <div className="grid grid-cols-1 gap-3 mb-6">
-                        {rankedListings.map((listing) => (
+                  {/* Merged Listings Grid */}
+                  <div className="px-2">
+                    <h2 className="text-lg font-bold text-white mb-3">
+                      All Rooms & Boarding {mergedListings.length > 0 && `(${mergedListings.length})`}
+                    </h2>
+                    
+                    {mergedListings.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3">
+                        {mergedListings.map((listing) => (
                           <ListingCard
                             key={listing.id}
                             listing={listing}
@@ -3464,52 +3499,6 @@ export default function SearchPage() {
                             isAnimating={false}
                             direction={null}
                             viewMode="grid"
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Advanced Filtered Rooms Grid */}
-                  <div className="px-2">
-                    <h2 className="text-lg font-bold text-white mb-3">
-                      All Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
-                    </h2>
-                    
-                    {rankedRooms.length > 0 ? (
-                      <div className="space-y-2 max-h-screen overflow-y-auto pr-2 custom-scrollbar">
-                        {rankedRooms.map((room) => (
-                          <RankedResultCard
-                            key={room.id}
-                            room={room}
-                            onOpen={(id: number) => {
-                              const r = roomDataset.find((rm: any) => rm.id === id);
-                              if (!r) return;
-                              const listing: Listing = {
-                                id: r.id,
-                                title: r.name,
-                                images: [r.img],
-                                price: r.price,
-                                location: r.location,
-                                distance: r.distKm,
-                                distanceUnit: 'km',
-                                travelTime: r.distKm < 1 ? `${Math.round(r.distKm * 1000)}m walk` : `${r.distKm}km from ${r.campus}`,
-                                roomType: r.roomType,
-                                genderPreference: 'Any',
-                                availableFrom: new Date().toISOString(),
-                                billsIncluded: r.facilities.includes('Meals'),
-                                verified: true,
-                                badges: r.available ? ['Available'] : ['Occupied'],
-                                description: r.desc,
-                                features: r.facilities,
-                                deposit: r.price * 2,
-                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0,
-                                vacancy: r.vacancy,
-                                totalRooms: r.totalRooms,
-                                occupiedRooms: r.occupiedRooms
-                              };
-                              handleViewDetails(listing);
-                            }}
                           />
                         ))}
                       </div>

@@ -19,24 +19,28 @@ type ProfileForm = {
   fullName: string;
   email: string;
   profilePicture: string;
+  mobileNumber: string;
   bio: string;
   selectedLocation: string;
   gender: string;
   academicYear: string;
   roommatePreference: string;
   roomType: string;
+  profileImages: string[];
 };
 
 const initialProfile: ProfileForm = {
   fullName: "",
   email: "",
   profilePicture: "https://randomuser.me/api/portraits/lego/1.jpg",
+  mobileNumber: "",
   bio: "",
   selectedLocation: "",
   gender: "",
   academicYear: "",
   roommatePreference: "",
   roomType: "",
+  profileImages: [],
 };
 
 export default function UserProfileDashboard() {
@@ -85,12 +89,14 @@ export default function UserProfileDashboard() {
           fullName: user.fullName || "",
           email: user.email || "",
           profilePicture: user.profilePicture || initialProfile.profilePicture,
+          mobileNumber: user.mobileNumber || "",
           bio: user.bio || "",
           selectedLocation: user.selectedLocation || "",
           gender: user.gender || "",
           academicYear: user.academicYear || "",
           roommatePreference: user.roommatePreference || "",
           roomType: user.roomType || "",
+          profileImages: Array.isArray(user.profileImages) ? user.profileImages : [],
         });
       } catch (loadError) {
         if (!cancelled) {
@@ -130,7 +136,10 @@ export default function UserProfileDashboard() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          fullName: profile.fullName,
+          mobileNumber: profile.mobileNumber,
           profilePicture: profile.profilePicture,
+          profileImages: profile.profileImages,
           bio: profile.bio,
           selectedLocation: profile.selectedLocation,
           gender: profile.gender,
@@ -265,7 +274,20 @@ export default function UserProfileDashboard() {
                       name="fullName"
                       value={profile.fullName}
                       onChange={handleChange}
-                      disabled
+                      disabled={!editing}
+                      placeholder="Enter your full name"
+                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-cyan-100 mb-1">Mobile Number</label>
+                    <input
+                      name="mobileNumber"
+                      value={profile.mobileNumber}
+                      onChange={handleChange}
+                      disabled={!editing}
+                      placeholder="e.g. +94771234567"
                       className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
                     />
                   </div>
@@ -281,15 +303,95 @@ export default function UserProfileDashboard() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm text-cyan-100 mb-1">Profile Picture</label>
+                    {editing ? (
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const imageUrl = ev.target?.result as string;
+                                setProfile((prev) => ({ ...prev, profilePicture: imageUrl }));
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="w-full text-cyan-100 text-sm"
+                        />
+                        <img
+                          src={profile.profilePicture}
+                          alt="Preview"
+                          className="w-20 h-20 rounded-lg object-cover border border-cyan-500/30"
+                        />
+                      </div>
+                    ) : (
+                      <img
+                        src={profile.profilePicture}
+                        alt="Profile"
+                        className="w-20 h-20 rounded-lg object-cover border border-cyan-500/30"
+                      />
+                    )}
+                  </div>
+
                   <div className="md:col-span-2">
-                    <label className="block text-sm text-cyan-100 mb-1">Profile Picture URL</label>
-                    <input
-                      name="profilePicture"
-                      value={profile.profilePicture}
-                      onChange={handleChange}
-                      disabled={!editing}
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
-                    />
+                    <label className="block text-sm text-cyan-100 mb-1">Swipe Gallery Images (Multiple Images)</label>
+                    {editing ? (
+                      <div className="space-y-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(e) => {
+                            const files = e.target.files;
+                            if (files) {
+                              const newImages = [...profile.profileImages];
+                              for (let i = 0; i < files.length; i++) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const imageUrl = ev.target?.result as string;
+                                  newImages.push(imageUrl);
+                                  if (newImages.length > 0) {
+                                    setProfile((prev) => ({ ...prev, profileImages: newImages }));
+                                  }
+                                };
+                                reader.readAsDataURL(files[i]);
+                              }
+                            }
+                          }}
+                          className="w-full text-cyan-100 text-sm mb-2"
+                        />
+                        <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                          {profile.profileImages.map((img, idx) => (
+                            <div key={idx} className="relative group">
+                              <img src={img} alt={`Gallery ${idx}`} className="w-full h-24 object-cover rounded-lg border border-cyan-500/30" />
+                              <button
+                                type="button"
+                                onClick={() => setProfile((prev) => ({ ...prev, profileImages: prev.profileImages.filter((_, i) => i !== idx) }))}
+                                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 rounded-lg transition"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-cyan-200">{profile.profileImages.length} image(s) added</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                        {profile.profileImages.length > 0 ? (
+                          profile.profileImages.map((img, idx) => (
+                            <img key={idx} src={img} alt={`Gallery ${idx}`} className="w-full h-24 object-cover rounded-lg border border-cyan-500/30" />
+                          ))
+                        ) : (
+                          <p className="text-xs text-cyan-300">No gallery images added</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
@@ -299,7 +401,8 @@ export default function UserProfileDashboard() {
                       value={profile.bio}
                       onChange={handleChange}
                       disabled={!editing}
-                      rows={4}
+                      rows={3}
+                      placeholder="Tell about yourself..."
                       className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
                     />
                   </div>
@@ -313,6 +416,7 @@ export default function UserProfileDashboard() {
                         value={profile.selectedLocation}
                         onChange={handleChange}
                         disabled={!editing}
+                        placeholder="Your location"
                         className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 pl-9 pr-3 py-2 text-cyan-50"
                       />
                     </div>
@@ -358,6 +462,7 @@ export default function UserProfileDashboard() {
                       value={profile.roommatePreference}
                       onChange={handleChange}
                       disabled={!editing}
+                      placeholder="e.g. Clean, Quiet, Social"
                       className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
                     />
                   </div>
