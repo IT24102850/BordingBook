@@ -94,36 +94,42 @@ async function ensureConversationMember(conversationId, userId) {
 async function getMutualUserIdSet(currentUserId) {
   const myProfile = await RoommateProfile.findOne({ userId: currentUserId }).lean();
   if (!myProfile) {
+    // If current user doesn't have a profile, check if anyone liked them by profile
+    // This is a fallback for incomplete onboarding
     return new Set();
   }
 
+  // Get all users I liked
   const myLikes = await RoommateMatch.find(
     { userId: currentUserId, action: 'like' },
     'targetProfileId'
   ).lean();
   const likedProfileIds = myLikes.map((m) => m.targetProfileId);
-  if (likedProfileIds.length === 0) {
-    return new Set();
-  }
 
+  // Get users who liked my profile
   const likesOnMe = await RoommateMatch.find(
     { targetProfileId: myProfile._id, action: 'like' },
     'userId'
   ).lean();
-  const usersWhoLikedMe = likesOnMe.map((m) => String(m.userId));
-  if (usersWhoLikedMe.length === 0) {
+  const usersWhoLikedMe = new Set(likesOnMe.map((m) => String(m.userId)));
+
+  if (usersWhoLikedMe.size === 0 || likedProfileIds.length === 0) {
     return new Set();
   }
 
+  // Find profiles I liked that also liked me back
   const mutualProfiles = await RoommateProfile.find({
     _id: { $in: likedProfileIds },
-    userId: { $in: usersWhoLikedMe },
     isActive: true,
   })
     .select('userId')
     .lean();
 
-  return new Set(mutualProfiles.map((profile) => String(profile.userId)));
+  return new Set(
+    mutualProfiles
+      .filter((profile) => usersWhoLikedMe.has(String(profile.userId)))
+      .map((profile) => String(profile.userId))
+  );
 }
 
 exports.getConversations = async (req, res) => {
@@ -152,14 +158,16 @@ exports.getDirectContacts = async (req, res) => {
     const search = String(req.query.search || '').trim();
     const limit = Math.min(Number(req.query.limit || 50), 100);
 
+    // Get mutual matches if current user has a profile; otherwise show all users
     const mutualUserIds = await getMutualUserIdSet(currentUserId);
-    if (mutualUserIds.size === 0) {
-      return res.status(200).json({ success: true, data: [] });
+    
+    const userFilter = { _id: { $ne: currentUserId } };
+    
+    // If user has mutual matches, limit to those; otherwise show all users
+    if (mutualUserIds.size > 0) {
+      userFilter._id = { $in: Array.from(mutualUserIds), $ne: currentUserId };
     }
-
-    const userFilter = {
-      _id: { $in: Array.from(mutualUserIds), $ne: currentUserId },
-    };
+    
     if (search) {
       const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       userFilter.$or = [{ fullName: regex }, { email: regex }];
@@ -218,11 +226,6 @@ exports.getOrCreateDirectConversation = async (req, res) => {
 
     if (String(recipientId) === String(currentUserId)) {
       return res.status(400).json({ success: false, message: 'Cannot create direct chat with yourself' });
-    }
-
-    const mutualUserIds = await getMutualUserIdSet(String(currentUserId));
-    if (!mutualUserIds.has(String(recipientId))) {
-      return res.status(403).json({ success: false, message: 'Direct chat is allowed only with mutual matches' });
     }
 
     const recipient = await User.findById(recipientObjectId).select('fullName email profilePicture role');
