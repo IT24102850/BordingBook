@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const BookingGroup = require('../models/BookingGroup');
 const ChatConversation = require('../models/ChatConversation');
 const ChatMessage = require('../models/ChatMessage');
+const RoommateMatch = require('../models/RoommateMatch');
+const RoommateProfile = require('../models/RoommateProfile');
 const User = require('../models/User');
 
 function toObjectId(value) {
@@ -89,6 +91,41 @@ async function ensureConversationMember(conversationId, userId) {
   return conversation;
 }
 
+async function getMutualUserIdSet(currentUserId) {
+  const myProfile = await RoommateProfile.findOne({ userId: currentUserId }).lean();
+  if (!myProfile) {
+    return new Set();
+  }
+
+  const myLikes = await RoommateMatch.find(
+    { userId: currentUserId, action: 'like' },
+    'targetProfileId'
+  ).lean();
+  const likedProfileIds = myLikes.map((m) => m.targetProfileId);
+  if (likedProfileIds.length === 0) {
+    return new Set();
+  }
+
+  const likesOnMe = await RoommateMatch.find(
+    { targetProfileId: myProfile._id, action: 'like' },
+    'userId'
+  ).lean();
+  const usersWhoLikedMe = likesOnMe.map((m) => String(m.userId));
+  if (usersWhoLikedMe.length === 0) {
+    return new Set();
+  }
+
+  const mutualProfiles = await RoommateProfile.find({
+    _id: { $in: likedProfileIds },
+    userId: { $in: usersWhoLikedMe },
+    isActive: true,
+  })
+    .select('userId')
+    .lean();
+
+  return new Set(mutualProfiles.map((profile) => String(profile.userId)));
+}
+
 exports.getConversations = async (req, res) => {
   try {
     const currentUserId = req.user.userId;
@@ -115,21 +152,23 @@ exports.getDirectContacts = async (req, res) => {
     const search = String(req.query.search || '').trim();
     const limit = Math.min(Number(req.query.limit || 50), 100);
 
-    console.log('[Chat] getDirectContacts - Current user:', currentUserId);
+    const mutualUserIds = await getMutualUserIdSet(currentUserId);
+    if (mutualUserIds.size === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
 
-    const userFilter = { _id: { $ne: currentUserId } };
+    const userFilter = {
+      _id: { $in: Array.from(mutualUserIds), $ne: currentUserId },
+    };
     if (search) {
       const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       userFilter.$or = [{ fullName: regex }, { email: regex }];
-      console.log('[Chat] getDirectContacts - Search filter:', search);
     }
 
     const users = await User.find(userFilter)
       .select('fullName email profilePicture role')
       .sort({ updatedAt: -1 })
       .limit(limit);
-
-    console.log('[Chat] getDirectContacts - Found users:', users.length, users.map(u => ({ id: String(u._id), fullName: u.fullName, email: u.email })));
 
     const directConversations = await ChatConversation.find({
       type: 'direct',
@@ -157,7 +196,6 @@ exports.getDirectContacts = async (req, res) => {
 
     return res.status(200).json({ success: true, data });
   } catch (error) {
-    console.error('[Chat] Error in getDirectContacts:', error);
     return res.status(500).json({ success: false, message: 'Error fetching contacts', error: error.message });
   }
 };
@@ -166,8 +204,6 @@ exports.getOrCreateDirectConversation = async (req, res) => {
   try {
     const currentUserId = req.user.userId;
     const recipientId = req.body.recipientId;
-
-    console.log('[Chat] Creating direct conversation from:', currentUserId, 'to:', recipientId);
 
     if (!recipientId) {
       return res.status(400).json({ success: false, message: 'recipientId is required' });
@@ -184,13 +220,15 @@ exports.getOrCreateDirectConversation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot create direct chat with yourself' });
     }
 
-    const recipient = await User.findById(recipientObjectId).select('fullName email profilePicture role');
-    if (!recipient) {
-      console.log('[Chat] Recipient not found:', recipientId);
-      return res.status(404).json({ success: false, message: 'Recipient user not found' });
+    const mutualUserIds = await getMutualUserIdSet(String(currentUserId));
+    if (!mutualUserIds.has(String(recipientId))) {
+      return res.status(403).json({ success: false, message: 'Direct chat is allowed only with mutual matches' });
     }
 
-    console.log('[Chat] Recipient found:', recipient.email);
+    const recipient = await User.findById(recipientObjectId).select('fullName email profilePicture role');
+    if (!recipient) {
+      return res.status(404).json({ success: false, message: 'Recipient user not found' });
+    }
 
     const key = directKeyFromUsers(currentUserId, recipientId);
 
@@ -199,7 +237,6 @@ exports.getOrCreateDirectConversation = async (req, res) => {
       .populate('lastMessage.sender', 'fullName email profilePicture role');
 
     if (!conversation) {
-      console.log('[Chat] Creating new conversation with key:', key);
       conversation = await ChatConversation.create({
         type: 'direct',
         directKey: key,
@@ -209,17 +246,12 @@ exports.getOrCreateDirectConversation = async (req, res) => {
       conversation = await ChatConversation.findById(conversation._id)
         .populate('participants.user', 'fullName email profilePicture role')
         .populate('lastMessage.sender', 'fullName email profilePicture role');
-
-      console.log('[Chat] Conversation created:', conversation._id);
-    } else {
-      console.log('[Chat] Conversation already exists:', conversation._id);
     }
 
     const mapped = await mapConversation(conversation, currentUserId);
 
     return res.status(200).json({ success: true, data: mapped });
   } catch (error) {
-    console.error('[Chat] Error in getOrCreateDirectConversation:', error);
     return res.status(500).json({ success: false, message: 'Error creating direct conversation', error: error.message });
   }
 };

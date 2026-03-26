@@ -717,7 +717,7 @@ export default function Chat() {
         <div className={`w-full lg:w-96 border-r border-white/10 ${selectedConversation ? 'hidden lg:block' : 'block'}`}>
           <div className="p-4 border-b border-white/10">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-xs text-gray-400">Start direct chat with any user</p>
+              <p className="text-xs text-gray-400">Start direct chat with mutual matches only</p>
               <button
                 onClick={() => {
                   setShowNewChatModal(true);
