@@ -182,7 +182,7 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
-      className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden border border-white/10 w-full max-w-md mx-auto transition-all duration-300 cursor-grab active:cursor-grabbing ${direction === 'left' ? 'animate-swipe-left' : ''} ${direction === 'right' ? 'animate-swipe-right' : ''}`}
+      className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden border border-white/10 w-full max-w-[20rem] mx-auto transition-all duration-300 cursor-grab active:cursor-grabbing ${direction === 'left' ? 'animate-swipe-left' : ''} ${direction === 'right' ? 'animate-swipe-right' : ''}`}
       style={{ minHeight: 340, touchAction: 'pan-y' }}
     >
       {/* Image Carousel */}
@@ -232,7 +232,7 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
         )}
       </div>
 
-      <div className="flex flex-col items-center p-6">
+      <div className="flex flex-col items-center p-4">
         <h3 className="text-xl font-bold text-white mb-1">{displayName}, <span className="text-pink-300">{roommate.age || 20}</span></h3>
         <div className="text-sm text-pink-200 mb-1">{roommate.gender || 'Any'} | {roommate.university || 'SLIIT'}</div>
         <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio || 'Looking for a compatible roommate.'}</div>
@@ -278,11 +278,135 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [passed, setPassed] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
-  const [myProfile, setMyProfile] = React.useState({ budget: 12000, gender: 'Select', preferences: '' });
+  const [myProfile, setMyProfile] = React.useState({
+    budget: 12000,
+    gender: 'Select',
+    preferences: '',
+    academicYear: '1st Year',
+    roomType: 'Shared Room',
+  });
   const [profileEdit, setProfileEdit] = React.useState(false);
+  const [showSidePanels, setShowSidePanels] = React.useState(false);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
+  const [dbGroups, setDbGroups] = React.useState<any[]>([]);
   const current = roommateData[currentIdx];
+
+  const authToken = localStorage.getItem('bb_access_token') || '';
+  const apiHeaders = React.useMemo(() => ({
+    Authorization: `Bearer ${authToken}`,
+    'Content-Type': 'application/json',
+  }), [authToken]);
+
+  const loadRoommateData = React.useCallback(async () => {
+    if (!authToken) return;
+    try {
+      const [profileRes, sentRes, inboxRes, groupsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/roommates/profile`, { headers: apiHeaders }),
+        fetch(`${API_BASE_URL}/api/roommates/request/sent`, { headers: apiHeaders }),
+        fetch(`${API_BASE_URL}/api/roommates/request/inbox`, { headers: apiHeaders }),
+        fetch(`${API_BASE_URL}/api/roommates/groups`, { headers: apiHeaders }),
+      ]);
+
+      const [profileJson, sentJson, inboxJson, groupsJson] = await Promise.all([
+        profileRes.json().catch(() => ({})),
+        sentRes.json().catch(() => ({})),
+        inboxRes.json().catch(() => ({})),
+        groupsRes.json().catch(() => ({})),
+      ]);
+
+      if (profileRes.ok && profileJson?.data) {
+        const p = profileJson.data;
+        setMyProfile({
+          budget: Number(p.budget) || 12000,
+          gender: p.gender || 'Select',
+          preferences: p.preferences || '',
+          academicYear: p.academicYear || '1st Year',
+          roomType: p.roomType || 'Shared Room',
+        });
+      }
+
+      const normalizeRequest = (request: any, type: 'sent' | 'inbox') => {
+        const fromUser = type === 'sent' ? request?.recipientId : request?.senderId;
+        return {
+          id: request?._id || `req_${Date.now()}`,
+          from: {
+            id: fromUser?._id || '',
+            name: fromUser?.name || fromUser?.fullName || 'Student',
+            email: fromUser?.email || '',
+            image: 'https://randomuser.me/api/portraits/lego/1.jpg',
+            university: 'SLIIT',
+          },
+          message: request?.message || '',
+          status: request?.status || 'pending',
+        };
+      };
+
+      if (sentRes.ok && Array.isArray(sentJson?.data)) {
+        setSentRequests(sentJson.data.map((req: any) => normalizeRequest(req, 'sent')));
+      }
+
+      if (inboxRes.ok && Array.isArray(inboxJson?.data)) {
+        setInboxRequests(inboxJson.data.map((req: any) => normalizeRequest(req, 'inbox')));
+      }
+
+      if (groupsRes.ok && Array.isArray(groupsJson?.data)) {
+        setDbGroups(groupsJson.data);
+      }
+    } catch {
+      // Keep UI usable even when API calls fail
+    }
+  }, [authToken, apiHeaders]);
+
+  React.useEffect(() => {
+    loadRoommateData();
+  }, [loadRoommateData]);
+
+  const saveMyProfile = React.useCallback(async () => {
+    if (!authToken) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/roommates/profile`, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({
+          budget: myProfile.budget,
+          gender: myProfile.gender === 'Select' ? 'Other' : myProfile.gender,
+          academicYear: myProfile.academicYear,
+          roomType: myProfile.roomType,
+          availableFrom: new Date().toISOString(),
+          preferences: myProfile.preferences,
+          description: myProfile.preferences,
+        }),
+      });
+      loadRoommateData();
+    } catch {
+      // Ignore save failure in UI fallback mode
+    }
+  }, [authToken, apiHeaders, myProfile, loadRoommateData]);
+
+  const createGroupFromLiked = React.useCallback(async () => {
+    if (!authToken || liked.length === 0) return;
+    try {
+      const memberEmails = liked
+        .map((item) => item?.email)
+        .filter((email) => typeof email === 'string' && email.length > 0);
+
+      if (memberEmails.length === 0) return;
+
+      await fetch(`${API_BASE_URL}/api/roommates/group`, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({
+          name: `Roommate Group ${new Date().toLocaleDateString('en-US')}`,
+          memberEmails,
+        }),
+      });
+
+      loadRoommateData();
+    } catch {
+      // Ignore group creation failure in UI fallback mode
+    }
+  }, [authToken, apiHeaders, liked, loadRoommateData]);
 
   const handleLike = () => {
     if (!current || isAnimating) return;
@@ -290,7 +414,18 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     setDirection('right');
     setTimeout(() => {
       setLiked([...liked, current]);
-      setSentRequests([...sentRequests, { id: `req_${Date.now()}`, from: current, message: 'Hi! I think we would be great roommates!', status: 'pending' }]);
+      if (authToken && current.userId) {
+        fetch(`${API_BASE_URL}/api/roommates/request/send`, {
+          method: 'POST',
+          headers: apiHeaders,
+          body: JSON.stringify({
+            recipientId: current.userId,
+            message: 'Hi! I think we would be great roommates!',
+          }),
+        }).then(() => loadRoommateData()).catch(() => undefined);
+      } else {
+        setSentRequests([...sentRequests, { id: `req_${Date.now()}`, from: current, message: 'Hi! I think we would be great roommates!', status: 'pending' }]);
+      }
       if (currentIdx < roommateData.length - 1) {
         setCurrentIdx(currentIdx + 1);
       }
@@ -321,11 +456,22 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   };
 
   const handleRequestResponse = (requestId: string, accept: boolean) => {
-    setInboxRequests(
-      inboxRequests.map((req) =>
-        req.id === requestId ? { ...req, status: accept ? 'accepted' : 'rejected' } : req
-      )
-    );
+    if (!authToken) {
+      setInboxRequests(
+        inboxRequests.map((req) =>
+          req.id === requestId ? { ...req, status: accept ? 'accepted' : 'rejected' } : req
+        )
+      );
+      return;
+    }
+
+    const action = accept ? 'accept' : 'reject';
+    fetch(`${API_BASE_URL}/api/roommates/request/${requestId}/${action}`, {
+      method: 'PATCH',
+      headers: apiHeaders,
+    })
+      .then(() => loadRoommateData())
+      .catch(() => undefined);
   };
 
   return (
@@ -357,8 +503,19 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
       {roommateTab === 'browse' && (
         <>
           <div className="hidden md:block">
-            <div className="grid grid-cols-3 gap-6">
+            <div className="flex items-center justify-between mb-4 px-1">
+              <p className="text-xs text-gray-400">Focus mode keeps swipe actions clear on smaller windows.</p>
+              <button
+                onClick={() => setShowSidePanels((prev) => !prev)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 border border-white/15 text-cyan-200 hover:bg-white/15 transition"
+              >
+                {showSidePanels ? 'Hide Passed & Favorites' : 'Show Passed & Favorites'}
+              </button>
+            </div>
+
+            <div className={showSidePanels ? 'grid grid-cols-3 gap-6' : 'grid grid-cols-1 gap-6'}>
               {/* Left Column - Passed Roommates */}
+              {showSidePanels && (
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                 <div className="flex items-center gap-2 mb-4">
                   <FaHistory className="text-red-400" />
@@ -378,10 +535,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   )}
                 </div>
               </div>
+              )}
 
               {/* Center Column - Main Swipe Card */}
-              <div>
-                <div className="relative h-[500px] mb-4 perspective-1000">
+              <div className={showSidePanels ? '' : 'max-w-2xl mx-auto'}>
+                <div className="relative h-[460px] mb-4 perspective-1000">
                   {currentIdx < roommateData.length - 1 && (
                     <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
                   )}
@@ -408,6 +566,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
               </div>
 
               {/* Right Column - Liked Roommates */}
+              {showSidePanels && (
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                 <div className="flex items-center gap-2 mb-4">
                   <FaBookmark className="text-green-400" />
@@ -432,6 +591,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   </button>
                 )}
               </div>
+              )}
             </div>
           </div>
 
@@ -452,6 +612,25 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                     <FaUndo /> Undo
                   </button>
                 </div>
+
+                <div className="fixed bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-4 z-40">
+                  <button
+                    onClick={handlePass}
+                    disabled={isAnimating}
+                    className="w-14 h-14 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg disabled:opacity-50"
+                    title="Pass"
+                  >
+                    <FaRegTimesCircle />
+                  </button>
+                  <button
+                    onClick={handleLike}
+                    disabled={isAnimating}
+                    className="w-14 h-14 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg disabled:opacity-50"
+                    title="Like"
+                  >
+                    <FaHeart />
+                  </button>
+                </div>
               </>
             ) : (
               <p className="text-gray-400">No more profiles!</p>
@@ -466,7 +645,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-white">My Roommate Profile</h3>
             <button
-              onClick={() => setProfileEdit(!profileEdit)}
+              onClick={() => {
+                if (profileEdit) {
+                  saveMyProfile();
+                }
+                setProfileEdit(!profileEdit);
+              }}
               className="px-4 py-2 bg-cyan-500/30 border border-cyan-500 text-cyan-300 rounded-lg hover:bg-cyan-500/50 text-xs font-semibold"
             >
               {profileEdit ? 'Done' : 'Edit'}
@@ -491,12 +675,30 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   <label className="text-sm text-gray-300">Preferences</label>
                   <textarea value={myProfile.preferences} onChange={(e) => setMyProfile({...myProfile, preferences: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" placeholder="e.g., Early riser, non-smoker" rows={2} />
                 </div>
+                <div>
+                  <label className="text-sm text-gray-300">Academic Year</label>
+                  <select value={myProfile.academicYear} onChange={(e) => setMyProfile({...myProfile, academicYear: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
+                    <option>1st Year</option>
+                    <option>2nd Year</option>
+                    <option>3rd Year</option>
+                    <option>4th Year</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-300">Room Type</label>
+                  <select value={myProfile.roomType} onChange={(e) => setMyProfile({...myProfile, roomType: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
+                    <option>Shared Room</option>
+                    <option>Single Room</option>
+                  </select>
+                </div>
               </>
             ) : (
               <>
                 <p className="text-gray-300"><span className="text-gray-400">Budget:</span> Rs. {myProfile.budget.toLocaleString()}</p>
                 <p className="text-gray-300"><span className="text-gray-400">Gender:</span> {myProfile.gender}</p>
                 <p className="text-gray-300"><span className="text-gray-400">Preferences:</span> {myProfile.preferences || 'Not specified'}</p>
+                <p className="text-gray-300"><span className="text-gray-400">Academic Year:</span> {myProfile.academicYear}</p>
+                <p className="text-gray-300"><span className="text-gray-400">Room Type:</span> {myProfile.roomType}</p>
               </>
             )}
           </div>
@@ -584,13 +786,31 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-white">Groups</h3>
             <button 
-              onClick={() => navigate('/roommate-group', { state: { selectedRoommates: liked } })}
+              onClick={createGroupFromLiked}
               className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition"
             >
               <FaPlus size={16} />
-              Create Group
+              Create Group From Likes
             </button>
           </div>
+
+          {dbGroups.length > 0 && (
+            <div className="space-y-3 mb-6">
+              {dbGroups.map((group: any) => (
+                <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-semibold">{group.name}</p>
+                      <p className="text-xs text-gray-400">Members: {Array.isArray(group.members) ? group.members.length : 0}</p>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                      {group.status || 'forming'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           
           {liked.length > 0 ? (
             <div className="space-y-4">
@@ -612,7 +832,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
                 </p>
                 <button 
-                  onClick={() => navigate('/roommate-group', { state: { selectedRoommates: liked } })}
+                  onClick={createGroupFromLiked}
                   className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
                 >
                   <FaUserFriends size={18} />
@@ -652,6 +872,7 @@ function MapViewPlaceholder() {
 // Define types
 interface Roommate {
   id: number | string;
+  userId?: string;
   name: string;
   email?: string;
   age: number;
@@ -2632,6 +2853,7 @@ export default function SearchPage() {
 
             return {
               id: profile._id || `profile-${index}`,
+              userId: profile.userId || profile._id || '',
               name: profile.name || 'Student',
               email: profile.email || '',
               age: 20,
