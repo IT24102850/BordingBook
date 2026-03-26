@@ -272,15 +272,13 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
 // Roommate Finder tab content with swipe logic
 function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] }) {
   const navigate = useNavigate();
-  const [roommateTab, setRoommateTab] = React.useState<'browse' | 'profile' | 'requests' | 'inbox' | 'groups'>('browse');
+  const [roommateTab, setRoommateTab] = React.useState<'browse' | 'requests' | 'inbox' | 'groups'>('browse');
   const [currentIdx, setCurrentIdx] = React.useState(0);
   const [liked, setLiked] = React.useState<any[]>([]);
   const [passed, setPassed] = React.useState<any[]>([]);
   const [mutualMatches, setMutualMatches] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
-  const [myProfile, setMyProfile] = React.useState({ budget: 12000, gender: 'Select', preferences: '' });
-  const [profileEdit, setProfileEdit] = React.useState(false);
   const [showSidePanels, setShowSidePanels] = React.useState(false);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
@@ -513,7 +511,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
       <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
         {[
           { id: 'browse', label: 'Browse' },
-          { id: 'profile', label: 'Profile' },
           { id: 'requests', label: `Sent (${sentRequests.length})` },
           { id: 'inbox', label: `Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})` },
           { id: 'groups', label: 'Groups' },
@@ -620,6 +617,26 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                     <FaUndo /> Undo
                   </button>
                 </div>
+
+                {/* Duplicate Action Buttons (Desktop) */}
+                <div className="mt-4 flex justify-center gap-4">
+                  <button
+                    onClick={handlePass}
+                    disabled={isAnimating || !current}
+                    className="w-14 h-14 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    title="Pass"
+                  >
+                    <FaRegTimesCircle />
+                  </button>
+                  <button
+                    onClick={handleLike}
+                    disabled={isAnimating || !current}
+                    className="w-14 h-14 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    title="Like"
+                  >
+                    <FaHeart />
+                  </button>
+                </div>
               </div>
 
               {/* Right Column - Liked Roommates */}
@@ -694,49 +711,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
             )}
           </div>
         </>
-      )}
-
-      {/* PROFILE TAB */}
-      {roommateTab === 'profile' && (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-white">My Roommate Profile</h3>
-            <button
-              onClick={() => setProfileEdit(!profileEdit)}
-              className="px-4 py-2 bg-cyan-500/30 border border-cyan-500 text-cyan-300 rounded-lg hover:bg-cyan-500/50 text-xs font-semibold"
-            >
-              {profileEdit ? 'Done' : 'Edit'}
-            </button>
-          </div>
-          <div className="space-y-3">
-            {profileEdit ? (
-              <>
-                <div>
-                  <label className="text-sm text-gray-300">Budget (Rs.)</label>
-                  <input type="number" value={myProfile.budget} onChange={(e) => setMyProfile({...myProfile, budget: Number(e.target.value)})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-300">Gender</label>
-                  <select value={myProfile.gender} onChange={(e) => setMyProfile({...myProfile, gender: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1">
-                    <option>Select</option>
-                    <option>Male</option>
-                    <option>Female</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-300">Preferences</label>
-                  <textarea value={myProfile.preferences} onChange={(e) => setMyProfile({...myProfile, preferences: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-white mt-1" placeholder="e.g., Early riser, non-smoker" rows={2} />
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-gray-300"><span className="text-gray-400">Budget:</span> Rs. {myProfile.budget.toLocaleString()}</p>
-                <p className="text-gray-300"><span className="text-gray-400">Gender:</span> {myProfile.gender}</p>
-                <p className="text-gray-300"><span className="text-gray-400">Preferences:</span> {myProfile.preferences || 'Not specified'}</p>
-              </>
-            )}
-          </div>
-        </div>
       )}
 
       {/* SENT REQUESTS TAB */}
