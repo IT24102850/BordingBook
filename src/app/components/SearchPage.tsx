@@ -3452,7 +3452,7 @@ export default function SearchPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative">
+                <div className="relative z-[130]">
                 <button
                   ref={notificationButtonRef}
                   onClick={() => setShowNotifications(!showNotifications)}
@@ -3469,7 +3469,7 @@ export default function SearchPage() {
                 {showNotifications && (
                   <div
                     ref={notificationPanelRef}
-                    className="absolute right-0 top-full mt-2 w-[min(94vw,26rem)] max-h-[72vh] overflow-hidden bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-50"
+                    className="fixed right-3 md:right-6 top-24 w-[min(94vw,26rem)] max-h-[72vh] overflow-hidden bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl shadow-2xl border border-white/10 z-[150]"
                   >
                     <div className="sticky top-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm p-4 border-b border-white/10">
                       <div className="flex items-center justify-between">
