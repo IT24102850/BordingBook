@@ -6,6 +6,8 @@ const validateRequest = require('../middleware/validateRequest');
 
 const router = express.Router();
 
+router.get('/contacts', requireAuth, chatController.getDirectContacts);
+
 router.get('/conversations', requireAuth, chatController.getConversations);
 
 router.post(

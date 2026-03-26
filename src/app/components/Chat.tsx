@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
-import { Send, Phone, Video, Search, ArrowLeft, PhoneOff, Loader2 } from 'lucide-react';
+import { Send, Phone, Video, Search, ArrowLeft, PhoneOff, Loader2, MessageSquarePlus, X } from 'lucide-react';
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
@@ -40,6 +40,15 @@ interface ChatConversation {
     senderId: string | null;
   };
   updatedAt: string;
+}
+
+interface ChatContact {
+  id: string;
+  fullName: string;
+  email: string;
+  avatar: string;
+  role: string;
+  conversationId: string | null;
 }
 
 interface IncomingCall {
@@ -120,6 +129,10 @@ export default function Chat() {
   const [error, setError] = useState('');
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [contacts, setContacts] = useState<ChatContact[]>([]);
+  const [contactSearchQuery, setContactSearchQuery] = useState('');
+  const [loadingContacts, setLoadingContacts] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
@@ -234,9 +247,13 @@ export default function Chat() {
 
     const state = (location.state || {}) as any;
     const selectedRoommate = state?.selectedRoommate;
-    if (!selectedRoommate) return;
-
-    const recipientId = String(selectedRoommate.userId || selectedRoommate.id || '');
+    const recipientId = String(
+      selectedRoommate?.userId ||
+      selectedRoommate?.id ||
+      state?.recipientId ||
+      state?.selectedUserId ||
+      ''
+    );
     if (!recipientId) return;
 
     try {
@@ -250,6 +267,43 @@ export default function Chat() {
       setError((createError as Error).message || 'Unable to open direct conversation');
     }
   }, [fetchConversations, location.state, token]);
+
+  const fetchContacts = useCallback(
+    async (search = '') => {
+      if (!token) return;
+      try {
+        setLoadingContacts(true);
+        const query = search ? `?search=${encodeURIComponent(search)}` : '';
+        const data = await apiFetch<ChatContact[]>(`/contacts${query}`, token);
+        setContacts(data || []);
+      } catch (fetchError) {
+        setError((fetchError as Error).message || 'Unable to load contacts');
+      } finally {
+        setLoadingContacts(false);
+      }
+    },
+    [token]
+  );
+
+  const createOrOpenDirectConversation = useCallback(
+    async (recipientId: string) => {
+      try {
+        setError('');
+        const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
+          method: 'POST',
+          body: JSON.stringify({ recipientId }),
+        });
+
+        setSelectedConversationId(data.id);
+        setShowNewChatModal(false);
+        setContactSearchQuery('');
+        await fetchConversations();
+      } catch (createError) {
+        setError((createError as Error).message || 'Unable to create direct conversation');
+      }
+    },
+    [fetchConversations, token]
+  );
 
   const startLocalMedia = useCallback(async (callType: 'audio' | 'video') => {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -489,6 +543,11 @@ export default function Chat() {
   }, [ensureDirectConversationFromRouteState]);
 
   useEffect(() => {
+    if (!showNewChatModal) return;
+    fetchContacts(contactSearchQuery);
+  }, [contactSearchQuery, fetchContacts, showNewChatModal]);
+
+  useEffect(() => {
     if (!selectedConversationId) {
       setMessages([]);
       return;
@@ -633,6 +692,18 @@ export default function Chat() {
       <div className="w-full lg:flex pt-16">
         <div className={`w-full lg:w-96 border-r border-white/10 ${selectedConversation ? 'hidden lg:block' : 'block'}`}>
           <div className="p-4 border-b border-white/10">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-xs text-gray-400">Start direct chat with any user</p>
+              <button
+                onClick={() => {
+                  setShowNewChatModal(true);
+                  setContactSearchQuery('');
+                }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-semibold"
+              >
+                <MessageSquarePlus size={14} /> New Chat
+              </button>
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input
@@ -824,6 +895,70 @@ export default function Chat() {
               <button onClick={() => void acceptIncomingCall()} className="flex-1 py-2 rounded-lg bg-emerald-500/80 hover:bg-emerald-500 text-white font-semibold">
                 Accept
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNewChatModal && (
+        <div className="fixed inset-0 z-[75] bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#101a36] border border-white/15 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold">New Chat</h3>
+              <button
+                onClick={() => setShowNewChatModal(false)}
+                className="p-1.5 rounded-lg text-gray-300 hover:bg-white/10"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+              <input
+                type="text"
+                placeholder="Search users by name or email..."
+                value={contactSearchQuery}
+                onChange={(event) => setContactSearchQuery(event.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+              />
+            </div>
+
+            <div className="max-h-80 overflow-y-auto space-y-2">
+              {loadingContacts && (
+                <div className="text-xs text-gray-400 flex items-center gap-2 px-2 py-2">
+                  <Loader2 size={14} className="animate-spin" /> Loading users...
+                </div>
+              )}
+
+              {!loadingContacts && contacts.length === 0 && (
+                <p className="text-sm text-gray-400 px-2 py-3">No users found.</p>
+              )}
+
+              {contacts.map((contact) => (
+                <button
+                  key={contact.id}
+                  onClick={() => void createOrOpenDirectConversation(contact.id)}
+                  className="w-full text-left px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={contact.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                      alt={contact.fullName || contact.email}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm text-white font-semibold truncate">{contact.fullName || contact.email}</p>
+                      <p className="text-xs text-gray-400 truncate">{contact.email}</p>
+                    </div>
+                    {contact.conversationId && (
+                      <span className="ml-auto text-[10px] px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-500/30">
+                        Existing
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>

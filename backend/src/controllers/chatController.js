@@ -109,6 +109,53 @@ exports.getConversations = async (req, res) => {
   }
 };
 
+exports.getDirectContacts = async (req, res) => {
+  try {
+    const currentUserId = String(req.user.userId);
+    const search = String(req.query.search || '').trim();
+    const limit = Math.min(Number(req.query.limit || 50), 100);
+
+    const userFilter = { _id: { $ne: currentUserId } };
+    if (search) {
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      userFilter.$or = [{ fullName: regex }, { email: regex }];
+    }
+
+    const users = await User.find(userFilter)
+      .select('fullName email profilePicture role')
+      .sort({ updatedAt: -1 })
+      .limit(limit);
+
+    const directConversations = await ChatConversation.find({
+      type: 'direct',
+      'participants.user': currentUserId,
+    }).select('directKey _id participants');
+
+    const directMap = new Map();
+    for (const conversation of directConversations) {
+      const other = (conversation.participants || []).find(
+        (entry) => String(entry.user) !== currentUserId
+      );
+      if (other?.user) {
+        directMap.set(String(other.user), String(conversation._id));
+      }
+    }
+
+    const data = users.map((user) => ({
+      id: String(user._id),
+      fullName: user.fullName || '',
+      email: user.email || '',
+      avatar: user.profilePicture || '',
+      role: user.role || 'student',
+      conversationId: directMap.get(String(user._id)) || null,
+    }));
+
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error fetching contacts', error: error.message });
+  }
+};
+
 exports.getOrCreateDirectConversation = async (req, res) => {
   try {
     const currentUserId = req.user.userId;
