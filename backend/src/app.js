@@ -36,11 +36,13 @@ app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 const authRoutes = require('./routes/authRoutes');
 const roommateRoutes = require('./routes/roommateRoutes');
 const ownerRoutes = require('./routes/ownerRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/roommates', roommateRoutes);
 app.use('/api/owner', ownerRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

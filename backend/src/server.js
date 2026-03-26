@@ -1,7 +1,10 @@
 const app = require('./app');
+const http = require('http');
+const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const env = require('./config/env');
 const { connectDatabase } = require('./config/database');
+const { setupChatSocket } = require('./socket/chatSocket');
 
 let server;
 
@@ -9,7 +12,19 @@ async function startServer() {
   try {
     await connectDatabase();
 
-    server = app.listen(env.port, () => {
+    const httpServer = http.createServer(app);
+    const io = new Server(httpServer, {
+      cors: {
+        origin: env.allowedOrigins,
+        methods: ['GET', 'POST', 'PATCH'],
+        credentials: true,
+      },
+    });
+
+    setupChatSocket(io);
+    app.locals.io = io;
+
+    server = httpServer.listen(env.port, () => {
       console.log(`Server running on port ${env.port}`);
     });
   } catch (error) {

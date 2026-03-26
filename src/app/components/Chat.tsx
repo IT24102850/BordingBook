@@ -1,90 +1,628 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Send, Phone, Video, MoreVertical, Search, ArrowLeft, Smile } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { io, Socket } from 'socket.io-client';
+import { Send, Phone, Video, Search, ArrowLeft, PhoneOff, Loader2 } from 'lucide-react';
 
-interface Message {
-  id: string;
-  sender: string;
-  senderType: 'user' | 'owner';
-  content: string;
-  timestamp: string;
-  read: boolean;
-}
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
-interface Conversation {
+const ICE_CONFIG: RTCConfiguration = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+};
+
+interface ChatUser {
   id: string;
-  name: string;
-  type: 'owner' | 'group';
-  lastMessage: string;
-  unreadCount: number;
+  fullName: string;
+  email: string;
   avatar: string;
-  messages: Message[];
+  role: string;
 }
 
-const mockConversations: Conversation[] = [
-  {
-    id: 'conv1',
-    name: 'Mr. Janaka Perera (Owner)',
-    type: 'owner',
-    lastMessage: 'See you at check-in!',
-    unreadCount: 0,
-    avatar: 'https://randomuser.me/api/portraits/men/36.jpg',
-    messages: [
-      { id: '1', sender: 'Mr. Janaka Perera', senderType: 'owner', content: 'Welcome to our boarding house!', timestamp: '10:30 AM', read: true },
-      { id: '2', sender: 'You', senderType: 'user', content: 'Thank you! I\'m excited to move in', timestamp: '10:35 AM', read: true },
-      { id: '3', sender: 'Mr. Janaka Perera', senderType: 'owner', content: 'Check-in time is 3:00 PM. Please bring your ID and documents.', timestamp: '10:40 AM', read: true },
-      { id: '4', sender: 'You', senderType: 'user', content: 'Got it. See you then!', timestamp: '11:00 AM', read: true },
-      { id: '5', sender: 'Mr. Janaka Perera', senderType: 'owner', content: 'See you at check-in!', timestamp: '11:05 AM', read: false }
-    ]
-  },
-  {
-    id: 'conv2',
-    name: 'SLIIT Friends Group',
-    type: 'group',
-    lastMessage: 'Can\'t wait to move in together!',
-    unreadCount: 2,
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    messages: [
-      { id: '1', sender: 'Ayesha', senderType: 'user', content: 'Hey everyone! Excited to meet you all!', timestamp: '2:00 PM', read: true },
-      { id: '2', sender: 'Nuwan', senderType: 'user', content: 'Same here! Can\'t wait to move in together!', timestamp: '2:15 PM', read: false }
-    ]
+interface ChatMessage {
+  id: string;
+  conversationId: string;
+  sender: ChatUser;
+  content: string;
+  messageType: 'text' | 'system';
+  createdAt: string;
+  mine: boolean;
+}
+
+interface ChatConversation {
+  id: string;
+  type: 'direct' | 'group';
+  name: string;
+  avatar: string;
+  unreadCount: number;
+  participants: Array<ChatUser & { lastReadAt?: string; role?: string }>;
+  lastMessage: {
+    text: string;
+    at: string;
+    senderId: string | null;
+  };
+  updatedAt: string;
+}
+
+interface IncomingCall {
+  conversationId: string;
+  fromUser: ChatUser;
+  callType: 'audio' | 'video';
+}
+
+interface ActiveCall {
+  conversationId: string;
+  targetUserId: string;
+  callType: 'audio' | 'video';
+  phase: 'dialing' | 'connecting' | 'active';
+}
+
+function getCurrentUser(): ChatUser | null {
+  try {
+    const raw = localStorage.getItem('bb_current_user');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      id: String(parsed?.id || ''),
+      fullName: String(parsed?.fullName || ''),
+      email: String(parsed?.email || ''),
+      avatar: String(parsed?.profilePicture || ''),
+      role: String(parsed?.role || 'student'),
+    };
+  } catch {
+    return null;
   }
-];
+}
+
+async function apiFetch<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}/api/chat${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  });
+
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || json?.success === false) {
+    throw new Error(json?.message || 'Chat request failed');
+  }
+
+  return json?.data as T;
+}
+
+function formatTime(value: string | Date | undefined): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function appendMessageIfMissing(existing: ChatMessage[], incoming: ChatMessage): ChatMessage[] {
+  if (existing.some((item) => item.id === incoming.id)) {
+    return existing;
+  }
+  return [...existing, incoming];
+}
 
 export default function Chat() {
   const navigate = useNavigate();
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(mockConversations[0]);
+  const location = useLocation();
+  const currentUser = useMemo(() => getCurrentUser(), []);
+  const token = localStorage.getItem('bb_access_token') || '';
+
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string>('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [error, setError] = useState('');
+  const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
+  const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() && selectedConversation) {
-      const newMsg: Message = {
-        id: Date.now().toString(),
-        sender: 'You',
-        senderType: 'user',
-        content: newMessage,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        read: true
-      };
-      selectedConversation.messages.push(newMsg);
-      setNewMessage('');
-    }
-  };
+  const socketRef = useRef<Socket | null>(null);
+  const peerRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const bootstrappedFromStateRef = useRef(false);
+  const selectedConversationIdRef = useRef('');
+  const activeCallRef = useRef<ActiveCall | null>(null);
 
-  const filteredConversations = mockConversations.filter((conv) =>
-    conv.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const selectedConversation = useMemo(
+    () => conversations.find((conversation) => conversation.id === selectedConversationId) || null,
+    [conversations, selectedConversationId]
   );
+
+  const targetParticipant = useMemo(() => {
+    if (!selectedConversation || !currentUser) return null;
+    return selectedConversation.participants.find((participant) => participant.id !== currentUser.id) || null;
+  }, [selectedConversation, currentUser]);
+
+  const filteredConversations = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return conversations;
+    return conversations.filter((conversation) => conversation.name.toLowerCase().includes(query));
+  }, [conversations, searchQuery]);
+
+  const cleanupPeer = useCallback(() => {
+    if (peerRef.current) {
+      peerRef.current.ontrack = null;
+      peerRef.current.onicecandidate = null;
+      peerRef.current.close();
+      peerRef.current = null;
+    }
+  }, []);
+
+  const cleanupMedia = useCallback(() => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach((track) => track.stop());
+      remoteStreamRef.current = null;
+    }
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const endCall = useCallback(
+    (notifyRemote: boolean) => {
+      if (notifyRemote && activeCall && socketRef.current) {
+        socketRef.current.emit('call:end', {
+          conversationId: activeCall.conversationId,
+          targetUserId: activeCall.targetUserId,
+        });
+      }
+      cleanupPeer();
+      cleanupMedia();
+      setIncomingCall(null);
+      setActiveCall(null);
+      activeCallRef.current = null;
+    },
+    [activeCall, cleanupMedia, cleanupPeer]
+  );
+
+  const fetchConversations = useCallback(async () => {
+    if (!token) return;
+    try {
+      setLoadingConversations(true);
+      const data = await apiFetch<ChatConversation[]>('/conversations', token);
+      setConversations(data || []);
+      if (!selectedConversationId && data?.length) {
+        setSelectedConversationId(data[0].id);
+      }
+    } catch (fetchError) {
+      setError((fetchError as Error).message || 'Unable to load conversations');
+    } finally {
+      setLoadingConversations(false);
+    }
+  }, [selectedConversationId, token]);
+
+  const fetchMessages = useCallback(
+    async (conversationId: string) => {
+      if (!conversationId || !token) return;
+      try {
+        setLoadingMessages(true);
+        const data = await apiFetch<ChatMessage[]>(`/conversations/${conversationId}/messages`, token);
+        setMessages(data || []);
+        await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/read`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      } catch (fetchError) {
+        setError((fetchError as Error).message || 'Unable to load messages');
+      } finally {
+        setLoadingMessages(false);
+      }
+    },
+    [token]
+  );
+
+  const ensureDirectConversationFromRouteState = useCallback(async () => {
+    if (bootstrappedFromStateRef.current || !token) return;
+    bootstrappedFromStateRef.current = true;
+
+    const state = (location.state || {}) as any;
+    const selectedRoommate = state?.selectedRoommate;
+    if (!selectedRoommate) return;
+
+    const recipientId = String(selectedRoommate.userId || selectedRoommate.id || '');
+    if (!recipientId) return;
+
+    try {
+      const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
+        method: 'POST',
+        body: JSON.stringify({ recipientId }),
+      });
+      setSelectedConversationId(data.id);
+      await fetchConversations();
+    } catch (createError) {
+      setError((createError as Error).message || 'Unable to open direct conversation');
+    }
+  }, [fetchConversations, location.state, token]);
+
+  const startLocalMedia = useCallback(async (callType: 'audio' | 'video') => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: callType === 'video',
+    });
+
+    localStreamRef.current = stream;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+  }, []);
+
+  const createPeerConnection = useCallback(
+    async (params: {
+      conversationId: string;
+      targetUserId: string;
+      callType: 'audio' | 'video';
+      initiator: boolean;
+    }) => {
+      cleanupPeer();
+
+      const peer = new RTCPeerConnection(ICE_CONFIG);
+      peerRef.current = peer;
+
+      peer.ontrack = (event) => {
+        const [stream] = event.streams;
+        remoteStreamRef.current = stream;
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = stream;
+        }
+      };
+
+      peer.onicecandidate = (event) => {
+        if (!event.candidate || !socketRef.current) return;
+        socketRef.current.emit('call:signal', {
+          conversationId: params.conversationId,
+          targetUserId: params.targetUserId,
+          signal: {
+            type: 'ice-candidate',
+            candidate: event.candidate,
+          },
+        });
+      };
+
+      const stream = localStreamRef.current;
+      if (stream) {
+        stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+      }
+
+      if (params.initiator && socketRef.current) {
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+
+        socketRef.current.emit('call:signal', {
+          conversationId: params.conversationId,
+          targetUserId: params.targetUserId,
+          signal: {
+            type: 'offer',
+            sdp: offer,
+          },
+        });
+      }
+    },
+    [cleanupPeer]
+  );
+
+  const handleSignal = useCallback(
+    async (payload: { conversationId: string; fromUserId: string; signal: any }) => {
+      const signal = payload?.signal;
+      const currentCall = activeCallRef.current;
+      if (!signal || !currentCall) return;
+      if (payload.conversationId !== currentCall.conversationId) return;
+
+      if (!peerRef.current) {
+        await createPeerConnection({
+          conversationId: currentCall.conversationId,
+          targetUserId: currentCall.targetUserId,
+          callType: currentCall.callType,
+          initiator: false,
+        });
+      }
+
+      const peer = peerRef.current;
+      if (!peer) return;
+
+      if (signal.type === 'offer' && signal.sdp) {
+        await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        socketRef.current?.emit('call:signal', {
+          conversationId: currentCall.conversationId,
+          targetUserId: currentCall.targetUserId,
+          signal: {
+            type: 'answer',
+            sdp: answer,
+          },
+        });
+        setActiveCall((prev) => (prev ? { ...prev, phase: 'active' } : prev));
+        return;
+      }
+
+      if (signal.type === 'answer' && signal.sdp) {
+        await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        setActiveCall((prev) => (prev ? { ...prev, phase: 'active' } : prev));
+        return;
+      }
+
+      if (signal.type === 'ice-candidate' && signal.candidate) {
+        try {
+          await peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        } catch {
+          // Ignore transient ICE race errors.
+        }
+      }
+    },
+    [createPeerConnection]
+  );
+
+  const handleSendMessage = useCallback(async () => {
+    const content = newMessage.trim();
+    if (!content || !selectedConversationId || !currentUser) return;
+
+    setNewMessage('');
+    setError('');
+
+    const sendViaRest = async () => {
+      const response = await apiFetch<ChatMessage>(`/conversations/${selectedConversationId}/messages`, token, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      });
+      setMessages((prev) => appendMessageIfMissing(prev, response));
+      setConversations((prev) =>
+        prev.map((item) =>
+          item.id === selectedConversationId
+            ? {
+                ...item,
+                lastMessage: { text: response.content, at: response.createdAt, senderId: currentUser.id },
+                updatedAt: response.createdAt,
+              }
+            : item
+        )
+      );
+    };
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit(
+        'message:send',
+        { conversationId: selectedConversationId, content },
+        async (ack: any) => {
+          if (ack?.ok && ack?.data) {
+            return;
+          }
+          try {
+            await sendViaRest();
+          } catch (sendError) {
+            setError((sendError as Error).message || 'Unable to send message');
+          }
+        }
+      );
+      return;
+    }
+
+    try {
+      await sendViaRest();
+    } catch (sendError) {
+      setError((sendError as Error).message || 'Unable to send message');
+    }
+  }, [currentUser, newMessage, selectedConversationId, token]);
+
+  const startCall = useCallback(
+    (callType: 'audio' | 'video') => {
+      if (!selectedConversation || !targetParticipant || !socketRef.current) return;
+      setError('');
+
+      socketRef.current.emit(
+        'call:initiate',
+        {
+          conversationId: selectedConversation.id,
+          targetUserId: targetParticipant.id,
+          callType,
+        },
+        (ack: any) => {
+          if (!ack?.ok) {
+            setError(ack?.message || 'Unable to start call');
+            return;
+          }
+          setActiveCall({
+            conversationId: selectedConversation.id,
+            targetUserId: targetParticipant.id,
+            callType,
+            phase: 'dialing',
+          });
+        }
+      );
+    },
+    [selectedConversation, targetParticipant]
+  );
+
+  const acceptIncomingCall = useCallback(async () => {
+    if (!incomingCall || !socketRef.current) return;
+    try {
+      await startLocalMedia(incomingCall.callType);
+      setActiveCall({
+        conversationId: incomingCall.conversationId,
+        targetUserId: incomingCall.fromUser.id,
+        callType: incomingCall.callType,
+        phase: 'connecting',
+      });
+      socketRef.current.emit('call:accept', {
+        conversationId: incomingCall.conversationId,
+        targetUserId: incomingCall.fromUser.id,
+        callType: incomingCall.callType,
+      });
+      setIncomingCall(null);
+      setSelectedConversationId(incomingCall.conversationId);
+    } catch {
+      setError('Microphone/Camera permission is required for calls');
+    }
+  }, [incomingCall, startLocalMedia]);
+
+  const declineIncomingCall = useCallback(() => {
+    if (!incomingCall || !socketRef.current) return;
+    socketRef.current.emit('call:decline', {
+      conversationId: incomingCall.conversationId,
+      targetUserId: incomingCall.fromUser.id,
+    });
+    setIncomingCall(null);
+  }, [incomingCall]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    ensureDirectConversationFromRouteState();
+  }, [ensureDirectConversationFromRouteState]);
+
+  useEffect(() => {
+    if (!selectedConversationId) {
+      setMessages([]);
+      return;
+    }
+
+    fetchMessages(selectedConversationId);
+    socketRef.current?.emit('conversation:join', selectedConversationId);
+
+    return () => {
+      socketRef.current?.emit('conversation:leave', selectedConversationId);
+    };
+  }, [fetchMessages, selectedConversationId]);
+
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
+  useEffect(() => {
+    if (!token || !currentUser) return;
+    const socketUrl = API_BASE_URL || window.location.origin;
+    const socket = io(socketUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+    });
+
+    socketRef.current = socket;
+
+    socket.on('message:new', (incoming: ChatMessage) => {
+      setConversations((prev) => {
+        const exists = prev.some((conversation) => conversation.id === incoming.conversationId);
+        const updated = exists
+          ? prev.map((conversation) => {
+              if (conversation.id !== incoming.conversationId) return conversation;
+              return {
+                ...conversation,
+                unreadCount:
+                  selectedConversationIdRef.current === incoming.conversationId || incoming.sender.id === currentUser.id
+                    ? 0
+                    : conversation.unreadCount + 1,
+                lastMessage: {
+                  text: incoming.content,
+                  at: incoming.createdAt,
+                  senderId: incoming.sender.id,
+                },
+                updatedAt: incoming.createdAt,
+              };
+            })
+          : prev;
+
+        return [...updated].sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt));
+      });
+
+      if (incoming.conversationId === selectedConversationIdRef.current) {
+        setMessages((prev) => appendMessageIfMissing(prev, { ...incoming, mine: incoming.sender.id === currentUser.id }));
+      }
+    });
+
+    socket.on('call:incoming', (payload: IncomingCall) => {
+      setIncomingCall(payload);
+    });
+
+    socket.on('call:accepted', async (payload: any) => {
+      const currentCall = activeCallRef.current;
+      if (!currentCall) return;
+      if (payload.conversationId !== currentCall.conversationId) return;
+      try {
+        await startLocalMedia(currentCall.callType);
+        setActiveCall((prev) => (prev ? { ...prev, phase: 'connecting' } : prev));
+        await createPeerConnection({
+          conversationId: currentCall.conversationId,
+          targetUserId: currentCall.targetUserId,
+          callType: currentCall.callType,
+          initiator: true,
+        });
+      } catch {
+        setError('Microphone/Camera permission is required for calls');
+        endCall(false);
+      }
+    });
+
+    socket.on('call:declined', () => {
+      setError('Call declined');
+      endCall(false);
+    });
+
+    socket.on('call:ended', () => {
+      endCall(false);
+    });
+
+    socket.on('call:signal', (payload: any) => {
+      void handleSignal(payload);
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+      cleanupPeer();
+      cleanupMedia();
+    };
+  }, [cleanupMedia, cleanupPeer, createPeerConnection, currentUser, endCall, handleSignal, startLocalMedia, token]);
+
+  useEffect(
+    () => () => {
+      cleanupPeer();
+      cleanupMedia();
+    },
+    [cleanupMedia, cleanupPeer]
+  );
+
+  if (!token || !currentUser) {
+    return (
+      <div className="min-h-screen bg-[#0b132b] flex items-center justify-center p-6">
+        <div className="text-center">
+          <p className="text-gray-200 mb-3">Sign in is required to use chat.</p>
+          <button
+            onClick={() => navigate('/signin')}
+            className="px-4 py-2 rounded-lg bg-cyan-500 text-black font-semibold"
+          >
+            Go to Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex">
-      {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#0a1124] to-[#131d3a] border-b border-white/10 p-4">
         <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 lg:hidden"
-          >
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 lg:hidden">
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-xl font-bold text-white">Messages</h1>
@@ -93,9 +631,7 @@ export default function Chat() {
       </div>
 
       <div className="w-full lg:flex pt-16">
-        {/* Conversations List */}
         <div className={`w-full lg:w-96 border-r border-white/10 ${selectedConversation ? 'hidden lg:block' : 'block'}`}>
-          {/* Search */}
           <div className="p-4 border-b border-white/10">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
@@ -103,38 +639,47 @@ export default function Chat() {
                 type="text"
                 placeholder="Search conversations..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(event) => setSearchQuery(event.target.value)}
                 className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
               />
             </div>
           </div>
 
-          {/* Conversations */}
-          <div className="overflow-y-auto max-h-screen">
-            {filteredConversations.map((conv) => (
+          <div className="overflow-y-auto max-h-[calc(100vh-64px)]">
+            {loadingConversations && (
+              <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin" /> Loading conversations...
+              </div>
+            )}
+
+            {!loadingConversations && filteredConversations.length === 0 && (
+              <div className="p-6 text-gray-400 text-sm">No conversations yet.</div>
+            )}
+
+            {filteredConversations.map((conversation) => (
               <button
-                key={conv.id}
-                onClick={() => setSelectedConversation(conv)}
+                key={conversation.id}
+                onClick={() => setSelectedConversationId(conversation.id)}
                 className={`w-full p-4 border-b border-white/10 hover:bg-white/5 transition text-left ${
-                  selectedConversation?.id === conv.id ? 'bg-white/10' : ''
+                  selectedConversationId === conversation.id ? 'bg-white/10' : ''
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <img
-                    src={conv.avatar}
-                    alt={conv.name}
+                    src={conversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                    alt={conversation.name}
                     className="w-12 h-12 rounded-full object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-white font-semibold truncate">{conv.name}</h3>
-                      {conv.unreadCount > 0 && (
-                        <span className="bg-cyan-400 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
-                          {conv.unreadCount}
+                      <h3 className="text-white font-semibold truncate">{conversation.name}</h3>
+                      {conversation.unreadCount > 0 && (
+                        <span className="bg-cyan-400 text-black text-xs font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center flex-shrink-0">
+                          {conversation.unreadCount}
                         </span>
                       )}
                     </div>
-                    <p className="text-gray-400 text-sm truncate">{conv.lastMessage}</p>
+                    <p className="text-gray-400 text-sm truncate">{conversation.lastMessage?.text || 'No messages yet'}</p>
                   </div>
                 </div>
               </button>
@@ -142,20 +687,15 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* Chat Window */}
         {selectedConversation && (
           <div className="flex-1 flex flex-col">
-            {/* Chat Header */}
             <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5">
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setSelectedConversation(null)}
-                  className="lg:hidden text-cyan-400 hover:text-cyan-300"
-                >
+                <button onClick={() => setSelectedConversationId('')} className="lg:hidden text-cyan-400 hover:text-cyan-300">
                   <ArrowLeft size={20} />
                 </button>
                 <img
-                  src={selectedConversation.avatar}
+                  src={selectedConversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
                   alt={selectedConversation.name}
                   className="w-10 h-10 rounded-full object-cover"
                 />
@@ -164,63 +704,97 @@ export default function Chat() {
                   <p className="text-gray-400 text-xs">{selectedConversation.type === 'group' ? 'Group' : 'Direct'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white">
-                  <Phone size={20} />
-                </button>
-                <button className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white">
-                  <Video size={20} />
-                </button>
-                <button className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white">
-                  <MoreVertical size={20} />
-                </button>
-              </div>
+
+              {selectedConversation.type === 'direct' && targetParticipant && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => startCall('audio')}
+                    className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white"
+                    title="Start audio call"
+                  >
+                    <Phone size={20} />
+                  </button>
+                  <button
+                    onClick={() => startCall('video')}
+                    className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white"
+                    title="Start video call"
+                  >
+                    <Video size={20} />
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Messages */}
+            {activeCall && (
+              <div className="border-b border-cyan-400/30 bg-cyan-500/10 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-cyan-100">
+                    {activeCall.phase === 'dialing' && 'Calling...'}
+                    {activeCall.phase === 'connecting' && 'Connecting call...'}
+                    {activeCall.phase === 'active' && 'In call'}
+                  </p>
+                  <button onClick={() => endCall(true)} className="px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-xs font-semibold flex items-center gap-1">
+                    <PhoneOff size={14} /> End
+                  </button>
+                </div>
+
+                {activeCall.callType === 'video' && (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-36 bg-black/60 rounded-lg object-cover" />
+                    <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-36 bg-black/60 rounded-lg object-cover" />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {error && <div className="text-xs text-red-200 bg-red-500/10 border-b border-red-500/30 px-4 py-2">{error}</div>}
+
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {selectedConversation.messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.senderType === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+              {loadingMessages && (
+                <div className="text-xs text-gray-400 flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Loading messages...
+                </div>
+              )}
+
+              {!loadingMessages && messages.length === 0 && (
+                <p className="text-gray-400 text-sm">No messages yet. Start the conversation.</p>
+              )}
+
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.mine ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-xs px-4 py-2 rounded-lg ${
-                      msg.senderType === 'user'
+                    className={`max-w-xs md:max-w-md px-4 py-2 rounded-lg ${
+                      message.mine
                         ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
                         : 'bg-white/10 text-gray-300 border border-white/20'
                     }`}
                   >
-                    {selectedConversation.type === 'group' && msg.senderType !== 'user' && (
-                      <p className="text-xs font-bold mb-1 opacity-75">{msg.sender}</p>
+                    {selectedConversation.type === 'group' && !message.mine && (
+                      <p className="text-xs font-bold mb-1 opacity-75">{message.sender.fullName || message.sender.email}</p>
                     )}
-                    <p className="text-sm">{msg.content}</p>
-                    <p className={`text-xs mt-1 ${msg.senderType === 'user' ? 'text-cyan-200' : 'text-gray-500'}`}>
-                      {msg.timestamp}
-                    </p>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className={`text-xs mt-1 ${message.mine ? 'text-cyan-100' : 'text-gray-500'}`}>{formatTime(message.createdAt)}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Message Input */}
             <div className="border-t border-white/10 p-4 bg-white/5">
               <div className="flex items-end gap-3">
-                <button className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white">
-                  <Smile size={24} />
-                </button>
                 <input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  onChange={(event) => setNewMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault();
+                      void handleSendMessage();
+                    }
+                  }}
                   placeholder="Type a message..."
                   className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
                 />
-                <button
-                  onClick={handleSendMessage}
-                  className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 p-2 rounded-lg text-white"
-                >
+                <button onClick={() => void handleSendMessage()} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 p-2 rounded-lg text-white">
                   <Send size={20} />
                 </button>
               </div>
@@ -228,7 +802,6 @@ export default function Chat() {
           </div>
         )}
 
-        {/* Empty State */}
         {!selectedConversation && (
           <div className="hidden lg:flex flex-1 items-center justify-center">
             <div className="text-center">
@@ -238,6 +811,23 @@ export default function Chat() {
           </div>
         )}
       </div>
+
+      {incomingCall && !activeCall && (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[#121a32] border border-white/15 rounded-2xl p-5">
+            <p className="text-white font-semibold text-lg">Incoming {incomingCall.callType} call</p>
+            <p className="text-gray-300 mt-1">{incomingCall.fromUser.fullName || incomingCall.fromUser.email}</p>
+            <div className="mt-5 flex gap-3">
+              <button onClick={declineIncomingCall} className="flex-1 py-2 rounded-lg bg-red-500/80 hover:bg-red-500 text-white font-semibold">
+                Decline
+              </button>
+              <button onClick={() => void acceptIncomingCall()} className="flex-1 py-2 rounded-lg bg-emerald-500/80 hover:bg-emerald-500 text-white font-semibold">
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
