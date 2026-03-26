@@ -211,12 +211,14 @@ export default function Chat() {
       const nextConversations = data || [];
       setConversations(nextConversations);
 
-      const selectedId = preferredConversationId || selectedConversationIdRef.current;
-      if (selectedId && nextConversations.some((conversation) => conversation.id === selectedId)) {
-        setSelectedConversationId(selectedId);
-      } else if (nextConversations.length > 0) {
-        setSelectedConversationId(nextConversations[0].id);
-      } else {
+      // Only update selection if a preferred ID is explicitly provided, otherwise keep current selection
+      if (preferredConversationId && nextConversations.some((conversation) => conversation.id === preferredConversationId)) {
+        setSelectedConversationId(preferredConversationId);
+      } else if (selectedConversationIdRef.current && nextConversations.some((conversation) => conversation.id === selectedConversationIdRef.current)) {
+        // Keep the current selection if it still exists in the updated list
+        setSelectedConversationId(selectedConversationIdRef.current);
+      } else if (selectedConversationIdRef.current === '' && preferredConversationId === undefined) {
+        // On initial load with no selection, keep it empty - let user choose
         setSelectedConversationId('');
       }
     } catch (fetchError) {
