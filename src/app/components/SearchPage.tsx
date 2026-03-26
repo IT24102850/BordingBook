@@ -618,25 +618,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   </button>
                 </div>
 
-                {/* Duplicate Action Buttons (Desktop) */}
-                <div className="mt-4 flex justify-center gap-4">
-                  <button
-                    onClick={handlePass}
-                    disabled={isAnimating || !current}
-                    className="w-14 h-14 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                    title="Pass"
-                  >
-                    <FaRegTimesCircle />
-                  </button>
-                  <button
-                    onClick={handleLike}
-                    disabled={isAnimating || !current}
-                    className="w-14 h-14 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                    title="Like"
-                  >
-                    <FaHeart />
-                  </button>
-                </div>
               </div>
 
               {/* Right Column - Liked Roommates */}
@@ -684,25 +665,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   <span className="text-xs text-gray-400">{Math.max(0, roommateData.length - currentIdx)} profiles left</span>
                   <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
                     <FaUndo /> Undo
-                  </button>
-                </div>
-
-                <div className="fixed bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-4 z-40">
-                  <button
-                    onClick={handlePass}
-                    disabled={isAnimating}
-                    className="w-14 h-14 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg disabled:opacity-50"
-                    title="Pass"
-                  >
-                    <FaRegTimesCircle />
-                  </button>
-                  <button
-                    onClick={handleLike}
-                    disabled={isAnimating}
-                    className="w-14 h-14 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg disabled:opacity-50"
-                    title="Like"
-                  >
-                    <FaHeart />
                   </button>
                 </div>
               </>
