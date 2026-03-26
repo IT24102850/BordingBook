@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FaUser,
+  FaEnvelope,
   FaPen,
   FaSave,
   FaTimes,
@@ -18,11 +19,12 @@ type ProfileForm = {
   email: string;
   profilePicture: string;
   profilePictures: string[];
+  mobileNumber: string;
   bio: string;
-  academicYear: string;
-  otherInterests: string;
-  roomType: string;
   age: string;
+  academicYear: string;
+  roommatePreference: string;
+  roomType: string;
 };
 
 const initialProfile: ProfileForm = {
@@ -30,11 +32,12 @@ const initialProfile: ProfileForm = {
   email: "",
   profilePicture: "https://randomuser.me/api/portraits/lego/1.jpg",
   profilePictures: [],
+  mobileNumber: "",
   bio: "",
-  academicYear: "",
-  otherInterests: "",
-  roomType: "",
   age: "",
+  academicYear: "",
+  roommatePreference: "",
+  roomType: "",
 };
 
 export default function UserProfileDashboard() {
@@ -84,11 +87,12 @@ export default function UserProfileDashboard() {
           email: user.email || "",
           profilePicture: user.profilePicture || initialProfile.profilePicture,
           profilePictures: Array.isArray(user.profilePictures) ? user.profilePictures : [],
+          mobileNumber: user.mobileNumber || "",
           bio: user.bio || "",
-          academicYear: user.academicYear || "",
-          otherInterests: user.roommatePreference || (Array.isArray(user.lifestylePrefs) ? user.lifestylePrefs.join(", ") : ""),
-          roomType: user.roomType || "",
           age: user.age ? String(user.age) : "",
+          academicYear: user.academicYear || "",
+          roommatePreference: user.roommatePreference || "",
+          roomType: user.roomType || "",
         });
       } catch (loadError) {
         if (!cancelled) {
@@ -110,37 +114,51 @@ export default function UserProfileDashboard() {
     setProfile((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleProfilePictureFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = () => {
-      const value = typeof reader.result === "string" ? reader.result : "";
-      setProfile((prev) => ({ ...prev, profilePicture: value || prev.profilePicture }));
+    reader.onload = (event) => {
+      const imageData = String(event.target?.result || "");
+      if (!imageData) return;
+      setProfile((prev) => ({ ...prev, profilePicture: imageData }));
     };
     reader.readAsDataURL(file);
   };
 
-  const handleGalleryFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const value = typeof reader.result === "string" ? reader.result : "";
-        if (!value) return;
-        setProfile((prev) => ({ ...prev, profilePictures: [...prev.profilePictures, value] }));
-      };
-      reader.readAsDataURL(file);
-    });
+    const readPromises = Array.from(files).map(
+      (file) =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(String(event.target?.result || ""));
+          reader.onerror = () => reject(new Error("Failed to read image"));
+          reader.readAsDataURL(file);
+        })
+    );
+
+    Promise.all(readPromises)
+      .then((images) => {
+        const validImages = images.filter((img) => img.length > 0);
+        if (validImages.length === 0) return;
+        setProfile((prev) => ({ ...prev, profilePictures: [...prev.profilePictures, ...validImages] }));
+      })
+      .catch(() => {
+        setError("Failed to add one or more images.");
+      })
+      .finally(() => {
+        e.target.value = "";
+      });
   };
 
-  const removeGalleryImage = (indexToRemove: number) => {
+  const removeGalleryImage = (index: number) => {
     setProfile((prev) => ({
       ...prev,
-      profilePictures: prev.profilePictures.filter((_, index) => index !== indexToRemove),
+      profilePictures: prev.profilePictures.filter((_, idx) => idx !== index),
     }));
   };
 
@@ -163,17 +181,14 @@ export default function UserProfileDashboard() {
         },
         body: JSON.stringify({
           fullName: profile.fullName,
+          mobileNumber: profile.mobileNumber,
           profilePicture: profile.profilePicture,
           profilePictures: profile.profilePictures,
           bio: profile.bio,
+          age: profile.age ? Number(profile.age) : undefined,
           academicYear: profile.academicYear,
-          roommatePreference: profile.otherInterests,
-          lifestylePrefs: profile.otherInterests
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean),
+          roommatePreference: profile.roommatePreference,
           roomType: profile.roomType,
-          age: Number(profile.age) || 0,
         }),
       });
 
@@ -228,7 +243,7 @@ export default function UserProfileDashboard() {
                 />
                 <div className="text-sm">
                   <div className="font-semibold">{profile.fullName || "Student"}</div>
-                  <div className="text-cyan-100/80">{profile.email || "No email"}</div>
+                  <div className="text-cyan-100/80 flex items-center gap-2"><FaEnvelope /> {profile.email || "No email"}</div>
                 </div>
               </div>
             </div>
@@ -309,82 +324,28 @@ export default function UserProfileDashboard() {
                   </div>
 
                   <div>
+                    <label className="block text-sm text-cyan-100 mb-1">Phone Number</label>
+                    <input
+                      name="mobileNumber"
+                      value={profile.mobileNumber}
+                      onChange={handleChange}
+                      disabled={!editing}
+                      placeholder="e.g., +94771234567"
+                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-sm text-cyan-100 mb-1">Age</label>
                     <input
                       name="age"
                       type="number"
-                      min={16}
-                      max={100}
+                      min="16"
                       value={profile.age}
                       onChange={handleChange}
                       disabled={!editing}
                       placeholder="Enter your age"
                       className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-cyan-100 mb-1">Profile Picture URL</label>
-                    <input
-                      name="profilePicture"
-                      value={profile.profilePicture}
-                      onChange={handleChange}
-                      disabled={!editing}
-                      placeholder="https://..."
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-cyan-100 mb-1">Change Profile Picture</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePictureFileChange}
-                      disabled={!editing}
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm text-cyan-100 mb-2">Additional Images (Telegram-style gallery)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleGalleryFilesChange}
-                      disabled={!editing}
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 disabled:opacity-70"
-                    />
-                    <div className="mt-3 grid grid-cols-3 md:grid-cols-5 gap-2">
-                      {profile.profilePictures.map((img, idx) => (
-                        <div key={`${img}-${idx}`} className="relative group">
-                          <img src={img} alt={`Gallery ${idx + 1}`} className="w-full h-20 object-cover rounded-lg border border-cyan-500/30" />
-                          {editing && (
-                            <button
-                              type="button"
-                              onClick={() => removeGalleryImage(idx)}
-                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs opacity-0 group-hover:opacity-100 transition"
-                            >
-                              x
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-cyan-400/70 mt-1">{profile.profilePictures.length} image(s) added</p>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm text-cyan-100 mb-1">Bio</label>
-                    <textarea
-                      name="bio"
-                      value={profile.bio}
-                      onChange={handleChange}
-                      disabled={!editing}
-                      rows={4}
-                      placeholder="Tell others about yourself..."
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
                     />
                   </div>
 
@@ -406,18 +367,6 @@ export default function UserProfileDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-sm text-cyan-100 mb-1">Other Interests</label>
-                    <input
-                      name="otherInterests"
-                      value={profile.otherInterests}
-                      onChange={handleChange}
-                      disabled={!editing}
-                      placeholder="Music, Reading, Sports"
-                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
                     <label className="block text-sm text-cyan-100 mb-1">Room Type</label>
                     <select
                       name="roomType"
@@ -431,6 +380,78 @@ export default function UserProfileDashboard() {
                       <option value="Shared Room">Shared Room</option>
                       <option value="Studio/Annex">Studio/Annex</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-cyan-100 mb-1">Other Interests</label>
+                    <input
+                      name="roommatePreference"
+                      value={profile.roommatePreference}
+                      onChange={handleChange}
+                      disabled={!editing}
+                      placeholder="e.g., Reading, gym, movies"
+                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-cyan-100 mb-2">Change Profile Picture</label>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      <img
+                        src={profile.profilePicture || initialProfile.profilePicture}
+                        alt="Profile preview"
+                        className="w-20 h-20 rounded-xl object-cover border border-cyan-400/40"
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={!editing}
+                        onChange={handleProfilePictureChange}
+                        className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500/30 file:px-3 file:py-1.5 file:text-cyan-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-cyan-100 mb-2">Add More Images (Telegram style)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      disabled={!editing}
+                      onChange={handleGalleryUpload}
+                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-500/30 file:px-3 file:py-1.5 file:text-cyan-50"
+                    />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-3">
+                      {profile.profilePictures.map((img, idx) => (
+                        <div key={`${idx}-${img.slice(0, 12)}`} className="relative group">
+                          <img src={img} alt={`Gallery ${idx + 1}`} className="w-full h-24 rounded-lg object-cover border border-cyan-500/20" />
+                          {editing && (
+                            <button
+                              type="button"
+                              onClick={() => removeGalleryImage(idx)}
+                              className="absolute top-1 right-1 rounded-full bg-black/70 px-2 py-0.5 text-xs text-white opacity-0 group-hover:opacity-100 transition"
+                            >
+                              x
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-cyan-400/70 mt-2">{profile.profilePictures.length} image(s) added</p>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-cyan-100 mb-1">Bio</label>
+                    <textarea
+                      name="bio"
+                      value={profile.bio}
+                      onChange={handleChange}
+                      disabled={!editing}
+                      rows={4}
+                      placeholder="Tell others about yourself..."
+                      className="w-full rounded-xl bg-[#132a4b] border border-cyan-500/20 px-3 py-2 text-cyan-50"
+                    />
                   </div>
                 </div>
               </>
