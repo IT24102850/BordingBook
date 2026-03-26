@@ -25,15 +25,13 @@ exports.createGroup = async (req, res) => {
       });
     }
 
-    const creator = await User.findById(creatorId).select('fullName email');
-    if (!creator) {
+    const creatorUser = await User.findById(creatorId).select('fullName email');
+    if (!creatorUser) {
       return res.status(404).json({
         success: false,
-        message: 'Creator not found',
+        message: 'Creator user not found',
       });
     }
-
-    const creatorName = creator.fullName || creator.email.split('@')[0];
 
     // Create group with creator as first member
     const group = new BookingGroup({
@@ -45,8 +43,8 @@ exports.createGroup = async (req, res) => {
       members: [
         {
           userId: creatorId,
-          email: creator.email,
-          name: creatorName,
+          email: creatorUser.email,
+          name: creatorUser.fullName || creatorUser.email,
           status: 'accepted', // Creator is auto-accepted
         },
       ],
@@ -60,7 +58,7 @@ exports.createGroup = async (req, res) => {
           group.members.push({
             userId: user._id,
             email: user.email,
-            name: user.fullName || user.email.split('@')[0],
+            name: user.fullName || user.email,
             status: 'pending',
           });
         }
@@ -98,7 +96,7 @@ exports.getUserGroups = async (req, res) => {
         { creatorId: userId },
         { 'members.userId': userId },
       ],
-    }).populate('members.userId', 'fullName email profilePicture academicYear');
+    }).populate('members.userId', 'name email');
 
     res.status(200).json({
       success: true,
@@ -125,7 +123,7 @@ exports.getGroup = async (req, res) => {
 
     const group = await BookingGroup.findById(groupId).populate(
       'members.userId',
-      'fullName email profilePicture academicYear'
+      'name email'
     );
 
     if (!group) {
@@ -205,7 +203,7 @@ exports.addGroupMember = async (req, res) => {
     group.members.push({
       userId: user._id,
       email: user.email,
-      name: user.fullName || user.email.split('@')[0],
+      name: user.fullName || user.email,
       status: 'pending',
     });
 

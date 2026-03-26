@@ -276,6 +276,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [currentIdx, setCurrentIdx] = React.useState(0);
   const [liked, setLiked] = React.useState<any[]>([]);
   const [passed, setPassed] = React.useState<any[]>([]);
+  const [mutualMatches, setMutualMatches] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
   const [myProfile, setMyProfile] = React.useState({ budget: 12000, gender: 'Select', preferences: '' });
@@ -283,148 +284,157 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [showSidePanels, setShowSidePanels] = React.useState(false);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
-  const [dbGroups, setDbGroups] = React.useState<any[]>([]);
-  const [isSyncing, setIsSyncing] = React.useState(false);
-  const [isCreatingGroup, setIsCreatingGroup] = React.useState(false);
-  const [syncError, setSyncError] = React.useState('');
-  const token = localStorage.getItem('bb_access_token') || '';
+  const [groups, setGroups] = React.useState<any[]>([]);
+  const [apiNotice, setApiNotice] = React.useState('');
   const current = roommateData[currentIdx];
 
-  const authHeaders = React.useMemo(
-    () => ({
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    }),
-    [token]
+  const isMongoId = (value: any): boolean => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
+
+  const callRoommateApi = React.useCallback(
+    async (path: string, options: RequestInit = {}) => {
+      const token = localStorage.getItem('bb_access_token') || '';
+      if (!token) {
+        throw new Error('Please sign in to use roommate features');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/roommates${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...(options.headers || {}),
+        },
+      });
+
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json?.success === false) {
+        throw new Error(json?.message || 'Roommate request failed');
+      }
+
+      return json;
+    },
+    []
   );
 
-  const getDisplayName = (user: any) => user?.fullName || user?.name || user?.email?.split('@')?.[0] || 'Student';
+  const mapProfileToRoommate = React.useCallback((profile: any) => ({
+    id: profile._id || profile.id,
+    userId: profile.userId || profile._id,
+    name: profile.name || profile.fullName || (profile.email ? profile.email.split('@')[0] : 'Student'),
+    email: profile.email || '',
+    age: Number(profile.age) || 20,
+    gender: profile.gender || 'Any',
+    university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+    bio: profile.description || profile.bio || 'Looking for a compatible roommate.',
+    image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+    interests: Array.isArray(profile.tags) ? profile.tags : [],
+    mutualCount: Number(profile.mutualCount) || 0,
+  }), []);
 
-  const mapProfileToRoommate = (profile: any) => ({
-    id: profile?._id || profile?.id,
-    profileId: profile?._id,
-    userId: profile?.userId || profile?._id,
-    name: profile?.name || profile?.fullName || profile?.email?.split('@')?.[0] || 'Student',
-    email: profile?.email || '',
-    age: Number(profile?.age || 20),
-    gender: profile?.gender || 'Any',
-    university: profile?.boardingHouse || profile?.academicYear || 'SLIIT',
-    bio: profile?.description || profile?.bio || 'Looking for a compatible roommate.',
-    image: profile?.image || profile?.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-    interests: Array.isArray(profile?.tags)
-      ? profile.tags
-      : (Array.isArray(profile?.lifestylePrefs) ? profile.lifestylePrefs : []),
-  });
-
-  const loadRoommateDbData = React.useCallback(async () => {
-    if (!token) return;
-    setIsSyncing(true);
-    setSyncError('');
-
+  const loadRoommateNetworkData = React.useCallback(async () => {
     try {
-      const [likedRes, sentRes, inboxRes, groupsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/roommates/liked`, { headers: authHeaders }),
-        fetch(`${API_BASE_URL}/api/roommates/request/sent`, { headers: authHeaders }),
-        fetch(`${API_BASE_URL}/api/roommates/request/inbox`, { headers: authHeaders }),
-        fetch(`${API_BASE_URL}/api/roommates/groups`, { headers: authHeaders }),
+      const [likedRes, sentRes, inboxRes, mutualRes, groupsRes] = await Promise.allSettled([
+        callRoommateApi('/liked'),
+        callRoommateApi('/request/sent'),
+        callRoommateApi('/request/inbox'),
+        callRoommateApi('/mutual'),
+        callRoommateApi('/groups'),
       ]);
 
-      const [likedJson, sentJson, inboxJson, groupsJson] = await Promise.all([
-        likedRes.json(),
-        sentRes.json(),
-        inboxRes.json(),
-        groupsRes.json(),
-      ]);
-
-      if (likedRes.ok) {
-        const likedProfiles = Array.isArray(likedJson?.data) ? likedJson.data : [];
-        setLiked(likedProfiles.map(mapProfileToRoommate));
+      if (likedRes.status === 'fulfilled') {
+        const profiles = Array.isArray(likedRes.value?.data) ? likedRes.value.data : [];
+        setLiked(profiles.map(mapProfileToRoommate));
       }
 
-      if (sentRes.ok) {
-        const sentData = Array.isArray(sentJson?.data) ? sentJson.data : [];
+      if (sentRes.status === 'fulfilled') {
+        const requests = Array.isArray(sentRes.value?.data) ? sentRes.value.data : [];
         setSentRequests(
-          sentData.map((req: any) => ({
+          requests.map((req: any) => ({
             id: req._id,
-            from: {
-              id: req.recipientId?._id,
-              name: getDisplayName(req.recipientId),
-              email: req.recipientId?.email || '',
-              image: req.recipientId?.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-              university: req.recipientId?.academicYear || 'SLIIT',
-            },
             message: req.message,
             status: req.status,
+            from: mapProfileToRoommate({
+              _id: req.recipientId?._id,
+              userId: req.recipientId?._id,
+              fullName: req.recipientId?.fullName,
+              email: req.recipientId?.email,
+              profilePicture: req.recipientId?.profilePicture,
+            }),
           }))
         );
       }
 
-      if (inboxRes.ok) {
-        const inboxData = Array.isArray(inboxJson?.data) ? inboxJson.data : [];
+      if (inboxRes.status === 'fulfilled') {
+        const requests = Array.isArray(inboxRes.value?.data) ? inboxRes.value.data : [];
         setInboxRequests(
-          inboxData.map((req: any) => ({
+          requests.map((req: any) => ({
             id: req._id,
-            from: {
-              id: req.senderId?._id,
-              name: getDisplayName(req.senderId),
-              email: req.senderId?.email || '',
-              image: req.senderId?.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-              university: req.senderId?.academicYear || 'SLIIT',
-            },
             message: req.message,
             status: req.status,
+            from: mapProfileToRoommate({
+              _id: req.senderId?._id,
+              userId: req.senderId?._id,
+              fullName: req.senderId?.fullName,
+              email: req.senderId?.email,
+              profilePicture: req.senderId?.profilePicture,
+            }),
           }))
         );
       }
 
-      if (groupsRes.ok) {
-        const groupsData = Array.isArray(groupsJson?.data) ? groupsJson.data : [];
-        setDbGroups(groupsData);
+      if (mutualRes.status === 'fulfilled') {
+        const matches = Array.isArray(mutualRes.value?.data) ? mutualRes.value.data : [];
+        setMutualMatches(matches.map(mapProfileToRoommate));
+      }
+
+      if (groupsRes.status === 'fulfilled') {
+        setGroups(Array.isArray(groupsRes.value?.data) ? groupsRes.value.data : []);
       }
     } catch {
-      setSyncError('Could not sync roommate data right now.');
-    } finally {
-      setIsSyncing(false);
+      // Network sync is best-effort; keep UI usable with local fallback states.
     }
-  }, [authHeaders, token]);
+  }, [callRoommateApi, mapProfileToRoommate]);
 
   React.useEffect(() => {
-    loadRoommateDbData();
-  }, [loadRoommateDbData]);
+    loadRoommateNetworkData();
+  }, [loadRoommateNetworkData]);
 
   const handleLike = () => {
     if (!current || isAnimating) return;
     setIsAnimating(true);
     setDirection('right');
     setTimeout(() => {
-      setLiked([...liked, current]);
-
-      if (token && current?.profileId) {
-        fetch(`${API_BASE_URL}/api/roommates/swipe`, {
-          method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify({ profileId: current.profileId, action: 'like' }),
-        }).catch(() => undefined);
-      }
-
-      if (token && current?.userId) {
-        fetch(`${API_BASE_URL}/api/roommates/request/send`, {
-          method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify({
-            recipientId: current.userId,
-            message: 'Hi! I think we would be great roommates.',
-          }),
-        })
-          .then(() => loadRoommateDbData())
-          .catch(() => undefined);
-      }
-
+      setLiked((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
       if (currentIdx < roommateData.length - 1) {
         setCurrentIdx(currentIdx + 1);
       }
       setDirection(null);
       setIsAnimating(false);
+
+      void (async () => {
+        try {
+          if (isMongoId(current.id)) {
+            await callRoommateApi('/swipe', {
+              method: 'POST',
+              body: JSON.stringify({ profileId: current.id, action: 'like' }),
+            });
+          }
+
+          if (isMongoId(current.userId)) {
+            await callRoommateApi('/request/send', {
+              method: 'POST',
+              body: JSON.stringify({
+                recipientId: current.userId,
+                message: 'Hi! I think we could be great roommates. Want to connect?',
+              }),
+            });
+          }
+
+          await loadRoommateNetworkData();
+          setApiNotice('Like saved and request sent.');
+        } catch (error) {
+          setApiNotice((error as Error).message || 'Unable to sync roommate request');
+        }
+      })();
     }, 250);
   };
 
@@ -433,21 +443,25 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     setIsAnimating(true);
     setDirection('left');
     setTimeout(() => {
-      setPassed([...passed, current]);
-
-      if (token && current?.profileId) {
-        fetch(`${API_BASE_URL}/api/roommates/swipe`, {
-          method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify({ profileId: current.profileId, action: 'pass' }),
-        }).catch(() => undefined);
-      }
-
+      setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
       if (currentIdx < roommateData.length - 1) {
         setCurrentIdx(currentIdx + 1);
       }
       setDirection(null);
       setIsAnimating(false);
+
+      void (async () => {
+        try {
+          if (isMongoId(current.id)) {
+            await callRoommateApi('/swipe', {
+              method: 'POST',
+              body: JSON.stringify({ profileId: current.id, action: 'pass' }),
+            });
+          }
+        } catch {
+          // Keep pass action local if backend sync fails.
+        }
+      })();
     }, 250);
   };
 
@@ -459,66 +473,37 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   };
 
   const handleRequestResponse = async (requestId: string, accept: boolean) => {
-    if (!token) return;
-
     try {
-      await fetch(
-        `${API_BASE_URL}/api/roommates/request/${requestId}/${accept ? 'accept' : 'reject'}`,
-        {
-          method: 'PATCH',
-          headers: authHeaders,
-        }
-      );
-
-      setInboxRequests((prev) =>
-        prev.map((req) =>
-          req.id === requestId ? { ...req, status: accept ? 'accepted' : 'rejected' } : req
-        )
-      );
-
-      loadRoommateDbData();
-    } catch {
-      setSyncError('Could not update request. Please try again.');
+      await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, {
+        method: 'PATCH',
+      });
+      await loadRoommateNetworkData();
+      setApiNotice(accept ? 'Request accepted. You can start chatting now.' : 'Request rejected.');
+    } catch (error) {
+      setApiNotice((error as Error).message || 'Failed to update request status');
     }
   };
 
-  const handleCreateGroupFromLiked = async () => {
-    if (!token) return;
-
-    const memberEmails = liked
-      .map((roommate) => roommate.email)
-      .filter((email: string) => Boolean(email));
-
-    if (memberEmails.length === 0) {
-      setSyncError('Like roommates with valid emails before creating a group.');
-      return;
-    }
-
-    setIsCreatingGroup(true);
-    setSyncError('');
-
+  const createGroupFromLiked = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/roommates/group`, {
+      const memberEmails = liked.map((m) => m.email).filter(Boolean);
+      if (memberEmails.length === 0) {
+        setApiNotice('Like at least one roommate before creating a group.');
+        return;
+      }
+
+      await callRoommateApi('/group', {
         method: 'POST',
-        headers: authHeaders,
         body: JSON.stringify({
           name: `Roommate Group ${new Date().toLocaleDateString()}`,
           memberEmails,
-          description: 'Created from roommate finder likes',
         }),
       });
 
-      if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({}));
-        throw new Error(errorJson?.message || 'Failed to create group');
-      }
-
-      await loadRoommateDbData();
-      setRoommateTab('groups');
-    } catch (err) {
-      setSyncError((err as Error).message || 'Failed to create group');
-    } finally {
-      setIsCreatingGroup(false);
+      await loadRoommateNetworkData();
+      setApiNotice('Group created successfully. Members will receive invites.');
+    } catch (error) {
+      setApiNotice((error as Error).message || 'Failed to create group');
     }
   };
 
@@ -547,21 +532,33 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
         ))}
       </div>
 
-      {syncError && (
-        <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">
-          {syncError}
-        </div>
-      )}
-
-      {isSyncing && (
-        <div className="text-xs text-cyan-200 bg-cyan-500/10 border border-cyan-500/30 px-3 py-2 rounded-lg">
-          Syncing roommate activity...
-        </div>
-      )}
-
       {/* BROWSE TAB */}
       {roommateTab === 'browse' && (
         <>
+          {apiNotice && (
+            <div className="text-xs text-cyan-200 bg-cyan-500/10 border border-cyan-500/30 rounded-lg px-3 py-2">
+              {apiNotice}
+            </div>
+          )}
+
+          {mutualMatches.length > 0 && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
+              <p className="text-sm text-emerald-200 font-semibold mb-2">Mutual Matches ({mutualMatches.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {mutualMatches.slice(0, 6).map((match) => (
+                  <button
+                    key={match.id}
+                    onClick={() => navigate('/chat', { state: { selectedRoommate: match, chatType: 'direct-message' } })}
+                    className="flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
+                  >
+                    <img src={match.image} alt={match.name} className="w-6 h-6 rounded-full object-cover" />
+                    <span className="text-xs text-emerald-100">{match.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="hidden md:block">
             <div className="flex items-center justify-between mb-4 px-1">
               <p className="text-xs text-gray-400">Focus mode keeps swipe actions clear on smaller windows.</p>
@@ -823,70 +820,73 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-white">Groups</h3>
             <button 
-              onClick={handleCreateGroupFromLiked}
-              disabled={isCreatingGroup}
+              onClick={createGroupFromLiked}
               className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition"
             >
               <FaPlus size={16} />
-              {isCreatingGroup ? 'Creating...' : 'Create Group'}
+              Create Group
             </button>
           </div>
 
-          <div className="space-y-4">
-            {dbGroups.length > 0 ? (
-              <div className="bg-white/5 rounded-lg border border-white/10 p-4">
-                <h4 className="text-white font-semibold mb-3">Your Database Groups ({dbGroups.length})</h4>
-                <div className="space-y-3">
-                  {dbGroups.map((group) => {
-                    const acceptedMembers = Array.isArray(group.members)
-                      ? group.members.filter((m: any) => m.status === 'accepted').length
-                      : 0;
-                    return (
-                      <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-white font-semibold text-sm">{group.name}</p>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                            {group.status || 'forming'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">{acceptedMembers} accepted member(s)</p>
-                        <button
-                          onClick={() => navigate('/chat', { state: { selectedGroup: group, chatType: 'group-chat' } })}
-                          className="mt-3 text-xs px-3 py-1.5 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50"
-                        >
-                          Open Group Chat
-                        </button>
-                      </div>
-                    );
-                  })}
+          {groups.length > 0 && (
+            <div className="mb-6 space-y-2">
+              {groups.map((group: any) => (
+                <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-semibold text-sm">{group.name}</p>
+                    <p className="text-xs text-gray-400">
+                      {Array.isArray(group.members) ? group.members.length : 0} members • Status: {group.status || 'forming'}
+                    </p>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    Synced
+                  </span>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 bg-white/5 rounded-lg border border-white/10">
-                <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
-                <p className="text-gray-300 font-semibold mb-2">No groups in database yet</p>
-                <p className="text-sm text-gray-400">Like roommates and create your first group.</p>
-              </div>
-            )}
-
-            {liked.length > 0 && (
-              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-4 border border-cyan-500/30">
-                <h4 className="text-white font-semibold mb-3">Liked Roommates Ready for Group ({liked.length})</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {liked.slice(0, 6).map((roommate) => (
+              ))}
+            </div>
+          )}
+          
+          {liked.length > 0 ? (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
+                <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {liked.map((roommate) => (
                     <div key={roommate.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
-                      <img src={roommate.image} alt={roommate.name} className="w-10 h-10 rounded-full object-cover" />
+                      <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
                       <div className="flex-1">
-                        <p className="text-white font-semibold text-xs">{roommate.name}</p>
-                        <p className="text-gray-400 text-[11px]">{roommate.university}</p>
+                        <p className="text-white font-semibold text-sm">{roommate.name}</p>
+                        <p className="text-gray-400 text-xs">{roommate.age} | {roommate.university}</p>
                       </div>
                       <FaCheckCircle className="text-green-400" />
                     </div>
                   ))}
                 </div>
+                <p className="text-sm text-gray-300 mb-4">
+                  Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
+                </p>
+                <button 
+                  onClick={createGroupFromLiked}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <FaUserFriends size={18} />
+                  Create Group with These Members
+                </button>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
+              <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
+              <p className="text-gray-300 font-semibold mb-2">No groups yet</p>
+              <p className="text-sm text-gray-400 mb-4">Start by liking roommates in the Browse tab</p>
+              <button 
+                onClick={() => setRoommateTab('browse')}
+                className="px-4 py-2 bg-white/10 border border-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition"
+              >
+                Browse Roommates
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -906,7 +906,6 @@ function MapViewPlaceholder() {
 // Define types
 interface Roommate {
   id: number | string;
-  profileId?: string;
   userId?: string;
   name: string;
   email?: string;
@@ -915,7 +914,6 @@ interface Roommate {
   university: string;
   bio: string;
   image: string;
-  profilePictures?: string[];
   interests: string[];
   mutualCount?: number;
 }
@@ -2889,8 +2887,7 @@ export default function SearchPage() {
 
             return {
               id: profile._id || `profile-${index}`,
-              profileId: profile._id || '',
-              userId: profile.userId || '',
+              userId: profile.userId || profile._id,
               name: profile.name || 'Student',
               email: profile.email || '',
               age: 20,
@@ -2898,9 +2895,8 @@ export default function SearchPage() {
               university: profile.boardingHouse || profile.academicYear || 'SLIIT',
               bio: profile.description || 'Looking for a compatible roommate.',
               image: profile.image || 'https://randomuser.me/api/portraits/lego/1.jpg',
-              profilePictures: Array.isArray(profile.profilePictures) ? profile.profilePictures : [],
               interests: profileInterests,
-              mutualCount: typeof profile.mutualCount === 'number' ? profile.mutualCount : mutualCount,
+              mutualCount,
             };
           });
 

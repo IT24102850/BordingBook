@@ -48,6 +48,9 @@ router.post(
 // Get liked profiles
 router.get('/liked', requireAuth, roommateController.getLikedProfiles);
 
+// Get mutual matches
+router.get('/mutual', requireAuth, roommateController.getMutualMatches);
+
 // ============ ROOMMATE REQUEST ROUTES ============
 
 // Send request

@@ -136,10 +136,6 @@ exports.browseProfiles = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { gender, minBudget, maxBudget, roomType, academicYear } = req.query;
-    const currentUser = await User.findById(userId).select('lifestylePrefs').lean();
-    const currentInterests = Array.isArray(currentUser?.lifestylePrefs)
-      ? currentUser.lifestylePrefs.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
-      : [];
 
     // Build filter
     const filter = { userId: { $ne: userId }, isActive: true };
@@ -210,13 +206,7 @@ exports.browseProfiles = async (req, res) => {
         .limit(50)
         .lean();
 
-      const fallbackProfiles = fallbackUsers.map((u) => {
-        const profileTags = Array.isArray(u.lifestylePrefs)
-          ? u.lifestylePrefs.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
-          : [];
-        const mutualCount = profileTags.filter((interest) => currentInterests.includes(interest)).length;
-
-        return {
+      const fallbackProfiles = fallbackUsers.map((u) => ({
         _id: u._id,
         userId: u._id,
         name: u.fullName || (u.email ? u.email.split('@')[0] : 'Student'),
@@ -234,9 +224,7 @@ exports.browseProfiles = async (req, res) => {
         boardingHouse: u.selectedLocation || '',
         lookingFor: u.roommatePreference || 'Shared Room',
         isActive: true,
-        mutualCount,
-      };
-      });
+      }));
 
       return res.status(200).json({
         success: true,
@@ -245,22 +233,10 @@ exports.browseProfiles = async (req, res) => {
       });
     }
 
-    const enrichedProfiles = profiles.map((profile) => {
-      const profileTags = Array.isArray(profile.tags)
-        ? profile.tags.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
-        : [];
-      const mutualCount = profileTags.filter((interest) => currentInterests.includes(interest)).length;
-
-      return {
-        ...profile,
-        mutualCount,
-      };
-    });
-
     res.status(200).json({
       success: true,
-      count: enrichedProfiles.length,
-      data: enrichedProfiles,
+      count: profiles.length,
+      data: profiles,
     });
   } catch (error) {
     res.status(500).json({
@@ -358,6 +334,69 @@ exports.getLikedProfiles = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching liked profiles',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc Get mutual matches (both users liked each other)
+ * @route GET /api/roommates/mutual
+ * @access Private
+ */
+exports.getMutualMatches = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const myProfile = await RoommateProfile.findOne({ userId }).lean();
+    if (!myProfile) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
+
+    const myLikes = await RoommateMatch.find({ userId, action: 'like' }, 'targetProfileId').lean();
+    const likedProfileIds = myLikes.map((m) => m.targetProfileId);
+
+    if (likedProfileIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
+
+    const likesOnMe = await RoommateMatch.find(
+      { targetProfileId: myProfile._id, action: 'like' },
+      'userId'
+    ).lean();
+    const usersWhoLikedMe = likesOnMe.map((m) => m.userId.toString());
+
+    if (usersWhoLikedMe.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
+
+    const mutualProfiles = await RoommateProfile.find({
+      _id: { $in: likedProfileIds },
+      userId: { $in: usersWhoLikedMe },
+      isActive: true,
+    }).lean();
+
+    return res.status(200).json({
+      success: true,
+      count: mutualProfiles.length,
+      data: mutualProfiles,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching mutual matches',
       error: error.message,
     });
   }
