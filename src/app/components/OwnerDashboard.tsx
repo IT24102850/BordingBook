@@ -636,6 +636,7 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, rooms }) => {
           </tr>
         </thead>
         <tbody>
+<<<<<<< Updated upstream
           {tenants.map((tenant) => {
             const bookingStatus = getBookingStatus(tenant.checkOutDate);
             return (
@@ -674,6 +675,32 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, rooms }) => {
               </tr>
             );
           })}
+=======
+          {tenants.map((tenant) => (
+            <tr key={tenant.id} className="border-b border-white/10 hover:bg-white/5">
+              <td className="px-3 py-2 text-white">{getRoomNumber(tenant.roomId)}</td>
+              <td className="px-3 py-2 text-white">{tenant.name}</td>
+              <td className="px-3 py-2 text-gray-300">{new Date(tenant.checkInDate).toLocaleDateString()}</td>
+              <td className="px-3 py-2 text-gray-300">{new Date(tenant.checkOutDate).toLocaleDateString()}</td>
+              <td className="px-3 py-2 text-white">Rs.{tenant.monthlyRent.toLocaleString()}</td>
+              <td className="px-3 py-2">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${paymentColors[tenant.paymentStatus]}`}>
+                  {tenant.paymentStatus}
+                </span>
+              </td>
+              <td className="px-3 py-2">
+                <button 
+                  onClick={() => handleDownloadTenantReceipt(tenant)}
+                  className="text-cyan-400 hover:text-cyan-300 mr-2">
+                  <Download size={12} />
+                </button>
+                <button className="text-blue-400 hover:text-blue-300">
+                  <Eye size={12} />
+                </button>
+              </td>
+            </tr>
+          ))}
+>>>>>>> Stashed changes
         </tbody>
       </table>
     </div>
@@ -1361,10 +1388,333 @@ export default function OwnerDashboard() {
     }
   };
 
+<<<<<<< Updated upstream
   // ============================================
   // DESKTOP VIEW
   // ============================================
 
+=======
+  // Download payment report handler
+  const handleDownloadPaymentReport = () => {
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Payment Report</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; color: #333; }
+          .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+          .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+          .header h1 { font-size: 32px; color: #1e40af; margin-bottom: 8px; }
+          .header p { color: #666; font-size: 14px; }
+          .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+          .stat-box { background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #2563eb; }
+          .stat-label { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 8px; }
+          .stat-value { font-size: 28px; font-weight: bold; color: #1e40af; }
+          .details { margin: 30px 0; }
+          .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+          .label { font-weight: 600; color: #374151; }
+          .value { color: #6b7280; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📊 Payment Report</h1>
+            <p>Generated on ${new Date().toLocaleDateString()}</p>
+          </div>
+          
+          <div class="stats">
+            <div class="stat-box">
+              <div class="stat-label">Total Collected</div>
+              <div class="stat-value">Rs.${monthlyRevenue.toLocaleString()}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Pending Payments</div>
+              <div class="stat-value">${pendingPayments}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Total Tenants</div>
+              <div class="stat-value">${totalTenants}</div>
+            </div>
+          </div>
+          
+          <div class="details">
+            <h2 style="margin-bottom: 20px; color: #1e40af; font-size: 18px;">Summary</h2>
+            <div class="row">
+              <span class="label">Total Boarding Houses:</span>
+              <span class="value">${totalHouses}</span>
+            </div>
+            <div class="row">
+              <span class="label">Total Rooms:</span>
+              <span class="value">${totalRooms}</span>
+            </div>
+            <div class="row">
+              <span class="label">Occupied Beds:</span>
+              <span class="value">${occupiedBeds}/${totalBeds}</span>
+            </div>
+            <div class="row">
+              <span class="label">Occupancy Rate:</span>
+              <span class="value">${occupancyRate}%</span>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p>This is an official payment report document from your Boarding House Management System.</p>
+            <p style="margin-top: 10px;">© 2026 Boarding House Management System</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `payment-report-${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Download receipts handler
+  const handleDownloadReceipts = () => {
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>All Receipts</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; color: #333; }
+          .container { max-width: 900px; margin: 0 auto; }
+          .header { text-align: center; background: white; padding: 30px; border-radius: 8px 8px 0 0; border-bottom: 2px solid #2563eb; }
+          .header h1 { font-size: 32px; color: #1e40af; margin-bottom: 8px; }
+          .header p { color: #666; font-size: 14px; }
+          .receipt { background: white; margin-bottom: 20px; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #10b981; }
+          .receipt-header { border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 15px; }
+          .receipt-title { font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 5px; }
+          .receipt-date { font-size: 12px; color: #6b7280; }
+          .receipt-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; }
+          .receipt-label { color: #374151; font-weight: 500; }
+          .receipt-value { color: #6b7280; }
+          .footer { text-align: center; background: white; padding: 30px; border-radius: 0 0 8px 8px; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }
+          .page-break { page-break-after: always; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📄 All Payment Receipts</h1>
+            <p>Generated on ${new Date().toLocaleDateString()}</p>
+          </div>
+          
+          ${allTenants.map((tenant, index) => `
+            <div class="receipt" style="${index > 0 ? 'margin-top: 40px; border-top: 1px dashed #d1d5db; padding-top: 20px;' : ''}">
+              <div class="receipt-header">
+                <div class="receipt-title">Receipt - ${tenant.name}</div>
+                <div class="receipt-date">Date: ${new Date().toLocaleDateString()}</div>
+              </div>
+              <div class="receipt-row">
+                <span class="receipt-label">Tenant:</span>
+                <span class="receipt-value">${tenant.name}</span>
+              </div>
+              <div class="receipt-row">
+                <span class="receipt-label">Monthly Rent:</span>
+                <span class="receipt-value">Rs.${tenant.monthlyRent.toLocaleString()}</span>
+              </div>
+              <div class="receipt-row">
+                <span class="receipt-label">Check-In:</span>
+                <span class="receipt-value">${new Date(tenant.checkInDate).toLocaleDateString()}</span>
+              </div>
+              <div class="receipt-row">
+                <span class="receipt-label">Status:</span>
+                <span class="receipt-value" style="color: ${tenant.paymentStatus === 'paid' ? '#10b981' : tenant.paymentStatus === 'pending' ? '#f59e0b' : '#ef4444'}; font-weight: 600;">
+                  ${tenant.paymentStatus.toUpperCase()}
+                </span>
+              </div>
+            </div>
+          `).join('')}
+          
+          <div class="footer">
+            <p>These are official payment receipts from your Boarding House Management System.</p>
+            <p style="margin-top: 10px;">© 2026 Boarding House Management System</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `receipts-all-${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Download individual tenant receipt
+  const handleDownloadTenantReceipt = (tenant: Tenant) => {
+    const room = rooms.find(r => r.id === tenant.roomId);
+    const html = `
+      <!DOCTYPE html>
+  
+  // Download tenant overview table (HTML file)
+  const handleDownloadTenantOverview = () => {
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tenant Overview</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; background:#f5f5f5; }
+          table { width:100%; border-collapse:collapse; background:white; }
+          th, td { border:1px solid #ddd; padding:8px; text-align:left; }
+          th { background:#2563eb; color:white; }
+        </style>
+      </head>
+      <body>
+        <h1>Tenant Overview</h1>
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            ${allTenants.map(t => `
+              <tr>
+                <td>${t.name}</td>
+                <td>${rooms.find(r=>r.id===t.roomId)?.roomNumber||'N/A'}</td>
+                <td>${new Date(t.checkInDate).toLocaleDateString()}</td>
+                <td>${new Date(t.checkOutDate).toLocaleDateString()}</td>
+                <td>${t.paymentStatus}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tenant-overview-${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Receipt - ${tenant.name}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+          .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 20px; }
+          .header h1 { font-size: 28px; color: #1e40af; margin-bottom: 8px; }
+          .header p { color: #666; font-size: 14px; }
+          .details { margin: 20px 0; }
+          .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+          .label { font-weight: 600; color: #374151; }
+          .value { color: #6b7280; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
+          .badge { display: inline-block; background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 4px; font-size: 12px; margin-top: 10px; }
+          .status { font-weight: 600; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+          .paid { background: #dcfce7; color: #166534; }
+          .pending { background: #fef3c7; color: #92400e; }
+          .overdue { background: #fee2e2; color: #991b1b; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💰 Payment Receipt</h1>
+            <p>Tenant Receipt</p>
+          </div>
+          <div class="details">
+            <div class="row">
+              <span class="label">Tenant Name:</span>
+              <span class="value">${tenant.name}</span>
+            </div>
+            <div class="row">
+              <span class="label">Room:</span>
+              <span class="value">${room ? room.roomNumber : 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Monthly Rent:</span>
+              <span class="value" style="font-weight: 600; color: #059669; font-size: 16px;">Rs. ${tenant.monthlyRent.toLocaleString()}</span>
+            </div>
+            <div class="row">
+              <span class="label">Check-In:</span>
+              <span class="value">${new Date(tenant.checkInDate).toLocaleDateString()}</span>
+            </div>
+            <div class="row">
+              <span class="label">Check-Out:</span>
+              <span class="value">${new Date(tenant.checkOutDate).toLocaleDateString()}</span>
+            </div>
+            <div class="row">
+              <span class="label">Phone:</span>
+              <span class="value">${tenant.phone || 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Email:</span>
+              <span class="value">${tenant.email || 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Payment Status:</span>
+              <span class="value">
+                <span class="status ${tenant.paymentStatus}">
+                  ${tenant.paymentStatus.toUpperCase()}
+                </span>
+              </span>
+            </div>
+            <div class="row">
+              <span class="label">Generated:</span>
+              <span class="value">${new Date().toLocaleString()}</span>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This is an official payment receipt. Please keep it for your records.</p>
+            <p style="margin-top: 10px;">© 2026 Boarding House Management System</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `receipt-${tenant.name.replace(/\s+/g, '-')}-${tenant.id}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Desktop view (unchanged)
+>>>>>>> Stashed changes
   if (!isMobile) {
     return (
       <>
@@ -1706,6 +2056,14 @@ export default function OwnerDashboard() {
                       Download Payment Report
                     </button>
                   </div>
+<<<<<<< Updated upstream
+=======
+                  <button 
+                    onClick={handleDownloadPaymentReport}
+                    className="w-full mt-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                    Download Payment Report
+                  </button>
+>>>>>>> Stashed changes
                 </div>
               </div>
 
@@ -1840,7 +2198,9 @@ export default function OwnerDashboard() {
                           <p className="text-xs text-white">Rs.{tenant.monthlyRent.toLocaleString()}</p>
                           <p className="text-[10px] text-green-400">Paid</p>
                         </div>
-                        <button className="p-1 hover:bg-white/10 rounded">
+                        <button 
+                          onClick={() => handleDownloadTenantReceipt(tenant)}
+                          className="p-1 hover:bg-white/10 rounded">
                           <Download size={14} className="text-cyan-400" />
                         </button>
                       </div>
@@ -1864,7 +2224,9 @@ export default function OwnerDashboard() {
                       <p className="text-sm text-red-400">Rs.{overdueAmount.toLocaleString()}</p>
                     </div>
                     <div className="pt-2 border-t border-white/10">
-                      <button className="w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                      <button 
+                        onClick={handleDownloadReceipts}
+                        className="w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
                         Download All Receipts
                       </button>
                     </div>
@@ -2417,8 +2779,511 @@ export default function OwnerDashboard() {
                 </div>
               </div>
 
+<<<<<<< Updated upstream
               <div className="flex gap-2 pt-4 border-t border-white/10 sticky bottom-0 bg-gradient-to-r from-[#131d3a]/95 to-[#0b132b]/95">
                 <button
+=======
+          {/* Add Room Modal - Desktop */}
+          {showAddRoom && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl max-w-md w-full p-6 border border-white/10 max-h-[80vh] overflow-y-auto">
+                <h3 className="text-lg font-bold text-white mb-4">Add New Room</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-cyan-300 block mb-1">Select House</label>
+                    <select 
+                      value={newRoom.houseId}
+                      onChange={(e) => setNewRoom({...newRoom, houseId: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm"
+                    >
+                      <option value="">Select a house...</option>
+                      {houses.map(house => (
+                        <option key={house.id} value={house.id}>{house.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-cyan-300 block mb-1">Room Number</label>
+                      <input 
+                        type="text" 
+                        value={newRoom.roomNumber}
+                        onChange={(e) => setNewRoom({...newRoom, roomNumber: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" 
+                        placeholder="101" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-cyan-300 block mb-1">Floor</label>
+                      <input 
+                        type="number" 
+                        value={newRoom.floor}
+                        onChange={(e) => setNewRoom({...newRoom, floor: Number(e.target.value)})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" 
+                        placeholder="1" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-cyan-300 block mb-1">Number of Beds</label>
+                      <input 
+                        type="number" 
+                        value={newRoom.bedCount}
+                        onChange={(e) => setNewRoom({...newRoom, bedCount: Number(e.target.value)})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" 
+                        placeholder="3" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-cyan-300 block mb-1">Price (Rs.)</label>
+                      <input 
+                        type="number" 
+                        value={newRoom.price}
+                        onChange={(e) => setNewRoom({...newRoom, price: Number(e.target.value)})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" 
+                        placeholder="15000" 
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-cyan-300 block mb-2">Facilities</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {facilitiesList.map(facility => (
+                        <label key={facility.id} className="flex items-center gap-2">
+                          <input 
+                            type="checkbox" 
+                            checked={newRoom.facilities.includes(facility.id)}
+                            onChange={() => handleFacilityToggle(facility.id)}
+                            className="rounded border-white/10 bg-white/5" 
+                          />
+                          <span className="text-xs text-gray-300 flex items-center gap-1">
+                            {facility.icon}
+                            {facility.name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-cyan-300 block mb-1">Upload Room Photos</label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <div 
+                      onClick={handleOpenFileDialog}
+                      className="border-2 border-dashed border-white/10 rounded-lg p-3 text-center hover:border-purple-400/30 transition-all cursor-pointer"
+                    >
+                      <Upload className="mx-auto text-gray-400 mb-1" size={20} />
+                      <p className="text-[10px] text-gray-400">Click to upload photos</p>
+                      <p className="text-[8px] text-gray-500 mt-0.5">JPG, PNG, GIF (Max 5MB each)</p>
+                    </div>
+                    
+                    {/* Image Preview Grid */}
+                    {uploadedRoomImages.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        {uploadedRoomImages.map((img, idx) => (
+                          <div key={idx} className="relative group">
+                            <img 
+                              src={img} 
+                              alt={`Room ${idx + 1}`}
+                              className="w-full h-20 object-cover rounded-lg border border-white/10"
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeImage(idx);
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button 
+                      onClick={handleSaveRoom}
+                      className="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                    >
+                      Save Room
+                    </button>
+                    <button 
+                      onClick={() => setShowAddRoom(false)}
+                      className="px-4 py-2 bg-white/5 text-white rounded-lg text-sm font-medium hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tenant Details Modal - Desktop */}
+          {showTenantModal && selectedRoomForTenants && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl max-w-md w-full p-6 border border-white/10">
+                <h3 className="text-lg font-bold text-white mb-4">
+                  Room {selectedRoomForTenants.roomNumber} - Tenants
+                </h3>
+                
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {selectedRoomForTenants.tenants.map(tenant => (
+                    <div key={tenant.id} className="bg-white/5 rounded-lg p-3">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-sm font-medium text-white">{tenant.name}</p>
+                          <p className="text-xs text-gray-400">Check in: {new Date(tenant.checkInDate).toLocaleDateString()}</p>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                          tenant.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-400' :
+                          tenant.paymentStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {tenant.paymentStatus}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-400">Rent: Rs.{tenant.monthlyRent.toLocaleString()}</span>
+                        <button className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                          <Download size={12} />
+                          Receipt
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => setShowTenantModal(false)}
+                  className="w-full mt-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Mobile view (Redmi Note 13 optimized)
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
+      {/* Header - Mobile Optimized */}
+      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-10">
+        <div className="px-3 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Building className="text-cyan-400" size={isRedmiNote13 ? 20 : 24} />
+              <h1 className="text-base font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
+                Owner Dashboard
+              </h1>
+            </div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 active:text-white touch-manipulation"
+              >
+                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu Dropdown */}
+          {mobileMenuOpen && (
+            <div className="mt-2 p-2 bg-white/10 rounded-lg border border-white/10">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
+                  JD
+                </div>
+                <div>
+                  <p className="text-xs text-white font-medium">John Doe</p>
+                  <p className="text-[8px] text-gray-400">john.doe@boarding.com</p>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <button className="w-full text-left px-2 py-2 text-xs text-gray-300 active:bg-white/10 rounded-lg min-h-[44px]">
+                  Profile Settings
+                </button>
+                <button className="w-full text-left px-2 py-2 text-xs text-gray-300 active:bg-white/10 rounded-lg min-h-[44px]">
+                  Notifications
+                </button>
+                <button className="w-full text-left px-2 py-2 text-xs text-red-400 active:bg-white/10 rounded-lg min-h-[44px]">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Tabs - Scrollable */}
+          <div className="flex gap-1 mt-2 overflow-x-auto pb-1 scrollbar-hide touch-pan-x">
+            {[
+              { id: 'overview', label: 'Overview', icon: <BarChart size={12} /> },
+              { id: 'houses', label: 'Houses', icon: <Building size={12} /> },
+              { id: 'rooms', label: 'Rooms', icon: <Bed size={12} /> },
+              { id: 'tenants', label: 'Tenants', icon: <Users size={12} /> },
+              { id: 'payments', label: 'Payments', icon: <CreditCard size={12} /> }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[9px] font-medium transition-all whitespace-nowrap min-h-[36px] touch-manipulation ${
+                  activeTab === tab.id
+                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
+                    : 'text-gray-400 active:text-white active:bg-white/5'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-3 py-3 max-w-7xl mx-auto">
+        {/* Search Bar - Mobile Optimized */}
+        {(activeTab === 'tenants' || activeTab === 'rooms') && (
+          <div className="mb-3">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder={`Search ${activeTab}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 min-h-[44px]"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Overview Tab - Mobile */}
+        {activeTab === 'overview' && (
+          <div className="space-y-4">
+            {/* Stats Grid - 2 columns for mobile */}
+            <div className="grid grid-cols-2 gap-2">
+              <MobileStatsCard 
+                title="Houses" 
+                value={totalHouses} 
+                icon={<Building size={14} />} 
+                trend={12}
+                color="bg-cyan-500/20 text-cyan-400"
+              />
+              <MobileStatsCard 
+                title="Rooms" 
+                value={totalRooms} 
+                icon={<Bed size={14} />} 
+                trend={8}
+                color="bg-purple-500/20 text-purple-400"
+              />
+              <MobileStatsCard 
+                title="Tenants" 
+                value={totalTenants} 
+                icon={<Users size={14} />} 
+                trend={15}
+                color="bg-green-500/20 text-green-400"
+              />
+              <MobileStatsCard 
+                title="Occupancy" 
+                value={`${occupancyRate}%`} 
+                icon={<TrendingUp size={14} />} 
+                trend={5}
+                color="bg-yellow-500/20 text-yellow-400"
+              />
+            </div>
+
+            {/* Revenue Card */}
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <h3 className="text-xs font-medium text-cyan-300 mb-2 flex items-center gap-1">
+                <DollarSign size={12} />
+                Monthly Revenue
+              </h3>
+              <p className="text-xl font-bold text-white">Rs.{monthlyRevenue.toLocaleString()}</p>
+              <p className="text-[9px] text-gray-400 mt-0.5">from {totalTenants} tenants</p>
+              <div className="mt-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full w-3/4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" />
+              </div>
+            </div>
+
+            {/* Recent Tenants */}
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <h3 className="text-xs font-medium text-cyan-300 mb-2 flex items-center gap-1">
+                <Users size={12} />
+                Recent Tenants
+              </h3>
+              <MobileTenantList tenants={allTenants.slice(0, 3)} rooms={rooms} />
+              {allTenants.length > 3 && (
+                <button 
+                  onClick={() => setActiveTab('tenants')}
+                  className="w-full mt-2 py-2 text-[9px] text-cyan-400 active:text-cyan-300 border-t border-white/10 pt-2 min-h-[44px]"
+                >
+                  View All Tenants
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Houses Tab - Mobile */}
+        {activeTab === 'houses' && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h2 className="text-sm font-bold text-white">My Houses</h2>
+              <button 
+                onClick={() => setShowAddHouse(true)}
+                className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
+              >
+                <Plus size={14} />
+                Add
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              {houses.map(house => (
+                <MobileHouseCard 
+                  key={house.id}
+                  house={house}
+                  onSelect={setSelectedHouse}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Rooms Tab - Mobile */}
+        {activeTab === 'rooms' && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h2 className="text-sm font-bold text-white">Rooms</h2>
+              <div className="flex gap-1">
+                <select 
+                  value={filterHouse}
+                  onChange={(e) => setFilterHouse(e.target.value)}
+                  className="px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] text-white min-h-[44px]"
+                >
+                  <option value="all">All Houses</option>
+                  {houses.map(house => (
+                    <option key={house.id} value={house.id}>{house.name}</option>
+                  ))}
+                </select>
+                <button 
+                  onClick={() => setShowAddRoom(true)}
+                  className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
+                >
+                  <Plus size={14} />
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              {filteredRooms
+                .filter(room => 
+                  room.roomNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  room.tenants.some(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                )
+                .map(room => (
+                  <MobileRoomCard 
+                    key={room.id}
+                    room={room}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    onViewTenants={handleViewTenants}
+                  />
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tenants Tab - Mobile */}
+        {activeTab === 'tenants' && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-white">All Tenants</h2>
+            <MobileTenantList tenants={filteredTenants} rooms={rooms} />
+          </div>
+        )}
+
+        {/* Payments Tab - Mobile */}
+        {activeTab === 'payments' && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-white">Payments</h2>
+            
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <h3 className="text-xs font-medium text-cyan-300 mb-2">Summary</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[9px] text-gray-400">Total Collected</span>
+                  <span className="text-sm font-bold text-white">Rs.{monthlyRevenue.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[9px] text-gray-400">Pending</span>
+                  <span className="text-xs text-yellow-400">Rs.{(pendingPayments * 15000).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <h3 className="text-xs font-medium text-cyan-300 mb-2">Recent Payments</h3>
+              <div className="space-y-2">
+                {allTenants.filter(t => t.paymentStatus === 'paid').slice(0, 5).map(tenant => {
+                  const room = rooms.find(r => r.id === tenant.roomId);
+                  return (
+                    <div key={tenant.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                      <div>
+                        <p className="text-[9px] text-white">{tenant.name}</p>
+                        <p className="text-[7px] text-gray-400">Room {room?.roomNumber}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-white">Rs.{tenant.monthlyRent.toLocaleString()}</span>
+                        <button 
+                          onClick={() => handleDownloadTenantReceipt(tenant)}
+                          className="p-1.5 active:bg-white/10 rounded min-h-[32px] min-w-[32px] flex items-center justify-center">
+                          <Download size={10} className="text-cyan-400" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button 
+                onClick={handleDownloadReceipts}
+                className="w-full mt-2 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-[9px] font-medium min-h-[44px]">
+                Download All Receipts
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Add House Modal - Mobile Optimized */}
+        {showAddHouse && (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-end md:items-center">
+            <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-t-xl md:rounded-xl w-full max-w-md mx-auto p-4 border border-white/10 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-bold text-white">Add New House</h3>
+                <button 
+>>>>>>> Stashed changes
                   onClick={() => setShowAddHouse(false)}
                   className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
                 >
@@ -2681,6 +3546,53 @@ export default function OwnerDashboard() {
                   Save Room
                 </button>
               </div>
+<<<<<<< Updated upstream
+=======
+              
+              <div className="space-y-2">
+                {selectedRoomForTenants.tenants.map(tenant => (
+                  <div key={tenant.id} className="bg-white/5 rounded-lg p-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="text-xs font-medium text-white">{tenant.name}</p>
+                        <p className="text-[8px] text-gray-400">Check in: {new Date(tenant.checkInDate).toLocaleDateString()}</p>
+                      </div>
+                      <span className={`text-[7px] px-2 py-1 rounded-full ${
+                        tenant.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-400' :
+                        tenant.paymentStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                        'bg-red-500/20 text-red-400'
+                      }`}>
+                        {tenant.paymentStatus}
+                      </span>
+                    </div>
+                    
+                    {tenant.phone && (
+                      <div className="flex items-center gap-1 text-[8px] text-gray-400 mb-1">
+                        <Phone size={8} />
+                        <a href={`tel:${tenant.phone}`} className="text-cyan-400 active:text-cyan-300">{tenant.phone}</a>
+                      </div>
+                    )}
+                    
+                    {tenant.email && (
+                      <div className="flex items-center gap-1 text-[8px] text-gray-400 mb-2">
+                        <Mail size={8} />
+                        <a href={`mailto:${tenant.email}`} className="text-purple-400 active:text-purple-300">{tenant.email}</a>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10">
+                      <span className="text-[9px] text-white">Rs.{tenant.monthlyRent.toLocaleString()}/mo</span>
+                      <button 
+                        onClick={() => handleDownloadTenantReceipt(tenant)}
+                        className="text-cyan-400 active:text-cyan-300 flex items-center gap-1 px-3 py-1.5 min-h-[36px]">
+                        <Download size={10} />
+                        Receipt
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+>>>>>>> Stashed changes
             </div>
           </div>
         </div>
