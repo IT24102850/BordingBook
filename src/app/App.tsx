@@ -98,7 +98,7 @@ export default function App() {
         {/* Boarding Booking Management System Core Functions */}
         <Route path="/boarding-management" element={<BoardingManagement />} />
         <Route path="/search-discovery" element={<SearchDiscovery />} />
-        <Route path="/booking-agreement" element={<BookingAgreement />} />
+        <Route path="/owner-agreements" element={<BookingAgreement />} />
         <Route path="/payment-rental" element={<PaymentRentalPage />} />
         <Route path="/payment-rental/:placeId" element={<BoardingPlaceDetail />} />
         <Route path="/owner-bookings" element={<BookingManagementSystem />} />

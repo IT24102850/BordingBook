@@ -1,461 +1,370 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Home, Calendar, DollarSign, CheckCircle, XCircle, Clock, 
-  Upload, Download, AlertTriangle, ArrowRight, FileText,
-  MapPin, User, Phone, Mail, Star, Heart, TrendingUp
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Home, Send, FileSignature, CheckCircle, XCircle, Clock, RefreshCcw } from 'lucide-react';
+import {
+  createStudentBookingRequest,
+  getAvailableRooms,
+  getMyAgreements,
+  getMyBookingRequests,
+  respondToMyAgreement,
+  RoomListDto,
+  BookingRequestDto,
+  BookingAgreementDto,
+} from '../../api/bookingAgreementApi';
 
-// Types
-interface BookingStatus {
-  id: string;
-  roomTitle: string;
-  roomImage: string;
-  roomPrice: number;
-  location: string;
+type RequestFormState = {
+  roomId: string;
+  bookingType: 'individual' | 'group';
+  groupName: string;
+  groupSize: string;
   moveInDate: string;
-  duration: number;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedDate: string;
-  paymentStatus?: 'not_uploaded' | 'uploaded' | 'verified' | 'rejected';
-  paymentSlipUrl?: string;
-  receiptUrl?: string;
-  rejectionReason?: string;
-  ownerName?: string;
-  ownerContact?: string;
-}
-
-const mockBookingStatus: BookingStatus = {
-  id: 'BK002',
-  roomTitle: 'Modern Boarding House near SLIIT',
-  roomImage: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-  roomPrice: 18000,
-  location: 'Malabe, Colombo',
-  moveInDate: '2026-04-01',
-  duration: 6,
-  status: 'approved',
-  submittedDate: '2026-03-01',
-  paymentStatus: 'not_uploaded',
-  ownerName: 'Mr. Perera',
-  ownerContact: '+94 77 111 2222'
+  durationMonths: string;
+  message: string;
 };
 
-const savedRooms = [
-  {
-    id: 1,
-    title: 'Cozy Room with Balcony',
-    image: 'https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    price: 15000,
-    location: 'Kaduwela',
-    rating: 4.2
-  },
-  {
-    id: 2,
-    title: 'Budget Student Dormitory',
-    image: 'https://images.unsplash.com/photo-1598928636135-d146006ff4be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    price: 8500,
-    location: 'Malabe',
-    rating: 4.0
-  }
-];
-
 export default function StudentBookingDashboard() {
-  const navigate = useNavigate();
-  const [booking] = useState<BookingStatus>(mockBookingStatus);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [rooms, setRooms] = useState<RoomListDto[]>([]);
+  const [requests, setRequests] = useState<BookingRequestDto[]>([]);
+  const [agreements, setAgreements] = useState<BookingAgreementDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [respondingId, setRespondingId] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFile(file);
+  const [form, setForm] = useState<RequestFormState>({
+    roomId: '',
+    bookingType: 'individual',
+    groupName: '',
+    groupSize: '1',
+    moveInDate: '',
+    durationMonths: '6',
+    message: '',
+  });
+
+  const selectedRoom = useMemo(
+    () => rooms.find((room) => room._id === form.roomId) || null,
+    [rooms, form.roomId]
+  );
+
+  async function loadData() {
+    setLoading(true);
+    setError('');
+    try {
+      const [roomData, requestData, agreementData] = await Promise.all([
+        getAvailableRooms(),
+        getMyBookingRequests(),
+        getMyAgreements(),
+      ]);
+      setRooms(roomData);
+      setRequests(requestData);
+      setAgreements(agreementData);
+
+      if (!form.roomId && roomData.length > 0) {
+        setForm((prev) => ({ ...prev, roomId: roomData[0]._id }));
+      }
+    } catch (apiError: any) {
+      setError(apiError?.message || 'Failed to load booking dashboard data');
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
-  const handleSubmitPayment = () => {
-    if (!uploadedFile) {
-      alert('Please select a file to upload');
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function setField<K extends keyof RequestFormState>(key: K, value: RequestFormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleSubmitRequest(event: React.FormEvent) {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!form.roomId || !form.moveInDate) {
+      setError('Room and move-in date are required');
       return;
     }
-    // Simulate upload
-    alert('Payment slip uploaded successfully! Owner will verify it soon.');
-    setShowUploadModal(false);
-    setUploadedFile(null);
-    // Navigate to student payment page
-    navigate('/student-payment');
-  };
 
-  // Get status display
-  const getStatusBadge = () => {
-    switch (booking.status) {
-      case 'pending':
-        return (
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-900/30 border border-amber-500/30 rounded-lg">
-            <Clock size={18} className="text-amber-400" />
-            <span className="text-amber-400 font-semibold">Awaiting Owner Review</span>
-          </div>
-        );
-      case 'approved':
-        return (
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-900/30 border border-green-500/30 rounded-lg">
-            <CheckCircle size={18} className="text-green-400" />
-            <span className="text-green-400 font-semibold">Booking Approved!</span>
-          </div>
-        );
-      case 'rejected':
-        return (
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-900/30 border border-red-500/30 rounded-lg">
-            <XCircle size={18} className="text-red-400" />
-            <span className="text-red-400 font-semibold">Booking Rejected</span>
-          </div>
-        );
+    setSubmitting(true);
+    try {
+      const created = await createStudentBookingRequest({
+        roomId: form.roomId,
+        bookingType: form.bookingType,
+        groupName: form.bookingType === 'group' ? form.groupName : '',
+        groupSize: form.bookingType === 'group' ? Number(form.groupSize) || 1 : 1,
+        moveInDate: form.moveInDate,
+        durationMonths: Number(form.durationMonths) || 6,
+        message: form.message,
+      });
+
+      setRequests((prev) => [created, ...prev]);
+      setSuccess('Booking request submitted successfully.');
+      setForm((prev) => ({
+        ...prev,
+        bookingType: 'individual',
+        groupName: '',
+        groupSize: '1',
+        durationMonths: '6',
+        message: '',
+      }));
+    } catch (apiError: any) {
+      setError(apiError?.message || 'Failed to submit booking request');
+    } finally {
+      setSubmitting(false);
     }
-  };
+  }
 
-  const getPaymentStatusSection = () => {
-    if (booking.status !== 'approved') return null;
-
-    switch (booking.paymentStatus) {
-      case 'not_uploaded':
-        return (
-          <div className="bg-gradient-to-br from-amber-900/20 to-orange-900/20 border border-amber-500/30 rounded-xl p-6">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Upload size={24} className="text-amber-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-white mb-1">Upload Payment Slip</h3>
-                <p className="text-gray-400 text-sm mb-3">
-                  Your booking has been approved! Please upload your payment slip to confirm your booking.
-                </p>
-                <div className="bg-amber-900/30 border border-amber-500/30 rounded-lg p-3 mb-4">
-                  <p className="text-amber-300 text-sm font-semibold mb-1">Payment Details:</p>
-                  <p className="text-white text-sm">Amount: Rs. {booking.roomPrice.toLocaleString()}</p>
-                  <p className="text-gray-300 text-xs mt-1">Please transfer to owner's account and upload the receipt</p>
-                </div>
-                <button
-                  onClick={() => setShowUploadModal(true)}
-                  className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
-                >
-                  <Upload size={18} />
-                  Upload Payment Slip
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      
-      case 'uploaded':
-        return (
-          <div className="bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border border-blue-500/30 rounded-xl p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Clock size={24} className="text-blue-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-white mb-1">Payment Under Review</h3>
-                <p className="text-gray-400 text-sm mb-3">
-                  Your payment slip has been uploaded successfully. The owner is reviewing it now.
-                </p>
-                <div className="flex items-center gap-2 text-sm text-blue-300">
-                  <FileText size={16} />
-                  <span>Payment slip uploaded on {new Date().toLocaleDateString()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      
-      case 'verified':
-        return (
-          <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/20 border border-green-500/30 rounded-xl p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <CheckCircle size={24} className="text-green-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-white mb-1">Payment Verified!</h3>
-                <p className="text-gray-400 text-sm mb-4">
-                  Congratulations! Your payment has been verified and your booking is confirmed.
-                </p>
-                <button
-                  onClick={() => window.open(booking.receiptUrl, '_blank')}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
-                >
-                  <Download size={18} />
-                  Download Receipt
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      
-      case 'rejected':
-        return (
-          <div className="bg-gradient-to-br from-red-900/20 to-pink-900/20 border border-red-500/30 rounded-xl p-6">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <XCircle size={24} className="text-red-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-white mb-1">Payment Slip Rejected</h3>
-                <p className="text-gray-400 text-sm mb-3">
-                  Your payment slip was rejected by the owner. Please upload a new one.
-                </p>
-                <button
-                  onClick={() => setShowUploadModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
-                >
-                  <Upload size={18} />
-                  Re-upload Payment Slip
-                </button>
-              </div>
-            </div>
-          </div>
-        );
+  async function handleAgreementResponse(agreementId: string, status: 'accepted' | 'rejected') {
+    setRespondingId(agreementId);
+    setError('');
+    setSuccess('');
+    try {
+      const updated = await respondToMyAgreement(agreementId, status);
+      setAgreements((prev) => prev.map((item) => (item._id === agreementId ? updated : item)));
+      setSuccess(`Agreement ${status}.`);
+    } catch (apiError: any) {
+      setError(apiError?.message || 'Failed to respond to agreement');
+    } finally {
+      setRespondingId('');
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent mb-2">
-            My Booking Dashboard
-          </h1>
-          <p className="text-gray-400">Track your booking status and manage payments</p>
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-teal-300 bg-clip-text text-transparent mb-2">
+              Student Booking & Agreements
+            </h1>
+            <p className="text-gray-400">Submit booking requests and respond to owner agreements.</p>
+          </div>
+          <button
+            onClick={loadData}
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20 flex items-center gap-2"
+          >
+            <RefreshCcw size={14} />
+            Refresh
+          </button>
         </div>
 
+        {error && <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/40 p-3 text-red-300 text-sm">{error}</div>}
+        {success && <div className="mb-4 rounded-lg bg-green-500/10 border border-green-500/40 p-3 text-green-300 text-sm">{success}</div>}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content - Booking Status */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Current Booking */}
-            <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-2xl overflow-hidden">
-              {/* Room Image */}
-              <div className="relative h-48 md:h-64">
-                <img 
-                  src={booking.roomImage} 
-                  alt={booking.roomTitle}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
-                  <h2 className="text-2xl font-bold text-white mb-1">{booking.roomTitle}</h2>
-                  <div className="flex items-center gap-2 text-gray-300 text-sm">
-                    <MapPin size={16} className="text-cyan-400" />
-                    {booking.location}
-                  </div>
-                </div>
-              </div>
+            <form onSubmit={handleSubmitRequest} className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1b2340] to-[#111a33] p-6">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Send size={18} className="text-cyan-400" />
+                Submit Booking Request
+              </h2>
 
-              {/* Booking Details */}
-              <div className="p-6">
-                {/* Status Badge */}
-                <div className="mb-6">
-                  {getStatusBadge()}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Room</label>
+                  <select
+                    value={form.roomId}
+                    onChange={(event) => setField('roomId', event.target.value)}
+                    className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                  >
+                    <option value="">Select room</option>
+                    {rooms.map((room) => (
+                      <option key={room._id} value={room._id} className="text-black">
+                        {room.name} - Rs. {room.price.toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Booking Info Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar size={18} className="text-purple-400" />
-                      <span className="text-gray-400 text-sm">Move-in Date</span>
-                    </div>
-                    <p className="text-white font-semibold">{new Date(booking.moveInDate).toLocaleDateString()}</p>
-                  </div>
-
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <DollarSign size={18} className="text-green-400" />
-                      <span className="text-gray-400 text-sm">Monthly Rent</span>
-                    </div>
-                    <p className="text-white font-semibold">Rs. {booking.roomPrice.toLocaleString()}</p>
-                  </div>
-
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Clock size={18} className="text-orange-400" />
-                      <span className="text-gray-400 text-sm">Duration</span>
-                    </div>
-                    <p className="text-white font-semibold">{booking.duration} months</p>
-                  </div>
-
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText size={18} className="text-blue-400" />
-                      <span className="text-gray-400 text-sm">Booking ID</span>
-                    </div>
-                    <p className="text-white font-semibold">{booking.id}</p>
-                  </div>
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Booking Type</label>
+                  <select
+                    value={form.bookingType}
+                    onChange={(event) => setField('bookingType', event.target.value as 'individual' | 'group')}
+                    className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                  >
+                    <option value="individual" className="text-black">Individual</option>
+                    <option value="group" className="text-black">Group</option>
+                  </select>
                 </div>
 
-                {/* Payment Status Section */}
-                {getPaymentStatusSection()}
-
-                {/* Rejection Reason (if rejected) */}
-                {booking.status === 'rejected' && (
-                  <div className="mt-6 bg-red-900/20 border border-red-500/30 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-red-400 font-semibold mb-1">Rejection Reason:</p>
-                        <p className="text-gray-300 text-sm">{booking.rejectionReason || 'No reason provided'}</p>
-                      </div>
+                {form.bookingType === 'group' && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-gray-300 mb-1">Group Name</label>
+                      <input
+                        value={form.groupName}
+                        onChange={(event) => setField('groupName', event.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                        placeholder="SLIIT Friends"
+                      />
                     </div>
-                  </div>
+                    <div>
+                      <label className="block text-xs text-gray-300 mb-1">Group Size</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={form.groupSize}
+                        onChange={(event) => setField('groupSize', event.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                      />
+                    </div>
+                  </>
                 )}
-              </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Move-in Date</label>
+                  <input
+                    type="date"
+                    value={form.moveInDate}
+                    onChange={(event) => setField('moveInDate', event.target.value)}
+                    className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Duration (Months)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="36"
+                    value={form.durationMonths}
+                    onChange={(event) => setField('durationMonths', event.target.value)}
+                    className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-xs text-gray-300 mb-1">Message to Owner</label>
+                <textarea
+                  rows={4}
+                  value={form.message}
+                  onChange={(event) => setField('message', event.target.value)}
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                  placeholder="Any details about your request..."
+                />
+              </div>
+
               <button
-                onClick={() => navigate('/find')}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                type="submit"
+                disabled={submitting || loading}
+                className="mt-4 w-full rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-3 font-bold text-white disabled:opacity-60"
               >
-                <Home size={20} />
-                Browse More Rooms
+                {submitting ? 'Submitting...' : 'Submit Booking Request'}
               </button>
-              <button
-                onClick={() => navigate('/student-payment')}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-              >
-                <DollarSign size={20} />
-                Payment History
-              </button>
+            </form>
+
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a2137] to-[#10182d] p-6">
+              <h2 className="text-xl font-bold text-white mb-4">My Booking Requests</h2>
+              {requests.length === 0 && !loading && <p className="text-gray-400">No booking requests yet.</p>}
+              <div className="space-y-3">
+                {requests.map((request) => (
+                  <div key={request._id} className="rounded-lg border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-white">{request.roomId?.name || request.roomId?.roomNumber || 'Room'}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        request.status === 'pending'
+                          ? 'bg-yellow-500/20 text-yellow-300'
+                          : request.status === 'approved'
+                          ? 'bg-green-500/20 text-green-300'
+                          : 'bg-red-500/20 text-red-300'
+                      }`}>
+                        {request.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-300 mt-1">Move-in: {new Date(request.moveInDate).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-300">Duration: {request.durationMonths} months</p>
+                    {request.rejectionReason && <p className="text-xs text-red-300 mt-1">Reason: {request.rejectionReason}</p>}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Sidebar - Saved Rooms & Quick Actions */}
           <div className="space-y-6">
-            {/* Owner Contact (if approved) */}
-            {booking.status === 'approved' && (
-              <div className="bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border border-blue-500/30 rounded-xl p-6">
-                <h3 className="text-lg font-bold text-white mb-4">Owner Contact</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                      <User size={20} className="text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Owner Name</p>
-                      <p className="text-white text-sm font-semibold">{booking.ownerName}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                      <Phone size={20} className="text-green-400" />
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Contact Number</p>
-                      <p className="text-white text-sm font-semibold">{booking.ownerContact}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Saved Rooms (Wishlist from rejected) */}
-            <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Heart size={20} className="text-pink-400" />
-                <h3 className="text-lg font-bold text-white">Saved Rooms</h3>
-              </div>
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1b223a] to-[#121a31] p-6">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <FileSignature size={18} className="text-cyan-300" />
+                My Agreements
+              </h2>
+              {agreements.length === 0 && !loading && (
+                <p className="text-gray-400 text-sm">No agreements received yet.</p>
+              )}
               <div className="space-y-3">
-                {savedRooms.map(room => (
-                  <div key={room.id} className="bg-white/5 rounded-lg overflow-hidden hover:bg-white/10 transition-all cursor-pointer">
-                    <div className="flex gap-3 p-3">
-                      <img 
-                        src={room.image} 
-                        alt={room.title}
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-white text-sm font-semibold mb-1 truncate">{room.title}</h4>
-                        <p className="text-gray-400 text-xs mb-1">{room.location}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-cyan-400 text-sm font-bold">Rs. {room.price.toLocaleString()}</span>
-                          <div className="flex items-center gap-1">
-                            <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                            <span className="text-gray-400 text-xs">{room.rating}</span>
-                          </div>
-                        </div>
-                      </div>
+                {agreements.map((agreement) => (
+                  <div key={agreement._id} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                    <p className="font-semibold text-sm text-white">{agreement.title}</p>
+                    <p className="text-xs text-gray-300">Room: {agreement.roomId?.name || agreement.roomId?.roomNumber || 'Room'}</p>
+                    <p className="text-xs text-gray-300">Rent: Rs. {agreement.rentAmount.toLocaleString()}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        agreement.status === 'sent'
+                          ? 'bg-yellow-500/20 text-yellow-300'
+                          : agreement.status === 'accepted'
+                          ? 'bg-green-500/20 text-green-300'
+                          : 'bg-red-500/20 text-red-300'
+                      }`}>
+                        {agreement.status === 'sent' && <Clock size={12} className="inline mr-1" />}
+                        {agreement.status === 'accepted' && <CheckCircle size={12} className="inline mr-1" />}
+                        {agreement.status === 'rejected' && <XCircle size={12} className="inline mr-1" />}
+                        {agreement.status}
+                      </span>
                     </div>
+
+                    {agreement.status === 'sent' && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          disabled={respondingId === agreement._id}
+                          onClick={() => handleAgreementResponse(agreement._id, 'accepted')}
+                          className="rounded-md bg-green-600/80 px-2 py-2 text-xs font-semibold text-white hover:bg-green-600 disabled:opacity-60"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          disabled={respondingId === agreement._id}
+                          onClick={() => handleAgreementResponse(agreement._id, 'rejected')}
+                          className="rounded-md bg-red-600/80 px-2 py-2 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+
+                    <details className="mt-3 text-xs text-gray-200">
+                      <summary className="cursor-pointer text-cyan-300">View agreement terms</summary>
+                      <pre className="mt-2 whitespace-pre-wrap font-sans text-xs text-gray-200">{agreement.terms}</pre>
+                    </details>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="bg-gradient-to-br from-purple-900/20 to-indigo-900/20 border border-purple-500/30 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-white mb-4">Quick Stats</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Total Saved</span>
-                  <span className="text-white font-bold">{savedRooms.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Active Bookings</span>
-                  <span className="text-white font-bold">1</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Account Status</span>
-                  <span className="text-green-400 font-bold">Active</span>
-                </div>
-              </div>
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1b223a] to-[#121a31] p-6">
+              <h2 className="text-lg font-bold text-white mb-3">Selected Room Snapshot</h2>
+              {!selectedRoom && <p className="text-gray-400 text-sm">Choose a room to view details.</p>}
+              {selectedRoom && (
+                <>
+                  <p className="font-semibold text-white">{selectedRoom.name}</p>
+                  <p className="text-sm text-gray-300">{selectedRoom.location}</p>
+                  <p className="text-sm text-cyan-300 mt-1">Rs. {selectedRoom.price.toLocaleString()} / month</p>
+                  <p className="text-xs text-gray-300 mt-1">Vacancy: {Math.max(0, selectedRoom.totalSpots - selectedRoom.occupancy)} / {selectedRoom.totalSpots}</p>
+                  <button
+                    onClick={() => window.location.assign('/find')}
+                    className="mt-3 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20 flex items-center justify-center gap-2"
+                  >
+                    <Home size={14} />
+                    Browse More Rooms
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
-
-        {/* Upload Payment Modal */}
-        {showUploadModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl max-w-md w-full border border-cyan-500/30 p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Upload Payment Slip</h3>
-              <p className="text-gray-400 mb-6 text-sm">
-                Please upload a clear photo or PDF of your bank transfer receipt
-              </p>
-
-              <div className="mb-6">
-                <label className="block border-2 border-dashed border-cyan-500/30 rounded-xl p-8 text-center cursor-pointer hover:border-cyan-500/50 transition-all bg-cyan-500/5">
-                  <Upload size={48} className="text-cyan-400 mx-auto mb-3" />
-                  <p className="text-white font-medium mb-1">
-                    {uploadedFile ? uploadedFile.name : 'Click to upload or drag and drop'}
-                  </p>
-                  <p className="text-gray-400 text-xs">JPG, PNG or PDF (Max 5MB)</p>
-                  <input 
-                    type="file" 
-                    onChange={handleFileUpload}
-                    accept="image/*,.pdf"
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowUploadModal(false);
-                    setUploadedFile(null);
-                  }}
-                  className="flex-1 py-3 bg-white/10 text-gray-300 rounded-xl font-semibold hover:bg-white/20 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmitPayment}
-                  className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-                >
-                  Submit
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ const roommateController = require('../controllers/roommateController');
 const requestController = require('../controllers/requestController');
 const groupController = require('../controllers/groupController');
 const roomController = require('../controllers/roomController');
+const bookingController = require('../controllers/bookingController');
 
 // ============ ROOMMATE PROFILE ROUTES ============
 
@@ -175,6 +176,32 @@ router.patch(
   [body('occupancy').isInt({ min: 0 })],
   validateRequest,
   roomController.updateOccupancy
+);
+
+// ============ BOOKING REQUEST & AGREEMENT ROUTES ============
+
+router.post(
+  '/booking-request',
+  requireAuth,
+  [
+    body('roomId').isMongoId().withMessage('roomId is required'),
+    body('bookingType').optional().isIn(['individual', 'group']),
+    body('groupSize').optional().isInt({ min: 1, max: 20 }),
+    body('moveInDate').isISO8601().withMessage('moveInDate must be a valid date'),
+    body('durationMonths').optional().isInt({ min: 1, max: 36 }),
+  ],
+  validateRequest,
+  bookingController.createBookingRequest
+);
+
+router.get('/booking-requests', requireAuth, bookingController.getMyBookingRequests);
+router.get('/agreements', requireAuth, bookingController.getMyAgreements);
+router.patch(
+  '/agreements/:agreementId/respond',
+  requireAuth,
+  [body('status').isIn(['accepted', 'rejected'])],
+  validateRequest,
+  bookingController.respondToAgreement
 );
 
 module.exports = router;
