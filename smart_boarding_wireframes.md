@@ -1,5 +1,5 @@
 ---
-# Smart Boarding System Wireframes
+# BoardingBook Platform Wireframes
 
 ## Mobile App (Passenger)
 

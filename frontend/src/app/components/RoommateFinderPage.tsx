@@ -3,7 +3,7 @@ import { FaHeart, FaRegTimesCircle, FaUndo, FaHistory, FaBookmark, FaUserFriends
 import { BiCurrentLocation } from 'react-icons/bi';
 import { RiUserSharedLine } from 'react-icons/ri';
 import { Menu, X, Home, Search, Users, User, LogIn, Users as UsersIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const roommateProfiles = [
   {
@@ -62,19 +62,6 @@ const roommateProfiles = [
     availableFrom: "2024-01-20",
     tags: ["Sports", "Group Activities"]
   }
-];
-
-const filterChips = [
-  { id: 'budget', label: 'Budget < 13k', icon: <FaMoneyBillWave /> },
-  { id: 'single', label: 'Single Room', icon: <FaBed /> },
-  { id: 'shared', label: 'Shared Room', icon: <FaUserFriends /> },
-  { id: 'bills', label: 'Bills Included', icon: <FaBolt /> },
-];
-
-const genderChips = [
-  { id: 'any', label: 'Any', icon: <RiUserSharedLine /> },
-  { id: 'female', label: 'Female', icon: <RiUserSharedLine /> },
-  { id: 'male', label: 'Male', icon: <RiUserSharedLine /> },
 ];
 
 interface MiniProfileCardProps {
@@ -172,6 +159,7 @@ function SwipeCard({ profile, onSwipe, isAnimating, direction }: SwipeCardProps)
 function RoommateNavBar() {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleNav = (path: string) => {
     setMobileNavOpen(false);
@@ -180,8 +168,8 @@ function RoommateNavBar() {
   
   return (
     <nav
-      className="w-full fixed top-0 left-0 flex items-center justify-between h-12 md:h-13 px-4 md:px-16 bg-[#232b47] backdrop-blur-xl border-b-2 border-zinc-700/15 shadow-xl z-[10000] transition-all duration-300 navbar"
-      style={{height: '52px',minHeight: '52px',borderBottomWidth: '2px',borderBottomColor: 'rgba(113,113,122,0.15)',borderImage: 'linear-gradient(to right, rgba(99,102,241,.18), rgba(34,211,238,.18)) 1',borderBottomStyle: 'solid'}}>
+      className="w-full fixed top-0 left-0 flex items-center justify-between h-14 md:h-16 px-6 md:px-24 bg-[#232b47] backdrop-blur-xl border-b-2 border-zinc-700/15 shadow-xl z-[10000] transition-all duration-300 navbar"
+      style={{height: '64px',minHeight: '64px',borderBottomWidth: '2px',borderBottomColor: 'rgba(113,113,122,0.15)',borderImage: 'linear-gradient(to right, rgba(99,102,241,.18), rgba(34,211,238,.18)) 1',borderBottomStyle: 'solid'}}>
       {/* Logo */}
       <div className="flex items-center gap-1 md:gap-2 min-w-max h-full cursor-pointer" onClick={() => handleNav('/')}> 
         <span className="text-3xl font-extrabold tracking-tight text-zinc-100 drop-shadow-lg select-none flex items-center h-full navbar-logo">Boarding<span className="text-indigo-300">Book</span></span>
@@ -189,12 +177,13 @@ function RoommateNavBar() {
 
       {/* Desktop Nav - perfectly centered, improved labels and CTAs */}
       <div className="desktop-nav hidden md:flex flex-1 justify-center">
-        <div className="flex gap-6 items-center bg-zinc-800/60 px-6 py-2 rounded-full shadow border border-zinc-700/40">
-          <button onClick={() => handleNav('/')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link">Home</button>
-          <button onClick={() => handleNav('/find')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link">Find Rooms</button>
-          <button onClick={() => handleNav('/roommate-finder')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link">Roommate Finder</button>
-          <button onClick={() => handleNav('/profile-setup')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link">Profile</button>
-          <button onClick={() => handleNav('/group-booking')} className="px-4 py-2 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 border border-indigo-400 nav-link-cta">Group Booking</button>
+        <div className="flex gap-8 items-center bg-zinc-800/60 px-8 py-2.5 rounded-full shadow border border-zinc-700/40">
+          <button type="button" onClick={() => handleNav('/')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${location.pathname==='/' ? ' nav-link-active' : ''}`}>Home</button>
+          <button type="button" onClick={() => handleNav('/find')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${location.pathname==='/find' ? ' nav-link-active' : ''}`}>Find Rooms</button>
+          <button type="button" onClick={() => handleNav('/roommate-finder')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${location.pathname==='/roommate-finder' ? ' nav-link-active' : ''}`}>Roommate Finder</button>
+          <button type="button" onClick={() => handleNav('/chatbot')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${location.pathname==='/chatbot' ? ' nav-link-active' : ''}`}>🤖 AI Chatbot</button>
+          <button type="button" onClick={() => handleNav('/boarding-management')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${location.pathname==='/boarding-management' ? ' nav-link-active' : ''}`}>List Your Property</button>
+          <button type="button" onClick={() => handleNav('/find')} className="px-5 py-2.5 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:scale-105 transition-transform duration-200 border border-indigo-400 nav-link-cta">Find Rooms</button>
         </div>
       </div>
 
@@ -232,8 +221,8 @@ function RoommateNavBar() {
               <button onClick={() => handleNav('/')} className="mobile-menu-item"><Home size={22} />Home</button>
               <button onClick={() => handleNav('/find')} className="mobile-menu-item"><Search size={22} />Find Rooms</button>
               <button onClick={() => handleNav('/roommate-finder')} className="mobile-menu-item"><Users size={22} />Roommate Finder</button>
-              <button onClick={() => handleNav('/group-booking')} className="mobile-menu-item"><UsersIcon size={22} />Group Booking</button>
-              <button onClick={() => handleNav('/profile-setup')} className="mobile-menu-item"><User size={22} />Profile</button>
+              <button onClick={() => handleNav('/chatbot')} className="mobile-menu-item"><UsersIcon size={22} />AI Chatbot</button>
+              <button onClick={() => handleNav('/boarding-management')} className="mobile-menu-item"><User size={22} />List Your Property</button>
               <div className="mobile-menu-divider"></div>
               <button onClick={() => handleNav('/signin')} className="mobile-menu-auth-button signin"><LogIn size={22} />Sign In</button>
               <button onClick={() => handleNav('/signup')} className="mobile-menu-auth-button signup"><User size={22} />Sign Up</button>
@@ -252,19 +241,7 @@ export default function RoommateFinderPage() {
   const [passed, setPassed] = useState<typeof roommateProfiles>([]);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [genderFilter, setGenderFilter] = useState<'any' | 'female' | 'male'>('any');
-
-  // Filter logic
-  const filteredProfiles = roommateProfiles.filter(profile => {
-    if (selectedFilters.includes('budget') && profile.budget > 13000) return false;
-    if (selectedFilters.includes('single') && profile.roomType !== 'Single Room') return false;
-    if (selectedFilters.includes('shared') && profile.roomType !== 'Shared Room') return false;
-    if (selectedFilters.includes('bills') && !profile.billsIncluded) return false;
-    if (genderFilter === 'female' && profile.gender !== 'Female') return false;
-    if (genderFilter === 'male' && profile.gender !== 'Male') return false;
-    return true;
-  });
+  const filteredProfiles = roommateProfiles;
 
   const currentProfile = filteredProfiles[index];
 
@@ -291,29 +268,12 @@ export default function RoommateFinderPage() {
     }
   };
 
-  const toggleFilter = (filterId: string) => {
-    if (selectedFilters.includes(filterId)) setSelectedFilters(selectedFilters.filter(f => f !== filterId));
-    else setSelectedFilters([...selectedFilters, filterId]);
-    setIndex(0);
-  };
-
-  const handleGenderSelect = (id: 'any' | 'female' | 'male') => {
-    setGenderFilter(id);
-    setIndex(0);
-  };
-
-  const clearFilters = () => {
-    setSelectedFilters([]);
-    setGenderFilter('any');
-    setIndex(0);
-  };
-
   // Mobile view - properly arranged filters
   if (typeof window !== 'undefined' && window.innerWidth < 768) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
         <RoommateNavBar />
-        <div className="flex-1 w-full px-4 py-6 mt-12">
+        <div className="flex-1 w-full px-4 pt-24 md:pt-28 pb-6">
           {/* Header */}
           {/* Removed Roommate Finder heading as requested */}
 
@@ -323,80 +283,6 @@ export default function RoommateFinderPage() {
             <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full text-center">
               Drag cards left/right to pass or like • Click buttons to act
             </span>
-          </div>
-
-          {/* Filter Section - Properly Organized */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/10">
-            {/* Main Filters */}
-            <div className="mb-3">
-              <h3 className="text-xs font-medium text-gray-400 mb-2">Filters</h3>
-              <div className="flex flex-wrap gap-2">
-                {filterChips.map(chip => (
-                  <button
-                    key={chip.id}
-                    onClick={() => toggleFilter(chip.id)}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                      selectedFilters.includes(chip.id)
-                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white border-cyan-400 shadow-lg'
-                        : 'bg-transparent border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'
-                    }`}
-                    type="button"
-                  >
-                    <span>{chip.icon}</span>
-                    <span>{chip.label}</span>
-                    {selectedFilters.includes(chip.id) && (
-                      <span className="ml-1 text-white">
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                          <path d="M5 10.5l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Gender Filter */}
-            <div>
-              <h3 className="text-xs font-medium text-gray-400 mb-2">Looking for</h3>
-              <div className="flex flex-wrap gap-2">
-                {genderChips.map(chip => (
-                  <button
-                    key={chip.id}
-                    onClick={() => handleGenderSelect(chip.id as 'any' | 'female' | 'male')}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                      genderFilter === chip.id
-                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white border-cyan-400 shadow-lg'
-                        : 'bg-transparent border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'
-                    }`}
-                    type="button"
-                  >
-                    <span>{chip.icon}</span>
-                    <span>{chip.label}</span>
-                    {genderFilter === chip.id && (
-                      <span className="ml-1 text-white">
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                          <path d="M5 10.5l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Clear Filters Link */}
-            {(selectedFilters.length > 0 || genderFilter !== 'any') && (
-              <div className="mt-3 flex justify-end">
-                <button 
-                  onClick={clearFilters} 
-                  className="text-xs text-cyan-400 underline hover:text-cyan-200 px-2 py-1" 
-                  type="button"
-                >
-                  Clear all filters
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Main Card */}
@@ -456,18 +342,6 @@ export default function RoommateFinderPage() {
             <span>Like • Swipe Right</span>
           </div>
 
-          {/* Clear All Filters Button */}
-          {selectedFilters.length > 0 && (
-            <div className="flex justify-center mt-8">
-              <button 
-                onClick={clearFilters} 
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all" 
-                type="button"
-              >
-                Clear All Filters
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Global Animations */}
@@ -492,7 +366,7 @@ export default function RoommateFinderPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
       <RoommateNavBar />
-      <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8 mt-12">
+      <div className="flex-1 w-full max-w-7xl mx-auto px-4 pt-24 md:pt-28 pb-6 md:pb-8">
         {/* Header */}
         {/* Removed Roommate Finder heading as requested */}
         
@@ -500,56 +374,6 @@ export default function RoommateFinderPage() {
         <div className="flex items-center justify-center gap-2 mb-4">
           <FaInfoCircle className="text-cyan-400" />
           <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full">Drag cards left/right to pass or like • Click buttons to act</span>
-        </div>
-        
-        {/* Filter Chips */}
-        <div className="flex flex-wrap gap-2 mb-2 items-center">
-          {filterChips.map(chip => (
-            <button
-              key={chip.id}
-              onClick={() => toggleFilter(chip.id)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all relative ${
-                selectedFilters.includes(chip.id)
-                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white border-cyan-400 shadow-lg'
-                  : 'bg-transparent border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'}`}
-              aria-pressed={selectedFilters.includes(chip.id)}
-              type="button"
-            >
-              <span>{chip.icon}</span>
-              <span>{chip.label}</span>
-              {selectedFilters.includes(chip.id) && (
-                <span className="ml-1 text-white"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 10.5l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
-              )}
-            </button>
-          ))}
-          
-          {/* Gender Filter Group */}
-          <div className="flex items-center gap-1 ml-4">
-            <span className="text-xs text-cyan-300 font-semibold mr-1">Looking for:</span>
-            {genderChips.map(chip => (
-              <button
-                key={chip.id}
-                onClick={() => handleGenderSelect(chip.id as 'any' | 'female' | 'male')}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all relative ${
-                  genderFilter === chip.id
-                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white border-cyan-400 shadow-lg'
-                    : 'bg-transparent border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'}`}
-                aria-pressed={genderFilter === chip.id}
-                type="button"
-              >
-                <span>{chip.icon}</span>
-                <span>{chip.label}</span>
-                {genderFilter === chip.id && (
-                  <span className="ml-1 text-white"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M5 10.5l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
-                )}
-              </button>
-            ))}
-          </div>
-          
-          {/* Clear Filters Link */}
-          {(selectedFilters.length > 0 || genderFilter !== 'any') && (
-            <button onClick={clearFilters} className="ml-auto text-xs text-cyan-400 underline hover:text-cyan-200 px-2 py-1 bg-transparent border-0" type="button">Clear filters</button>
-          )}
         </div>
         
         {/* Main Content - Three Column Layout */}
@@ -647,15 +471,6 @@ export default function RoommateFinderPage() {
             )}
           </div>
         </div>
-        
-        {/* Clear Filters Button */}
-        {selectedFilters.length > 0 && (
-          <div className="flex justify-center mt-8">
-            <button onClick={clearFilters} className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all" type="button">
-              Clear All Filters
-            </button>
-          </div>
-        )}
         
         {/* Global Animations */}
         <style>{`

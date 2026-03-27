@@ -37,7 +37,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-[#181f36] w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen flex flex-col items-center w-full max-w-full overflow-x-hidden relative bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
       {/* Global Styles */}
       <style>{`
         html, body {
@@ -45,16 +45,16 @@ export default function LandingPage() {
           width: 100%;
           margin: 0;
           padding: 0;
-          background: #181f36;
+          background: #0a1124;
         }
         
         /* Mobile styles (all screens below 768px) */
         @media (max-width: 768px) {
           /* Navbar */
           .navbar {
-            height: 60px !important;
-            min-height: 60px !important;
-            padding: 0 16px !important;
+            height: 64px !important;
+            min-height: 64px !important;
+            padding: 0 20px !important;
             background: #232b47 !important;
             border-bottom: 2px solid rgba(129, 140, 248, 0.2) !important;
             display: flex !important;
@@ -112,7 +112,7 @@ export default function LandingPage() {
           /* Mobile Menu Overlay */
           .mobile-menu-overlay {
             position: fixed;
-            top: 60px;
+            top: 64px;
             left: 0;
             right: 0;
             bottom: 0;
@@ -124,11 +124,11 @@ export default function LandingPage() {
           
           .mobile-menu-drawer {
             position: fixed;
-            top: 60px;
+            top: 64px;
             left: 0;
             width: 85%;
             max-width: 320px;
-            height: calc(100vh - 60px);
+            height: calc(100vh - 64px);
             background: #1e2436;
             border-right: 1px solid rgba(129, 140, 248, 0.2);
             box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
@@ -780,35 +780,42 @@ export default function LandingPage() {
         }
       `}</style>
 
+      {/* Ambient background accents inspired by the search page */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute top-[-120px] left-[-80px] w-[280px] h-[280px] md:w-[420px] md:h-[420px] bg-cyan-500/12 rounded-full blur-[90px] md:blur-[120px]" />
+        <div className="absolute bottom-[-160px] right-[-80px] w-[280px] h-[280px] md:w-[460px] md:h-[460px] bg-indigo-500/14 rounded-full blur-[90px] md:blur-[130px]" />
+      </div>
+
       {/* Navbar */}
       <nav
-        className="w-full fixed top-0 left-0 flex items-center justify-between h-12 md:h-13 px-4 md:px-16 bg-[#232b47] backdrop-blur-xl border-b-2 border-zinc-700/15 shadow-xl z-[10000] transition-all duration-300 navbar"
-        style={{height: '52px',minHeight: '52px',borderBottomWidth: '2px',borderBottomColor: 'rgba(113,113,122,0.15)',borderImage: 'linear-gradient(to right, rgba(99,102,241,.18), rgba(34,211,238,.18)) 1',borderBottomStyle: 'solid'}}>
+        className="w-full fixed top-0 left-0 flex items-center justify-between h-14 md:h-16 px-6 md:px-24 bg-[#0f172a]/85 backdrop-blur-xl border-b-2 border-zinc-700/15 shadow-xl z-[10000] transition-all duration-300 navbar"
+        style={{height: '64px',minHeight: '64px',borderBottomWidth: '2px',borderBottomColor: 'rgba(113,113,122,0.15)',borderImage: 'linear-gradient(to right, rgba(99,102,241,.18), rgba(34,211,238,.18)) 1',borderBottomStyle: 'solid'}}>
         
         {/* Logo */}
         <div className="flex items-center gap-1 md:gap-2 min-w-max h-full">
           <span className="text-3xl font-extrabold tracking-tight text-zinc-100 drop-shadow-lg select-none flex items-center h-full navbar-logo">Boarding<span className="text-indigo-300">Book</span></span>
         </div>
 
-        {/* Desktop Nav - perfectly centered, improved labels and CTAs */}
+        {/* Desktop Nav - direct click navigation for all items */}
         <div className="desktop-nav hidden md:flex flex-1 justify-center">
-          <div className="flex gap-6 items-center bg-zinc-800/60 px-6 py-2 rounded-full shadow border border-zinc-700/40">
-            <button onClick={() => navigate('/')} className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/'?' nav-link-active':''}`}>Home</button>
-            <button onClick={() => navigate('/find')} className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/find'?' nav-link-active':''}`}>Find Rooms</button>
-            <button onClick={() => navigate('/roommate-finder')} className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/roommate-finder'?' nav-link-active':''}`}>Roommate Finder</button>
-            <button onClick={() => navigate('/chatbot')} className="text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link flex items-center gap-1">
+          <div className="flex gap-8 items-center bg-zinc-800/60 px-8 py-2.5 rounded-full shadow border border-zinc-700/40">
+            <button type="button" onClick={() => navigate('/')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/'?' nav-link-active':''}`}>Home</button>
+            <button type="button" onClick={() => navigate('/find')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/find'?' nav-link-active':''}`}>Find Rooms</button>
+            <button type="button" onClick={() => navigate('/roommate-finder')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/roommate-finder'?' nav-link-active':''}`}>Roommate Finder</button>
+            <button type="button" onClick={() => navigate('/chatbot')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link flex items-center gap-1${activePath==='/chatbot'?' nav-link-active':''}`}>
               🤖 AI Chatbot
             </button>
-            {/* Owner dropdown */}
-            <div className="relative group">
-              <button className={`text-zinc-200 font-semibold text-sm px-2 py-1.5 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/boarding-management'?' nav-link-active':''}`}>List Your Property</button>
-              <div className="absolute left-0 mt-2 min-w-[180px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-lg py-2 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
-                <button onClick={() => navigate('/boarding-management')} className="block w-full text-left px-4 py-2 text-zinc-200 hover:bg-zinc-700/40 rounded-xl transition">For Owners (Info)</button>
-              </div>
-            </div>
             <button
+              type="button"
+              onClick={() => navigate('/boarding-management')}
+              className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/boarding-management' ? ' nav-link-active' : ''}`}
+            >
+              List Your Property
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/find')}
-              className="px-4 py-2 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 border border-indigo-400 nav-link-cta"
+              className="px-5 py-2.5 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 border border-indigo-400 nav-link-cta"
               style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
             >
               Find Rooms
@@ -817,8 +824,8 @@ export default function LandingPage() {
         </div>
 
         {/* Desktop Profile */}
-        <div className="desktop-profile hidden md:flex items-center min-w-max ml-6 profile-area">
-          <span className="text-zinc-200 text-sm font-medium mr-2">Profile</span>
+        <div className="desktop-profile hidden md:flex items-center min-w-max ml-8 profile-area">
+          <span className="text-zinc-200 text-sm font-medium mr-3">Profile</span>
           <div className="profile-icon relative group" tabIndex={0} style={{display:'flex',alignItems:'center',justifyContent:'center'}} title="Account">
             <AuthDropdown />
           </div>
