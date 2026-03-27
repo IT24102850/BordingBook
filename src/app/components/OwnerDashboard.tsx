@@ -381,8 +381,8 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 hover:border-cyan-400/30 transition-all cursor-pointer group"
     onClick={() => onSelect(house)}
   >
-    <div className="relative h-32 overflow-hidden">
-      <img src={house.image} alt={house.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+    <div className="relative aspect-square overflow-hidden">
+      <img src={house.image} alt={house.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 aspect-square" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
         <span className="text-white font-bold text-sm">{house.name}</span>
@@ -429,8 +429,8 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 active:border-cyan-400/30 transition-colors touch-manipulation"
     onClick={() => onSelect(house)}
   >
-    <div className="relative h-28 overflow-hidden">
-      <img src={house.image} alt={house.name} className="w-full h-full object-cover" />
+    <div className="relative aspect-square overflow-hidden">
+      <img src={house.image} alt={house.name} className="w-full h-full object-cover aspect-square" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
         <span className="text-white font-bold text-xs truncate max-w-[60%]">{house.name}</span>
@@ -636,7 +636,6 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, rooms }) => {
           </tr>
         </thead>
         <tbody>
-<<<<<<< Updated upstream
           {tenants.map((tenant) => {
             const bookingStatus = getBookingStatus(tenant.checkOutDate);
             return (
@@ -675,32 +674,6 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, rooms }) => {
               </tr>
             );
           })}
-=======
-          {tenants.map((tenant) => (
-            <tr key={tenant.id} className="border-b border-white/10 hover:bg-white/5">
-              <td className="px-3 py-2 text-white">{getRoomNumber(tenant.roomId)}</td>
-              <td className="px-3 py-2 text-white">{tenant.name}</td>
-              <td className="px-3 py-2 text-gray-300">{new Date(tenant.checkInDate).toLocaleDateString()}</td>
-              <td className="px-3 py-2 text-gray-300">{new Date(tenant.checkOutDate).toLocaleDateString()}</td>
-              <td className="px-3 py-2 text-white">Rs.{tenant.monthlyRent.toLocaleString()}</td>
-              <td className="px-3 py-2">
-                <span className={`text-[10px] px-2 py-0.5 rounded-full ${paymentColors[tenant.paymentStatus]}`}>
-                  {tenant.paymentStatus}
-                </span>
-              </td>
-              <td className="px-3 py-2">
-                <button 
-                  onClick={() => handleDownloadTenantReceipt(tenant)}
-                  className="text-cyan-400 hover:text-cyan-300 mr-2">
-                  <Download size={12} />
-                </button>
-                <button className="text-blue-400 hover:text-blue-300">
-                  <Eye size={12} />
-                </button>
-              </td>
-            </tr>
-          ))}
->>>>>>> Stashed changes
         </tbody>
       </table>
     </div>
@@ -840,6 +813,47 @@ export default function OwnerDashboard() {
     features: [] as string[],
     genderPreference: 'any' as 'any' | 'girls' | 'boys'
   });
+
+  const resetHouseEditor = () => {
+    setSelectedHouse(null);
+    setNewHouse({
+      name: '',
+      address: '',
+      totalRooms: 0,
+      monthlyPrice: 0,
+      roomType: 'Single Room',
+      availableFrom: '',
+      deposit: 0,
+      roommateCount: 'None (Private)',
+      description: '',
+      features: [],
+      genderPreference: 'any',
+    });
+    setUploadedHouseImages([]);
+  };
+
+  const openHouseEditor = (house: BoardingHouse) => {
+    setSelectedHouse(house);
+    setShowAddHouse(false);
+    setActiveTab('houses');
+    setNewHouse({
+      name: house.name,
+      address: house.address,
+      totalRooms: house.totalRooms,
+      monthlyPrice: house.monthlyPrice || 0,
+      roomType: house.roomType || 'Single Room',
+      availableFrom: house.availableFrom || '',
+      deposit: house.deposit || 0,
+      roommateCount: house.roommateCount || 'None (Private)',
+      description: house.description || '',
+      features: house.features || [],
+      genderPreference: house.genderPreference || 'any',
+    });
+    setUploadedHouseImages(house.images?.length ? house.images : (house.image ? [house.image] : []));
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Notice states
   const [notices, setNotices] = useState<{id:string; type:string; message:string; date:string; recipients:string;}[]>([
@@ -1042,27 +1056,8 @@ export default function OwnerDashboard() {
     setShowTenantModal(true);
   };
 
-  const handleEditHouse = async (house: BoardingHouse) => {
-    const nextName = window.prompt('Update boarding house name', house.name);
-    if (!nextName) {
-      return;
-    }
-
-    const nextAddress = window.prompt('Update distance from SLIIT', house.address);
-    if (!nextAddress) {
-      return;
-    }
-
-    try {
-      const updated = await ownerDashboardApi.updateHouse(house.id, {
-        name: nextName,
-        address: nextAddress,
-      });
-
-      setHouses((prev) => prev.map((h) => (h.id === house.id ? mapHouseDtoToUi(updated) : h)));
-    } catch (error) {
-      alert((error as Error).message || 'Failed to update house');
-    }
+  const handleEditHouse = (house: BoardingHouse) => {
+    openHouseEditor(house);
   };
 
   const handleDeleteHouse = async (house: BoardingHouse) => {
@@ -1074,6 +1069,9 @@ export default function OwnerDashboard() {
       await ownerDashboardApi.deleteHouse(house.id);
       setHouses((prev) => prev.filter((h) => h.id !== house.id));
       setRooms((prev) => prev.filter((room) => room.houseId !== house.id));
+      if (selectedHouse?.id === house.id) {
+        resetHouseEditor();
+      }
     } catch (error) {
       alert((error as Error).message || 'Failed to delete house');
     }
@@ -1347,7 +1345,7 @@ export default function OwnerDashboard() {
     }
 
     try {
-      const created = await ownerDashboardApi.createHouse({
+      const payload = {
         name: newHouse.name,
         address: newHouse.address,
         totalRooms: newHouse.totalRooms,
@@ -1360,40 +1358,29 @@ export default function OwnerDashboard() {
         features: newHouse.features,
         image: uploadedHouseImages[0],
         images: uploadedHouseImages,
-        status: 'active',
+        status: 'active' as const,
         genderPreference: newHouse.genderPreference,
-      });
+      };
+
+      if (selectedHouse) {
+        const updated = await ownerDashboardApi.updateHouse(selectedHouse.id, payload);
+        setHouses((prev) => prev.map((house) => (house.id === selectedHouse.id ? mapHouseDtoToUi(updated) : house)));
+        resetHouseEditor();
+        alert(`Boarding House "${updated.name}" updated successfully!`);
+        return;
+      }
+
+      const created = await ownerDashboardApi.createHouse(payload);
 
       setHouses((prev) => [...prev, mapHouseDtoToUi(created)]);
       setShowAddHouse(false);
-
-      setNewHouse({
-        name: '',
-        address: '',
-        totalRooms: 0,
-        monthlyPrice: 0,
-        roomType: 'Single Room',
-        availableFrom: '',
-        deposit: 0,
-        roommateCount: 'None (Private)',
-        description: '',
-        features: [],
-        genderPreference: 'any',
-      });
-      setUploadedHouseImages([]);
+      resetHouseEditor();
 
       alert(`Boarding House "${created.name}" added successfully!`);
     } catch (error) {
-      alert((error as Error).message || 'Failed to add boarding house');
+      alert((error as Error).message || (selectedHouse ? 'Failed to update boarding house' : 'Failed to add boarding house'));
     }
   };
-
-<<<<<<< Updated upstream
-  // ============================================
-  // DESKTOP VIEW
-  // ============================================
-
-=======
   // Download payment report handler
   const handleDownloadPaymentReport = () => {
     const html = `
@@ -1565,12 +1552,6 @@ export default function OwnerDashboard() {
   };
 
   // Download individual tenant receipt
-  const handleDownloadTenantReceipt = (tenant: Tenant) => {
-    const room = rooms.find(r => r.id === tenant.roomId);
-    const html = `
-      <!DOCTYPE html>
-  
-  // Download tenant overview table (HTML file)
   const handleDownloadTenantOverview = () => {
     const html = `
       <!DOCTYPE html>
@@ -1580,10 +1561,10 @@ export default function OwnerDashboard() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Tenant Overview</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; background:#f5f5f5; }
-          table { width:100%; border-collapse:collapse; background:white; }
-          th, td { border:1px solid #ddd; padding:8px; text-align:left; }
-          th { background:#2563eb; color:white; }
+          body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+          table { width: 100%; border-collapse: collapse; background: white; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background: #2563eb; color: white; }
         </style>
       </head>
       <body>
@@ -1593,10 +1574,10 @@ export default function OwnerDashboard() {
             <tr><th>Name</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr>
           </thead>
           <tbody>
-            ${allTenants.map(t => `
+            ${allTenants.map((t) => `
               <tr>
                 <td>${t.name}</td>
-                <td>${rooms.find(r=>r.id===t.roomId)?.roomNumber||'N/A'}</td>
+                <td>${rooms.find((r) => r.id === t.roomId)?.roomNumber || 'N/A'}</td>
                 <td>${new Date(t.checkInDate).toLocaleDateString()}</td>
                 <td>${new Date(t.checkOutDate).toLocaleDateString()}</td>
                 <td>${t.paymentStatus}</td>
@@ -1608,7 +1589,7 @@ export default function OwnerDashboard() {
       </html>
     `;
 
-    const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -1619,7 +1600,9 @@ export default function OwnerDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const html = `
+  const handleDownloadTenantReceipt = (tenant: Tenant) => {
+    const room = rooms.find(r => r.id === tenant.roomId);
+    const html = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -1713,8 +1696,6 @@ export default function OwnerDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  // Desktop view (unchanged)
->>>>>>> Stashed changes
   if (!isMobile) {
     return (
       <>
@@ -1758,10 +1739,16 @@ export default function OwnerDashboard() {
                     <img
                       src={ownerProfile.profileImage}
                       alt={ownerProfile.fullName}
-                      className="w-10 h-10 rounded-full object-cover border border-cyan-400/50 shadow-lg"
+                      className="w-10 h-10 rounded-full object-cover border border-cyan-400/50 shadow-lg cursor-pointer"
+                      onClick={() => setActiveTab('profile')}
+                      title="Edit Profile"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg">
+                    <div
+                      className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg cursor-pointer"
+                      onClick={() => setActiveTab('profile')}
+                      title="Edit Profile"
+                    >
                       {ownerInitials}
                     </div>
                   )}
@@ -2051,19 +2038,11 @@ export default function OwnerDashboard() {
                     </div>
                   </div>
                   
-                  <div className="mt-3 flex justify-end">
-                    <button className="px-3 py-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-[11px] font-medium hover:shadow-lg transition-all">
-                      Download Payment Report
-                    </button>
-                  </div>
-<<<<<<< Updated upstream
-=======
                   <button 
                     onClick={handleDownloadPaymentReport}
                     className="w-full mt-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
                     Download Payment Report
                   </button>
->>>>>>> Stashed changes
                 </div>
               </div>
 
@@ -2107,7 +2086,10 @@ export default function OwnerDashboard() {
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-bold text-white">My Boarding Houses</h2>
                 <button 
-                  onClick={() => setShowAddHouse(true)}
+                  onClick={() => {
+                    resetHouseEditor();
+                    setShowAddHouse(true);
+                  }}
                   className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all flex items-center gap-2"
                 >
                   <Plus size={16} />
@@ -2115,12 +2097,227 @@ export default function OwnerDashboard() {
                 </button>
               </div>
 
+              {selectedHouse && (
+                <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 via-slate-900/70 to-slate-950/80 p-5 shadow-xl">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-5">
+                    <div>
+                      <h3 className="text-base font-bold text-white">Edit Boarding House</h3>
+                      <p className="text-xs text-cyan-100/80">Update details here without opening a popup.</p>
+                    </div>
+                    <button
+                      onClick={resetHouseEditor}
+                      className="self-start px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-xs font-medium text-gray-200 hover:bg-white/10 transition-colors"
+                    >
+                      Cancel Edit
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                    <div className="xl:col-span-8 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-gray-300 mb-1">House Name *</label>
+                          <input
+                            type="text"
+                            value={newHouse.name}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, name: e.target.value }))}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                            placeholder="e.g., Lake View Boarding House"
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-gray-300 mb-1">Distance from SLIIT *</label>
+                          <input
+                            type="text"
+                            value={newHouse.address}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, address: e.target.value }))}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                            placeholder="e.g., 0.8 km from SLIIT"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-gray-300 mb-1">Total Rooms</label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={newHouse.totalRooms}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, totalRooms: Number(e.target.value) || 0 }))}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-gray-300 mb-1">Price (Rs./month)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={newHouse.monthlyPrice}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, monthlyPrice: Number(e.target.value) || 0 }))}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-gray-300 mb-1">Room Type</label>
+                          <select
+                            value={newHouse.roomType}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, roomType: e.target.value }))}
+                            className="w-full px-3 py-2.5 bg-slate-900 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                          >
+                            <option>Single Room</option>
+                            <option>Shared Room</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-gray-300 mb-1">Available From</label>
+                          <input
+                            type="date"
+                            value={newHouse.availableFrom}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, availableFrom: e.target.value }))}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-gray-300 mb-1">Bodim Price (Rs.)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={newHouse.deposit}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, deposit: Number(e.target.value) || 0 }))}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-gray-300 mb-1">Roommates</label>
+                          <select
+                            value={newHouse.roommateCount}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, roommateCount: e.target.value }))}
+                            className="w-full px-3 py-2.5 bg-slate-900 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                          >
+                            <option>None (Private)</option>
+                            <option>1 Roommate</option>
+                            <option>2 Roommates</option>
+                            <option>3+ Roommates</option>
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-gray-300 mb-2">Gender Preference</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {(['any', 'girls', 'boys'] as const).map((gender) => (
+                              <label
+                                key={gender}
+                                className={`px-3 py-2 rounded-lg border text-xs text-center cursor-pointer transition-colors ${newHouse.genderPreference === gender ? 'border-cyan-400 bg-cyan-500/20 text-cyan-200' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="edit-boarding-house-gender"
+                                  value={gender}
+                                  checked={newHouse.genderPreference === gender}
+                                  onChange={(e) => setNewHouse((prev) => ({ ...prev, genderPreference: e.target.value as 'any' | 'girls' | 'boys' }))}
+                                  className="hidden"
+                                />
+                                {gender === 'any' ? 'Any' : gender.charAt(0).toUpperCase() + gender.slice(1)}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-gray-300 mb-1">Description</label>
+                          <textarea
+                            value={newHouse.description}
+                            onChange={(e) => setNewHouse((prev) => ({ ...prev, description: e.target.value }))}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none h-24"
+                            placeholder="Add a short description of the boarding house."
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-gray-300 mb-2">Features</label>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {facilitiesList.map((facility) => (
+                              <label key={`inline-house-feature-${facility.id}`} className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:border-cyan-400/50 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={newHouse.features.includes(facility.id)}
+                                  onChange={() => handleHouseFeatureToggle(facility.id)}
+                                  className="cursor-pointer"
+                                />
+                                <span className="text-xs text-gray-300 flex items-center gap-1">
+                                  {facility.icon}
+                                  {facility.name}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="xl:col-span-4 space-y-3">
+                      <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                        <label className="block text-xs font-medium text-cyan-300 mb-2">Boarding House Images</label>
+                        <button
+                          onClick={handleOpenHouseFileDialog}
+                          className="w-full px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <Upload size={16} /> Upload Images
+                        </button>
+
+                        {uploadedHouseImages.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-2 mt-3">
+                            {uploadedHouseImages.map((image, index) => (
+                              <div key={`inline-house-preview-${index}`} className="relative group">
+                                <img
+                                  src={image}
+                                  alt={`Boarding house preview ${index + 1}`}
+                                  className="w-full aspect-square object-cover rounded-lg border border-white/10"
+                                />
+                                <button
+                                  onClick={() => removeHouseImage(index)}
+                                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-gray-400 mt-2">No images selected yet.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4 mt-4 border-t border-white/10">
+                    <button
+                      onClick={resetHouseEditor}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveHouse}
+                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {houses.map(house => (
                   <HouseCard 
                     key={house.id}
                     house={house}
-                    onSelect={setSelectedHouse}
+                    onSelect={() => {}}
                     onEdit={handleEditHouse}
                     onDelete={handleDeleteHouse}
                   />
@@ -2779,159 +2976,23 @@ export default function OwnerDashboard() {
                 </div>
               </div>
 
-<<<<<<< Updated upstream
               <div className="flex gap-2 pt-4 border-t border-white/10 sticky bottom-0 bg-gradient-to-r from-[#131d3a]/95 to-[#0b132b]/95">
                 <button
-=======
-          {/* Add Room Modal - Desktop */}
-          {showAddRoom && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl max-w-md w-full p-6 border border-white/10 max-h-[80vh] overflow-y-auto">
-                <h3 className="text-lg font-bold text-white mb-4">Add New Room</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs text-cyan-300 block mb-1">Select House</label>
-                    <select 
-                      value={newRoom.houseId}
-                      onChange={(e) => setNewRoom({...newRoom, houseId: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm"
-                    >
-                      <option value="">Select a house...</option>
-                      {houses.map(house => (
-                        <option key={house.id} value={house.id}>{house.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-cyan-300 block mb-1">Room Number</label>
-                      <input 
-                        type="text" 
-                        value={newRoom.roomNumber}
-                        onChange={(e) => setNewRoom({...newRoom, roomNumber: e.target.value})}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" 
-                        placeholder="101" 
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-cyan-300 block mb-1">Floor</label>
-                      <input 
-                        type="number" 
-                        value={newRoom.floor}
-                        onChange={(e) => setNewRoom({...newRoom, floor: Number(e.target.value)})}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" 
-                        placeholder="1" 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-cyan-300 block mb-1">Number of Beds</label>
-                      <input 
-                        type="number" 
-                        value={newRoom.bedCount}
-                        onChange={(e) => setNewRoom({...newRoom, bedCount: Number(e.target.value)})}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" 
-                        placeholder="3" 
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-cyan-300 block mb-1">Price (Rs.)</label>
-                      <input 
-                        type="number" 
-                        value={newRoom.price}
-                        onChange={(e) => setNewRoom({...newRoom, price: Number(e.target.value)})}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm" 
-                        placeholder="15000" 
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-cyan-300 block mb-2">Facilities</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {facilitiesList.map(facility => (
-                        <label key={facility.id} className="flex items-center gap-2">
-                          <input 
-                            type="checkbox" 
-                            checked={newRoom.facilities.includes(facility.id)}
-                            onChange={() => handleFacilityToggle(facility.id)}
-                            className="rounded border-white/10 bg-white/5" 
-                          />
-                          <span className="text-xs text-gray-300 flex items-center gap-1">
-                            {facility.icon}
-                            {facility.name}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-cyan-300 block mb-1">Upload Room Photos</label>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    <div 
-                      onClick={handleOpenFileDialog}
-                      className="border-2 border-dashed border-white/10 rounded-lg p-3 text-center hover:border-purple-400/30 transition-all cursor-pointer"
-                    >
-                      <Upload className="mx-auto text-gray-400 mb-1" size={20} />
-                      <p className="text-[10px] text-gray-400">Click to upload photos</p>
-                      <p className="text-[8px] text-gray-500 mt-0.5">JPG, PNG, GIF (Max 5MB each)</p>
-                    </div>
-                    
-                    {/* Image Preview Grid */}
-                    {uploadedRoomImages.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2 mt-2">
-                        {uploadedRoomImages.map((img, idx) => (
-                          <div key={idx} className="relative group">
-                            <img 
-                              src={img} 
-                              alt={`Room ${idx + 1}`}
-                              className="w-full h-20 object-cover rounded-lg border border-white/10"
-                            />
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeImage(idx);
-                              }}
-                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <button 
-                      onClick={handleSaveRoom}
-                      className="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
-                    >
-                      Save Room
-                    </button>
-                    <button 
-                      onClick={() => setShowAddRoom(false)}
-                      className="px-4 py-2 bg-white/5 text-white rounded-lg text-sm font-medium hover:bg-white/10 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+                  onClick={() => setShowAddHouse(false)}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveHouse}
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                >
+                  Save Boarding House
+                </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
           {/* Tenant Details Modal - Desktop */}
           {showTenantModal && selectedRoomForTenants && (
@@ -3150,7 +3211,10 @@ export default function OwnerDashboard() {
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-bold text-white">My Houses</h2>
               <button 
-                onClick={() => setShowAddHouse(true)}
+                onClick={() => {
+                  resetHouseEditor();
+                  setShowAddHouse(true);
+                }}
                 className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
               >
                 <Plus size={14} />
@@ -3163,9 +3227,9 @@ export default function OwnerDashboard() {
                 <MobileHouseCard 
                   key={house.id}
                   house={house}
-                  onSelect={setSelectedHouse}
-                  onEdit={() => {}}
-                  onDelete={() => {}}
+                  onSelect={() => {}}
+                  onEdit={handleEditHouse}
+                  onDelete={handleDeleteHouse}
                 />
               ))}
             </div>
@@ -3282,24 +3346,77 @@ export default function OwnerDashboard() {
             <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-t-xl md:rounded-xl w-full max-w-md mx-auto p-4 border border-white/10 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-sm font-bold text-white">Add New House</h3>
-                <button 
->>>>>>> Stashed changes
-                  onClick={() => setShowAddHouse(false)}
-                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  Cancel
-                </button>
                 <button
-                  onClick={handleSaveHouse}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                  onClick={() => setShowAddHouse(false)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
-                  Save Boarding House
+                  <X className="text-gray-400 hover:text-white" size={18} />
                 </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">House Name *</label>
+                  <input
+                    type="text"
+                    value={newHouse.name}
+                    onChange={(e) => setNewHouse((prev) => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Distance from SLIIT *</label>
+                  <input
+                    type="text"
+                    value={newHouse.address}
+                    onChange={(e) => setNewHouse((prev) => ({ ...prev, address: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-300 mb-1">Total Rooms</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={newHouse.totalRooms}
+                      onChange={(e) => setNewHouse((prev) => ({ ...prev, totalRooms: Number(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-300 mb-1">Price</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={newHouse.monthlyPrice}
+                      onChange={(e) => setNewHouse((prev) => ({ ...prev, monthlyPrice: Number(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-3">
+                  <button
+                    onClick={() => setShowAddHouse(false)}
+                    className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveHouse}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                  >
+                    Save Boarding House
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Add Room Modal - Desktop */}
       {showAddRoom && (
@@ -3546,53 +3663,6 @@ export default function OwnerDashboard() {
                   Save Room
                 </button>
               </div>
-<<<<<<< Updated upstream
-=======
-              
-              <div className="space-y-2">
-                {selectedRoomForTenants.tenants.map(tenant => (
-                  <div key={tenant.id} className="bg-white/5 rounded-lg p-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="text-xs font-medium text-white">{tenant.name}</p>
-                        <p className="text-[8px] text-gray-400">Check in: {new Date(tenant.checkInDate).toLocaleDateString()}</p>
-                      </div>
-                      <span className={`text-[7px] px-2 py-1 rounded-full ${
-                        tenant.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-400' :
-                        tenant.paymentStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                        'bg-red-500/20 text-red-400'
-                      }`}>
-                        {tenant.paymentStatus}
-                      </span>
-                    </div>
-                    
-                    {tenant.phone && (
-                      <div className="flex items-center gap-1 text-[8px] text-gray-400 mb-1">
-                        <Phone size={8} />
-                        <a href={`tel:${tenant.phone}`} className="text-cyan-400 active:text-cyan-300">{tenant.phone}</a>
-                      </div>
-                    )}
-                    
-                    {tenant.email && (
-                      <div className="flex items-center gap-1 text-[8px] text-gray-400 mb-2">
-                        <Mail size={8} />
-                        <a href={`mailto:${tenant.email}`} className="text-purple-400 active:text-purple-300">{tenant.email}</a>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10">
-                      <span className="text-[9px] text-white">Rs.{tenant.monthlyRent.toLocaleString()}/mo</span>
-                      <button 
-                        onClick={() => handleDownloadTenantReceipt(tenant)}
-                        className="text-cyan-400 active:text-cyan-300 flex items-center gap-1 px-3 py-1.5 min-h-[36px]">
-                        <Download size={10} />
-                        Receipt
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
->>>>>>> Stashed changes
             </div>
           </div>
         </div>
