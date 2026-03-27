@@ -99,10 +99,13 @@ exports.unbanUser = async (req, res) => {
 exports.getKycSubmissions = async (req, res) => {
   try {
     const { status = 'pending' } = req.query;
+    const allowed = ['pending', 'approved', 'rejected', 'not_submitted'];
+    const safeStatus = allowed.includes(status) ? status : 'pending';
 
-    const users = await User.find({ role: 'owner', kycStatus: status })
+    const sortField = safeStatus === 'not_submitted' ? 'createdAt' : 'kycSubmittedAt';
+    const users = await User.find({ role: 'owner', kycStatus: safeStatus })
       .select('-password -verificationToken -verificationTokenExpiry -loginHistory -passwordResetToken -passwordResetTokenExpiry')
-      .sort({ kycSubmittedAt: -1 });
+      .sort({ [sortField]: -1 });
 
     res.status(200).json({ success: true, data: users });
   } catch (err) {
@@ -187,5 +190,49 @@ exports.getStats = async (_req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch stats', error: err.message });
+  }
+};
+
+/**
+ * GET /api/admin/signup-chart?days=30
+ * Returns daily signup counts split by role for the last N days.
+ */
+exports.getSignupChart = async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const since = new Date();
+    since.setDate(since.getDate() - (days - 1));
+    since.setHours(0, 0, 0, 0);
+
+    const raw = await User.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            role: '$role',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.date': 1 } },
+    ]);
+
+    // Build a full date range filling zeros for days with no signups
+    const result = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      result.push({
+        date: dateStr,
+        students: raw.find(r => r._id.date === dateStr && r._id.role === 'student')?.count ?? 0,
+        owners:   raw.find(r => r._id.date === dateStr && r._id.role === 'owner')?.count ?? 0,
+      });
+    }
+
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch signup chart', error: err.message });
   }
 };

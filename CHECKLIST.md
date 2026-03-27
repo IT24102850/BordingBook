@@ -117,81 +117,57 @@ BordingBook/
   - [x] api.ts utility with all endpoints + shared types
   - [x] AdminLogin → real JWT login
   - [x] AdminDashboard → live stats
-  - [x] UserManagement → live users, real ban/unban
-  - [x] KYCVerification → live KYC list, real approve/reject
+  - [x] UserManagement → live users, real ban/unban, side-by-side Students/Owners panels
+  - [x] KYCVerification → live KYC list, real approve/reject, clickable document links
   - [x] SupportTickets → live tickets, real reply + resolve
   - [x] FeedbackManagement → live reviews, real flag/delete
   - [x] AdminLayout auth guard updated to use JWT token
+  - [x] Admin Settings page — password change form at /admin/settings
+- [x] Student Sign Up
+  - [x] Full sign-up form (StudentID → auto email, NIC, academic year, birthday, password)
+  - [x] SLIIT email format validated from student ID prefix
+  - [x] Redirects to VerifyEmailPage after sign-up
+  - [x] VerifyEmailPage connected to GET /api/auth/verify-email?token=
+  - [x] Auto-delete unverified students — TTL index on `verificationTokenExpiry` (24h)
+- [x] Owner Sign Up
+  - [x] Owner sign-up form (full name, email, phone, company, property count, password)
+  - [x] KYC document upload (POST /api/kyc/submit) — NIC front/back + selfie
+  - [x] GET /api/kyc/status — owner checks own KYC status
+  - [x] KYC banner in OwnerDashboard (not_submitted / pending / rejected states)
+  - [x] KYC upload modal with file pickers for all 3 documents
+  - [x] Owners auto-verified on signup (no email verification step)
+  - [x] Owner signup flow: success screen → KYC upload or skip
+  - [x] Password strength indicator + fixed auto-advance bug
+- [x] User Sign In
+  - [x] SignInPage wired to POST /api/auth/signin
+  - [x] Stores userToken, userRole, userName in localStorage
+  - [x] Redirect students → /student/dashboard, owners → /owner/dashboard
+- [x] Student Dashboard — review + support ticket modals
+- [x] Owner Dashboard — review + support ticket modals
+- [x] Review Submission — POST /api/user/reviews (userAuth), shows in admin FeedbackManagement
+- [x] Support Ticket Submission — POST /api/user/tickets (userAuth), shows in admin SupportTickets
+- [x] Admin Password Change — PATCH /api/admin/password
+- [x] User Monitoring / Activity Log
+  - [x] lastSeen / lastLogin tracking on User model
+  - [x] GET /api/admin/users/:id/activity — login history
+  - [x] Activity timeline in user detail modal
+- [x] Forgot Password
+  - [x] POST /api/auth/forgot-password — generates reset token, sends email
+  - [x] POST /api/auth/reset-password — validates token, resets password
+  - [x] ForgotPasswordPage.tsx + ResetPasswordPage.tsx
+  - [x] Email delivery via Resend — DEV_TEST_EMAIL=jaliyathegreat@gmail.com; custom domain pending
+- [x] Environment / Security
+  - [x] CORS origin restriction (ALLOWED_ORIGINS env var)
+  - [x] MongoDB Atlas cluster in use
+  - [x] .env.example added
+  - [x] Rate limiting on auth endpoints (express-rate-limit, 20 req / 15 min per IP)
 
 ---
 
-## To Do — Next Steps 🔲
+## Remaining 🔲
 
-### Student Sign Up (Priority: High)
-- [x] Frontend: Full student sign-up form exists (SignUpPage.tsx)
-  - Fields: first name, last name, student ID → auto-builds IT########@my.sliit.lk email, NIC, academic year, birthday, password
-  - SLIIT email format validated from student ID prefix
-  - Redirects to VerifyEmailPage after sign-up
-- [x] Backend: User model updated with student-specific fields
-  - `firstName`, `lastName`, `studentId`, `nic`, `birthday`, `academicYear`
-- [x] Backend: authController.signup saves student fields
-- [x] Frontend: VerifyEmailPage connected to GET /api/auth/verify-email?token= (was already done)
+### Environment / Deployment
+- [ ] Update vercel.json for frontend deployment (when deploying to Vercel)
 
-### Owner Sign Up (Priority: High)
-- [x] Frontend: Owner sign-up form exists in SignUpPage.tsx (role toggle)
-  - Fields: full name, email, phone, company name, property count, password
-- [x] Backend: KYC document upload endpoint (POST /api/kyc/submit)
-  - multer accepts NIC front/back + selfie (JPG/PNG/PDF, max 5MB each)
-  - Sets kycStatus = 'pending', records kycSubmittedAt
-  - Files saved to backend/uploads/kyc/
-- [x] Backend: GET /api/kyc/status — owner checks own KYC status
-- [x] Backend: userAuth middleware for user JWT verification
-- [x] Frontend: KYC banner in OwnerDashboard (not_submitted / pending / rejected states)
-- [x] Frontend: KYC upload modal with file pickers for all 3 documents
-- [x] Owner email verification removed — owners auto-verified on signup
-- [x] Owner signup flow: step 2 = animated success screen → step 3 = KYC upload or skip
-
-### User Sign In (Priority: High)
-- [x] Frontend: SignInPage wired to POST /api/auth/signin
-- [x] Stores userToken, userRole, userName in localStorage after login
-- [x] Redirect students to /student/dashboard, owners to /owner/dashboard
-
-### Review Submission by Users (Priority: Medium)
-- [x] Frontend: "Write a Review" modal in StudentDashboard and OwnerDashboard
-- [x] Backend: POST /api/user/reviews — create review (userAuth required)
-- [x] Reviews show up in admin FeedbackManagement automatically
-
-### Support Ticket Submission by Users (Priority: Medium)
-- [x] Frontend: "Create Ticket" modal in StudentDashboard and OwnerDashboard
-  - Fields: subject, category, description
-- [x] Backend: POST /api/user/tickets — create ticket (userAuth required)
-- [x] Backend: POST /api/user/tickets/:id/message — user reply to own ticket
-- [x] Tickets show up in admin SupportTickets automatically
-
-### Admin Password Change (Priority: Medium)
-- [x] Backend: PATCH /api/admin/password — change admin password
-- [x] Frontend: Settings page at /admin/settings with password change form
-
-### User Monitoring / Activity Log (Priority: Low)
-- [x] Backend: Add lastSeen / lastLogin tracking to User model
-- [x] Backend: GET /api/admin/users/:id/activity — login history (last 20, newest first)
-- [x] Frontend: Show activity timeline in user detail modal
-
-### Frontend: Connect Sign In / Sign Up Pages (Priority: High)
-- [x] SignInPage.tsx — connected to POST /api/auth/signin
-- [x] SignUpPage.tsx — connected to POST /api/auth/signup
-- [x] VerifyEmailPage.tsx — connected to GET /api/auth/verify-email?token=
-
-### Forgot Password (Priority: High)
-- [x] Backend: POST /api/auth/forgot-password — generates reset token, sends email
-- [x] Backend: POST /api/auth/reset-password — validates token, resets password
-- [x] Frontend: ForgotPasswordPage.tsx — email form with success state
-- [x] Frontend: ResetPasswordPage.tsx — new password form, redirects to sign-in on success
-- [ ] Email delivery — pending Resend mailing setup (DEV_TEST_EMAIL workaround available)
-
-### Environment / Deployment (Priority: Low)
-- [x] Add CORS origin restriction in backend (ALLOWED_ORIGINS env var, defaults to localhost:5173)
-- [ ] Move MongoDB URI to a proper cloud instance (MongoDB Atlas)
-- [x] Add .env.example file for backend
-- [ ] Update vercel.json if deploying frontend separately
-- [x] Add rate limiting to auth endpoints (express-rate-limit, 20 req / 15 min per IP)
+### Mailing
+- [ ] Swap `onboarding@resend.dev` sender to custom domain once DNS is confirmed in Resend

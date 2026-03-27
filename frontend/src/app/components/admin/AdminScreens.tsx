@@ -6,6 +6,10 @@ import {
   Flag, Trash2, Send, Filter, ChevronDown, LifeBuoy, MessageSquare, Loader2,
   Settings, Lock, KeyRound
 } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend,
+} from 'recharts';
 import * as api from './api';
 
 // ─────────────────────────────────────────────
@@ -41,19 +45,19 @@ export const AdminLogin = () => {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-gradient-to-br from-[#818cf8] to-[#22d3ee] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(129,140,248,0.4)]">
-            <Building2 size={24} className="text-white" />
+            <Building2 size={24} className="keep-white" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">BoardingBook</h1>
           <p className="text-sm text-slate-400 mt-1">Admin Portal</p>
         </div>
 
-        <form onSubmit={handleLogin} className="bg-[#1e2436] rounded-2xl shadow-sm border border-[rgba(129,140,248,0.15)] p-7 space-y-4">
+        <form onSubmit={handleLogin} className="bg-[var(--bb-card)] rounded-2xl shadow-sm border border-[var(--bb-border)] p-7 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email address</label>
             <input
               type="email" value={email} onChange={e => setEmail(e.target.value)} required
               placeholder="admin@boardingbook.com"
-              className="w-full px-3.5 py-2.5 border border-[rgba(129,140,248,0.2)] bg-[#232b47] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
+              className="w-full px-3.5 py-2.5 border border-[var(--bb-border-md)] bg-[var(--bb-elevated)] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
             />
           </div>
           <div>
@@ -61,7 +65,7 @@ export const AdminLogin = () => {
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)} required
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 border border-[rgba(129,140,248,0.2)] bg-[#232b47] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
+              className="w-full px-3.5 py-2.5 border border-[var(--bb-border-md)] bg-[var(--bb-elevated)] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
             />
           </div>
           {error && (
@@ -88,8 +92,11 @@ export const AdminDashboard = () => {
   const adminName = localStorage.getItem('adminName') ?? 'Super Admin';
   const [stats, setStats] = useState({ totalStudents: 0, totalOwners: 0, pendingKyc: 0, bannedUsers: 0 });
   const [ticketStats, setTicketStats] = useState({ open: 0, in_progress: 0, resolved: 0, closed: 0 });
-  const [reviewStats, setReviewStats] = useState({ total: 0, flagged: 0 });
+  const [reviewStats, setReviewStats] = useState({ total: 0, flagged: 0, hidden: 0 });
   const [loading, setLoading] = useState(true);
+  const [chartDays, setChartDays] = useState(30);
+  const [chartData, setChartData] = useState<{ date: string; students: number; owners: number }[]>([]);
+  const [chartLoading, setChartLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([api.getStats(), api.getTicketStats(), api.getReviewStats()])
@@ -101,6 +108,34 @@ export const AdminDashboard = () => {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    setChartLoading(true);
+    api.getSignupChart(chartDays)
+      .then(res => setChartData(res.data))
+      .catch(console.error)
+      .finally(() => setChartLoading(false));
+  }, [chartDays]);
+
+  // Format x-axis dates: show "Mar 26" style, skip some labels to avoid overlap
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-[var(--bb-card)] border border-[rgba(129,140,248,0.25)] rounded-xl px-4 py-3 shadow-xl text-xs">
+        <p className="text-slate-400 mb-2 font-medium">{formatDate(label)}</p>
+        {payload.map((p: any) => (
+          <p key={p.name} style={{ color: p.color }} className="font-semibold">
+            {p.name.charAt(0).toUpperCase() + p.name.slice(1)}: {p.value}
+          </p>
+        ))}
+      </div>
+    );
+  };
 
   const statCards = [
     { label: 'Total Students', value: String(stats.totalStudents), delta: 'registered students', icon: <Users size={18} />, color: 'bg-purple-900/30 text-purple-400' },
@@ -118,7 +153,7 @@ export const AdminDashboard = () => {
           <h1 className="text-xl font-bold text-white">Dashboard</h1>
           <p className="text-sm text-slate-400 mt-0.5">Welcome back, {adminName}</p>
         </div>
-        <span className="text-xs text-slate-400 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] px-3 py-1.5 rounded-lg font-medium">
+        <span className="text-xs text-slate-400 bg-[var(--bb-card)] border border-[var(--bb-border)] px-3 py-1.5 rounded-lg font-medium">
           {new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
       </div>
@@ -128,9 +163,9 @@ export const AdminDashboard = () => {
           <Loader2 size={18} className="animate-spin" /> Loading stats…
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 bb-stagger">
           {statCards.map((s) => (
-            <div key={s.label} className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div key={s.label} className="bb-hover bg-[var(--bb-card)] border border-[var(--bb-border)] rounded-2xl p-5 shadow-sm cursor-default">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{s.label}</p>
@@ -148,8 +183,72 @@ export const AdminDashboard = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-3 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm">
+      {/* ── Signup Traffic Chart ── */}
+      <div className="bb-hover bb-fade-up bg-[var(--bb-card)] border border-[var(--bb-border)] rounded-2xl p-5 shadow-sm" style={{ animationDelay: '0.10s' }}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-sm font-bold text-slate-200">User Signups</h3>
+            <p className="text-xs text-slate-500 mt-0.5">New registrations over time</p>
+          </div>
+          <div className="flex gap-1 bg-[var(--bb-elevated)] p-1 rounded-lg">
+            {([7, 30, 90] as const).map(d => (
+              <button
+                key={d}
+                onClick={() => setChartDays(d)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${chartDays === d ? 'bg-[var(--bb-card)] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {chartLoading ? (
+          <div className="flex items-center justify-center h-48 text-slate-500 gap-2">
+            <Loader2 size={15} className="animate-spin" /> Loading chart…
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gradStudents" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#818cf8" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gradOwners" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#22d3ee" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatDate}
+                tick={{ fill: '#64748b', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                interval={chartDays === 7 ? 0 : chartDays === 30 ? 4 : 13}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fill: '#64748b', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend
+                wrapperStyle={{ fontSize: 12, color: '#94a3b8', paddingTop: 12 }}
+                formatter={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+              />
+              <Area type="monotone" dataKey="students" stroke="#818cf8" strokeWidth={2} fill="url(#gradStudents)" dot={false} activeDot={{ r: 4, fill: '#818cf8' }} />
+              <Area type="monotone" dataKey="owners"   stroke="#22d3ee" strokeWidth={2} fill="url(#gradOwners)"   dot={false} activeDot={{ r: 4, fill: '#22d3ee' }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 bb-fade-up" style={{ animationDelay: '0.18s' }}>
+        <div className="bb-hover lg:col-span-3 bg-[var(--bb-card)] border border-[var(--bb-border)] rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-slate-200">Ticket Overview</h3>
           </div>
@@ -168,7 +267,7 @@ export const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl p-5 shadow-sm">
+        <div className="bb-hover lg:col-span-2 bg-[var(--bb-card)] border border-[var(--bb-border)] rounded-2xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-slate-200 mb-4">Platform Summary</h3>
           <div className="space-y-3">
             {[
@@ -249,10 +348,10 @@ export const UserManagement = () => {
     rejected:      'bg-red-900/30 text-red-400',
   };
   const kycLabel: Record<string, string> = {
-    not_submitted: 'Not submitted',
-    pending:       'Pending',
-    approved:      'Approved',
-    rejected:      'Rejected',
+    not_submitted: 'KYC Not Submitted',
+    pending:       'KYC Pending',
+    approved:      'KYC Approved',
+    rejected:      'KYC Rejected',
   };
 
   const UserRow = ({ u }: { u: api.User }) => {
@@ -316,7 +415,7 @@ export const UserManagement = () => {
       <div className="relative">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email…"
-          className="w-full pl-9 pr-4 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
+          className="w-full pl-9 pr-4 py-2.5 text-sm text-white bg-[var(--bb-elevated)] border border-[var(--bb-border-md)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
       </div>
 
       {loading ? (
@@ -327,8 +426,8 @@ export const UserManagement = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
           {/* ── Students panel ── */}
-          <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-[#232b47] border-b border-[rgba(129,140,248,0.15)]">
+          <div className="bg-[var(--bb-card)] rounded-2xl border border-[var(--bb-border)] shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-[var(--bb-elevated)] border-b border-[var(--bb-border)]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-purple-400" />
                 <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Students</span>
@@ -345,8 +444,8 @@ export const UserManagement = () => {
           </div>
 
           {/* ── Owners panel ── */}
-          <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-[#232b47] border-b border-[rgba(129,140,248,0.15)]">
+          <div className="bg-[var(--bb-card)] rounded-2xl border border-[var(--bb-border)] shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-[var(--bb-elevated)] border-b border-[var(--bb-border)]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-blue-400" />
                 <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Owners</span>
@@ -368,7 +467,7 @@ export const UserManagement = () => {
       {/* Detail modal */}
       {detailUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setSelected(null)}>
-          <div className="bg-[#1e2436] rounded-2xl shadow-2xl border border-[rgba(129,140,248,0.2)] w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-[var(--bb-card)] rounded-2xl shadow-2xl border border-[var(--bb-border-md)] w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-white">User Details</h3>
               <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-[rgba(129,140,248,0.1)] rounded-lg text-slate-400"><X size={16} /></button>
@@ -389,7 +488,7 @@ export const UserManagement = () => {
                 ['Verified', detailUser.isVerified ? 'Yes' : 'No'],
                 ['Joined',   api.formatDate(detailUser.createdAt)],
               ].map(([k, v]) => (
-                <div key={String(k)} className="bg-[#232b47] rounded-xl px-3 py-2">
+                <div key={String(k)} className="bg-[var(--bb-elevated)] rounded-xl px-3 py-2">
                   <p className="text-xs text-slate-500 font-medium">{k}</p>
                   <p className="font-semibold text-slate-200 mt-0.5">{String(v)}</p>
                 </div>
@@ -401,7 +500,7 @@ export const UserManagement = () => {
                   approved: 'text-green-400', rejected: 'text-red-400',
                 };
                 return (
-                  <div className="col-span-2 bg-[#232b47] rounded-xl px-3 py-2">
+                  <div className="col-span-2 bg-[var(--bb-elevated)] rounded-xl px-3 py-2">
                     <p className="text-xs text-slate-500 font-medium">KYC Status</p>
                     <p className={`font-semibold mt-0.5 ${kycColor[status]}`}>{kycLabel[status]}</p>
                   </div>
@@ -409,7 +508,7 @@ export const UserManagement = () => {
               })()}
             </div>
             {/* Activity timeline */}
-            <div className="bg-[#232b47] rounded-xl px-3 py-2.5">
+            <div className="bg-[var(--bb-elevated)] rounded-xl px-3 py-2.5">
               <p className="text-xs text-slate-500 font-medium mb-2">Login Activity</p>
               {activityLoading ? (
                 <div className="flex items-center gap-2 text-slate-500 text-xs py-1">
@@ -449,7 +548,7 @@ export const UserManagement = () => {
 //  KYC VERIFICATION
 // ─────────────────────────────────────────────
 export const KYCVerification = () => {
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'not_submitted'>('pending');
   const [owners, setOwners] = useState<api.User[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -505,11 +604,11 @@ export const KYCVerification = () => {
         </div>
       )}
 
-      <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit">
-        {(['pending', 'approved', 'rejected'] as const).map(tab => (
+      <div className="flex gap-1 bg-[var(--bb-elevated)] p-1 rounded-xl w-fit flex-wrap">
+        {(['pending', 'approved', 'rejected', 'not_submitted'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${activeTab === tab ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
-            {tab}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === tab ? 'bg-[var(--bb-card)] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+            {tab === 'not_submitted' ? 'Not Submitted' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
@@ -519,10 +618,10 @@ export const KYCVerification = () => {
           <Loader2 size={16} className="animate-spin" /> Loading…
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 bb-rows">
           {owners.length === 0 && (
-            <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-10 text-center text-sm text-slate-500">
-              No {activeTab} submissions
+            <div className="bg-[var(--bb-card)] rounded-2xl border border-[var(--bb-border)] p-10 text-center text-sm text-slate-500">
+              No {activeTab === 'not_submitted' ? 'owners without KYC documents' : `${activeTab} submissions`}
             </div>
           )}
           {owners.map(owner => {
@@ -536,21 +635,23 @@ export const KYCVerification = () => {
             ].filter(Boolean) as { label: string; file: string }[];
 
             return (
-              <div key={owner._id} className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] shadow-sm overflow-hidden">
+              <div key={owner._id} className="bg-[var(--bb-card)] rounded-2xl border border-[var(--bb-border)] shadow-sm overflow-hidden">
                 <button className="w-full text-left px-5 py-4 flex items-center gap-4" onClick={() => setExpanded(expanded === owner._id ? null : owner._id)}>
                   <div className="w-9 h-9 rounded-full bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">
                     {api.initials(name)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white">{name}</p>
-                    <p className="text-xs text-slate-500">{owner.email} · Submitted {owner.kycSubmittedAt ? api.formatDate(owner.kycSubmittedAt) : '—'}</p>
+                    <p className="text-xs text-slate-500">{owner.email}{owner.kycStatus !== 'not_submitted' ? ` · Submitted ${owner.kycSubmittedAt ? api.formatDate(owner.kycSubmittedAt) : '—'}` : ' · No documents submitted'}</p>
                   </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${statusStyle[owner.kycStatus ?? 'pending']}`}>{owner.kycStatus}</span>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${statusStyle[owner.kycStatus ?? 'not_submitted']}`}>
+                    {owner.kycStatus === 'not_submitted' ? 'Not Submitted' : owner.kycStatus === 'pending' ? 'Pending' : owner.kycStatus === 'approved' ? 'Approved' : 'Rejected'}
+                  </span>
                   <ChevronDown size={16} className={`text-slate-500 transition-transform flex-shrink-0 ${expanded === owner._id ? 'rotate-180' : ''}`} />
                 </button>
 
                 {expanded === owner._id && (
-                  <div className="border-t border-[rgba(129,140,248,0.15)] px-5 py-4 space-y-4">
+                  <div className="border-t border-[var(--bb-border)] px-5 py-4 space-y-4">
                     <div>
                       <p className="text-xs font-semibold text-slate-400 mb-2">Submitted Documents</p>
                       {docList.length > 0 ? (
@@ -564,7 +665,7 @@ export const KYCVerification = () => {
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 bg-[#232b47] border border-[rgba(129,140,248,0.2)] hover:border-indigo-400/50 hover:bg-[#2a3360] rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition-all group"
+                                className="flex items-center gap-1.5 bg-[var(--bb-elevated)] border border-[var(--bb-border-md)] hover:border-indigo-400/50 hover:bg-[#2a3360] rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition-all group"
                               >
                                 <Check size={12} className="text-green-400" />
                                 {label}
@@ -591,16 +692,20 @@ export const KYCVerification = () => {
                         <button
                           onClick={() => take(owner._id, 'rejected')}
                           disabled={actionLoading === owner._id}
-                          className="flex items-center gap-1.5 bg-[#232b47] border border-red-900/30 text-red-400 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-red-900/20 transition-colors disabled:opacity-60"
+                          className="flex items-center gap-1.5 bg-[var(--bb-elevated)] border border-red-900/30 text-red-400 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-red-900/20 transition-colors disabled:opacity-60"
                         >
                           <X size={13} />Reject
                         </button>
                       </div>
                     )}
-                    {activeTab !== 'pending' && (
-                      <p className={`text-xs font-semibold ${activeTab === 'approved' ? 'text-green-400' : 'text-red-400'}`}>
-                        {activeTab === 'approved' ? '✓ Approved — owner verified' : '✕ Rejected — awaiting resubmission'}
-                      </p>
+                    {activeTab === 'approved' && (
+                      <p className="text-xs font-semibold text-green-400">✓ Approved — owner verified</p>
+                    )}
+                    {activeTab === 'rejected' && (
+                      <p className="text-xs font-semibold text-red-400">✕ Rejected — awaiting resubmission</p>
+                    )}
+                    {activeTab === 'not_submitted' && (
+                      <p className="text-xs text-slate-500">⏳ This owner has not submitted their KYC documents yet.</p>
                     )}
                   </div>
                 )}
@@ -687,10 +792,10 @@ export const SupportTickets = () => {
         </div>
       )}
 
-      <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-[var(--bb-elevated)] p-1 rounded-xl w-fit">
         {['All', 'Open', 'In Progress', 'Resolved'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${filter === f ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>{f}</button>
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${filter === f ? 'bg-[var(--bb-card)] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>{f}</button>
         ))}
       </div>
 
@@ -702,13 +807,13 @@ export const SupportTickets = () => {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
           <div className="lg:col-span-2 space-y-2.5">
             {tickets.length === 0 && (
-              <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-8 text-center text-sm text-slate-500">No tickets found</div>
+              <div className="bg-[var(--bb-card)] rounded-2xl border border-[var(--bb-border)] p-8 text-center text-sm text-slate-500">No tickets found</div>
             )}
             {tickets.map(t => {
               const userName = api.displayName(t.userId);
               return (
                 <button key={t._id} onClick={() => setSelected(t._id)}
-                  className={`w-full text-left bg-[#1e2436] border rounded-2xl p-4 transition-all hover:shadow-sm ${selected === t._id ? 'border-[#818cf8] ring-1 ring-[rgba(129,140,248,0.2)] shadow-sm' : 'border-[rgba(129,140,248,0.15)]'}`}>
+                  className={`w-full text-left bg-[var(--bb-card)] border rounded-2xl p-4 transition-all hover:shadow-sm ${selected === t._id ? 'border-[#818cf8] ring-1 ring-[rgba(129,140,248,0.2)] shadow-sm' : 'border-[var(--bb-border)]'}`}>
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-white truncate">{t.subject}</p>
                   </div>
@@ -724,8 +829,8 @@ export const SupportTickets = () => {
 
           <div className="lg:col-span-3">
             {detail ? (
-              <div className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl shadow-sm flex flex-col" style={{ minHeight: 300 }}>
-                <div className="px-5 py-4 border-b border-[rgba(129,140,248,0.15)] flex items-start justify-between">
+              <div className="bg-[var(--bb-card)] border border-[var(--bb-border)] rounded-2xl shadow-sm flex flex-col" style={{ minHeight: 300 }}>
+                <div className="px-5 py-4 border-b border-[var(--bb-border)] flex items-start justify-between">
                   <div>
                     <p className="font-semibold text-white">{detail.subject}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{api.displayName(detail.userId)} · {detail.userId.email}</p>
@@ -746,7 +851,7 @@ export const SupportTickets = () => {
                   )}
                   {detail.messages.map((m) => (
                     <div key={m._id} className={`flex ${m.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-xs px-3.5 py-2.5 rounded-2xl text-sm ${m.sender === 'admin' ? 'bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white rounded-br-sm' : 'bg-[#232b47] text-slate-200 rounded-bl-sm'}`}>
+                      <div className={`max-w-xs px-3.5 py-2.5 rounded-2xl text-sm ${m.sender === 'admin' ? 'bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white rounded-br-sm' : 'bg-[var(--bb-elevated)] text-slate-200 rounded-bl-sm'}`}>
                         <p>{m.content}</p>
                         <p className={`text-[10px] mt-1 ${m.sender === 'admin' ? 'text-indigo-200' : 'text-slate-500'}`}>
                           {m.sender === 'admin' ? 'You' : api.displayName(detail.userId)} · {api.formatDate(m.createdAt)}
@@ -756,9 +861,9 @@ export const SupportTickets = () => {
                   ))}
                 </div>
                 {detail.status !== 'resolved' && detail.status !== 'closed' && (
-                  <div className="px-5 py-4 border-t border-[rgba(129,140,248,0.15)] flex gap-2">
+                  <div className="px-5 py-4 border-t border-[var(--bb-border)] flex gap-2">
                     <input value={reply} onChange={e => setReply(e.target.value)} placeholder="Type a reply…"
-                      className="flex-1 px-3.5 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
+                      className="flex-1 px-3.5 py-2.5 text-sm text-white bg-[var(--bb-elevated)] border border-[var(--bb-border-md)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendReply()} />
                     <button onClick={sendReply} disabled={sending}
                       className="bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white p-2.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60">
@@ -768,7 +873,7 @@ export const SupportTickets = () => {
                 )}
               </div>
             ) : (
-              <div className="bg-[#1e2436] border border-[rgba(129,140,248,0.15)] rounded-2xl shadow-sm flex items-center justify-center text-sm text-slate-500" style={{ minHeight: 200 }}>
+              <div className="bg-[var(--bb-card)] border border-[var(--bb-border)] rounded-2xl shadow-sm flex items-center justify-center text-sm text-slate-500" style={{ minHeight: 200 }}>
                 Select a ticket to view details
               </div>
             )}
@@ -861,12 +966,12 @@ export const FeedbackManagement = () => {
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search feedback…"
-            className="w-full pl-9 pr-4 py-2.5 text-sm text-white bg-[#232b47] border border-[rgba(129,140,248,0.2)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
+            className="w-full pl-9 pr-4 py-2.5 text-sm text-white bg-[var(--bb-elevated)] border border-[var(--bb-border-md)] rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
         </div>
-        <div className="flex gap-1 bg-[#232b47] p-1 rounded-xl w-fit self-start flex-wrap">
+        <div className="flex gap-1 bg-[var(--bb-elevated)] p-1 rounded-xl w-fit self-start flex-wrap">
           {['All', 'Flagged', '5', '4', '3', '2', '1'].map(f => (
             <button key={f} onClick={() => setFilterTab(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filterTab === f ? 'bg-[#1e2436] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filterTab === f ? 'bg-[var(--bb-card)] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
               {f === 'Flagged' ? '🚩 Flagged' : ['5','4','3','2','1'].includes(f) ? `${f}★` : f}
             </button>
           ))}
@@ -878,14 +983,14 @@ export const FeedbackManagement = () => {
           <Loader2 size={16} className="animate-spin" /> Loading reviews…
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 bb-rows">
           {filtered.length === 0 && (
-            <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-10 text-center text-sm text-slate-500">No reviews found</div>
+            <div className="bg-[var(--bb-card)] rounded-2xl border border-[var(--bb-border)] p-10 text-center text-sm text-slate-500">No reviews found</div>
           )}
           {filtered.map(fb => {
             const name = api.displayName(fb.userId);
             return (
-              <div key={fb._id} className={`bg-[#1e2436] rounded-2xl border shadow-sm p-5 ${fb.isFlagged ? 'border-red-900/40 bg-red-900/5' : 'border-[rgba(129,140,248,0.15)]'}`}>
+              <div key={fb._id} className={`bg-[var(--bb-card)] rounded-2xl border shadow-sm p-5 ${fb.isFlagged ? 'border-red-900/40 bg-red-900/5' : 'border-[var(--bb-border)]'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-[rgba(129,140,248,0.15)] flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">
@@ -979,7 +1084,7 @@ export const AdminSettings = () => {
         <p className="text-sm text-slate-400 mt-0.5">Manage your admin account</p>
       </div>
 
-      <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-5">
+      <div className="bg-[var(--bb-card)] rounded-2xl border border-[var(--bb-border)] p-5">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#818cf8] to-[#22d3ee] flex items-center justify-center text-white font-bold text-base shadow-[0_0_12px_rgba(129,140,248,0.4)]">
             {adminName.charAt(0).toUpperCase()}
@@ -991,7 +1096,7 @@ export const AdminSettings = () => {
         </div>
       </div>
 
-      <div className="bg-[#1e2436] rounded-2xl border border-[rgba(129,140,248,0.15)] p-5">
+      <div className="bg-[var(--bb-card)] rounded-2xl border border-[var(--bb-border)] p-5">
         <div className="flex items-center gap-2 mb-5">
           <Lock size={16} className="text-indigo-400" />
           <h2 className="text-sm font-bold text-white">Change Password</h2>
@@ -1008,7 +1113,7 @@ export const AdminSettings = () => {
                 <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input type={f.show ? 'text' : 'password'} value={f.value}
                   onChange={e => f.set(e.target.value)} placeholder={f.ph}
-                  className="w-full pl-9 pr-10 py-2.5 border border-[rgba(129,140,248,0.2)] bg-[#232b47] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500" />
+                  className="w-full pl-9 pr-10 py-2.5 border border-[var(--bb-border-md)] bg-[var(--bb-elevated)] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500" />
                 <button type="button" onClick={f.toggle}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors">
                   <Eye size={14} className={f.show ? 'opacity-40' : ''} />

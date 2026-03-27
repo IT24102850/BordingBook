@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:5001/api/admin';
+const BASE = `${import.meta.env.VITE_API_URL ?? 'http://localhost:5001'}/api/admin`;
 
 const token = () => localStorage.getItem('adminToken') ?? '';
 
@@ -30,6 +30,11 @@ export const getMe = () =>
 export const getStats = () =>
   req<{ success: boolean; data: { totalStudents: number; totalOwners: number; pendingKyc: number; bannedUsers: number } }>(
     `${BASE}/stats`, { headers: authHeaders() }
+  );
+
+export const getSignupChart = (days: number) =>
+  req<{ success: boolean; data: { date: string; students: number; owners: number }[] }>(
+    `${BASE}/signup-chart?days=${days}`, { headers: authHeaders() }
   );
 
 export const getTicketStats = () =>

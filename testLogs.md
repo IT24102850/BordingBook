@@ -61,7 +61,7 @@ POST http://localhost:5001/api/auth/signup
 **Way A — Click the link in the email**
 The email contains a button linking to:
 `http://localhost:5173/verify-email?token=XXXXXX`
-Click it → the VerifyEmailPage auto-calls the backend → account verified ✅
+Click it → the VerifyEmailPage auto-calls the backend → account verified 
 
 **Way B — Get token from MongoDB (if email didn't arrive)**
 1. Go to MongoDB Atlas → `users` collection

@@ -19,6 +19,7 @@ router.patch('/password', authController.changePassword);
 
 // ── Dashboard stats ───────────────────────────────────────────
 router.get('/stats', userController.getStats);
+router.get('/signup-chart', userController.getSignupChart);
 
 // ── User management ───────────────────────────────────────────
 router.get('/users', userController.getAllUsers);
