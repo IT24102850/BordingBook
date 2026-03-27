@@ -287,7 +287,10 @@ export default function Chat() {
       state?.selectedUserId ||
       ''
     );
-    if (!recipientId) return;
+    if (!recipientId) {
+      setError('No recipient found for chat. Please try again from the matches page.');
+      return;
+    }
     if (lastRecipientBootstrapRef.current === recipientId) return;
 
     const normalizedName = String(selectedRoommate?.name || '').trim().toLowerCase();
@@ -325,7 +328,7 @@ export default function Chat() {
         return;
       }
 
-      setError((createError as Error).message || 'Unable to open direct conversation');
+      setError((createError as Error).message || 'Unable to open direct conversation. Please try again from the matches page.');
     }
   }, [fetchConversations, location.search, location.state, token]);
 

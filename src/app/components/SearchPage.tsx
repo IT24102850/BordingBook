@@ -800,9 +800,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   {req.status === 'accepted' && (
                     <button
                       onClick={() => {
-                        const recipientId = String(req.from.userId || req.from.id || '');
+                        // Always normalize recipientId and ensure selectedRoommate.userId is set
+                        const recipientId = normalizeIdValue(req.from.userId || req.from.id || '');
+                        const selectedRoommate = { ...req.from, userId: normalizeIdValue(req.from.userId || req.from.id || '') };
                         navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
-                          state: { selectedRoommate: req.from, chatType: 'direct-message', recipientId },
+                          state: { selectedRoommate, chatType: 'direct-message', recipientId },
                         });
                       }}
                       className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
