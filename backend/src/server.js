@@ -1,19 +1,39 @@
 const app = require('./app');
-const mongoose = require('mongoose');
+const { connectDatabase } = require('./config/database');
+const env = require('./config/env');
 
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
+async function startServer() {
+  try {
+    // Connect to MongoDB
+    await connectDatabase();
 
-mongoose.connect(MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('MongoDB connected');
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-})
-.catch((err) => {
-  console.error('MongoDB connection error:', err);
-});
+    // Start HTTP server
+    const server = app.listen(env.port, () => {
+      console.log(`✓ Server running on http://localhost:${env.port}`);
+      console.log(`✓ Environment: ${env.nodeEnv}`);
+      console.log(`✓ Health check: http://localhost:${env.port}/api/health`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGINT', () => {
+      console.log('\n✗ SIGINT received. Shutting down gracefully...');
+      server.close(() => {
+        console.log('✓ Server closed');
+        process.exit(0);
+      });
+    });
+
+    process.on('SIGTERM', () => {
+      console.log('\n✗ SIGTERM received. Shutting down gracefully...');
+      server.close(() => {
+        console.log('✓ Server closed');
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    console.error('✗ Failed to start server:', error.message);
+    process.exit(1);
+  }
+}
+
+startServer();

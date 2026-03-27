@@ -2,16 +2,23 @@ const nodemailer = require('nodemailer');
 
 class EmailService {
   constructor() {
-    // Create transporter
-    this.transporter = nodemailer.createTransporter({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: process.env.EMAIL_PORT || 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
+    // Create transporter - handle missing email config
+    try {
+      this.transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: process.env.EMAIL_PORT || 587,
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+      });
+      this.enabled = true;
+    } catch (error) {
+      console.warn('Email service disabled:', error.message);
+      this.enabled = false;
+      this.transporter = null;
+    }
   }
 
   /**
@@ -131,12 +138,18 @@ class EmailService {
     };
 
     try {
+      if (!this.enabled || !this.transporter) {
+        console.warn('Email service is disabled. Email not sent to:', email);
+        return { success: true, messageId: 'SKIPPED_NO_EMAIL_CONFIG' };
+      }
       const info = await this.transporter.sendMail(mailOptions);
       console.log('Verification email sent: %s', info.messageId);
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('Error sending verification email:', error);
-      throw new Error('Failed to send verification email');
+      // Don't throw, just log the warning
+      console.warn('Verification email could not be sent, but signup will continue');
+      return { success: true, messageId: 'FAILED_BUT_CONTINUED' };
     }
   }
 
@@ -221,6 +234,10 @@ class EmailService {
     };
 
     try {
+      if (!this.enabled || !this.transporter) {
+        console.warn('Email service is disabled. Email not sent to:', email);
+        return { success: true, messageId: 'SKIPPED_NO_EMAIL_CONFIG' };
+      }
       const info = await this.transporter.sendMail(mailOptions);
       console.log('Welcome email sent: %s', info.messageId);
       return { success: true, messageId: info.messageId };
