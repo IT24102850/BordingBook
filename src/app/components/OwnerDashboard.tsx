@@ -16,10 +16,13 @@ import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api
 // ============================================
 
 interface BoardingHouse {
+  _id?: string;
   id: string;
   name: string;
   address: string;
-  totalRooms: number;
+  city?: string;
+  totalRooms?: number;
+  roomCount?: number;
   monthlyPrice?: number;
   roomType?: string;
   availableFrom?: string;
@@ -27,13 +30,19 @@ interface BoardingHouse {
   roommateCount?: string;
   description?: string;
   features?: string[];
-  occupiedRooms: number;
+  occupiedRooms?: number;
   rating: number;
-  totalReviews: number;
-  image: string;
+  totalReviews?: number;
+  image?: string;
   images?: string[];
-  status: 'active' | 'inactive';
+  status?: 'active' | 'inactive';
   genderPreference?: 'any' | 'girls' | 'boys';
+  totalTenants?: number;
+  availableRooms?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  ownerId?: string;
+  rooms?: Room[];
 }
 
 interface Tenant {

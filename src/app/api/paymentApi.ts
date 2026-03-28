@@ -45,14 +45,85 @@ export interface FinancialOverview {
   overdueCount: number;
 }
 
-// Fetch all boarding houses for the logged-in owner
+/**
+ * REAL API: Fetch all boarding places for the authenticated owner
+ * This calls the payment module backend endpoint
+ * Returns real data from MongoDB - NO MOCK DATA
+ */
+export const getOwnerBoardingPlaces = async (): Promise<any[]> => {
+  try {
+    const token = localStorage.getItem('bb_access_token');
+    
+    // DEBUG: Log token info
+    console.log('🔑 PaymentAPI Debug:');
+    console.log('   Token exists:', !!token);
+    console.log('   Token length:', token?.length);
+    console.log('   Token preview:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+    console.log('   Full URL:', `${BASE_URL}/payment/boarding-places`);
+    console.log('   Headers:', {
+      'Authorization': `Bearer ${token ? `${token.substring(0, 20)}...` : 'NO TOKEN'}`,
+    });
+    
+    const response = await fetch(`${BASE_URL}/payment/boarding-places`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    console.log('   Response Status:', response.status);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('   Error Response:', errorData);
+      throw new Error(errorData.message || 'Failed to fetch boarding places');
+    }
+    
+    const data = await response.json();
+    console.log('   Success Response:', data);
+    
+    // ✅ SUCCESS - Return the data array
+    if (data.success && Array.isArray(data.data)) {
+      console.log('   Data is array, returning:', data.data.length, 'houses');
+      return data.data;
+    }
+    
+    // ✅ SUCCESS but data might be wrapped differently
+    if (data.success && data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
+      console.log('   Data is object (not array), checking structure:', Object.keys(data.data));
+      // If it's an object but not an array, extract the houses array if present
+      if (data.data.houses && Array.isArray(data.data.houses)) {
+        return data.data.houses;
+      }
+      if (data.data.boardingPlaces && Array.isArray(data.data.boardingPlaces)) {
+        return data.data.boardingPlaces;
+      }
+      // If it's a single object, wrap it in an array
+      return [data.data];
+    }
+    
+    // If no data but success, return empty array (triggers "No boarding places" message)
+    if (data.success && !data.data) {
+      console.log('   No data in response');
+      return [];
+    }
+    
+    throw new Error(data.message || 'Failed to fetch boarding places');
+  } catch (error) {
+    console.error('Error fetching boarding places:', error);
+    throw error;
+  }
+};
+
+// Fetch all boarding houses for the logged-in owner (LEGACY - DO NOT USE)
 export const getBoardingHouses = async (ownerId: string): Promise<any[]> => {
   try {
     const response = await fetch(`${BASE_URL}/owner/houses`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
       },
     });
 
@@ -71,7 +142,7 @@ export const getRoomsForHouse = async (houseId: string): Promise<any[]> => {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
       },
     });
 
@@ -90,7 +161,7 @@ export const getPendingPaymentSlips = async (): Promise<PaymentSlip[]> => {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
       },
     });
 
@@ -117,7 +188,7 @@ export const getPaymentHistory = async (filters?: {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
       },
     });
 
@@ -136,7 +207,7 @@ export const getFinancialOverview = async (): Promise<FinancialOverview> => {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
       },
     });
 
@@ -155,7 +226,7 @@ export const approvePaymentSlip = async (slipId: string): Promise<any> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
       },
     });
 
@@ -174,7 +245,7 @@ export const rejectPaymentSlip = async (slipId: string, reason: string): Promise
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
       },
       body: JSON.stringify({ reason }),
     });
@@ -193,7 +264,7 @@ export const downloadPaymentSlip = async (slipId: string): Promise<string> => {
     const response = await fetch(`${BASE_URL}/owner/payment-slips/${slipId}/download`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
       },
     });
 

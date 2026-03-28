@@ -24,10 +24,21 @@ interface Room {
 }
 
 interface BoardingHouse {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   address: string;
-  rooms: Room[];
+  city?: string;
+  monthlyPrice?: number;
+  roomCount?: number;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  ownerId?: string;
+  totalRooms?: number;
+  totalTenants?: number;
+  availableRooms?: number;
+  rooms?: Room[];
 }
 
 interface PaymentSlip {
@@ -65,15 +76,45 @@ export default function PaymentManager() {
   const [viewingSlip, setViewingSlip] = useState<PaymentSlip | null>(null);
   const [downloadingSlipId, setDownloadingSlipId] = useState<string | null>(null);
 
-  // Fetch data from API
+  // Fetch data from API - ONLY REAL DATA FROM DATABASE
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch boarding houses
-      const housesData = await paymentApi.getBoardingHouses(localStorage.getItem('userId') || '');
-      setBoardingHouses(housesData || []);
+      // Fetch boarding houses from REAL API (no mock data fallback)
+      const housesData = await paymentApi.getOwnerBoardingPlaces();
+      
+      // If no boarding places, show error message and empty state
+      if (!housesData || housesData.length === 0) {
+        setError('No boarding places found');
+        setBoardingHouses([]);
+        setPendingSlips([]);
+        setFinancialOverview({
+          totalExpected: 0,
+          totalCollected: 0,
+          totalDeficit: 0,
+          collectionPercentage: 0,
+        });
+        return;
+      }
+
+      // DEDUPLICATION: Remove duplicates based on ID
+      const uniqueHouses = Array.from(
+        new Map(
+          housesData.map((house: any) => [
+            house._id || house.id,
+            house
+          ])
+        ).values()
+      );
+
+      console.log('📊 Boarding Houses - Before dedup:', housesData.length, 'After dedup:', uniqueHouses.length);
+      if (housesData.length !== uniqueHouses.length) {
+        console.warn('⚠️ Duplicates removed:', housesData.length - uniqueHouses.length);
+      }
+
+      setBoardingHouses(uniqueHouses || []);
 
       // Fetch pending payment slips
       const slipsData = await paymentApi.getPendingPaymentSlips();
@@ -90,46 +131,13 @@ export default function PaymentManager() {
     } catch (err: any) {
       console.error('Error fetching payment data:', err);
       setError(err?.message || 'Failed to load payment data. Please try again.');
-      // Use fallback mock data for demo
-      setFallbackMockData();
+      // NO FALLBACK TO MOCK DATA - Show actual error to user
+      setBoardingHouses([]);
+      setPendingSlips([]);
     } finally {
       setLoading(false);
     }
   }, []);
-
-  // Fallback to mock data if API fails
-  const setFallbackMockData = () => {
-    const mockHouses: BoardingHouse[] = [
-      {
-        id: '1',
-        name: 'Sunrise Boarding House',
-        address: '123 Malabe, Colombo',
-        rooms: [
-          {
-            id: '101',
-            roomNumber: '101',
-            bedCount: 2,
-            tenants: [
-              { id: 't1', name: 'Alice Perera', roomId: '101', paymentStatus: 'paid', monthlyRent: 15000, outstandingBalance: 0, dueDate: '2026-02-28', checkInDate: '2024-01-15', trustScore: 'high' },
-              { id: 't2', name: 'Bob Silva', roomId: '101', paymentStatus: 'overdue', monthlyRent: 15000, outstandingBalance: 15000, dueDate: '2026-02-05', checkInDate: '2024-02-01', trustScore: 'low' },
-            ]
-          },
-        ]
-      },
-    ];
-
-    setBoardingHouses(mockHouses);
-    setPendingSlips([
-      { id: 'ps1', tenantName: 'Dana White', roomNumber: '102', placeId: '1', placeName: 'Sunrise Boarding House', amount: 9000, originalRent: 18000, date: '2026-03-05', trustScore: 'high', status: 'pending' },
-    ]);
-
-    setFinancialOverview({
-      totalExpected: 30000,
-      totalCollected: 15000,
-      totalDeficit: 15000,
-      collectionPercentage: 50,
-    });
-  };
 
   useEffect(() => {
     fetchData();
@@ -245,7 +253,13 @@ export default function PaymentManager() {
           <AlertCircle size={18} className="text-rose-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-rose-300">{error}</p>
-            <p className="text-xs text-rose-300/60 mt-1">Using fallback mock data for demonstration.</p>
+            <p className="text-xs text-rose-300/60 mt-1">Please contact support if this persists.</p>
+            <button 
+              onClick={() => fetchData()}
+              className="text-xs text-rose-400 hover:text-rose-300 mt-2 font-medium underline"
+            >
+              Try Again
+            </button>
           </div>
         </div>
       )}
@@ -255,23 +269,23 @@ export default function PaymentManager() {
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl p-6 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
           <p className="text-sm font-medium text-gray-400 mb-1">Expected Revenue</p>
-          <p className="text-3xl font-bold text-white tracking-tight">Rs. {financialOverview.totalExpected.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-white tracking-tight">Rs. {(financialOverview?.totalExpected || 0).toLocaleString()}</p>
           <p className="text-xs text-gray-500 mt-2">Total rent for occupied rooms</p>
         </div>
 
         <div className="bg-gradient-to-br from-emerald-900/40 to-slate-900 border border-emerald-500/20 rounded-2xl p-6 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
           <p className="text-sm font-medium text-emerald-400/80 mb-1">Total Collected</p>
-          <p className="text-3xl font-bold text-emerald-400 tracking-tight">Rs. {financialOverview.totalCollected.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-emerald-400 tracking-tight">Rs. {(financialOverview?.totalCollected || 0).toLocaleString()}</p>
           <div className="mt-3">
             <div className="flex justify-between text-xs mb-1">
               <span className="text-gray-400">Collection Rate</span>
-              <span className="text-emerald-400 font-medium">{financialOverview.collectionPercentage}%</span>
+              <span className="text-emerald-400 font-medium">{financialOverview?.collectionPercentage || 0}%</span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-emerald-500 h-1.5 rounded-full"
-                style={{ width: `${financialOverview.collectionPercentage}%` }}
+                style={{ width: `${financialOverview?.collectionPercentage || 0}%` }}
               ></div>
             </div>
           </div>
@@ -280,7 +294,7 @@ export default function PaymentManager() {
         <div className="bg-gradient-to-br from-rose-900/40 to-slate-900 border border-rose-500/20 rounded-2xl p-6 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
           <p className="text-sm font-medium text-rose-400/80 mb-1">Outstanding Deficit</p>
-          <p className="text-3xl font-bold text-rose-400 tracking-tight">Rs. {financialOverview.totalDeficit.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-rose-400 tracking-tight">Rs. {(financialOverview?.totalDeficit || 0).toLocaleString()}</p>
           <p className="text-xs text-rose-400/60 mt-2 flex items-center gap-1">
             <AlertCircle size={12} /> Needs follow-up
           </p>
@@ -444,14 +458,29 @@ export default function PaymentManager() {
 
         {boardingHouses.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {boardingHouses.map(place => {
-              const allTenantsInPlace = place.rooms.flatMap(r => r.tenants);
+            {boardingHouses.map((place, idx) => {
+              // DEBUG: Log what we actually got from the API
+              if (idx === 0) {
+                console.log('🏠 First Boarding Place Structure:', place);
+                console.log('   Keys:', Object.keys(place));
+                console.log('   Has rooms?', !!place.rooms);
+                console.log('   Has totalRooms?', !!place.totalRooms);
+                console.log('   Has totalTenants?', !!place.totalTenants);
+              }
+
+              // Safely calculate tenant counts from the API response
+              // The API might return totalTenants directly instead of nested rooms/tenants
+              const allTenantsInPlace = place.rooms 
+                ? place.rooms.flatMap(r => r.tenants || []) 
+                : [];
+              
+              const totalTenantCount = place.totalTenants || allTenantsInPlace.length || 0;
               const overdueCount = allTenantsInPlace.filter(t => t.paymentStatus === 'overdue').length;
 
               return (
                 <div
-                  key={place.id}
-                  onClick={() => navigate(`/payment-rental/${place.id}`)}
+                  key={place.id || place._id}
+                  onClick={() => navigate(`/payment-rental/${place.id || place._id}`)}
                   className="group p-5 bg-white/5 border border-white/10 rounded-xl hover:border-cyan-500/50 hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/10 rounded-full -mr-8 -mt-8 blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
@@ -460,7 +489,7 @@ export default function PaymentManager() {
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       <div className="text-center">
                         <p className="text-gray-400 mb-1">TENANTS</p>
-                        <p className="text-white font-bold text-lg">{allTenantsInPlace.length}</p>
+                        <p className="text-white font-bold text-lg">{totalTenantCount}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-gray-400 mb-1">OVERDUE</p>

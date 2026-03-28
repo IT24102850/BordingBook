@@ -20,10 +20,21 @@ interface Room {
 }
 
 interface BoardingHouse {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   address: string;
-  rooms: Room[];
+  city?: string;
+  monthlyPrice?: number;
+  roomCount?: number;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  ownerId?: string;
+  totalRooms?: number;
+  totalTenants?: number;
+  availableRooms?: number;
+  rooms?: Room[];
 }
 
 // Utility function to calculate days overdue
@@ -260,7 +271,7 @@ export default function OwnerDashboardPayment() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {mockBoardingPlaces.map(place => {
-            const allTenantsInPlace = place.rooms.flatMap(r => r.tenants);
+            const allTenantsInPlace = place.rooms ? place.rooms.flatMap(r => r.tenants) : [];
             const overdueCount = allTenantsInPlace.filter(t => t.paymentStatus === 'overdue').length;
 
             return (

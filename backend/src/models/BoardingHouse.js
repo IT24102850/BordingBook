@@ -94,4 +94,9 @@ const boardingHouseSchema = new mongoose.Schema(
   }
 );
 
+// Create unique compound index to prevent duplicates
+// Allows multiple owners to have boarding houses with the same name,
+// but prevents the same owner from having duplicate named houses
+boardingHouseSchema.index({ name: 1, ownerId: 1 }, { unique: true });
+
 module.exports = mongoose.model('BoardingHouse', boardingHouseSchema);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, AlertCircle, Trash2, Star, MapPin, Home, Users as UsersIcon, CreditCard, ChevronRight, X, CheckCircle, Navigation, TrendingUp, TrendingDown, Clock, ShieldAlert } from 'lucide-react';
 
@@ -27,14 +27,24 @@ interface Room {
 }
 
 interface BoardingHouse {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   address: string;
-  image: string;
-  rating: number;
-  totalReviews: number;
-  totalRooms: number;
-  occupiedRooms: number;
+  city?: string;
+  image?: string;
+  rating?: number;
+  totalReviews?: number;
+  totalRooms?: number;
+  occupiedRooms?: number;
+  monthlyPrice?: number;
+  roomCount?: number;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  ownerId?: string;
+  totalTenants?: number;
+  availableRooms?: number;
   rooms: Room[];
 }
 
@@ -49,102 +59,104 @@ const getDaysOverdue = (dueDate: string) => {
 
 const isOverdue10Plus = (dueDate: string) => getDaysOverdue(dueDate) >= 10;
 
-// Mock boarding places
-const mockBoardingPlaces: BoardingHouse[] = [
-  {
-    id: '1',
-    name: 'Sunrise Boarding House',
-    address: '123 Malabe, Colombo',
-    image: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    rating: 4.5,
-    totalReviews: 23,
-    totalRooms: 12,
-    occupiedRooms: 8,
-    rooms: [
-      {
-        id: '101',
-        roomNumber: '101',
-        bedCount: 2,
-        occupiedBeds: 2,
-        price: 15000,
-        status: 'full',
-        tenants: [
-          { id: 't1', name: 'Alice Perera', roomId: '101', paymentStatus: 'paid', monthlyRent: 15000, outstandingBalance: 0, dueDate: '2026-02-28', checkInDate: '2024-01-15', phone: '+94 77 123 4567', email: 'alice@email.com', trustScore: 'high' },
-          { id: 't2', name: 'Bob Silva', roomId: '101', paymentStatus: 'overdue', monthlyRent: 15000, outstandingBalance: 15000, dueDate: '2026-02-05', checkInDate: '2024-02-01', phone: '+94 77 234 5678', email: 'bob@email.com', trustScore: 'low' },
-        ]
-      },
-      {
-        id: '102',
-        roomNumber: '102',
-        bedCount: 3,
-        occupiedBeds: 2,
-        price: 18000,
-        status: 'partial',
-        tenants: [
-          { id: 't3', name: 'Charlie Brown', roomId: '102', paymentStatus: 'overdue', monthlyRent: 18000, outstandingBalance: 18000, dueDate: '2026-01-15', checkInDate: '2024-01-10', phone: '+94 77 345 6789', email: 'charlie@email.com', trustScore: 'low' },
-          { id: 't4', name: 'Dana White', roomId: '102', paymentStatus: 'pending', monthlyRent: 18000, outstandingBalance: 18000, dueDate: '2026-03-05', checkInDate: '2024-03-01', phone: '+94 77 456 7890', email: 'dana@email.com', trustScore: 'high' },
-        ]
-      },
-      {
-        id: '103',
-        roomNumber: '103',
-        bedCount: 2,
-        occupiedBeds: 0,
-        price: 14000,
-        status: 'available',
-        tenants: []
-      },
-    ]
-  },
-  {
-    id: '2',
-    name: 'Green Villa Boarding',
-    address: '45 Kaduwela, Colombo',
-    image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    rating: 4.2,
-    totalReviews: 15,
-    totalRooms: 8,
-    occupiedRooms: 5,
-    rooms: [
-      {
-        id: '201',
-        roomNumber: '201',
-        bedCount: 2,
-        occupiedBeds: 2,
-        price: 12000,
-        status: 'full',
-        tenants: [
-          { id: 't5', name: 'Eve Johnson', roomId: '201', paymentStatus: 'paid', monthlyRent: 12000, outstandingBalance: 0, dueDate: '2026-02-25', checkInDate: '2024-02-01', phone: '+94 77 567 8901', email: 'eve@email.com', trustScore: 'high' },
-          { id: 't6', name: 'Frank Miller', roomId: '201', paymentStatus: 'paid', monthlyRent: 12000, outstandingBalance: 0, dueDate: '2026-03-10', checkInDate: '2024-03-10', phone: '+94 77 678 9012', email: 'frank@email.com', trustScore: 'high' },
-        ]
-      },
-      {
-        id: '202',
-        roomNumber: '202',
-        bedCount: 2,
-        occupiedBeds: 1,
-        price: 12000,
-        status: 'partial',
-        tenants: [
-          { id: 't7', name: 'Grace Lee', roomId: '202', paymentStatus: 'overdue', monthlyRent: 12000, outstandingBalance: 12000, dueDate: '2026-01-10', checkInDate: '2024-01-10', phone: '+94 77 789 0123', email: 'grace@email.com', trustScore: 'medium' },
-        ]
-      },
-    ]
-  },
-];
-
 export default function BoardingPlaceDetail() {
   const navigate = useNavigate();
   const { placeId } = useParams<{ placeId: string }>();
+  const [place, setPlace] = useState<BoardingHouse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [removedTenants, setRemovedTenants] = useState<Set<string>>(new Set());
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [confirmRemoveTenant, setConfirmRemoveTenant] = useState<Tenant | null>(null);
   const [remindedTenants, setRemindedTenants] = useState<Set<string>>(new Set());
 
-  const place = mockBoardingPlaces.find(p => p.id === (placeId || '1'));
-  if (!place) return <div className="text-white p-4">Boarding place not found</div>;
+  // Fetch boarding place data from API
+  const fetchPlace = useCallback(async () => {
+    if (!placeId) {
+      setError('No boarding place ID provided');
+      setLoading(false);
+      return;
+    }
 
-  const allTenants = place.rooms.flatMap(r => r.tenants).filter(t => !removedTenants.has(t.id));
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch the boarding house details
+      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(
+        `${apiUrl}/payment/boarding-places`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('bb_access_token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to fetch boarding places');
+      
+      const data = await response.json();
+      
+      // Find the specific place by ID
+      const allPlaces = data.data || [];
+      const foundPlace = allPlaces.find((p: any) => 
+        p._id === placeId || p.id === placeId
+      );
+
+      if (!foundPlace) {
+        setError('Boarding place not found');
+        setPlace(null);
+      } else {
+        setPlace({
+          ...foundPlace,
+          id: foundPlace._id || foundPlace.id,
+          rooms: foundPlace.rooms || []
+        });
+      }
+    } catch (err: any) {
+      console.error('Error fetching boarding place:', err);
+      setError(err.message || 'Failed to load boarding place');
+      setPlace(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [placeId]);
+
+  useEffect(() => {
+    fetchPlace();
+  }, [fetchPlace]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
+        <div className="text-cyan-400 mb-3">Loading...</div>
+        <p className="text-gray-400 text-sm">Fetching boarding place details</p>
+      </div>
+    );
+  }
+
+  if (error || !place) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
+        <div className="text-center p-6 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+          <div className="text-rose-400 font-bold mb-2">Error</div>
+          <p className="text-gray-300 mb-4">{error || 'Boarding place not found'}</p>
+          <button
+            onClick={() => navigate('/payment-rental')}
+            className="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/40 rounded-lg text-cyan-400 transition-all border border-cyan-500/30"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Continue with the rest of the component logic using the fetched 'place'
+
+
+  const allTenants = (place.rooms ? place.rooms.flatMap(r => r.tenants) : []).filter(t => !removedTenants.has(t.id));
   const paidCount = allTenants.filter(t => t.paymentStatus === 'paid').length;
   const overdueCount = allTenants.filter(t => t.paymentStatus === 'overdue').length;
   const totalCollected = allTenants.filter(t => t.paymentStatus === 'paid').reduce((sum, t) => sum + t.monthlyRent, 0);
@@ -163,7 +175,7 @@ export default function BoardingPlaceDetail() {
   };
 
   const downloadReceipt = (tenant: Tenant, month: string, paidDate: string) => {
-    const room = place.rooms.find(r => r.id === tenant.roomId);
+    const room = place.rooms?.find(r => r.id === tenant.roomId);
     const receiptHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -359,12 +371,12 @@ export default function BoardingPlaceDetail() {
               Rooms Overview
             </h2>
             <span className="text-xs font-semibold text-cyan-500/80 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20 tracking-wider uppercase">
-              {place.rooms.length} Total Rooms
+              {place.rooms?.length || 0} Total Rooms
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {place.rooms.map(room => {
+            {(place.rooms || []).map(room => {
               const activeTenantsInRoom = room.tenants.filter(t => !removedTenants.has(t.id));
               const isFull = activeTenantsInRoom.length >= room.bedCount;
               return (
@@ -431,7 +443,7 @@ export default function BoardingPlaceDetail() {
               .map(tenant => {
                 const daysOverdue = getDaysOverdue(tenant.dueDate);
                 const isOverdue10 = isOverdue10Plus(tenant.dueDate);
-                const room = place.rooms.find(r => r.id === tenant.roomId);
+                const room = place.rooms?.find(r => r.id === tenant.roomId);
                 const dueDateObj = new Date(tenant.dueDate);
                 const formattedDate = dueDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -547,7 +559,7 @@ export default function BoardingPlaceDetail() {
                 </div>
                 <div>
                   <h4 className="text-lg font-semibold text-white">{selectedTenant.name}</h4>
-                  <p className="text-xs text-gray-400">Room {place.rooms.find(r => r.id === selectedTenant.roomId)?.roomNumber} • Rent: Rs.{selectedTenant.monthlyRent.toLocaleString()}</p>
+                  <p className="text-xs text-gray-400">Room {place.rooms?.find(r => r.id === selectedTenant.roomId)?.roomNumber} • Rent: Rs.{selectedTenant.monthlyRent.toLocaleString()}</p>
                 </div>
               </div>
 
