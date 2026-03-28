@@ -101,6 +101,40 @@ const roomSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+
+  rating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5,
+  },
+  reviewCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  campus: {
+    type: String,
+    default: '',
+    enum: ['SLIIT Malabe', 'UOM', 'UOC', 'NSBM', 'USJP', ''],
+  },
+  distKm: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  coordinates: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0],
+    },
+  },
+
   isActive: {
     type: Boolean,
     default: true,
@@ -115,6 +149,13 @@ const roomSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+
+// Create geospatial index for coordinates
+roomSchema.index({ coordinates: '2dsphere' });
+roomSchema.index({ campus: 1 });
+roomSchema.index({ rating: -1 });
+roomSchema.index({ price: 1 });
 
 // Virtual for vacancy
 roomSchema.virtual('vacancy').get(function () {

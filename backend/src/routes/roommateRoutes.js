@@ -9,7 +9,10 @@ const roommateController = require('../controllers/roommateController');
 const requestController = require('../controllers/requestController');
 const groupController = require('../controllers/groupController');
 const roomController = require('../controllers/roomController');
+
+
 const bookingController = require('../controllers/bookingController');
+
 
 // ============ ROOMMATE PROFILE ROUTES ============
 
@@ -142,8 +145,17 @@ router.patch(
 
 // ============ ROOM ROUTES ============
 
+
+// Get all rooms (with advanced filtering)
+router.get('/rooms', roomController.getAllRooms);
+
+// Get nearby rooms (geospatial search)
+router.get('/rooms/nearby', roomController.getNearbyRooms);
+
+
 // Get all rooms
 router.get('/rooms', roomController.getAllRooms);
+
 
 // Get specific room
 router.get('/room/:roomId', roomController.getRoom);
@@ -177,6 +189,174 @@ router.patch(
   validateRequest,
   roomController.updateOccupancy
 );
+
+
+// ============ SAVED SEARCH ROUTES ============
+
+// Save a search
+router.post(
+  '/search/save',
+  requireAuth,
+  [
+    body('name').isLength({ min: 1, max: 100 }),
+    body('filters').isObject(),
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const SavedSearch = require('../models/SavedSearch');
+      const { name, filters } = req.body;
+      const userId = req.user.id;
+
+      const savedSearch = new SavedSearch({
+        userId,
+        name,
+        filters,
+      });
+
+      await savedSearch.save();
+
+      res.status(201).json({
+        success: true,
+        message: 'Search saved successfully',
+        data: savedSearch,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error saving search',
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Get user's saved searches
+router.get('/search/saved', requireAuth, async (req, res) => {
+  try {
+    const SavedSearch = require('../models/SavedSearch');
+    const userId = req.user.id;
+
+    const searches = await SavedSearch.find({ userId }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      success: true,
+      count: searches.length,
+      data: searches,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching saved searches',
+      error: error.message,
+    });
+  }
+});
+
+// Get specific saved search
+router.get('/search/saved/:searchId', requireAuth, async (req, res) => {
+  try {
+    const SavedSearch = require('../models/SavedSearch');
+    const { searchId } = req.params;
+    const userId = req.user.id;
+
+    const search = await SavedSearch.findOne({
+      _id: searchId,
+      userId,
+    });
+
+    if (!search) {
+      return res.status(404).json({
+        success: false,
+        message: 'Saved search not found',
+      });
+    }
+
+    // Update lastUsed
+    search.lastUsed = Date.now();
+    await search.save();
+
+    res.status(200).json({
+      success: true,
+      data: search,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching saved search',
+      error: error.message,
+    });
+  }
+});
+
+// Update saved search
+router.patch('/search/saved/:searchId', requireAuth, async (req, res) => {
+  try {
+    const SavedSearch = require('../models/SavedSearch');
+    const { searchId } = req.params;
+    const { name, filters } = req.body;
+    const userId = req.user.id;
+
+    const search = await SavedSearch.findOneAndUpdate(
+      { _id: searchId, userId },
+      { name, filters, updatedAt: Date.now() },
+      { new: true, runValidators: true }
+    );
+
+    if (!search) {
+      return res.status(404).json({
+        success: false,
+        message: 'Saved search not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Search updated successfully',
+      data: search,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating saved search',
+      error: error.message,
+    });
+  }
+});
+
+// Delete saved search
+router.delete('/search/saved/:searchId', requireAuth, async (req, res) => {
+  try {
+    const SavedSearch = require('../models/SavedSearch');
+    const { searchId } = req.params;
+    const userId = req.user.id;
+
+    const search = await SavedSearch.findOneAndDelete({
+      _id: searchId,
+      userId,
+    });
+
+    if (!search) {
+      return res.status(404).json({
+        success: false,
+        message: 'Saved search not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Search deleted successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting saved search',
+      error: error.message,
+    });
+  }
+});
 
 // ============ BOOKING REQUEST & AGREEMENT ROUTES ============
 
