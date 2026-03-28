@@ -1,13 +1,21 @@
-
 /**
- * Roommate Controller
- * Placeholder for future roommate functionality
+ * @route GET /api/roommates/browse
+ * @access Private
  */
-
-const RoommateProfile = require('../models/RoommateProfile');
-const RoommateMatch = require('../models/RoommateMatch');
-const RoommateRequest = require('../models/RoommateRequest');
-const User = require('../models/User');
+exports.browseProfiles = async (req, res) => {
+  try {
+    const profiles = await RoommateProfile.find({});
+    res.json({
+      success: true,
+      data: profiles,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch roommate profiles',
+    });
+  }
+};
 
 /**
  * @desc Create or update roommate profile for current user
