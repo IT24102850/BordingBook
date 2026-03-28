@@ -302,7 +302,7 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 hover:border-cyan-400/30 transition-all cursor-pointer group"
     onClick={() => onSelect(house)}
   >
-    <div className="relative aspect-square w-full overflow-hidden">
+    <div className="relative aspect-square max-w-[180px] mx-auto mt-4 overflow-hidden rounded-lg shadow-md">
       <img src={house.image} alt={house.name} className="w-full h-full aspect-square object-cover group-hover:scale-110 transition-transform duration-500" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
@@ -350,7 +350,7 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 active:border-cyan-400/30 transition-colors touch-manipulation"
     onClick={() => onSelect(house)}
   >
-    <div className="relative aspect-square w-full overflow-hidden">
+    <div className="relative aspect-square max-w-[120px] mx-auto mt-2 overflow-hidden rounded-lg shadow-md">
       <img src={house.image} alt={house.name} className="w-full h-full aspect-square object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
