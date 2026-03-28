@@ -15,7 +15,10 @@ exports.browseProfiles = async (req, res) => {
       message: 'Failed to fetch roommate profiles',
     });
   }
+
 };
+
+/**
  * @desc Create or update roommate profile for current user
  * @route POST /api/roommates/profile
  * @access Private
