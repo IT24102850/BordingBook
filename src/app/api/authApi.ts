@@ -101,6 +101,19 @@ async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined>
     credentials: 'include',
   });
 
+  const result = await parseJson<SignUpResult>(response);
+
+  if (!response.ok || !result.success || !result.data) {
+    throw new AuthApiError(
+      result.message || 'Sign up failed',
+      response.status,
+      Boolean(result.needsVerification)
+    );
+  }
+
+  return result.data;
+}
+
 export const authApi = {
   signIn,
   signUp,
