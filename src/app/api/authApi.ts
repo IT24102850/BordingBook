@@ -71,10 +71,13 @@ async function parseJson<T>(response: Response): Promise<ApiResponse<T>> {
   }
 }
 
-  const response = await fetch(`${API_BASE_URL}/auth/signin`, {
+
+async function signIn(payload: SignInPayload): Promise<SignInResult> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    credentials: 'include',
   });
 
   const result = await parseJson<SignInResult>(response);
@@ -91,10 +94,11 @@ async function parseJson<T>(response: Response): Promise<ApiResponse<T>> {
 }
 
 async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined> {
-  const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+  const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    credentials: 'include',
   });
 
 async function signIn(payload: SignInPayload): Promise<SignInResult> {
