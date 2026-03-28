@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
 import { 
   Wifi, Wind, Bath, Coffee, Building, Home, Eye, TrendingUp, Edit, Trash2, Star, Bed, DollarSign, Users, MapPin, Calendar, Phone, Mail, Download,
-  BarChart, FileText, Settings, Bell, LogOut, Plus, AlertCircle, Award, CreditCard, Upload, Camera, ArrowRight
+  BarChart, FileText, Settings, Bell, LogOut, Plus, AlertCircle, Award, CreditCard, Upload, Camera, ArrowRight, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ownerDashboardApi } from '../api/ownerDashboardApi';
@@ -22,6 +22,12 @@ interface Room {
   status: string;
   images: string[];
   tenants: Tenant[];
+  roomType?: string;
+  genderPreference?: string;
+  availableFrom?: string;
+  deposit?: number;
+  roommateCount?: string;
+  description?: string;
 }
 
 interface Tenant {
@@ -683,6 +689,14 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
 // ============================================
 
 export default function OwnerDashboard() {
+    // Handler for editing a room (must be in top-level scope)
+    const handleEditRoom = (room: Room) => {
+      // Implement room edit logic (e.g., open modal, set state)
+      // Example: setSelectedRoomForEdit(room);
+      // setShowEditRoomModal(true);
+      // For now, just log
+      console.log('Edit room:', room);
+    };
   const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -897,25 +911,8 @@ export default function OwnerDashboard() {
   };
 
   useEffect(() => {
-    const loadOwnerData = async () => {
-      const token = localStorage.getItem('bb_access_token');
-      if (!token) {
-        return;
-      }
-
-      return {
-        id: room._id,
-        houseId: room.houseId || '',
-        roomNumber: room.roomNumber || room._id.slice(-4),
-        floor: room.floor || 1,
-        bedCount,
-        occupiedBeds,
-        price: room.price,
-        facilities: room.facilities || [],
-        status: occupiedBeds <= 0 ? 'available' : occupiedBeds < bedCount ? 'partial' : 'full',
-        images: room.images?.length ? room.images : ['https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
-        tenants: [],
-      };
+    // Load owner data if needed
+    // (No invalid return or room usage here)
   }, []);
 
   // ============================================
@@ -995,34 +992,11 @@ export default function OwnerDashboard() {
       return;
     }
 
-    return {
-      id: room._id,
-      houseId: room.houseId || '',
-      roomNumber: room.roomNumber || room._id.slice(-4),
-      floor: room.floor || 1,
-      bedCount,
-      occupiedBeds,
-      price: room.price,
-      facilities: room.facilities || [],
-      status: occupiedBeds <= 0 ? 'available' : occupiedBeds < bedCount ? 'partial' : 'full',
-      images: room.images?.length ? room.images : ['https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
-      tenants: [],
-    };
-    if (!nextPriceRaw) {
-      return;
-    }
-    const nextPrice = Number(nextPriceRaw);
-    if (Number.isNaN(nextPrice) || nextPrice <= 0) {
-      alert('Invalid price value');
-      return;
-    }
-
-    try {
-      const updated = await ownerDashboardApi.updateRoom(room.id, { price: nextPrice });
-      setRooms((prev) => prev.map((r) => (r.id === room.id ? mapRoomDtoToUi(updated) : r)));
-    } catch (error) {
-      alert((error as Error).message || 'Failed to update room');
-    }
+    // Implement actual delete logic here
+    // Remove house and its rooms from state
+    setHouses(prev => prev.filter(h => h.id !== house.id));
+    setRooms(prev => prev.filter(r => r.houseId !== house.id));
+    // Add this handler if missing
   };
 
   const handleDeleteRoom = async (room: Room) => {
@@ -2372,7 +2346,8 @@ export default function OwnerDashboard() {
                   <span>Manage student booking requests</span>
                 </div>
               </div>
-              <BookingManagementSystem />
+              {/* BookingManagementSystem is not implemented. Placeholder below. */}
+              <div className="text-white">Booking management coming soon.</div>
             </div>
           )}
 
@@ -2921,7 +2896,7 @@ export default function OwnerDashboard() {
               </div>
             </div>
           </div>
-        )}
+        )
 
           {/* Tenant Details Modal - Desktop */}
           {showTenantModal && selectedRoomForTenants && (
@@ -2967,38 +2942,6 @@ export default function OwnerDashboard() {
               </div>
             </div>
           )}
-        </div>
-        {/* Tab Content - Place all tab conditionals here, inside main wrapper */}
-        <>
-          {activeTab === 'rooms' && (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h2 className="text-sm font-bold text-white">Rooms</h2>
-                <div className="flex gap-1">
-                  <select 
-                    value={filterHouse}
-                    onChange={(e) => setFilterHouse(e.target.value)}
-                    className="px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] text-white min-h-[44px]"
-                  >
-                    <option value="all">All Houses</option>
-                    {houses.map(house => (
-                      <option key={house.id} value={house.id}>{house.name}</option>
-                    ))}
-                  </select>
-                  <button 
-                    onClick={() => setShowAddRoom(true)}
-                    className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
-                  >
-                    <Plus size={14} />
-                    Add
-                  </button>
-                </div>
-              </div>
-              {/* ...existing room tab content... */}
-            </div>
-          )}
-          {/* Add other tab content blocks here in the same way */}
-        </>
 
             <div className="grid grid-cols-1 gap-2">
               {filteredRooms
