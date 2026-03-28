@@ -35,6 +35,16 @@ input, select, button {
 .animate-blob1 { animation: blob1 18s ease-in-out infinite alternate; }
 .animate-blob2 { animation: blob2 22s ease-in-out infinite alternate; }
 .animate-blob3 { animation: blob3 26s ease-in-out infinite alternate; }
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';

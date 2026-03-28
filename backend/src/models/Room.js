@@ -101,6 +101,7 @@ const roomSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+
   rating: {
     type: Number,
     default: 0,
@@ -133,6 +134,7 @@ const roomSchema = new mongoose.Schema({
       default: [0, 0],
     },
   },
+
   isActive: {
     type: Boolean,
     default: true,
@@ -147,6 +149,7 @@ const roomSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
 
 // Create geospatial index for coordinates
 roomSchema.index({ coordinates: '2dsphere' });

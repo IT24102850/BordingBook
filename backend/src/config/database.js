@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const env = require('./env');
 
 async function connectDatabase() {
+
   try {
     mongoose.set('strictQuery', true);
 
@@ -15,6 +16,15 @@ async function connectDatabase() {
     console.error('✗ MongoDB connection failed:', error.message);
     throw error;
   }
+
+  mongoose.set('strictQuery', true);
+
+  await mongoose.connect(env.mongoUri, {
+    serverSelectionTimeoutMS: 10000,
+  });
+
+  console.log('MongoDB connected');
+
 }
 
 module.exports = {

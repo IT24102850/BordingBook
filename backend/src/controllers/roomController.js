@@ -1,5 +1,6 @@
 const Room = require('../models/Room');
 
+
 const fallbackRoomImages = [
   'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80',
   'https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?auto=format&fit=crop&w=1200&q=80',
@@ -57,10 +58,16 @@ const getFallbackRooms = () => [
  * @query {Number} minRating - Minimum rating filter
  * @query {Number} minVacancy - Minimum vacant spots
  * @query {String} sort - Sort order (price, rating, distance, newest)
+
+/**
+ * @desc Get all available rooms
+ * @route GET /api/roommates/rooms
+ * @access Public
  */
 exports.getAllRooms = async (req, res) => {
   try {
     const {
+
       search,
       maxPrice,
       minPrice,
@@ -69,10 +76,18 @@ exports.getAllRooms = async (req, res) => {
       facilities,
       minRating,
       minVacancy,
+
+      location,
+      minPrice,
+      maxPrice,
+      minVacancy,
+      facilities,
+
       sort,
     } = req.query;
 
     const filter = { isActive: true };
+
 
     // Search filter - covers campus, location, name
     if (search) {
@@ -155,6 +170,63 @@ exports.getAllRooms = async (req, res) => {
     if (!Array.isArray(rooms) || rooms.length === 0) {
       rooms = getFallbackRooms();
     }
+
+    if (location) {
+      filter.location = { $regex: location, $options: 'i' };
+    }
+
+    if (minPrice) {
+      filter.price = { $gte: parseInt(minPrice) };
+    }
+
+    if (maxPrice) {
+      if (!filter.price) filter.price = {};
+      filter.price.$lte = parseInt(maxPrice);
+    }
+
+    if (minVacancy) {
+      // Using aggregation for vacancy filter
+      const rooms = await Room.aggregate([
+        {
+          $addFields: {
+            vacancy: { $subtract: ['$totalSpots', '$occupancy'] },
+          },
+        },
+        {
+          $match: {
+            ...filter,
+            vacancy: { $gte: parseInt(minVacancy) },
+          },
+        },
+        {
+          $sort: sort === 'price' ? { price: 1 } : { createdAt: -1 },
+        },
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        count: rooms.length,
+        data: rooms,
+      });
+    }
+
+    if (facilities) {
+      const facilityArray = Array.isArray(facilities)
+        ? facilities
+        : [facilities];
+      filter.facilities = { $in: facilityArray };
+    }
+
+    let query = Room.find(filter);
+
+    if (sort === 'price') {
+      query = query.sort({ price: 1 });
+    } else {
+      query = query.sort({ createdAt: -1 });
+    }
+
+    const rooms = await query;
+
 
     res.status(200).json({
       success: true,

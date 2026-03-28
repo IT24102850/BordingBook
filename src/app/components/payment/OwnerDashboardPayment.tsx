@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Trash2, AlertCircle, Eye, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { ChevronDown, Trash2, AlertCircle, Eye, CheckCircle, XCircle, ArrowRight, DownloadCloud } from 'lucide-react';
 
 interface Tenant {
   id: string;
@@ -108,6 +108,82 @@ export default function OwnerDashboardPayment() {
     setPendingSlips(prev => prev.filter(s => s.id !== slipId));
   };
 
+  const handleDownloadSlip = (slipId: string) => {
+    const slip = pendingSlips.find(s => s.id === slipId);
+    if (!slip) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Payment Slip - ${slip.tenantName}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 20px; }
+            .header h1 { font-size: 28px; color: #1e40af; margin-bottom: 8px; }
+            .header p { color: #666; font-size: 14px; }
+            .details { margin: 20px 0; }
+            .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+            .label { font-weight: 600; color: #374151; }
+            .value { color: #6b7280; }
+            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
+            .badge { display: inline-block; background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 4px; font-size: 12px; margin-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>💳 Payment Slip</h1>
+              <p>${slip.placeName}</p>
+              <span class="badge">Slip ID: ${slip.id}</span>
+            </div>
+            <div class="details">
+              <div class="row">
+                <span class="label">Tenant Name:</span>
+                <span class="value">${slip.tenantName}</span>
+              </div>
+              <div class="row">
+                <span class="label">Room Number:</span>
+                <span class="value">${slip.roomNumber}</span>
+              </div>
+              <div class="row">
+                <span class="label">Amount:</span>
+                <span class="value" style="font-weight: 600; color: #059669; font-size: 16px;">Rs. ${slip.amount.toLocaleString()}</span>
+              </div>
+              <div class="row">
+                <span class="label">Due Date:</span>
+                <span class="value">${slip.date}</span>
+              </div>
+              <div class="row">
+                <span class="label">Generated:</span>
+                <span class="value">${new Date().toLocaleString()}</span>
+              </div>
+            </div>
+            <div class="footer">
+              <p>This is an official payment slip document. Please keep it for your records.</p>
+              <p style="margin-top: 10px;">© 2026 Boarding House Management System</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Create blob and download as HTML file
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `payment-slip-${slip.tenantName.replace(/\s+/g, '-')}-${slip.id}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-4">
@@ -141,6 +217,14 @@ export default function OwnerDashboardPayment() {
                   <button className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-cyan-300 font-medium transition-all shadow-sm border border-cyan-500/20">
                     <Eye size={16} />
                     View Slip
+                  </button>
+                  <button
+                    onClick={() => handleDownloadSlip(slip.id)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-emerald-300 font-medium transition-all shadow-sm border border-emerald-500/20"
+                    title="Download Slip"
+                  >
+                    <DownloadCloud size={16} />
+                    Download
                   </button>
                   <button
                     onClick={() => handleApproveSlip(slip.id)}

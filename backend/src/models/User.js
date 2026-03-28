@@ -23,18 +23,31 @@ const userSchema = new mongoose.Schema(
       default: 'student',
     },
     
-    // Owner-specific fields
+    // Owner and Student fields
     fullName: {
       type: String,
       required: function() {
         return this.role === 'owner';
       },
+      default: '',
+      trim: true,
     },
     phoneNumber: {
       type: String,
       required: function() {
         return this.role === 'owner';
       },
+      default: '',
+      trim: true,
+    },
+    mobileNumber: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    age: {
+      type: Number,
+      default: 0,
     },
     companyName: {
       type: String,
@@ -67,6 +80,55 @@ const userSchema = new mongoose.Schema(
     bio: {
       type: String,
       default: '',
+    },
+    minBudget: {
+      type: Number,
+      default: 0,
+    },
+    maxBudget: {
+      type: Number,
+      default: 0,
+    },
+    distance: {
+      type: Number,
+      default: 0,
+    },
+    selectedLocation: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    gender: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    academicYear: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    roommatePreference: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    roomType: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    lifestylePrefs: {
+      type: [String],
+      default: [],
+    },
+    profilePictures: {
+      type: [String],
+      default: [],
+    },
+    profileCompleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {

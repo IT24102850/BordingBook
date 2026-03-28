@@ -10,6 +10,10 @@ const requestController = require('../controllers/requestController');
 const groupController = require('../controllers/groupController');
 const roomController = require('../controllers/roomController');
 
+
+const bookingController = require('../controllers/bookingController');
+
+
 // ============ ROOMMATE PROFILE ROUTES ============
 
 // Create or update profile
@@ -141,11 +145,17 @@ router.patch(
 
 // ============ ROOM ROUTES ============
 
+
 // Get all rooms (with advanced filtering)
 router.get('/rooms', roomController.getAllRooms);
 
 // Get nearby rooms (geospatial search)
 router.get('/rooms/nearby', roomController.getNearbyRooms);
+
+
+// Get all rooms
+router.get('/rooms', roomController.getAllRooms);
+
 
 // Get specific room
 router.get('/room/:roomId', roomController.getRoom);
@@ -179,6 +189,7 @@ router.patch(
   validateRequest,
   roomController.updateOccupancy
 );
+
 
 // ============ SAVED SEARCH ROUTES ============
 
@@ -346,5 +357,31 @@ router.delete('/search/saved/:searchId', requireAuth, async (req, res) => {
     });
   }
 });
+
+// ============ BOOKING REQUEST & AGREEMENT ROUTES ============
+
+router.post(
+  '/booking-request',
+  requireAuth,
+  [
+    body('roomId').isMongoId().withMessage('roomId is required'),
+    body('bookingType').optional().isIn(['individual', 'group']),
+    body('groupSize').optional().isInt({ min: 1, max: 20 }),
+    body('moveInDate').isISO8601().withMessage('moveInDate must be a valid date'),
+    body('durationMonths').optional().isInt({ min: 1, max: 36 }),
+  ],
+  validateRequest,
+  bookingController.createBookingRequest
+);
+
+router.get('/booking-requests', requireAuth, bookingController.getMyBookingRequests);
+router.get('/agreements', requireAuth, bookingController.getMyAgreements);
+router.patch(
+  '/agreements/:agreementId/respond',
+  requireAuth,
+  [body('status').isIn(['accepted', 'rejected'])],
+  validateRequest,
+  bookingController.respondToAgreement
+);
 
 module.exports = router;

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { authApi, AuthApiError } from '../api/authApi';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import { 
   Lock, Mail, ShieldCheck, UserCheck, ArrowLeft, Eye, EyeOff, 
   AlertCircle, Loader2, HelpCircle, FileText, Shield,
@@ -75,7 +77,17 @@ export default function SignIn() {
     password: false
   });
   
+  const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const search = new URLSearchParams(location.search);
+    const emailFromQuery = search.get('email');
+
+    if (emailFromQuery) {
+      setEmail(emailFromQuery);
+    }
+  }, [location.search]);
 
   // Handle window resize for responsive adjustments
   useEffect(() => {
@@ -104,12 +116,12 @@ export default function SignIn() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setTouchedFields({ email: true, password: true });
-    
+
     const emailValidation = validateEmail(email);
     const passwordValidation = validatePassword(password);
-    
+
     if (emailValidation || passwordValidation) {
       setError('Please fix the errors below');
       return;
@@ -120,11 +132,27 @@ export default function SignIn() {
     setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const result = await authApi.signIn({ email, password });
+      localStorage.setItem('bb_access_token', result.token);
+      localStorage.setItem('bb_current_user', JSON.stringify(result.user));
       setSuccess('Signed in successfully!');
-      setTimeout(() => navigate('/find'), 800);
+
+      // Students complete profile only once; owners go to dashboard.
+      const redirectPath = result.user.role === 'owner'
+        ? '/owner-dashboard'
+        : (result.user.profileCompleted ? '/find' : '/profile-setup');
+      setTimeout(() => navigate(redirectPath), 800);
+
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
+      if (err instanceof AuthApiError) {
+        if (err.needsVerification) {
+          navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+          return;
+        }
+        setError(err.message);
+      } else {
+        setError('Unable to sign in right now. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -142,7 +170,12 @@ export default function SignIn() {
     setIsLoading(true);
     setTimeout(() => {
       setSuccess('Signed in with Google!');
+
+      setTimeout(() => navigate('/profile-setup'), 1000);
+
+      // Note: In production, retrieve user role from Google auth response
       setTimeout(() => navigate('/find'), 1000);
+
       setIsLoading(false);
     }, 1500);
   };
