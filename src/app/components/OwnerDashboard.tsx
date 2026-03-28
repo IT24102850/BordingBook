@@ -1,76 +1,66 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, ReactNode } from 'react';
 import { 
-  Building, Home, Bed, Users, Star, Download, Edit, Trash2, 
-  Plus, Wifi, Coffee, Bath, Wind, Upload, 
-  Calendar, AlertCircle, DollarSign,
-  Camera, Eye, Settings,
-  BarChart, CreditCard, Award, TrendingUp, Menu, X,
-  Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight, LogOut
+  Wifi, Wind, Bath, Coffee, Building, Home, Eye, TrendingUp, Edit, Trash2, Star, Bed, DollarSign, Users, MapPin, Calendar, Phone, Mail, Download,
+  BarChart, FileText, Settings, Bell, LogOut, Plus, AlertCircle, Award, CreditCard, Upload, Camera, ArrowRight
 } from 'lucide-react';
-import BookingManagementSystem from './booking/BookingManagementSystem';
-import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
+import { useNavigate } from 'react-router-dom';
+import { ownerDashboardApi } from '../api/ownerDashboardApi';
+import type { OwnerHouseDto, OwnerRoomDto } from '../api/ownerDashboardApi';
+// ============================================
+// TYPES (move all to top)
+// ============================================
 
-// ============================================
-// TYPES
-// ============================================
+interface Room {
+  id: string;
+  houseId: string;
+  roomNumber: string;
+  floor: number;
+  bedCount: number;
+  occupiedBeds: number;
+  price: number;
+  facilities: string[];
+  status: string;
+  images: string[];
+  tenants: Tenant[];
+}
+
+interface Tenant {
+  id: string;
+  name: string;
+  roomId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  paymentStatus: string;
+  monthlyRent: number;
+  phone: string;
+  email: string;
+}
+
+interface Facility {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+}
 
 interface BoardingHouse {
   id: string;
   name: string;
   address: string;
-  }
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  trend: number;
-  color: string;
-}
-
-interface MobileStatsCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  trend: number;
-  color: string;
-}
-
-interface HouseCardProps {
-  house: BoardingHouse;
-  onEdit: (house: BoardingHouse) => void;
-  onDelete: (house: BoardingHouse) => void;
-  onSelect: (house: BoardingHouse) => void;
-}
-
-interface MobileHouseCardProps {
-  house: BoardingHouse;
-  onEdit: (house: BoardingHouse) => void;
-  onDelete: (house: BoardingHouse) => void;
-  onSelect: (house: BoardingHouse) => void;
-}
-
-interface RoomCardProps {
-  room: Room;
-  onEdit: (room: Room) => void;
-  onDelete: (room: Room) => void;
-  onViewTenants: (room: Room) => void;
-}
-
-interface MobileRoomCardProps {
-  room: Room;
-  onEdit: (room: Room) => void;
-  onDelete: (room: Room) => void;
-  onViewTenants: (room: Room) => void;
-}
-
-interface TenantTableProps {
-  tenants: Tenant[];
-  rooms: Room[];
-}
-
-interface MobileTenantListProps {
-  tenants: Tenant[];
-  rooms: Room[];
+  totalRooms: number;
+  occupiedRooms: number;
+  rating: number;
+  totalReviews: number;
+  image: string;
+  status: string;
+  genderPreference?: 'girls' | 'boys' | 'any';
+  monthlyPrice?: number;
+  roomType?: string;
+  availableFrom?: string;
+  deposit?: number;
+  roommateCount?: string;
+  description?: string;
+  features?: string[];
+  images?: string[];
 }
 
 interface OwnerProfile {
@@ -84,23 +74,27 @@ interface OwnerProfile {
   profileImage?: string;
 }
 
-interface SparklineProps {
-  data: number[];
-  color: string;
+// ====== Additional Types ======
+
+interface MobileHouseCardProps {
+  house: BoardingHouse;
+  onEdit: (house: BoardingHouse) => void;
+  onDelete: (house: BoardingHouse) => void;
+  onSelect: (house: BoardingHouse) => void;
 }
 
 interface StatsCardProps {
   title: string;
-  value: string | number;
-  icon: React.ReactNode;
+  value: number | string;
+  icon: ReactNode;
   trend: number;
   color: string;
 }
 
 interface MobileStatsCardProps {
   title: string;
-  value: string | number;
-  icon: React.ReactNode;
+  value: number | string;
+  icon: ReactNode;
   trend: number;
   color: string;
 }
@@ -112,12 +106,6 @@ interface HouseCardProps {
   onSelect: (house: BoardingHouse) => void;
 }
 
-interface MobileHouseCardProps {
-  house: BoardingHouse;
-  onEdit: (house: BoardingHouse) => void;
-  onDelete: (house: BoardingHouse) => void;
-  onSelect: (house: BoardingHouse) => void;
-}
 
 interface RoomCardProps {
   room: Room;
@@ -416,7 +404,7 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
 
 // Room Card Component (Desktop)
 const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenants }) => {
-  const statusColors = {
+  const statusColors: { [key: string]: string } = {
     available: 'text-green-400 bg-green-500/20',
     partial: 'text-yellow-400 bg-yellow-500/20',
     full: 'text-red-400 bg-red-500/20'
@@ -482,7 +470,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenan
 
 // Mobile Room Card Component
 const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete, onViewTenants }) => {
-  const statusColors = {
+  const statusColors: { [key: string]: string } = {
     available: 'text-green-400 bg-green-500/20',
     partial: 'text-yellow-400 bg-yellow-500/20',
     full: 'text-red-400 bg-red-500/20'
@@ -558,7 +546,7 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, rooms }) => {
     return room ? room.roomNumber : 'N/A';
   };
 
-  const paymentColors = {
+  const paymentColors: { [key: string]: string } = {
     paid: 'text-green-400 bg-green-500/20',
     pending: 'text-yellow-400 bg-yellow-500/20',
     overdue: 'text-red-400 bg-red-500/20'
@@ -635,7 +623,7 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
     paid: 'text-green-400 bg-green-500/20',
     pending: 'text-yellow-400 bg-yellow-500/20',
     overdue: 'text-red-400 bg-red-500/20'
-  };
+  } as { [key: string]: string };
 
   const bookingStatus = getBookingStatus;
 
@@ -899,7 +887,6 @@ export default function OwnerDashboard() {
       status: occupiedBeds <= 0 ? 'available' : occupiedBeds < bedCount ? 'partial' : 'full',
       images: room.images?.length ? room.images : ['https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
       tenants: [],
-      location: room.location,
       roomType: room.roomType,
       genderPreference: room.genderPreference,
       availableFrom: room.availableFrom,
@@ -916,20 +903,19 @@ export default function OwnerDashboard() {
         return;
       }
 
-      try {
-        const [houseData, roomData] = await Promise.all([
-          ownerDashboardApi.getHouses(),
-          ownerDashboardApi.getRooms(),
-        ]);
-
-        setHouses(houseData.map(mapHouseDtoToUi));
-        setRooms(roomData.map(mapRoomDtoToUi));
-      } catch (error) {
-        console.error('Failed to load owner dashboard data:', error);
-      }
-    };
-
-    loadOwnerData();
+      return {
+        id: room._id,
+        houseId: room.houseId || '',
+        roomNumber: room.roomNumber || room._id.slice(-4),
+        floor: room.floor || 1,
+        bedCount,
+        occupiedBeds,
+        price: room.price,
+        facilities: room.facilities || [],
+        status: occupiedBeds <= 0 ? 'available' : occupiedBeds < bedCount ? 'partial' : 'full',
+        images: room.images?.length ? room.images : ['https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
+        tenants: [],
+      };
   }, []);
 
   // ============================================
@@ -1009,20 +995,19 @@ export default function OwnerDashboard() {
       return;
     }
 
-    try {
-      await ownerDashboardApi.deleteHouse(house.id);
-      setHouses((prev) => prev.filter((h) => h.id !== house.id));
-      setRooms((prev) => prev.filter((room) => room.houseId !== house.id));
-      if (selectedHouse?.id === house.id) {
-        resetHouseEditor();
-      }
-    } catch (error) {
-      alert((error as Error).message || 'Failed to delete house');
-    }
-  };
-
-  const handleEditRoom = async (room: Room) => {
-    const nextPriceRaw = window.prompt('Update monthly price (Rs.)', String(room.price));
+    return {
+      id: room._id,
+      houseId: room.houseId || '',
+      roomNumber: room.roomNumber || room._id.slice(-4),
+      floor: room.floor || 1,
+      bedCount,
+      occupiedBeds,
+      price: room.price,
+      facilities: room.facilities || [],
+      status: occupiedBeds <= 0 ? 'available' : occupiedBeds < bedCount ? 'partial' : 'full',
+      images: room.images?.length ? room.images : ['https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
+      tenants: [],
+    };
     if (!nextPriceRaw) {
       return;
     }
@@ -2983,93 +2968,37 @@ export default function OwnerDashboard() {
             </div>
           )}
         </div>
-      </div>
-              <h3 className="text-xs font-medium text-cyan-300 mb-2 flex items-center gap-1">
-                <DollarSign size={12} />
-                Monthly Revenue
-              </h3>
-              <p className="text-xl font-bold text-white">Rs.{monthlyRevenue.toLocaleString()}</p>
-              <p className="text-[9px] text-gray-400 mt-0.5">from {totalTenants} tenants</p>
-              <div className="mt-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full w-3/4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" />
+        {/* Tab Content - Place all tab conditionals here, inside main wrapper */}
+        <>
+          {activeTab === 'rooms' && (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h2 className="text-sm font-bold text-white">Rooms</h2>
+                <div className="flex gap-1">
+                  <select 
+                    value={filterHouse}
+                    onChange={(e) => setFilterHouse(e.target.value)}
+                    className="px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] text-white min-h-[44px]"
+                  >
+                    <option value="all">All Houses</option>
+                    {houses.map(house => (
+                      <option key={house.id} value={house.id}>{house.name}</option>
+                    ))}
+                  </select>
+                  <button 
+                    onClick={() => setShowAddRoom(true)}
+                    className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
+                  >
+                    <Plus size={14} />
+                    Add
+                  </button>
+                </div>
               </div>
+              {/* ...existing room tab content... */}
             </div>
-
-            {/* Recent Tenants */}
-            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-              <h3 className="text-xs font-medium text-cyan-300 mb-2 flex items-center gap-1">
-                <Users size={12} />
-                Recent Tenants
-              </h3>
-              <MobileTenantList tenants={allTenants.slice(0, 3)} rooms={rooms} />
-              {allTenants.length > 3 && (
-                <button 
-                  onClick={() => setActiveTab('tenants')}
-                  className="w-full mt-2 py-2 text-[9px] text-cyan-400 active:text-cyan-300 border-t border-white/10 pt-2 min-h-[44px]"
-                >
-                  View All Tenants
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Houses Tab - Mobile */}
-        {activeTab === 'houses' && (
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-bold text-white">My Houses</h2>
-              <button 
-                onClick={() => {
-                  resetHouseEditor();
-                  setShowAddHouse(true);
-                }}
-                className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
-              >
-                <Plus size={14} />
-                Add
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              {houses.map(house => (
-                <MobileHouseCard 
-                  key={house.id}
-                  house={house}
-                  onSelect={() => {}}
-                  onEdit={handleEditHouse}
-                  onDelete={handleDeleteHouse}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Rooms Tab - Mobile */}
-        {activeTab === 'rooms' && (
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-bold text-white">Rooms</h2>
-              <div className="flex gap-1">
-                <select 
-                  value={filterHouse}
-                  onChange={(e) => setFilterHouse(e.target.value)}
-                  className="px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] text-white min-h-[44px]"
-                >
-                  <option value="all">All Houses</option>
-                  {houses.map(house => (
-                    <option key={house.id} value={house.id}>{house.name}</option>
-                  ))}
-                </select>
-                <button 
-                  onClick={() => setShowAddRoom(true)}
-                  className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
-                >
-                  <Plus size={14} />
-                  Add
-                </button>
-              </div>
-            </div>
+          )}
+          {/* Add other tab content blocks here in the same way */}
+        </>
 
             <div className="grid grid-cols-1 gap-2">
               {filteredRooms
