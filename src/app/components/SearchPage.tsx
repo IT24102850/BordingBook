@@ -1,18 +1,3 @@
-import React, { useState, useEffect, useRef, ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import { 
-  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
-  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
-  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
-  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
-  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
-  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
-} from 'react-icons/fa';
-import { MdOutlineVerified } from 'react-icons/md';
-import { RiUserSharedLine } from 'react-icons/ri';
-import { BiCurrentLocation } from 'react-icons/bi';
-import { distMap } from '../data/rooms';
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
@@ -691,7 +676,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
               </div>
               </div> {/* close grid */}
             </div> {/* close md:block */}
-            </div>
           {/* Mobile View */}
           <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
             <div className="w-full max-w-md mb-3 px-4">
@@ -899,70 +883,7 @@ function MapViewPlaceholder() {
   );
 }
 
-// Define types
-interface Roommate {
-  id: number | string;
-  userId?: string;
-  name: string;
-  email?: string;
-  age: number;
-  gender: string;
-  university: string;
-  bio: string;
-  image: string;
-  interests: string[];
-  mutualCount?: number;
-}
 
-interface Listing {
-  id: number;
-  title: string;
-  images: string[];
-  price: number;
-  location: string;
-  distance: number;
-  distanceUnit: string;
-  travelTime: string;
-  roomType: string;
-  genderPreference: string;
-  availableFrom: string;
-  billsIncluded: boolean;
-  verified: boolean;
-  badges: string[];
-  description: string;
-  features: string[];
-  deposit: number;
-  roommateCount: number;
-  rating?: number;
-  campus?: string[];
-  fullAddress?: string;
-  vacancy?: string;
-  totalRooms?: number;
-  occupiedRooms?: number;
-}
-
-interface ListingCardProps {
-  listing: Listing;
-  onLike: () => void;
-  onPass: () => void;
-  onViewDetails: (listing: Listing) => void;
-  isAnimating: boolean;
-  direction: 'left' | 'right' | null;
-  viewMode?: 'card' | 'grid' | 'mini';
-}
-
-interface DetailsModalProps {
-  listing: Listing | null;
-  onClose: () => void;
-  onLike: () => void;
-  onBooking?: (listing: Listing) => void;
-}
-
-interface FilterChip {
-  id: string;
-  label: string;
-  icon: ReactNode;
-}
 
 // Real boarding room images
 const roomImages: string[] = [
@@ -1105,7 +1026,7 @@ const filterChips: FilterChip[] = [
   { id: 'verified', label: 'Verified', icon: React.createElement(MdOutlineVerified) },
   { id: 'single', label: 'Single Room', icon: React.createElement(FaBed) },
   { id: 'shared', label: 'Shared Room', icon: React.createElement(FaUserFriends) },
-  { id: 'bills', label: 'Bills Included', icon: React.createElement(FaBolt) },
+  { id: 'bills', label: 'Bills Included', icon: React.createElement(FaBolt) }
 ];
 
 // Travel time icons based on distance
@@ -1477,8 +1398,8 @@ const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = 
       </div>
     </div>
   );
-};
-
+    </div>
+  );
 // Card View Component (for mobile and desktop card mode)
 const ListingCard: React.FC<ListingCardProps> = ({ 
   listing, 
@@ -2105,7 +2026,7 @@ const FiltersPanel: React.FC<{
 };
 
 // Notification Interface
-interface Notification {
+export interface Notification {
   id: string;
   type:
     | 'owner_approval'
