@@ -550,7 +550,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   <button
                     key={match.id}
                     onClick={() => {
-                      const getUserId = (user) => user.userId || user._id || user.id || (typeof user === 'string' ? user : '');
+                      const getUserId = (user: any) => user.userId || user._id || user.id || (typeof user === 'string' ? user : '');
                       const recipientId = String(getUserId(match));
                       const selectedRoommate = { ...match, userId: recipientId };
                       navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
@@ -768,7 +768,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                     <button
                       onClick={() => {
                         // Always use MongoDB userId for chat
-                        const getUserId = (user) => user.userId || user._id || user.id || (typeof user === 'string' ? user : '');
+                        const getUserId = (user: any) => user.userId || user._id || user.id || (typeof user === 'string' ? user : '');
                         const recipientId = String(getUserId(req.from));
                         const selectedRoommate = { ...req.from, userId: recipientId };
                         navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
