@@ -318,7 +318,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [mutualMatches, setMutualMatches] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
-  const [showSidePanels, setShowSidePanels] = React.useState(false);
+  // Side panels always visible in window/desktop mode
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
   const [groups, setGroups] = React.useState<any[]>([]);
@@ -602,18 +602,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
 
           <div className="hidden md:block">
             <div className="flex items-center justify-between mb-4 px-1">
-              <p className="text-xs text-gray-400">Focus mode keeps swipe actions clear on smaller windows.</p>
-              <button
-                onClick={() => setShowSidePanels((prev) => !prev)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 border border-white/15 text-cyan-200 hover:bg-white/15 transition"
-              >
-                {showSidePanels ? 'Hide Passed & Favorites' : 'Show Passed & Favorites'}
-              </button>
+              <p className="text-xs text-gray-400">Passed and Favorites are always visible in window mode.</p>
             </div>
 
-            <div className={showSidePanels ? 'grid grid-cols-3 gap-6' : 'grid grid-cols-1 gap-6'}>
+            <div className="grid grid-cols-3 gap-6">
               {/* Left Column - Passed Roommates */}
-              {showSidePanels && (
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                 <div className="flex items-center gap-2 mb-4">
                   <FaHistory className="text-red-400" />
@@ -633,10 +626,8 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   )}
                 </div>
               </div>
-              )}
-
               {/* Center Column - Main Swipe Card */}
-              <div className={showSidePanels ? '' : 'max-w-2xl mx-auto'}>
+              <div>
                 <div className="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center justify-between">
                   <span className="text-xs text-cyan-200">
                     Profile {Math.min(currentIdx + 1, Math.max(1, roommateData.length))} of {roommateData.length}
@@ -674,7 +665,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
               </div>
 
               {/* Right Column - Liked Roommates */}
-              {showSidePanels && (
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                 <div className="flex items-center gap-2 mb-4">
                   <FaBookmark className="text-green-400" />
