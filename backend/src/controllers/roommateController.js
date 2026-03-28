@@ -4,28 +4,18 @@
  */
 exports.browseProfiles = async (req, res) => {
   try {
-    const profiles = await RoommateProfile.find({});
+    const profiles = await RoommateProfile.find({ isActive: true });
     res.json({
       success: true,
       data: profiles,
-    /**
-     * @route GET /api/roommates/browse
-     * @access Private
-     */
-    exports.browseProfiles = async (req, res) => {
-      try {
-        const profiles = await RoommateProfile.find({ isActive: true });
-        res.json({
-          success: true,
-          data: profiles,
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: 'Failed to fetch roommate profiles',
-        });
-      }
-    };
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch roommate profiles',
+    });
+  }
+};
  * @desc Create or update roommate profile for current user
  * @route POST /api/roommates/profile
  * @access Private
@@ -49,17 +39,6 @@ exports.getMyProfile = async (req, res) => {
   });
 };
 
-/**
- * @desc Browse roommate profiles
- * @route GET /api/roommates/browse
- * @access Private
- */
-exports.browseProfiles = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Browse roommates not yet implemented',
-  });
-};
 
 /**
  * @desc Swipe on a profile (like/pass)
