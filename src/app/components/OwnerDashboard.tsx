@@ -26,88 +26,18 @@ import BookingManagementSystem from './booking/BookingManagementSystem';
 import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
 
 // ============================================
-// TYPES
-// ============================================
-
-interface BoardingHouse {
-  id: string;
-  name: string;
-  address: string;
-  totalRooms: number;
-  monthlyPrice?: number;
-  roomType?: string;
-  availableFrom?: string;
-  deposit?: number;
-  roommateCount?: string;
-  description?: string;
-  features?: string[];
-  occupiedRooms: number;
-  rating: number;
-  totalReviews: number;
-  image: string;
-  images?: string[];
-  status: 'active' | 'inactive';
-  genderPreference?: 'any' | 'girls' | 'boys';
-}
-
-interface Tenant {
-  id: string;
-  name: string;
-  roomId: string;
-  checkInDate: string;
-  checkOutDate: string;
-  paymentStatus: 'paid' | 'pending' | 'overdue';
-  monthlyRent: number;
-  phone?: string;
-  email?: string;
-}
-
-interface Room {
-  id: string;
-  houseId: string;
-  roomNumber: string;
-  floor: number;
-  bedCount: number;
-  occupiedBeds: number;
-  price: number;
-  facilities: string[];
-  status: 'available' | 'partial' | 'full';
-  images: string[];
-  tenants: Tenant[];
-  location?: string;
-  roomType?: string;
-  genderPreference?: string;
-  availableFrom?: string;
-  deposit?: number;
-  roommateCount?: string;
-  description?: string;
-}
-
-interface Facility {
-  id: string;
-  name: string;
-  icon: React.ReactNode;
-}
-
-interface StatsCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  trend: number;
-  color: string;
-}
-
-interface MobileStatsCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  trend: number;
-  color: string;
-}
-
-interface HouseCardProps {
-  house: BoardingHouse;
-  onEdit: (house: BoardingHouse) => void;
+  {
+    id: '2',
+    name: 'Green Villa Boarding',
+    address: '45 Kaduwela, Colombo',
+    totalRooms: 8,
+    occupiedRooms: 5,
+    rating: 4.2,
+    totalReviews: 15,
+    image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    status: 'active'
+  }
+];
   onDelete: (house: BoardingHouse) => void;
   onSelect: (house: BoardingHouse) => void;
 }
@@ -240,9 +170,10 @@ const mockHouses: BoardingHouse[] = [
     image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'active'
   }
-];
+    );
+  }
+}
 
-const mockRooms: Room[] = [
   {
     id: '101',
     houseId: '1',
@@ -374,7 +305,14 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, value, icon, trend, color 
 
 // House Card Component (Desktop)
 const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect }) => (
-        </div>
+  <div 
+    className="bg-white/5 rounded-xl overflow-hidden border border-white/10 hover:border-cyan-400/30 transition-all cursor-pointer group"
+    onClick={() => onSelect(house)}
+  >
+    <div className="relative aspect-square overflow-hidden">
+      <img src={house.image} alt={house.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 aspect-square" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+      <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
         <span className="text-white font-bold text-sm">{house.name}</span>
         <span className={`text-[10px] px-2 py-0.5 rounded-full ${house.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
           {house.status}
@@ -2969,73 +2907,7 @@ export default function OwnerDashboard() {
     );
   }
 
-                Owner Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 active:text-white touch-manipulation"
-              >
-                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
-            </div>
-          </div>
 
-          {/* Mobile Menu Dropdown */}
-          {mobileMenuOpen && (
-            <div className="mt-2 p-2 bg-white/10 rounded-lg border border-white/10">
-              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
-                  JD
-                </div>
-                <div>
-                  <p className="text-xs text-white font-medium">John Doe</p>
-                  <p className="text-[8px] text-gray-400">john.doe@boarding.com</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <button className="w-full text-left px-2 py-2 text-xs text-gray-300 active:bg-white/10 rounded-lg min-h-[44px]">
-                  Profile Settings
-                </button>
-                <button className="w-full text-left px-2 py-2 text-xs text-gray-300 active:bg-white/10 rounded-lg min-h-[44px]">
-                  Notifications
-                </button>
-                <button className="w-full text-left px-2 py-2 text-xs text-red-400 active:bg-white/10 rounded-lg min-h-[44px]">
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation Tabs - Scrollable */}
-          <div className="flex gap-1 mt-2 overflow-x-auto pb-1 scrollbar-hide touch-pan-x">
-            {[
-              { id: 'overview', label: 'Overview', icon: <BarChart size={12} /> },
-              { id: 'houses', label: 'Houses', icon: <Building size={12} /> },
-              { id: 'rooms', label: 'Rooms', icon: <Bed size={12} /> },
-              { id: 'tenants', label: 'Tenants', icon: <Users size={12} /> },
-              { id: 'payments', label: 'Payments', icon: <CreditCard size={12} /> }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id as any);
-                  setMobileMenuOpen(false);
-                }}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[9px] font-medium transition-all whitespace-nowrap min-h-[36px] touch-manipulation ${
-                  activeTab === tab.id
-                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
-                    : 'text-gray-400 active:text-white active:bg-white/5'
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
 
       <div className="px-3 py-3 max-w-7xl mx-auto">
         {/* Search Bar - Mobile Optimized */}
