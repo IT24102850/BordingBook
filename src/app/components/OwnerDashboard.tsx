@@ -302,7 +302,7 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 hover:border-cyan-400/30 transition-all cursor-pointer group"
     onClick={() => onSelect(house)}
   >
-    <div className="relative h-32 aspect-square overflow-hidden">
+    <div className="relative aspect-square w-full overflow-hidden">
       <img src={house.image} alt={house.name} className="w-full h-full aspect-square object-cover group-hover:scale-110 transition-transform duration-500" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
@@ -350,7 +350,7 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 active:border-cyan-400/30 transition-colors touch-manipulation"
     onClick={() => onSelect(house)}
   >
-    <div className="relative h-28 aspect-square overflow-hidden">
+    <div className="relative aspect-square w-full overflow-hidden">
       <img src={house.image} alt={house.name} className="w-full h-full aspect-square object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
@@ -380,10 +380,18 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
         </div>
       </div>
       <div className="flex justify-end gap-2 mt-1.5 pt-1.5 border-t border-white/10">
-        <button onClick={(e) => { e.stopPropagation(); onEdit(house); }} className="text-cyan-400 active:text-cyan-300 text-[8px] flex items-center gap-0.5 px-2 py-1 min-h-[32px]">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onEdit(house); }} 
+          className="text-cyan-400 active:text-cyan-300 text-[8px] flex items-center gap-0.5 px-2 py-1 min-h-[32px]"
+          title="Edit House"
+        >
           <Edit size={10} /> Edit
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onDelete(house); }} className="text-red-400 active:text-red-300 text-[8px] flex items-center gap-0.5 px-2 py-1 min-h-[32px]">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDelete(house); }} 
+          className="text-red-400 active:text-red-300 text-[8px] flex items-center gap-0.5 px-2 py-1 min-h-[32px]"
+          title="Delete House"
+        >
           <Trash2 size={10} /> Delete
         </button>
       </div>
@@ -2297,7 +2305,7 @@ export default function OwnerDashboard() {
 
                 <div className="lg:col-span-4 space-y-3">
                   <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                    <label className="block text-xs font-medium text-cyan-300 mb-2">Boarding House Images</label>
+                    <label className="block text-sm font-medium text-cyan-300 mb-2">Boarding House Images</label>
                     <button
                       onClick={handleOpenHouseFileDialog}
                       className="w-full px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
