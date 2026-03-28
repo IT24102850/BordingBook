@@ -54,6 +54,42 @@ function normalizeIdValue(value: any): string {
   return String(value);
 }
 
+// Mock roommate data
+const roommates = [
+  {
+    id: 1,
+    name: 'Ayesha Perera',
+    email: 'ayesha@sliit.lk',
+    age: 22,
+    gender: 'Female',
+    university: 'SLIIT',
+    bio: 'Looking for a friendly roommate. Loves music and reading.',
+    image: 'https://randomuser.me/api/portraits/women/44.jpg',
+    interests: ['Music', 'Reading', 'Cooking'],
+  },
+  {
+    id: 2,
+    name: 'Nimal Silva',
+    email: 'nimal@sliit.lk',
+    age: 24,
+    gender: 'Male',
+    university: 'CINEC',
+    bio: 'Clean, quiet, and respectful. Enjoys sports and movies.',
+    image: 'https://randomuser.me/api/portraits/men/32.jpg',
+    interests: ['Sports', 'Movies', 'Travel'],
+  },
+  {
+    id: 3,
+    name: 'Sajini Fernando',
+    email: 'sajini@sliit.lk',
+    age: 21,
+    gender: 'Female',
+    university: 'NSBM',
+    bio: 'Outgoing and social. Loves to cook and explore new places.',
+    image: 'https://randomuser.me/api/portraits/women/68.jpg',
+    interests: ['Cooking', 'Travel', 'Dancing'],
+  },
+];
 
 // Mini Roommate Card for passed/favorites columns
 const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
@@ -3031,21 +3067,8 @@ export default function SearchPage() {
             ? housesJson.data
             : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
 
-          const availableRooms = roomsData.filter((roomItem: any) => {
-            const totalSpots = Number(roomItem.totalSpots ?? roomItem.bedCount ?? 0);
-            const occupancy = Number(roomItem.occupancy ?? 0);
-            return totalSpots <= 0 || occupancy < totalSpots;
-          });
-
-          const availableHouses = housesData.filter((house: any) => {
-            const totalRooms = Number(house.totalRooms ?? 0);
-            const occupiedRooms = Number(house.occupiedRooms ?? 0);
-            const isActive = (house.status || 'active') === 'active';
-            return isActive && (totalRooms <= 0 || occupiedRooms < totalRooms);
-          });
-
-          const mappedRooms: Listing[] = roomsResponse.ok && availableRooms.length > 0
-            ? availableRooms.map((roomItem: any, index: number) => ({
+          const mappedRooms: Listing[] = roomsResponse.ok && roomsData.length > 0
+            ? roomsData.map((roomItem: any, index: number) => ({
                 id: index + 1,
                 title: roomItem.name || 'Room Listing',
                 images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
@@ -3067,8 +3090,8 @@ export default function SearchPage() {
               }))
             : [];
 
-          const mappedHouses: Listing[] = housesResponse.ok && availableHouses.length > 0
-            ? availableHouses.map((house: any, index: number) => ({
+          const mappedHouses: Listing[] = housesResponse.ok && housesData.length > 0
+            ? housesData.map((house: any, index: number) => ({
                 id: 100000 + index,
                 title: house.name || 'Boarding House',
                 images: Array.isArray(house.images) && house.images.length > 0
