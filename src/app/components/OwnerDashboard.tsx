@@ -203,85 +203,6 @@ interface MobileTenantListProps {
 // MOCK DATA
 // ============================================
 
-const mockHouses: BoardingHouse[] = [
-  {
-    id: '1',
-    name: 'Sunrise Boarding House',
-    address: '123 Malabe, Colombo',
-    totalRooms: 12,
-    occupiedRooms: 8,
-    rating: 4.5,
-    totalReviews: 23,
-    image: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    status: 'active'
-  },
-  {
-    id: '2',
-    name: 'Green Villa Boarding',
-    address: '45 Kaduwela, Colombo',
-    totalRooms: 8,
-    occupiedRooms: 5,
-    rating: 4.2,
-    totalReviews: 15,
-    image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    status: 'active'
-  }
-];
-
-const mockRooms: Room[] = [
-  {
-    id: '101',
-    houseId: '1',
-    roomNumber: '101',
-    floor: 1,
-    bedCount: 3,
-    occupiedBeds: 2,
-    price: 15000,
-    facilities: ['wifi', 'ac', 'bathroom'],
-    status: 'partial',
-    images: [
-      'https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1598928636135-d146006ff4be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-    ],
-    tenants: [
-      { id: 't1', name: 'Alice Perera', roomId: '101', checkInDate: '2024-01-15', checkOutDate: '2024-12-15', paymentStatus: 'paid', monthlyRent: 15000, phone: '+94 77 123 4567', email: 'alice@email.com' },
-      { id: 't2', name: 'Bob Silva', roomId: '101', checkInDate: '2024-02-01', checkOutDate: '2024-12-01', paymentStatus: 'paid', monthlyRent: 15000, phone: '+94 77 234 5678', email: 'bob@email.com' }
-    ]
-  },
-  {
-    id: '102',
-    houseId: '1',
-    roomNumber: '102',
-    floor: 1,
-    bedCount: 2,
-    occupiedBeds: 2,
-    price: 18000,
-    facilities: ['wifi', 'ac', 'bathroom', 'meals'],
-    status: 'full',
-    images: [
-      'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-    ],
-    tenants: [
-      { id: 't3', name: 'Charlie Weerasinghe', roomId: '102', checkInDate: '2024-01-10', checkOutDate: '2024-12-10', paymentStatus: 'paid', monthlyRent: 18000, phone: '+94 77 345 6789', email: 'charlie@email.com' },
-      { id: 't4', name: 'Diana Fernando', roomId: '102', checkInDate: '2024-01-10', checkOutDate: '2024-12-10', paymentStatus: 'pending', monthlyRent: 18000, phone: '+94 77 456 7890', email: 'diana@email.com' }
-    ]
-  },
-  {
-    id: '201',
-    houseId: '2',
-    roomNumber: '201',
-    floor: 2,
-    bedCount: 1,
-    occupiedBeds: 0,
-    price: 25000,
-    facilities: ['wifi', 'ac', 'bathroom', 'meals', 'parking'],
-    status: 'available',
-    images: [
-      'https://images.unsplash.com/photo-1598928636135-d146006ff4be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-    ],
-    tenants: []
-  }
-];
 
 const facilitiesList: Facility[] = [
   { id: 'wifi', name: 'Wi-Fi', icon: <Wifi size={14} /> },
@@ -381,8 +302,8 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 hover:border-cyan-400/30 transition-all cursor-pointer group"
     onClick={() => onSelect(house)}
   >
-    <div className="relative h-32 overflow-hidden">
-      <img src={house.image} alt={house.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+    <div className="relative h-32 aspect-square overflow-hidden">
+      <img src={house.image} alt={house.name} className="w-full h-full aspect-square object-cover group-hover:scale-110 transition-transform duration-500" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
         <span className="text-white font-bold text-sm">{house.name}</span>
@@ -429,8 +350,8 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 active:border-cyan-400/30 transition-colors touch-manipulation"
     onClick={() => onSelect(house)}
   >
-    <div className="relative h-28 overflow-hidden">
-      <img src={house.image} alt={house.name} className="w-full h-full object-cover" />
+    <div className="relative h-28 aspect-square overflow-hidden">
+      <img src={house.image} alt={house.name} className="w-full h-full aspect-square object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
         <span className="text-white font-bold text-xs truncate max-w-[60%]">{house.name}</span>
@@ -1727,7 +1648,7 @@ export default function OwnerDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {houses.sort((a, b) => b.rating - a.rating).slice(0, 2).map(house => (
                     <div key={house.id} className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
-                      <img src={house.image} alt={house.name} className="w-12 h-12 rounded-lg object-cover" />
+                      <img src={house.image} alt={house.name} className="w-12 h-12 aspect-square rounded-lg object-cover" />
                       <div>
                         <h4 className="text-sm font-bold text-white">{house.name}</h4>
                         <div className="flex items-center gap-2 text-xs">
@@ -2399,7 +2320,7 @@ export default function OwnerDashboard() {
                             <img
                               src={image}
                               alt={`Boarding house preview ${index + 1}`}
-                              className="w-full h-20 object-cover rounded-lg border border-white/10"
+                              className="w-full h-20 aspect-square object-cover rounded-lg border border-white/10"
                             />
                             <button
                               onClick={() => removeHouseImage(index)}
@@ -2476,7 +2397,7 @@ export default function OwnerDashboard() {
                     <div className="grid grid-cols-3 gap-2 mt-2">
                       {uploadedRoomImages.map((img, idx) => (
                         <div key={idx} className="relative group">
-                          <img src={img} alt={`Room ${idx}`} className="w-full h-20 rounded-lg object-cover border border-white/10" />
+                          <img src={img} alt={`Room ${idx}`} className="w-full h-20 aspect-square rounded-lg object-cover border border-white/10" />
                           <button
                             onClick={() => removeImage(idx)}
                             className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
