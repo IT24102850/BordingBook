@@ -1,12 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
-import { Send, Phone, Video, Search, ArrowLeft, PhoneOff, Loader2, MessageSquarePlus, X } from 'lucide-react';
+import { 
+  Send, Phone, Video, Search, ArrowLeft, PhoneOff, Loader2, 
+  MessageSquarePlus, X, Smile, Paperclip, Image, MoreVertical,
+  Check, CheckCheck, Mic, MicOff, Camera, CameraOff, Users,
+  UserPlus, Settings, Info, Bell, BellOff, Pin, Trash2,
+  Reply, Copy, Forward, Star, Flag, Volume2, VolumeX
+} from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
 const ICE_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
 };
 
 interface ChatUser {
@@ -15,6 +25,8 @@ interface ChatUser {
   email: string;
   avatar: string;
   role: string;
+  isOnline?: boolean;
+  lastSeen?: string;
 }
 
 interface ChatMessage {
@@ -22,9 +34,14 @@ interface ChatMessage {
   conversationId: string;
   sender: ChatUser;
   content: string;
-  messageType: 'text' | 'system';
+  messageType: 'text' | 'system' | 'image' | 'file';
+  attachments?: Array<{ url: string; type: string; name: string }>;
   createdAt: string;
   mine: boolean;
+  readBy?: string[];
+  delivered?: boolean;
+  read?: boolean;
+  replyTo?: ChatMessage;
 }
 
 interface ChatConversation {
@@ -40,6 +57,8 @@ interface ChatConversation {
     senderId: string | null;
   };
   updatedAt: string;
+  isPinned?: boolean;
+  isMuted?: boolean;
 }
 
 interface ChatContact {
@@ -49,6 +68,8 @@ interface ChatContact {
   avatar: string;
   role: string;
   conversationId: string | null;
+  isOnline?: boolean;
+  lastSeen?: string;
 }
 
 interface IncomingCall {
@@ -73,7 +94,7 @@ function getCurrentUser(): ChatUser | null {
       id: String(parsed?.id || ''),
       fullName: String(parsed?.fullName || ''),
       email: String(parsed?.email || ''),
-      avatar: String(parsed?.profilePicture || ''),
+      avatar: String(parsed?.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg'),
       role: String(parsed?.role || 'student'),
     };
   } catch {
@@ -114,7 +135,31 @@ function formatTime(value: string | Date | undefined): string {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const isToday = date.toDateString() === now.toDateString();
+  const isYesterday = new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+  
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else if (isYesterday) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+}
+
+function formatFullDateTime(value: string | Date | undefined): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString([], { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 }
 
 function appendMessageIfMissing(existing: ChatMessage[], incoming: ChatMessage): ChatMessage[] {
@@ -154,6 +199,16 @@ export default function Chat() {
   const [contacts, setContacts] = useState<ChatContact[]>([]);
   const [contactSearchQuery, setContactSearchQuery] = useState('');
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null);
+  const [showConversationMenu, setShowConversationMenu] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
@@ -180,6 +235,30 @@ export default function Chat() {
     if (!query) return conversations;
     return conversations.filter((conversation) => conversation.name.toLowerCase().includes(query));
   }, [conversations, searchQuery]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Typing indicator handler
+  const handleTyping = useCallback(() => {
+    if (!selectedConversationId || !socketRef.current) return;
+    
+    socketRef.current.emit('typing:start', { conversationId: selectedConversationId });
+    
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      if (socketRef.current) {
+        socketRef.current.emit('typing:stop', { conversationId: selectedConversationId });
+      }
+    }, 2000);
+  }, [selectedConversationId]);
 
   const cleanupPeer = useCallback(() => {
     if (peerRef.current) {
@@ -229,17 +308,18 @@ export default function Chat() {
     try {
       setLoadingConversations(true);
       const data = await apiFetch<ChatConversation[]>('/conversations', token);
-      const nextConversations = data || [];
+      const nextConversations = (data || []).sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
       setConversations(nextConversations);
 
-      // Only update selection if a preferred ID is explicitly provided, otherwise keep current selection
       if (preferredConversationId && nextConversations.some((conversation) => conversation.id === preferredConversationId)) {
         setSelectedConversationId(preferredConversationId);
       } else if (selectedConversationIdRef.current && nextConversations.some((conversation) => conversation.id === selectedConversationIdRef.current)) {
-        // Keep the current selection if it still exists in the updated list
         setSelectedConversationId(selectedConversationIdRef.current);
       } else if (selectedConversationIdRef.current === '' && preferredConversationId === undefined) {
-        // On initial load with no selection, keep it empty - let user choose
         setSelectedConversationId('');
       }
       return nextConversations;
@@ -258,12 +338,23 @@ export default function Chat() {
         setLoadingMessages(true);
         const data = await apiFetch<ChatMessage[]>(`/conversations/${conversationId}/messages`, token);
         setMessages(data || []);
+        
+        // Mark messages as read
         await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/read`, {
           method: 'PATCH',
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+        
+        // Update unread count in conversations list
+        setConversations(prev =>
+          prev.map(conv =>
+            conv.id === conversationId
+              ? { ...conv, unreadCount: 0 }
+              : conv
+          )
+        );
       } catch (fetchError) {
         setError((fetchError as Error).message || 'Unable to load messages');
       } finally {
@@ -272,6 +363,74 @@ export default function Chat() {
     },
     [token]
   );
+
+  const handleUploadFile = useCallback(async (file: File, type: 'image' | 'file') => {
+    if (!selectedConversationId || !currentUser || !token) return;
+    
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('conversationId', selectedConversationId);
+    formData.append('type', type);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chat/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      
+      const json = await response.json();
+      if (json.success && json.data) {
+        const message: ChatMessage = {
+          id: json.data.messageId,
+          conversationId: selectedConversationId,
+          sender: currentUser,
+          content: json.data.url,
+          messageType: type === 'image' ? 'image' : 'file',
+          attachments: [{ url: json.data.url, type, name: file.name }],
+          createdAt: new Date().toISOString(),
+          mine: true,
+        };
+        
+        setMessages(prev => [...prev, message]);
+        
+        // Update last message in conversation list
+        setConversations(prev =>
+          prev.map(conv =>
+            conv.id === selectedConversationId
+              ? {
+                  ...conv,
+                  lastMessage: {
+                    text: type === 'image' ? '📷 Image' : `📎 ${file.name}`,
+                    at: new Date().toISOString(),
+                    senderId: currentUser.id,
+                  },
+                  updatedAt: new Date().toISOString(),
+                }
+              : conv
+          )
+        );
+        
+        // Send via socket
+        if (socketRef.current) {
+          socketRef.current.emit('message:send', {
+            conversationId: selectedConversationId,
+            content: json.data.url,
+            messageType: type === 'image' ? 'image' : 'file',
+            attachments: [{ url: json.data.url, type, name: file.name }],
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setError('Failed to upload file');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [selectedConversationId, currentUser, token]);
 
   const ensureDirectConversationFromRouteState = useCallback(async () => {
     if (!token) return;
@@ -287,8 +446,8 @@ export default function Chat() {
       state?.selectedUserId ||
       ''
     );
+    
     if (!recipientId) {
-      setError('No recipient found for chat. Please try again from the matches page.');
       return;
     }
     if (lastRecipientBootstrapRef.current === recipientId) return;
@@ -495,15 +654,35 @@ export default function Chat() {
     const content = newMessage.trim();
     if (!content || !selectedConversationId || !currentUser) return;
 
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const tempMessage: ChatMessage = {
+      id: tempId,
+      conversationId: selectedConversationId,
+      sender: currentUser,
+      content,
+      messageType: 'text',
+      createdAt: new Date().toISOString(),
+      mine: true,
+      delivered: false,
+      read: false,
+    };
+    
+    setMessages((prev) => [...prev, tempMessage]);
     setNewMessage('');
     setError('');
 
     const sendViaRest = async () => {
       const response = await apiFetch<ChatMessage>(`/conversations/${selectedConversationId}/messages`, token, {
         method: 'POST',
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, replyToId: replyToMessage?.id }),
       });
-      setMessages((prev) => appendMessageIfMissing(prev, response));
+      
+      // Replace temp message with real one
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => m.id !== tempId);
+        return [...filtered, response];
+      });
+      
       setConversations((prev) =>
         prev.map((item) =>
           item.id === selectedConversationId
@@ -520,15 +699,27 @@ export default function Chat() {
     if (socketRef.current?.connected) {
       socketRef.current.emit(
         'message:send',
-        { conversationId: selectedConversationId, content },
+        { 
+          conversationId: selectedConversationId, 
+          content,
+          replyToId: replyToMessage?.id,
+          tempId,
+        },
         async (ack: any) => {
           if (ack?.ok && ack?.data) {
-            return;
-          }
-          try {
-            await sendViaRest();
-          } catch (sendError) {
-            setError((sendError as Error).message || 'Unable to send message');
+            // Replace temp message with confirmed message
+            setMessages((prev) => {
+              const filtered = prev.filter((m) => m.id !== tempId);
+              return [...filtered, { ...ack.data, mine: true }];
+            });
+          } else {
+            try {
+              await sendViaRest();
+            } catch (sendError) {
+              setError((sendError as Error).message || 'Unable to send message');
+              // Remove temp message on error
+              setMessages((prev) => prev.filter((m) => m.id !== tempId));
+            }
           }
         }
       );
@@ -539,8 +730,11 @@ export default function Chat() {
       await sendViaRest();
     } catch (sendError) {
       setError((sendError as Error).message || 'Unable to send message');
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    } finally {
+      setReplyToMessage(null);
     }
-  }, [currentUser, newMessage, selectedConversationId, token]);
+  }, [currentUser, newMessage, selectedConversationId, token, replyToMessage]);
 
   const startCall = useCallback(
     (callType: 'audio' | 'video') => {
@@ -602,6 +796,44 @@ export default function Chat() {
     setIncomingCall(null);
   }, [incomingCall]);
 
+  const togglePinConversation = useCallback(async (conversationId: string) => {
+    if (!token) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/pin`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setConversations(prev =>
+        prev.map(conv =>
+          conv.id === conversationId
+            ? { ...conv, isPinned: !conv.isPinned }
+            : conv
+        )
+      );
+    } catch (error) {
+      console.error('Failed to pin conversation:', error);
+    }
+  }, [token]);
+
+  const toggleMuteConversation = useCallback(async (conversationId: string) => {
+    if (!token) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/mute`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setConversations(prev =>
+        prev.map(conv =>
+          conv.id === conversationId
+            ? { ...conv, isMuted: !conv.isMuted }
+            : conv
+        )
+      );
+    } catch (error) {
+      console.error('Failed to mute conversation:', error);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
@@ -650,17 +882,22 @@ export default function Chat() {
     socket.on('message:new', (incoming: ChatMessage) => {
       setConversations((prev) => {
         const exists = prev.some((conversation) => conversation.id === incoming.conversationId);
+        const isMuted = prev.find((c) => c.id === incoming.conversationId)?.isMuted;
+        
         const updated = exists
           ? prev.map((conversation) => {
               if (conversation.id !== incoming.conversationId) return conversation;
               return {
                 ...conversation,
                 unreadCount:
-                  selectedConversationIdRef.current === incoming.conversationId || incoming.sender.id === currentUser.id
-                    ? 0
+                  selectedConversationIdRef.current === incoming.conversationId || 
+                  incoming.sender.id === currentUser.id ||
+                  isMuted
+                    ? conversation.unreadCount
                     : conversation.unreadCount + 1,
                 lastMessage: {
-                  text: incoming.content,
+                  text: incoming.messageType === 'image' ? '📷 Image' : 
+                         incoming.messageType === 'file' ? '📎 File' : incoming.content,
                   at: incoming.createdAt,
                   senderId: incoming.sender.id,
                 },
@@ -669,12 +906,94 @@ export default function Chat() {
             })
           : prev;
 
-        return [...updated].sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt));
+        return [...updated].sort((a, b) => {
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
       });
 
       if (incoming.conversationId === selectedConversationIdRef.current) {
         setMessages((prev) => appendMessageIfMissing(prev, { ...incoming, mine: incoming.sender.id === currentUser.id }));
       }
+      
+      // Play notification sound for new messages
+      if (incoming.conversationId !== selectedConversationIdRef.current && !incoming.mine) {
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(() => {});
+      }
+    });
+
+    socket.on('message:delivered', ({ messageId, userId }: { messageId: string; userId: string }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, delivered: true }
+            : msg
+        )
+      );
+    });
+
+    socket.on('message:read', ({ messageId, userId }: { messageId: string; userId: string }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, read: true }
+            : msg
+        )
+      );
+    });
+
+    socket.on('typing:start', ({ conversationId, userId }: { conversationId: string; userId: string }) => {
+      if (conversationId === selectedConversationIdRef.current && userId !== currentUser.id) {
+        setTypingUsers((prev) => new Set(prev).add(userId));
+      }
+    });
+
+    socket.on('typing:stop', ({ conversationId, userId }: { conversationId: string; userId: string }) => {
+      if (conversationId === selectedConversationIdRef.current) {
+        setTypingUsers((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(userId);
+          return newSet;
+        });
+      }
+    });
+
+    socket.on('user:online', ({ userId }: { userId: string }) => {
+      setContacts(prev =>
+        prev.map(contact =>
+          contact.id === userId
+            ? { ...contact, isOnline: true }
+            : contact
+        )
+      );
+      setConversations(prev =>
+        prev.map(conv => ({
+          ...conv,
+          participants: conv.participants.map(p =>
+            p.id === userId ? { ...p, isOnline: true } : p
+          ),
+        }))
+      );
+    });
+
+    socket.on('user:offline', ({ userId, lastSeen }: { userId: string; lastSeen: string }) => {
+      setContacts(prev =>
+        prev.map(contact =>
+          contact.id === userId
+            ? { ...contact, isOnline: false, lastSeen }
+            : contact
+        )
+      );
+      setConversations(prev =>
+        prev.map(conv => ({
+          ...conv,
+          participants: conv.participants.map(p =>
+            p.id === userId ? { ...p, isOnline: false, lastSeen } : p
+          ),
+        }))
+      );
     });
 
     socket.on('call:incoming', (payload: IncomingCall) => {
@@ -763,183 +1082,404 @@ export default function Chat() {
 
   return (
     <div className="h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden">
-      <div className="w-full lg:flex h-full overflow-hidden">
-        <div className={`w-full lg:w-96 border-r border-white/10 h-full overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'} flex-col`}>
-          <div className="p-4 border-b border-white/10 flex-shrink-0">
-            <div className="mb-3 flex items-center justify-between">
-              <button
-                onClick={() => navigate(-1)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors text-xs font-semibold"
-                title="Back"
-              >
-                <ArrowLeft size={14} />
-                Back
-              </button>
-            </div>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-xs text-gray-400">Start direct chat with mutual matches only</p>
-              <button
-                onClick={() => {
-                  setShowNewChatModal(true);
-                  setContactSearchQuery('');
-                }}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-semibold"
-              >
-                <MessageSquarePlus size={14} /> New Chat
-              </button>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
-              />
-            </div>
+      {/* Conversations Sidebar */}
+      <div className={`w-full lg:w-96 border-r border-white/10 h-full overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'} flex-col`}>
+        <div className="p-4 border-b border-white/10 flex-shrink-0">
+          <div className="mb-3 flex items-center justify-between">
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors text-xs font-semibold"
+              title="Back"
+            >
+              <ArrowLeft size={14} />
+              Back
+            </button>
           </div>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-xs text-gray-400">Chat with your matched roommates</p>
+            <button
+              onClick={() => {
+                setShowNewChatModal(true);
+                setContactSearchQuery('');
+              }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-semibold"
+            >
+              <MessageSquarePlus size={14} /> New Chat
+            </button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+            />
+          </div>
+        </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            {loadingConversations && (
-              <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
-                <Loader2 size={14} className="animate-spin" /> Loading conversations...
-              </div>
-            )}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {loadingConversations && (
+            <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> Loading conversations...
+            </div>
+          )}
 
-            {!loadingConversations && filteredConversations.length === 0 && (
-              <div className="p-6 text-gray-400 text-sm">No conversations yet.</div>
-            )}
+          {!loadingConversations && filteredConversations.length === 0 && (
+            <div className="p-6 text-gray-400 text-sm text-center">
+              <MessageSquarePlus size={40} className="mx-auto mb-3 opacity-50" />
+              <p>No conversations yet.</p>
+              <p className="text-xs mt-1">Start a chat with your accepted roommates!</p>
+            </div>
+          )}
 
-            {filteredConversations.map((conversation) => (
+          {filteredConversations.map((conversation) => (
+            <div key={conversation.id} className="relative group">
               <button
-                key={conversation.id}
                 onClick={() => setSelectedConversationId(conversation.id)}
                 className={`w-full p-4 border-b border-white/10 hover:bg-white/5 transition text-left ${
                   selectedConversationId === conversation.id ? 'bg-white/10' : ''
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <img
-                    src={conversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
-                    alt={conversation.name}
-                    className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                  />
+                  <div className="relative">
+                    <img
+                      src={conversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                      alt={conversation.name}
+                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                    />
+                    {conversation.type === 'direct' && conversation.participants.find(p => p.id !== currentUser.id)?.isOnline && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131d3a]"></div>
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-white font-semibold truncate">{conversation.name}</h3>
-                      {conversation.unreadCount > 0 && (
+                      <h3 className="text-white font-semibold truncate">
+                        {conversation.name}
+                        {conversation.isPinned && <Pin size={12} className="inline ml-1 text-cyan-400" />}
+                      </h3>
+                      {conversation.unreadCount > 0 && !conversation.isMuted && (
                         <span className="bg-cyan-400 text-black text-xs font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center flex-shrink-0">
-                          {conversation.unreadCount}
+                          {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
                         </span>
                       )}
+                      {conversation.isMuted && <BellOff size={12} className="text-gray-500" />}
                     </div>
-                    <p className="text-gray-400 text-sm truncate">{conversation.lastMessage?.text || 'No messages yet'}</p>
+                    <div className="flex items-center gap-2">
+                      {typingUsers.size > 0 && conversation.id === selectedConversationId ? (
+                        <p className="text-cyan-400 text-sm italic">typing...</p>
+                      ) : (
+                        <p className="text-gray-400 text-sm truncate">
+                          {conversation.lastMessage?.text || 'No messages yet'}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-gray-500 text-xs">{formatTime(conversation.updatedAt)}</p>
                   </div>
                 </div>
               </button>
-            ))}
-          </div>
+              
+              {/* Conversation Menu Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowConversationMenu(!showConversationMenu);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-white/10 rounded-lg"
+              >
+                <MoreVertical size={16} className="text-gray-400" />
+              </button>
+            </div>
+          ))}
         </div>
+      </div>
 
-        {selectedConversation && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setSelectedConversationId('')} className="text-cyan-400 hover:text-cyan-300" title="Close conversation">
-                  <ArrowLeft size={20} />
-                </button>
+      {/* Chat Area */}
+      {selectedConversation && (
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Chat Header */}
+          <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setSelectedConversationId('')} 
+                className="lg:hidden text-cyan-400 hover:text-cyan-300"
+                title="Close conversation"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <div className="relative cursor-pointer" onClick={() => setShowUserProfile(true)}>
                 <img
                   src={selectedConversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
                   alt={selectedConversation.name}
                   className="w-10 h-10 rounded-full object-cover"
                 />
-                <div>
-                  <h2 className="text-white font-semibold">{selectedConversation.name}</h2>
-                  <p className="text-gray-400 text-xs">{selectedConversation.type === 'group' ? 'Group' : 'Direct'}</p>
-                </div>
+                {targetParticipant?.isOnline && (
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#131d3a]"></div>
+                )}
+              </div>
+              <div>
+                <h2 className="text-white font-semibold">{selectedConversation.name}</h2>
+                <p className="text-gray-400 text-xs">
+                  {selectedConversation.type === 'group' 
+                    ? `${selectedConversation.participants.length} members` 
+                    : targetParticipant?.isOnline 
+                      ? 'Online' 
+                      : targetParticipant?.lastSeen 
+                        ? `Last seen ${formatTime(targetParticipant.lastSeen)}`
+                        : 'Offline'}
+                </p>
+              </div>
+            </div>
+
+            {selectedConversation.type === 'direct' && targetParticipant && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => startCall('audio')}
+                  className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                  title="Start audio call"
+                >
+                  <Phone size={20} />
+                </button>
+                <button
+                  onClick={() => startCall('video')}
+                  className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                  title="Start video call"
+                >
+                  <Video size={20} />
+                </button>
+                <button
+                  onClick={() => setShowUserProfile(true)}
+                  className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                  title="View profile"
+                >
+                  <Info size={20} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Active Call UI */}
+          {activeCall && (
+            <div className="border-b border-cyan-400/30 bg-cyan-500/10 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-cyan-100">
+                  {activeCall.phase === 'dialing' && 'Calling...'}
+                  {activeCall.phase === 'connecting' && 'Connecting call...'}
+                  {activeCall.phase === 'active' && 'In call'}
+                </p>
+                <button 
+                  onClick={() => endCall(true)} 
+                  className="px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-xs font-semibold flex items-center gap-1"
+                >
+                  <PhoneOff size={14} /> End
+                </button>
               </div>
 
-              {selectedConversation.type === 'direct' && targetParticipant && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => startCall('audio')}
-                    className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white"
-                    title="Start audio call"
-                  >
-                    <Phone size={20} />
-                  </button>
-                  <button
-                    onClick={() => startCall('video')}
-                    className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white"
-                    title="Start video call"
-                  >
-                    <Video size={20} />
-                  </button>
+              {activeCall.callType === 'video' && (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="relative">
+                    <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-36 bg-black/60 rounded-lg object-cover" />
+                    <span className="absolute bottom-1 left-2 text-xs text-white bg-black/50 px-1 rounded">You</span>
+                  </div>
+                  <div className="relative">
+                    <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-36 bg-black/60 rounded-lg object-cover" />
+                    <span className="absolute bottom-1 left-2 text-xs text-white bg-black/50 px-1 rounded">{targetParticipant?.fullName || 'Other'}</span>
+                  </div>
                 </div>
               )}
             </div>
+          )}
 
-            {activeCall && (
-              <div className="border-b border-cyan-400/30 bg-cyan-500/10 p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-cyan-100">
-                    {activeCall.phase === 'dialing' && 'Calling...'}
-                    {activeCall.phase === 'connecting' && 'Connecting call...'}
-                    {activeCall.phase === 'active' && 'In call'}
-                  </p>
-                  <button onClick={() => endCall(true)} className="px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-xs font-semibold flex items-center gap-1">
-                    <PhoneOff size={14} /> End
-                  </button>
-                </div>
+          {/* Error Message */}
+          {error && (
+            <div className="text-xs text-red-200 bg-red-500/10 border-b border-red-500/30 px-4 py-2">
+              {error}
+            </div>
+          )}
 
-                {activeCall.callType === 'video' && (
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-36 bg-black/60 rounded-lg object-cover" />
-                    <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-36 bg-black/60 rounded-lg object-cover" />
-                  </div>
-                )}
+          {/* Typing Indicator */}
+          {typingUsers.size > 0 && (
+            <div className="px-4 py-1 text-xs text-cyan-400">
+              {Array.from(typingUsers).map(id => {
+                const participant = selectedConversation?.participants.find(p => p.id === id);
+                return participant?.fullName || 'Someone';
+              }).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
+            </div>
+          )}
+
+          {/* Messages Area */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+            {loadingMessages && (
+              <div className="text-xs text-gray-400 flex items-center gap-2 justify-center py-8">
+                <Loader2 size={14} className="animate-spin" /> Loading messages...
               </div>
             )}
 
-            {error && <div className="text-xs text-red-200 bg-red-500/10 border-b border-red-500/30 px-4 py-2">{error}</div>}
+            {!loadingMessages && messages.length === 0 && (
+              <div className="text-center py-12">
+                <MessageSquarePlus size={48} className="mx-auto mb-3 text-gray-500 opacity-50" />
+                <p className="text-gray-400 text-sm">No messages yet.</p>
+                <p className="text-gray-500 text-xs mt-1">Start the conversation!</p>
+              </div>
+            )}
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-              {loadingMessages && (
-                <div className="text-xs text-gray-400 flex items-center gap-2">
-                  <Loader2 size={14} className="animate-spin" /> Loading messages...
-                </div>
-              )}
-
-              {!loadingMessages && messages.length === 0 && (
-                <p className="text-gray-400 text-sm">No messages yet. Start the conversation.</p>
-              )}
-
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.mine ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-xs md:max-w-md px-4 py-2 rounded-lg ${
-                      message.mine
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
-                        : 'bg-white/10 text-gray-300 border border-white/20'
-                    }`}
-                  >
-                    {selectedConversation.type === 'group' && !message.mine && (
-                      <p className="text-xs font-bold mb-1 opacity-75">{message.sender.fullName || message.sender.email}</p>
+            {messages.map((message, index) => {
+              const showDateSeparator = index === 0 || 
+                new Date(message.createdAt).toDateString() !== new Date(messages[index - 1]?.createdAt).toDateString();
+              
+              return (
+                <React.Fragment key={message.id}>
+                  {showDateSeparator && (
+                    <div className="flex justify-center my-4">
+                      <span className="bg-white/10 text-gray-400 text-xs px-3 py-1 rounded-full">
+                        {new Date(message.createdAt).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className={`flex ${message.mine ? 'justify-end' : 'justify-start'}`}>
+                    {!message.mine && (
+                      <img
+                        src={message.sender.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                        alt={message.sender.fullName}
+                        className="w-8 h-8 rounded-full object-cover mr-2 mt-1 flex-shrink-0"
+                      />
                     )}
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    <p className={`text-xs mt-1 ${message.mine ? 'text-cyan-100' : 'text-gray-500'}`}>{formatTime(message.createdAt)}</p>
+                    <div className={`max-w-xs md:max-w-md ${message.mine ? 'items-end' : 'items-start'}`}>
+                      {selectedConversation.type === 'group' && !message.mine && (
+                        <p className="text-xs font-bold mb-1 text-cyan-300">{message.sender.fullName || message.sender.email}</p>
+                      )}
+                      
+                      {/* Reply To Preview */}
+                      {message.replyTo && (
+                        <div className={`mb-1 px-2 py-1 rounded text-xs border-l-2 ${message.mine ? 'bg-cyan-500/20 border-cyan-300' : 'bg-white/5 border-gray-500'}`}>
+                          <p className="text-gray-400">Replying to {message.replyTo.sender.fullName}</p>
+                          <p className="text-gray-300 truncate max-w-xs">{message.replyTo.content}</p>
+                        </div>
+                      )}
+                      
+                      <div
+                        className={`px-4 py-2 rounded-lg ${
+                          message.mine
+                            ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
+                            : 'bg-white/10 text-gray-300 border border-white/20'
+                        }`}
+                      >
+                        {message.messageType === 'image' ? (
+                          <img 
+                            src={message.content} 
+                            alt="Uploaded" 
+                            className="max-w-full max-h-64 rounded-lg cursor-pointer"
+                            onClick={() => window.open(message.content, '_blank')}
+                          />
+                        ) : message.messageType === 'file' ? (
+                          <div className="flex items-center gap-2">
+                            <Paperclip size={16} />
+                            <a 
+                              href={message.content} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="underline hover:text-cyan-200"
+                            >
+                              {message.attachments?.[0]?.name || 'Download file'}
+                            </a>
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                        )}
+                        <div className={`flex items-center gap-1 text-xs mt-1 ${message.mine ? 'text-cyan-100' : 'text-gray-500'}`}>
+                          <span>{formatTime(message.createdAt)}</span>
+                          {message.mine && (
+                            <>
+                              {message.delivered ? (
+                                message.read ? (
+                                  <CheckCheck size={12} className="text-cyan-300" />
+                                ) : (
+                                  <CheckCheck size={12} className="text-gray-400" />
+                                )
+                              ) : (
+                                <Check size={12} />
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                </React.Fragment>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
 
-            <div className="border-t border-white/10 p-4 bg-white/5">
-              <div className="flex items-end gap-3">
+          {/* Message Input Area */}
+          <div className="border-t border-white/10 p-4 bg-white/5">
+            {replyToMessage && (
+              <div className="mb-2 p-2 bg-cyan-500/10 rounded-lg flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-xs text-cyan-400">Replying to {replyToMessage.sender.fullName}</p>
+                  <p className="text-sm text-gray-300 truncate">{replyToMessage.content}</p>
+                </div>
+                <button onClick={() => setReplyToMessage(null)} className="p-1 hover:bg-white/10 rounded">
+                  <X size={14} className="text-gray-400" />
+                </button>
+              </div>
+            )}
+            
+            <div className="flex items-end gap-3">
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                  title="Add emoji"
+                >
+                  <Smile size={20} />
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                  title="Attach file"
+                >
+                  <Paperclip size={20} />
+                </button>
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                  title="Upload image"
+                >
+                  <Image size={20} />
+                </button>
                 <input
-                  type="text"
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadFile(file, 'file');
+                    e.target.value = '';
+                  }}
+                />
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadFile(file, 'image');
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+              
+              <div className="flex-1 relative">
+                <textarea
                   value={newMessage}
-                  onChange={(event) => setNewMessage(event.target.value)}
+                  onChange={(event) => {
+                    setNewMessage(event.target.value);
+                    handleTyping();
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.shiftKey) {
                       event.preventDefault();
@@ -947,46 +1487,81 @@ export default function Chat() {
                     }
                   }}
                   placeholder="Type a message..."
-                  className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                  rows={1}
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none"
                 />
-                <button onClick={() => void handleSendMessage()} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 p-2 rounded-lg text-white">
-                  <Send size={20} />
-                </button>
+                {showEmojiPicker && (
+                  <div className="absolute bottom-full mb-2 right-0">
+                    <EmojiPicker
+                      onEmojiClick={(emoji) => {
+                        setNewMessage(prev => prev + emoji.emoji);
+                        setShowEmojiPicker(false);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-        )}
-
-        {!selectedConversation && (
-          <div className="hidden lg:flex flex-1 items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">Select a conversation</h2>
-              <p className="text-gray-400">Choose a chat from the list to start messaging</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {incomingCall && !activeCall && (
-        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[#121a32] border border-white/15 rounded-2xl p-5">
-            <p className="text-white font-semibold text-lg">Incoming {incomingCall.callType} call</p>
-            <p className="text-gray-300 mt-1">{incomingCall.fromUser.fullName || incomingCall.fromUser.email}</p>
-            <div className="mt-5 flex gap-3">
-              <button onClick={declineIncomingCall} className="flex-1 py-2 rounded-lg bg-red-500/80 hover:bg-red-500 text-white font-semibold">
-                Decline
-              </button>
-              <button onClick={() => void acceptIncomingCall()} className="flex-1 py-2 rounded-lg bg-emerald-500/80 hover:bg-emerald-500 text-white font-semibold">
-                Accept
+              
+              <button
+                onClick={() => void handleSendMessage()}
+                disabled={!newMessage.trim() && !isUploading}
+                className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 p-2 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {!selectedConversation && (
+        <div className="hidden lg:flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <MessageSquarePlus size={64} className="mx-auto mb-4 text-gray-500 opacity-50" />
+            <h2 className="text-2xl font-bold text-white mb-2">Welcome to Chat</h2>
+            <p className="text-gray-400">Select a conversation to start messaging</p>
+            <p className="text-gray-500 text-sm mt-2">or start a new chat with your matched roommates</p>
+          </div>
+        </div>
+      )}
+
+      {/* Incoming Call Modal */}
+      {incomingCall && !activeCall && (
+        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-gradient-to-br from-[#121a32] to-[#0f172a] border border-cyan-500/30 rounded-2xl p-5 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 rounded-full bg-cyan-500/20 flex items-center justify-center mb-4">
+                {incomingCall.callType === 'video' ? (
+                  <Video size={40} className="text-cyan-400" />
+                ) : (
+                  <Phone size={40} className="text-cyan-400" />
+                )}
+              </div>
+              <p className="text-white font-semibold text-lg">{incomingCall.fromUser.fullName || incomingCall.fromUser.email}</p>
+              <p className="text-gray-400 text-sm mt-1">Incoming {incomingCall.callType} call</p>
+              <div className="flex gap-4 mt-6 w-full">
+                <button
+                  onClick={declineIncomingCall}
+                  className="flex-1 py-3 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white transition-all font-semibold flex items-center justify-center gap-2"
+                >
+                  <PhoneOff size={18} /> Decline
+                </button>
+                <button
+                  onClick={() => void acceptIncomingCall()}
+                  className="flex-1 py-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white transition-all font-semibold flex items-center justify-center gap-2"
+                >
+                  <Phone size={18} /> Accept
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Chat Modal */}
       {showNewChatModal && (
         <div className="fixed inset-0 z-[75] bg-black/60 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#101a36] border border-white/15 rounded-2xl p-4">
+          <div className="w-full max-w-md bg-gradient-to-br from-[#101a36] to-[#0f172a] border border-white/15 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-white font-semibold">New Chat</h3>
               <button
@@ -1016,7 +1591,11 @@ export default function Chat() {
               )}
 
               {!loadingContacts && contacts.length === 0 && (
-                <p className="text-sm text-gray-400 px-2 py-3">No users found.</p>
+                <div className="text-center py-8">
+                  <Users size={40} className="mx-auto mb-3 text-gray-500 opacity-50" />
+                  <p className="text-sm text-gray-400">No users found.</p>
+                  <p className="text-xs text-gray-500 mt-1">Try a different search term</p>
+                </div>
               )}
 
               {contacts.map((contact) => (
@@ -1026,14 +1605,22 @@ export default function Chat() {
                   className="w-full text-left px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition"
                 >
                   <div className="flex items-center gap-3">
-                    <img
-                      src={contact.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
-                      alt={contact.fullName || contact.email}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                    <div className="min-w-0">
+                    <div className="relative">
+                      <img
+                        src={contact.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                        alt={contact.fullName || contact.email}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                      {contact.isOnline && (
+                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#101a36]"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-semibold truncate">{contact.fullName || contact.email}</p>
                       <p className="text-xs text-gray-400 truncate">{contact.email}</p>
+                      {!contact.isOnline && contact.lastSeen && (
+                        <p className="text-[10px] text-gray-500">Last seen {formatTime(contact.lastSeen)}</p>
+                      )}
                     </div>
                     {contact.conversationId && (
                       <span className="ml-auto text-[10px] px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-500/30">
@@ -1043,6 +1630,66 @@ export default function Chat() {
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Profile Modal */}
+      {showUserProfile && targetParticipant && (
+        <div className="fixed inset-0 z-[75] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowUserProfile(false)}>
+          <div className="w-full max-w-sm bg-gradient-to-br from-[#101a36] to-[#0f172a] border border-white/15 rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="relative">
+              <img
+                src={targetParticipant.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                alt={targetParticipant.fullName}
+                className="w-full h-48 object-cover"
+              />
+              <button
+                onClick={() => setShowUserProfile(false)}
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white"
+              >
+                <X size={18} />
+              </button>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                <h3 className="text-white font-bold text-xl">{targetParticipant.fullName}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-2 h-2 rounded-full ${targetParticipant.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                  <p className="text-gray-300 text-sm">
+                    {targetParticipant.isOnline ? 'Online' : targetParticipant.lastSeen ? `Last seen ${formatTime(targetParticipant.lastSeen)}` : 'Offline'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="mb-3">
+                <p className="text-gray-400 text-xs uppercase tracking-wide">Email</p>
+                <p className="text-white text-sm">{targetParticipant.email}</p>
+              </div>
+              <div className="mb-3">
+                <p className="text-gray-400 text-xs uppercase tracking-wide">Role</p>
+                <p className="text-white text-sm capitalize">{targetParticipant.role}</p>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => {
+                    startCall('audio');
+                    setShowUserProfile(false);
+                  }}
+                  className="flex-1 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/30 transition flex items-center justify-center gap-2"
+                >
+                  <Phone size={16} /> Call
+                </button>
+                <button
+                  onClick={() => {
+                    startCall('video');
+                    setShowUserProfile(false);
+                  }}
+                  className="flex-1 py-2 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-200 hover:bg-purple-500/30 transition flex items-center justify-center gap-2"
+                >
+                  <Video size={16} /> Video
+                </button>
+              </div>
             </div>
           </div>
         </div>
