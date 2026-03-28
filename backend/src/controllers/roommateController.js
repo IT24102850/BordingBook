@@ -2,9 +2,17 @@
  * @route GET /api/roommates/browse
  * @access Private
  */
+const RoommateProfile = require('../models/RoommateProfile');
+
 exports.browseProfiles = async (req, res) => {
   try {
-    const profiles = await RoommateProfile.find({ isActive: true });
+    // Optionally filter out the current user's own profile
+    const userId = req.user && req.user.userId;
+    const query = { isActive: true };
+    if (userId) {
+      query.userId = { $ne: userId };
+    }
+    const profiles = await RoommateProfile.find(query).select('-__v');
     res.json({
       success: true,
       data: profiles,
@@ -13,10 +21,9 @@ exports.browseProfiles = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch roommate profiles',
+      error: error.message,
     });
-  const RoommateProfile = require('../models/RoommateProfile');
   }
-
 };
 
 /**

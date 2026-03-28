@@ -12,17 +12,51 @@ exports.sendRequest = async (req, res) => {
 };
 
 exports.getInboxRequests = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Inbox not yet implemented',
-  });
+  try {
+    const userId = req.user && req.user.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+    const inboxRequests = await RoommateRequest.find({ recipientId: userId }).select('-__v');
+    res.json({
+      success: true,
+      data: inboxRequests,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch inbox requests',
+      error: error.message,
+    });
+  }
 };
 
+const RoommateRequest = require('../models/RoommateRequest');
+
 exports.getSentRequests = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Sent requests not yet implemented',
-  });
+  try {
+    const userId = req.user && req.user.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+    const sentRequests = await RoommateRequest.find({ senderId: userId }).select('-__v');
+    res.json({
+      success: true,
+      data: sentRequests,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch sent requests',
+      error: error.message,
+    });
+  }
 };
 
 exports.getRequest = async (req, res) => {

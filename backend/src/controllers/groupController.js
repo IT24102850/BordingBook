@@ -14,11 +14,35 @@ exports.createGroup = async (req, res) => {
   });
 };
 
+const BookingGroup = require('../models/BookingGroup');
+
 exports.getUserGroups = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Groups not yet implemented',
-  });
+  try {
+    const userId = req.user && req.user.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+    // Find groups where user is creator or a member
+    const groups = await BookingGroup.find({
+      $or: [
+        { creatorId: userId },
+        { 'members.userId': userId }
+      ]
+    }).select('-__v');
+    res.json({
+      success: true,
+      data: groups,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch groups',
+      error: error.message,
+    });
+  }
 };
 
 exports.getGroup = async (req, res) => {
