@@ -689,10 +689,9 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   </button>
                 )}
               </div>
-              )}
+              </div> {/* close grid */}
+            </div> {/* close md:block */}
             </div>
-          </div>
-
           {/* Mobile View */}
           <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
             <div className="w-full max-w-md mb-3 px-4">
