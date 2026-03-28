@@ -550,9 +550,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   <button
                     key={match.id}
                     onClick={() => {
-                      const recipientId = String(match.userId || match.id || '');
+                      const getUserId = (user) => user.userId || user._id || user.id || (typeof user === 'string' ? user : '');
+                      const recipientId = String(getUserId(match));
+                      const selectedRoommate = { ...match, userId: recipientId };
                       navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
-                        state: { selectedRoommate: match, chatType: 'direct-message', recipientId },
+                        state: { selectedRoommate, chatType: 'direct-message', recipientId },
                       });
                     }}
                     className="flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
@@ -765,9 +767,10 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   {req.status === 'accepted' && (
                     <button
                       onClick={() => {
-                        // Always normalize recipientId and ensure selectedRoommate.userId is set
-                        const recipientId = normalizeIdValue(req.from.userId || req.from.id || '');
-                        const selectedRoommate = { ...req.from, userId: normalizeIdValue(req.from.userId || req.from.id || '') };
+                        // Always use MongoDB userId for chat
+                        const getUserId = (user) => user.userId || user._id || user.id || (typeof user === 'string' ? user : '');
+                        const recipientId = String(getUserId(req.from));
+                        const selectedRoommate = { ...req.from, userId: recipientId };
                         navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
                           state: { selectedRoommate, chatType: 'direct-message', recipientId },
                         });
