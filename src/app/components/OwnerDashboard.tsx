@@ -391,8 +391,8 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect
         </span>
       </div>
     </div>
-    <div className="p-3">
-      <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+    <div className="p-2">
+      <p className="text-[10px] text-gray-400 mb-2 flex items-center gap-1">
         <Building size={12} />
         {house.address}
       </p>
@@ -555,14 +555,12 @@ const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete,
           {room.status === 'available' ? 'Available' : room.status === 'partial' ? 'Partial' : 'Full'}
         </span>
       </div>
-      
       <div className="flex items-center gap-2 mb-1.5">
         <Bed size={10} className="text-cyan-400" />
         <span className="text-[9px] text-white">{room.occupiedBeds}/{room.bedCount} beds</span>
         <DollarSign size={10} className="text-green-400 ml-1" />
         <span className="text-[9px] text-white">Rs.{room.price.toLocaleString()}</span>
       </div>
-
       <div className="flex flex-wrap gap-1 mb-1.5">
         {room.facilities.slice(0, 3).map((fac: string) => {
           const facility = facilitiesList.find(f => f.id === fac);
@@ -577,9 +575,8 @@ const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete,
           <span className="bg-white/10 text-gray-400 px-1 py-0.5 rounded-full text-[6px]">
             +{room.facilities.length - 3}
           </span>
-        )
+        )}
       </div>
-
       <div className="flex justify-end gap-2 mt-1.5 pt-1.5 border-t border-white/10">
         <button 
           onClick={() => onViewTenants(room)} 
@@ -1701,7 +1698,6 @@ export default function OwnerDashboard() {
 
   if (!isMobile) {
     return (
-      <>
       <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
         {/* Header - Desktop */}
         <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50 shadow-lg">
@@ -1725,82 +1721,7 @@ export default function OwnerDashboard() {
                     <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                   )}
                 </button>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-400/30 text-red-200 hover:bg-red-500/20 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut size={16} />
-                  <span className="text-sm font-medium">Logout</span>
-                </button>
-                <div className="flex items-center gap-3 pl-3 border-l border-white/10">
-                  <div className="text-right">
-                    <p className="text-sm text-white font-medium">{ownerProfile.fullName}</p>
-                    <p className="text-xs text-gray-400">Owner • {ownerProfile.email}</p>
-                  </div>
-                  {ownerProfile.profileImage ? (
-                    <img
-                      src={ownerProfile.profileImage}
-                      alt={ownerProfile.fullName}
-                      className="w-10 h-10 rounded-full object-cover border border-cyan-400/50 shadow-lg cursor-pointer"
-                      onClick={() => setActiveTab('profile')}
-                      title="Edit Profile"
-                    />
-                  ) : (
-                    <div
-                      className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg cursor-pointer"
-                      onClick={() => setActiveTab('profile')}
-                      title="Edit Profile"
-                    >
-                      {ownerInitials}
-                    </div>
-                  )}
-                </div>
               </div>
-            </div>
-
-            {/* Navigation Tabs - Desktop */}
-            <div className="flex gap-2 mt-4 overflow-x-auto pb-2 pt-1 px-1 scrollbar-hide">
-              {[
-                { id: 'overview', label: 'Dashboard', icon: <BarChart size={16} /> },
-                { id: 'houses', label: 'Houses', icon: <Building size={16} /> },
-                { id: 'rooms', label: 'Rooms', icon: <Bed size={16} /> },
-                { id: 'tenants', label: 'Tenants', icon: <Users size={16} /> },
-                { id: 'bookings', label: 'Bookings', icon: <FileText size={16} /> },
-                { id: 'notices', label: 'Notices', icon: <Mail size={16} /> },
-                { id: 'profile', label: 'Profile', icon: <Settings size={16} /> },
-                { id: 'notifications', label: 'Alerts', icon: <Bell size={16} />, badge: unreadNotifications },
-                { id: 'payment-btn', label: 'Payment', icon: <DollarSign size={16} />, isButton: true }
-              ].map((tab) => (
-                tab.isButton ? (
-                  <button
-                    key={tab.id}
-                    onClick={() => navigate('/payment-rental')}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:shadow-lg shadow-purple-500/25"
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                ) : (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/25'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                    {tab.badge && tab.badge > 0 && (
-                      <span className="ml-1.5 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
-                        {tab.badge}
-                      </span>
-                    )}
-                  </button>
-                )
-              ))}
             </div>
           </div>
         </div>
@@ -3682,16 +3603,6 @@ export default function OwnerDashboard() {
           </div>
         </div>
       )}
-      </>
     );
   }
-
-  // Mobile view continues from here  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
-      <div className="text-center py-20 text-white">
-        <p>Mobile view - Work in progress</p>
-      </div>
-    </div>
-  );
 }
