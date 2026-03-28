@@ -1,17 +1,3 @@
-// Mobile Stats Card Component
-const MobileStatsCard: React.FC<MobileStatsCardProps> = ({ title, value, icon, trend, color }) => (
-  <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-start">
-    <div className="flex items-center gap-2 mb-1">
-      <span className={`p-1.5 rounded-lg ${color}`}>{icon}</span>
-      <span className={`text-xs ${trend >= 0 ? 'text-green-400' : 'text-red-400'} flex items-center gap-1`}>
-        <TrendingUp size={10} className={trend >= 0 ? '' : 'rotate-180'} />
-        {Math.abs(trend)}%
-      </span>
-    </div>
-    <div className="text-lg font-bold text-white">{value}</div>
-    <div className="text-[10px] text-gray-400 mt-0.5">{title}</div>
-  </div>
-);
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -26,18 +12,88 @@ import BookingManagementSystem from './booking/BookingManagementSystem';
 import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
 
 // ============================================
-  {
-    id: '2',
-    name: 'Green Villa Boarding',
-    address: '45 Kaduwela, Colombo',
-    totalRooms: 8,
-    occupiedRooms: 5,
-    rating: 4.2,
-    totalReviews: 15,
-    image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-    status: 'active'
-  }
-];
+// TYPES
+// ============================================
+
+interface BoardingHouse {
+  id: string;
+  name: string;
+  address: string;
+  totalRooms: number;
+  monthlyPrice?: number;
+  roomType?: string;
+  availableFrom?: string;
+  deposit?: number;
+  roommateCount?: string;
+  description?: string;
+  features?: string[];
+  occupiedRooms: number;
+  rating: number;
+  totalReviews: number;
+  image: string;
+  images?: string[];
+  status: 'active' | 'inactive';
+  genderPreference?: 'any' | 'girls' | 'boys';
+}
+
+interface Tenant {
+  id: string;
+  name: string;
+  roomId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  paymentStatus: 'paid' | 'pending' | 'overdue';
+  monthlyRent: number;
+  phone?: string;
+  email?: string;
+}
+
+interface Room {
+  id: string;
+  houseId: string;
+  roomNumber: string;
+  floor: number;
+  bedCount: number;
+  occupiedBeds: number;
+  price: number;
+  facilities: string[];
+  status: 'available' | 'partial' | 'full';
+  images: string[];
+  tenants: Tenant[];
+  location?: string;
+  roomType?: string;
+  genderPreference?: string;
+  availableFrom?: string;
+  deposit?: number;
+  roommateCount?: string;
+  description?: string;
+}
+
+interface Facility {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+}
+
+interface StatsCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend: number;
+  color: string;
+}
+
+interface MobileStatsCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend: number;
+  color: string;
+}
+
+interface HouseCardProps {
+  house: BoardingHouse;
+  onEdit: (house: BoardingHouse) => void;
   onDelete: (house: BoardingHouse) => void;
   onSelect: (house: BoardingHouse) => void;
 }
@@ -170,10 +226,9 @@ const mockHouses: BoardingHouse[] = [
     image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'active'
   }
-    );
-  }
-}
+];
 
+const mockRooms: Room[] = [
   {
     id: '101',
     houseId: '1',
@@ -298,8 +353,25 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, value, icon, trend, color 
         {Math.abs(trend)}%
       </span>
     </div>
-    <div className="mt-2 text-2xl font-bold text-white">{value}</div>
-    <div className="text-xs text-gray-400 mt-1">{title}</div>
+    <p className="text-2xl font-bold text-white">{value}</p>
+    <p className="text-xs text-gray-400">{title}</p>
+  </div>
+);
+
+// Mobile Stats Card Component
+const MobileStatsCard: React.FC<MobileStatsCardProps> = ({ title, value, icon, trend, color }) => (
+  <div className="bg-white/5 rounded-xl p-3 border border-white/10 active:bg-white/10 transition-colors touch-manipulation">
+    <div className="flex items-center justify-between mb-1">
+      <div className={`p-1.5 rounded-lg ${color}`}>
+        {icon}
+      </div>
+      <span className={`text-[10px] ${trend >= 0 ? 'text-green-400' : 'text-red-400'} flex items-center gap-0.5`}>
+        <TrendingUp size={10} className={trend >= 0 ? '' : 'rotate-180'} />
+        {Math.abs(trend)}%
+      </span>
+    </div>
+    <p className="text-lg font-bold text-white">{value}</p>
+    <p className="text-[9px] text-gray-400 mt-0.5">{title}</p>
   </div>
 );
 
@@ -309,8 +381,8 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 hover:border-cyan-400/30 transition-all cursor-pointer group"
     onClick={() => onSelect(house)}
   >
-    <div className="relative aspect-square overflow-hidden">
-      <img src={house.image} alt={house.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 aspect-square" />
+    <div className="relative h-32 overflow-hidden">
+      <img src={house.image} alt={house.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
         <span className="text-white font-bold text-sm">{house.name}</span>
@@ -319,8 +391,8 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onEdit, onDelete, onSelect
         </span>
       </div>
     </div>
-    <div className="p-2">
-      <p className="text-[10px] text-gray-400 mb-2 flex items-center gap-1">
+    <div className="p-3">
+      <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
         <Building size={12} />
         {house.address}
       </p>
@@ -357,8 +429,8 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
     className="bg-white/5 rounded-xl overflow-hidden border border-white/10 active:border-cyan-400/30 transition-colors touch-manipulation"
     onClick={() => onSelect(house)}
   >
-    <div className="relative aspect-square overflow-hidden">
-      <img src={house.image} alt={house.name} className="w-full h-full object-cover aspect-square" />
+    <div className="relative h-28 overflow-hidden">
+      <img src={house.image} alt={house.name} className="w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
         <span className="text-white font-bold text-xs truncate max-w-[60%]">{house.name}</span>
@@ -483,12 +555,14 @@ const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete,
           {room.status === 'available' ? 'Available' : room.status === 'partial' ? 'Partial' : 'Full'}
         </span>
       </div>
+      
       <div className="flex items-center gap-2 mb-1.5">
         <Bed size={10} className="text-cyan-400" />
         <span className="text-[9px] text-white">{room.occupiedBeds}/{room.bedCount} beds</span>
         <DollarSign size={10} className="text-green-400 ml-1" />
         <span className="text-[9px] text-white">Rs.{room.price.toLocaleString()}</span>
       </div>
+
       <div className="flex flex-wrap gap-1 mb-1.5">
         {room.facilities.slice(0, 3).map((fac: string) => {
           const facility = facilitiesList.find(f => f.id === fac);
@@ -505,6 +579,7 @@ const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete,
           </span>
         )}
       </div>
+
       <div className="flex justify-end gap-2 mt-1.5 pt-1.5 border-t border-white/10">
         <button 
           onClick={() => onViewTenants(room)} 
@@ -728,7 +803,6 @@ export default function OwnerDashboard() {
   const [newHouse, setNewHouse] = useState({
     name: '',
     address: '',
-    location: '',
     totalRooms: 0,
     monthlyPrice: 0,
     roomType: 'Single Room',
@@ -739,49 +813,6 @@ export default function OwnerDashboard() {
     features: [] as string[],
     genderPreference: 'any' as 'any' | 'girls' | 'boys'
   });
-
-  const resetHouseEditor = () => {
-    setSelectedHouse(null);
-    setNewHouse({
-      name: '',
-      address: '',
-      location: '',
-      totalRooms: 0,
-      monthlyPrice: 0,
-      roomType: 'Single Room',
-      availableFrom: '',
-      deposit: 0,
-      roommateCount: 'None (Private)',
-      description: '',
-      features: [],
-      genderPreference: 'any',
-    });
-    setUploadedHouseImages([]);
-  };
-
-  const openHouseEditor = (house: BoardingHouse) => {
-    setSelectedHouse(house);
-    setShowAddHouse(false);
-    setActiveTab('houses');
-    setNewHouse({
-      name: house.name,
-      address: house.address,
-      location: (house as any).location || '',
-      totalRooms: house.totalRooms,
-      monthlyPrice: house.monthlyPrice || 0,
-      roomType: house.roomType || 'Single Room',
-      availableFrom: house.availableFrom || '',
-      deposit: house.deposit || 0,
-      roommateCount: house.roommateCount || 'None (Private)',
-      description: house.description || '',
-      features: house.features || [],
-      genderPreference: house.genderPreference || 'any',
-    });
-    setUploadedHouseImages(house.images?.length ? house.images : (house.image ? [house.image] : []));
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
 
   // Notice states
   const [notices, setNotices] = useState<{id:string; type:string; message:string; date:string; recipients:string;}[]>([
@@ -984,8 +1015,27 @@ export default function OwnerDashboard() {
     setShowTenantModal(true);
   };
 
-  const handleEditHouse = (house: BoardingHouse) => {
-    openHouseEditor(house);
+  const handleEditHouse = async (house: BoardingHouse) => {
+    const nextName = window.prompt('Update boarding house name', house.name);
+    if (!nextName) {
+      return;
+    }
+
+    const nextAddress = window.prompt('Update distance from SLIIT', house.address);
+    if (!nextAddress) {
+      return;
+    }
+
+    try {
+      const updated = await ownerDashboardApi.updateHouse(house.id, {
+        name: nextName,
+        address: nextAddress,
+      });
+
+      setHouses((prev) => prev.map((h) => (h.id === house.id ? mapHouseDtoToUi(updated) : h)));
+    } catch (error) {
+      alert((error as Error).message || 'Failed to update house');
+    }
   };
 
   const handleDeleteHouse = async (house: BoardingHouse) => {
@@ -997,9 +1047,6 @@ export default function OwnerDashboard() {
       await ownerDashboardApi.deleteHouse(house.id);
       setHouses((prev) => prev.filter((h) => h.id !== house.id));
       setRooms((prev) => prev.filter((room) => room.houseId !== house.id));
-      if (selectedHouse?.id === house.id) {
-        resetHouseEditor();
-      }
     } catch (error) {
       alert((error as Error).message || 'Failed to delete house');
     }
@@ -1273,7 +1320,7 @@ export default function OwnerDashboard() {
     }
 
     try {
-      const payload = {
+      const created = await ownerDashboardApi.createHouse({
         name: newHouse.name,
         address: newHouse.address,
         totalRooms: newHouse.totalRooms,
@@ -1286,346 +1333,41 @@ export default function OwnerDashboard() {
         features: newHouse.features,
         image: uploadedHouseImages[0],
         images: uploadedHouseImages,
-        status: 'active' as const,
+        status: 'active',
         genderPreference: newHouse.genderPreference,
-      };
-
-      if (selectedHouse) {
-        const updated = await ownerDashboardApi.updateHouse(selectedHouse.id, payload);
-        setHouses((prev) => prev.map((house) => (house.id === selectedHouse.id ? mapHouseDtoToUi(updated) : house)));
-        resetHouseEditor();
-        alert(`Boarding House "${updated.name}" updated successfully!`);
-        return;
-      }
-
-      const created = await ownerDashboardApi.createHouse(payload);
+      });
 
       setHouses((prev) => [...prev, mapHouseDtoToUi(created)]);
       setShowAddHouse(false);
-      resetHouseEditor();
+
+      setNewHouse({
+        name: '',
+        address: '',
+        totalRooms: 0,
+        monthlyPrice: 0,
+        roomType: 'Single Room',
+        availableFrom: '',
+        deposit: 0,
+        roommateCount: 'None (Private)',
+        description: '',
+        features: [],
+        genderPreference: 'any',
+      });
+      setUploadedHouseImages([]);
 
       alert(`Boarding House "${created.name}" added successfully!`);
     } catch (error) {
-      alert((error as Error).message || (selectedHouse ? 'Failed to update boarding house' : 'Failed to add boarding house'));
+      alert((error as Error).message || 'Failed to add boarding house');
     }
   };
-  // Download payment report handler
-  const handleDownloadPaymentReport = () => {
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Payment Report</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; color: #333; }
-          .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-          .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
-          .header h1 { font-size: 32px; color: #1e40af; margin-bottom: 8px; }
-          .header p { color: #666; font-size: 14px; }
-          .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
-          .stat-box { background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #2563eb; }
-          .stat-label { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 8px; }
-          .stat-value { font-size: 28px; font-weight: bold; color: #1e40af; }
-          .details { margin: 30px 0; }
-          .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
-          .label { font-weight: 600; color: #374151; }
-          .value { color: #6b7280; }
-          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>📊 Payment Report</h1>
-            <p>Generated on ${new Date().toLocaleDateString()}</p>
-          </div>
-          
-          <div class="stats">
-            <div class="stat-box">
-              <div class="stat-label">Total Collected</div>
-              <div class="stat-value">Rs.${monthlyRevenue.toLocaleString()}</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">Pending Payments</div>
-              <div class="stat-value">${pendingPayments}</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">Total Tenants</div>
-              <div class="stat-value">${totalTenants}</div>
-            </div>
-          </div>
-          
-          <div class="details">
-            <h2 style="margin-bottom: 20px; color: #1e40af; font-size: 18px;">Summary</h2>
-            <div class="row">
-              <span class="label">Total Boarding Houses:</span>
-              <span class="value">${totalHouses}</span>
-            </div>
-            <div class="row">
-              <span class="label">Total Rooms:</span>
-              <span class="value">${totalRooms}</span>
-            </div>
-            <div class="row">
-              <span class="label">Occupied Beds:</span>
-              <span class="value">${occupiedBeds}/${totalBeds}</span>
-            </div>
-            <div class="row">
-              <span class="label">Occupancy Rate:</span>
-              <span class="value">${occupancyRate}%</span>
-            </div>
-          </div>
-          
-          <div class="footer">
-            <p>This is an official payment report document from your Boarding House Management System.</p>
-            <p style="margin-top: 10px;">© 2026 Boarding House Management System</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
 
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `payment-report-${new Date().toISOString().split('T')[0]}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  // Download receipts handler
-  const handleDownloadReceipts = () => {
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>All Receipts</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; color: #333; }
-          .container { max-width: 900px; margin: 0 auto; }
-          .header { text-align: center; background: white; padding: 30px; border-radius: 8px 8px 0 0; border-bottom: 2px solid #2563eb; }
-          .header h1 { font-size: 32px; color: #1e40af; margin-bottom: 8px; }
-          .header p { color: #666; font-size: 14px; }
-          .receipt { background: white; margin-bottom: 20px; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #10b981; }
-          .receipt-header { border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 15px; }
-          .receipt-title { font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 5px; }
-          .receipt-date { font-size: 12px; color: #6b7280; }
-          .receipt-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; }
-          .receipt-label { color: #374151; font-weight: 500; }
-          .receipt-value { color: #6b7280; }
-          .footer { text-align: center; background: white; padding: 30px; border-radius: 0 0 8px 8px; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }
-          .page-break { page-break-after: always; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>📄 All Payment Receipts</h1>
-            <p>Generated on ${new Date().toLocaleDateString()}</p>
-          </div>
-          
-          ${allTenants.map((tenant, index) => `
-            <div class="receipt" style="${index > 0 ? 'margin-top: 40px; border-top: 1px dashed #d1d5db; padding-top: 20px;' : ''}">
-              <div class="receipt-header">
-                <div class="receipt-title">Receipt - ${tenant.name}</div>
-                <div class="receipt-date">Date: ${new Date().toLocaleDateString()}</div>
-              </div>
-              <div class="receipt-row">
-                <span class="receipt-label">Tenant:</span>
-                <span class="receipt-value">${tenant.name}</span>
-              </div>
-              <div class="receipt-row">
-                <span class="receipt-label">Monthly Rent:</span>
-                <span class="receipt-value">Rs.${tenant.monthlyRent.toLocaleString()}</span>
-              </div>
-              <div class="receipt-row">
-                <span class="receipt-label">Check-In:</span>
-                <span class="receipt-value">${new Date(tenant.checkInDate).toLocaleDateString()}</span>
-              </div>
-              <div class="receipt-row">
-                <span class="receipt-label">Status:</span>
-                <span class="receipt-value" style="color: ${tenant.paymentStatus === 'paid' ? '#10b981' : tenant.paymentStatus === 'pending' ? '#f59e0b' : '#ef4444'}; font-weight: 600;">
-                  ${tenant.paymentStatus.toUpperCase()}
-                </span>
-              </div>
-            </div>
-          `).join('')}
-          
-          <div class="footer">
-            <p>These are official payment receipts from your Boarding House Management System.</p>
-            <p style="margin-top: 10px;">© 2026 Boarding House Management System</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `receipts-all-${new Date().toISOString().split('T')[0]}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  // Download individual tenant receipt
-  const handleDownloadTenantOverview = () => {
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Tenant Overview</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-          table { width: 100%; border-collapse: collapse; background: white; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background: #2563eb; color: white; }
-        </style>
-      </head>
-      <body>
-        <h1>Tenant Overview</h1>
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            ${allTenants.map((t) => `
-              <tr>
-                <td>${t.name}</td>
-                <td>${rooms.find((r) => r.id === t.roomId)?.roomNumber || 'N/A'}</td>
-                <td>${new Date(t.checkInDate).toLocaleDateString()}</td>
-                <td>${new Date(t.checkOutDate).toLocaleDateString()}</td>
-                <td>${t.paymentStatus}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `tenant-overview-${new Date().toISOString().split('T')[0]}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadTenantReceipt = (tenant: Tenant) => {
-    const room = rooms.find(r => r.id === tenant.roomId);
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Receipt - ${tenant.name}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-          .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 20px; }
-          .header h1 { font-size: 28px; color: #1e40af; margin-bottom: 8px; }
-          .header p { color: #666; font-size: 14px; }
-          .details { margin: 20px 0; }
-          .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
-          .label { font-weight: 600; color: #374151; }
-          .value { color: #6b7280; }
-          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
-          .badge { display: inline-block; background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 4px; font-size: 12px; margin-top: 10px; }
-          .status { font-weight: 600; padding: 4px 8px; border-radius: 4px; display: inline-block; }
-          .paid { background: #dcfce7; color: #166534; }
-          .pending { background: #fef3c7; color: #92400e; }
-          .overdue { background: #fee2e2; color: #991b1b; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>💰 Payment Receipt</h1>
-            <p>Tenant Receipt</p>
-          </div>
-          <div class="details">
-            <div class="row">
-              <span class="label">Tenant Name:</span>
-              <span class="value">${tenant.name}</span>
-            </div>
-            <div class="row">
-              <span class="label">Room:</span>
-              <span class="value">${room ? room.roomNumber : 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Monthly Rent:</span>
-              <span class="value" style="font-weight: 600; color: #059669; font-size: 16px;">Rs. ${tenant.monthlyRent.toLocaleString()}</span>
-            </div>
-            <div class="row">
-              <span class="label">Check-In:</span>
-              <span class="value">${new Date(tenant.checkInDate).toLocaleDateString()}</span>
-            </div>
-            <div class="row">
-              <span class="label">Check-Out:</span>
-              <span class="value">${new Date(tenant.checkOutDate).toLocaleDateString()}</span>
-            </div>
-            <div class="row">
-              <span class="label">Phone:</span>
-              <span class="value">${tenant.phone || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Email:</span>
-              <span class="value">${tenant.email || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Payment Status:</span>
-              <span class="value">
-                <span class="status ${tenant.paymentStatus}">
-                  ${tenant.paymentStatus.toUpperCase()}
-                </span>
-              </span>
-            </div>
-            <div class="row">
-              <span class="label">Generated:</span>
-              <span class="value">${new Date().toLocaleString()}</span>
-            </div>
-          </div>
-          <div class="footer">
-            <p>This is an official payment receipt. Please keep it for your records.</p>
-            <p style="margin-top: 10px;">© 2026 Boarding House Management System</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `receipt-${tenant.name.replace(/\s+/g, '-')}-${tenant.id}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  // ============================================
+  // DESKTOP VIEW
+  // ============================================
 
   if (!isMobile) {
     return (
+      <>
       <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
         {/* Header - Desktop */}
         <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50 shadow-lg">
@@ -1649,7 +1391,76 @@ export default function OwnerDashboard() {
                     <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                   )}
                 </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-400/30 text-red-200 hover:bg-red-500/20 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut size={16} />
+                  <span className="text-sm font-medium">Logout</span>
+                </button>
+                <div className="flex items-center gap-3 pl-3 border-l border-white/10">
+                  <div className="text-right">
+                    <p className="text-sm text-white font-medium">{ownerProfile.fullName}</p>
+                    <p className="text-xs text-gray-400">Owner • {ownerProfile.email}</p>
+                  </div>
+                  {ownerProfile.profileImage ? (
+                    <img
+                      src={ownerProfile.profileImage}
+                      alt={ownerProfile.fullName}
+                      className="w-10 h-10 rounded-full object-cover border border-cyan-400/50 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg">
+                      {ownerInitials}
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
+
+            {/* Navigation Tabs - Desktop */}
+            <div className="flex gap-2 mt-4 overflow-x-auto pb-2 pt-1 px-1 scrollbar-hide">
+              {[
+                { id: 'overview', label: 'Dashboard', icon: <BarChart size={16} /> },
+                { id: 'houses', label: 'Houses', icon: <Building size={16} /> },
+                { id: 'rooms', label: 'Rooms', icon: <Bed size={16} /> },
+                { id: 'tenants', label: 'Tenants', icon: <Users size={16} /> },
+                { id: 'bookings', label: 'Bookings', icon: <FileText size={16} /> },
+                { id: 'notices', label: 'Notices', icon: <Mail size={16} /> },
+                { id: 'profile', label: 'Profile', icon: <Settings size={16} /> },
+                { id: 'notifications', label: 'Alerts', icon: <Bell size={16} />, badge: unreadNotifications },
+                { id: 'payment-btn', label: 'Payment', icon: <DollarSign size={16} />, isButton: true }
+              ].map((tab) => (
+                tab.isButton ? (
+                  <button
+                    key={tab.id}
+                    onClick={() => navigate('/payment-rental')}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:shadow-lg shadow-purple-500/25"
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ) : (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/25'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                    {tab.badge && tab.badge > 0 && (
+                      <span className="ml-1.5 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                )
+              ))}
             </div>
           </div>
         </div>
@@ -1890,11 +1701,11 @@ export default function OwnerDashboard() {
                     </div>
                   </div>
                   
-                  <button 
-                    onClick={handleDownloadPaymentReport}
-                    className="w-full mt-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
-                    Download Payment Report
-                  </button>
+                  <div className="mt-3 flex justify-end">
+                    <button className="px-3 py-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-[11px] font-medium hover:shadow-lg transition-all">
+                      Download Payment Report
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1938,10 +1749,7 @@ export default function OwnerDashboard() {
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-bold text-white">My Boarding Houses</h2>
                 <button 
-                  onClick={() => {
-                    resetHouseEditor();
-                    setShowAddHouse(true);
-                  }}
+                  onClick={() => setShowAddHouse(true)}
                   className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all flex items-center gap-2"
                 >
                   <Plus size={16} />
@@ -1949,227 +1757,12 @@ export default function OwnerDashboard() {
                 </button>
               </div>
 
-              {selectedHouse && (
-                <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 via-slate-900/70 to-slate-950/80 p-5 shadow-xl">
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-5">
-                    <div>
-                      <h3 className="text-base font-bold text-white">Edit Boarding House</h3>
-                      <p className="text-xs text-cyan-100/80">Update details here without opening a popup.</p>
-                    </div>
-                    <button
-                      onClick={resetHouseEditor}
-                      className="self-start px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-xs font-medium text-gray-200 hover:bg-white/10 transition-colors"
-                    >
-                      Cancel Edit
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-                    <div className="xl:col-span-8 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs text-gray-300 mb-1">House Name *</label>
-                          <input
-                            type="text"
-                            value={newHouse.name}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, name: e.target.value }))}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
-                            placeholder="e.g., Lake View Boarding House"
-                          />
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs text-gray-300 mb-1">Distance from SLIIT *</label>
-                          <input
-                            type="text"
-                            value={newHouse.address}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, address: e.target.value }))}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
-                            placeholder="e.g., 0.8 km from SLIIT"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs text-gray-300 mb-1">Total Rooms</label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={newHouse.totalRooms}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, totalRooms: Number(e.target.value) || 0 }))}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs text-gray-300 mb-1">Price (Rs./month)</label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={newHouse.monthlyPrice}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, monthlyPrice: Number(e.target.value) || 0 }))}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs text-gray-300 mb-1">Room Type</label>
-                          <select
-                            value={newHouse.roomType}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, roomType: e.target.value }))}
-                            className="w-full px-3 py-2.5 bg-slate-900 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                          >
-                            <option>Single Room</option>
-                            <option>Shared Room</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs text-gray-300 mb-1">Available From</label>
-                          <input
-                            type="date"
-                            value={newHouse.availableFrom}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, availableFrom: e.target.value }))}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs text-gray-300 mb-1">Bodim Price (Rs.)</label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={newHouse.deposit}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, deposit: Number(e.target.value) || 0 }))}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs text-gray-300 mb-1">Roommates</label>
-                          <select
-                            value={newHouse.roommateCount}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, roommateCount: e.target.value }))}
-                            className="w-full px-3 py-2.5 bg-slate-900 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                          >
-                            <option>None (Private)</option>
-                            <option>1 Roommate</option>
-                            <option>2 Roommates</option>
-                            <option>3+ Roommates</option>
-                          </select>
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs text-gray-300 mb-2">Gender Preference</label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {(['any', 'girls', 'boys'] as const).map((gender) => (
-                              <label
-                                key={gender}
-                                className={`px-3 py-2 rounded-lg border text-xs text-center cursor-pointer transition-colors ${newHouse.genderPreference === gender ? 'border-cyan-400 bg-cyan-500/20 text-cyan-200' : 'border-white/10 bg-white/5 text-gray-300'}`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="edit-boarding-house-gender"
-                                  value={gender}
-                                  checked={newHouse.genderPreference === gender}
-                                  onChange={(e) => setNewHouse((prev) => ({ ...prev, genderPreference: e.target.value as 'any' | 'girls' | 'boys' }))}
-                                  className="hidden"
-                                />
-                                {gender === 'any' ? 'Any' : gender.charAt(0).toUpperCase() + gender.slice(1)}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs text-gray-300 mb-1">Description</label>
-                          <textarea
-                            value={newHouse.description}
-                            onChange={(e) => setNewHouse((prev) => ({ ...prev, description: e.target.value }))}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none h-24"
-                            placeholder="Add a short description of the boarding house."
-                          />
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs text-gray-300 mb-2">Features</label>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {facilitiesList.map((facility) => (
-                              <label key={`inline-house-feature-${facility.id}`} className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:border-cyan-400/50 transition-colors">
-                                <input
-                                  type="checkbox"
-                                  checked={newHouse.features.includes(facility.id)}
-                                  onChange={() => handleHouseFeatureToggle(facility.id)}
-                                  className="cursor-pointer"
-                                />
-                                <span className="text-xs text-gray-300 flex items-center gap-1">
-                                  {facility.icon}
-                                  {facility.name}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="xl:col-span-4 space-y-3">
-                      <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                        <label className="block text-xs font-medium text-cyan-300 mb-2">Boarding House Images</label>
-                        <button
-                          onClick={handleOpenHouseFileDialog}
-                          className="w-full px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-                        >
-                          <Upload size={16} /> Upload Images
-                        </button>
-
-                        {uploadedHouseImages.length > 0 ? (
-                          <div className="grid grid-cols-2 gap-2 mt-3">
-                            {uploadedHouseImages.map((image, index) => (
-                              <div key={`inline-house-preview-${index}`} className="relative group">
-                                <img
-                                  src={image}
-                                  alt={`Boarding house preview ${index + 1}`}
-                                  className="w-full aspect-square object-cover rounded-lg border border-white/10"
-                                />
-                                <button
-                                  onClick={() => removeHouseImage(index)}
-                                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[11px] text-gray-400 mt-2">No images selected yet.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-4 mt-4 border-t border-white/10">
-                    <button
-                      onClick={resetHouseEditor}
-                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveHouse}
-                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
-                </div>
-              )}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {houses.map(house => (
                   <HouseCard 
                     key={house.id}
                     house={house}
-                    onSelect={() => {}}
+                    onSelect={setSelectedHouse}
                     onEdit={handleEditHouse}
                     onDelete={handleDeleteHouse}
                   />
@@ -2247,9 +1840,7 @@ export default function OwnerDashboard() {
                           <p className="text-xs text-white">Rs.{tenant.monthlyRent.toLocaleString()}</p>
                           <p className="text-[10px] text-green-400">Paid</p>
                         </div>
-                        <button 
-                          onClick={() => handleDownloadTenantReceipt(tenant)}
-                          className="p-1 hover:bg-white/10 rounded">
+                        <button className="p-1 hover:bg-white/10 rounded">
                           <Download size={14} className="text-cyan-400" />
                         </button>
                       </div>
@@ -2273,9 +1864,7 @@ export default function OwnerDashboard() {
                       <p className="text-sm text-red-400">Rs.{overdueAmount.toLocaleString()}</p>
                     </div>
                     <div className="pt-2 border-t border-white/10">
-                      <button 
-                        onClick={handleDownloadReceipts}
-                        className="w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                      <button className="w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
                         Download All Receipts
                       </button>
                     </div>
@@ -2621,7 +2210,6 @@ export default function OwnerDashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-8 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
                     <div className="md:col-span-2">
                       <label className="block text-xs text-gray-300 mb-1">House Name *</label>
                       <input
@@ -2641,17 +2229,6 @@ export default function OwnerDashboard() {
                         onChange={(e) => setNewHouse((prev) => ({ ...prev, address: e.target.value }))}
                         className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
                         placeholder="e.g., 0.8 km from SLIIT"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-xs text-gray-300 mb-1">Location (Google Map link or coordinates)</label>
-                      <input
-                        type="text"
-                        value={newHouse.location || ''}
-                        onChange={(e) => setNewHouse((prev) => ({ ...prev, location: e.target.value }))}
-                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
-                        placeholder="Paste Google Maps link or coordinates here"
                       />
                     </div>
 
@@ -2843,377 +2420,281 @@ export default function OwnerDashboard() {
               <div className="flex gap-2 pt-4 border-t border-white/10 sticky bottom-0 bg-gradient-to-r from-[#131d3a]/95 to-[#0b132b]/95">
                 <button
                   onClick={() => setShowAddHouse(false)}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveHouse}
-                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
                 >
                   Save Boarding House
                 </button>
               </div>
             </div>
           </div>
-        )}
-
-        {/* Tenant Details Modal - Desktop */}
-        {showTenantModal && selectedRoomForTenants && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl max-w-md w-full p-6 border border-white/10">
-                <h3 className="text-lg font-bold text-white mb-4">
-                  Room {selectedRoomForTenants.roomNumber} - Tenants
-                </h3>
-                
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {selectedRoomForTenants.tenants.map(tenant => (
-                    <div key={tenant.id} className="bg-white/5 rounded-lg p-3">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="text-sm font-medium text-white">{tenant.name}</p>
-                          <p className="text-xs text-gray-400">Check in: {new Date(tenant.checkInDate).toLocaleDateString()}</p>
-                        </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                          tenant.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-400' :
-                          tenant.paymentStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                          'bg-red-500/20 text-red-400'
-                        }`}>
-                          {tenant.paymentStatus}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-gray-400">Rent: Rs.{tenant.monthlyRent.toLocaleString()}</span>
-                        <button className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-                          <Download size={12} />
-                          Receipt
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <button 
-                  onClick={() => setShowTenantModal(false)}
-                  className="w-full mt-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
         </div>
-      </div>
-    );
-  }
-
-
-
-      <div className="px-3 py-3 max-w-7xl mx-auto">
-        {/* Search Bar - Mobile Optimized */}
-        {(activeTab === 'tenants' || activeTab === 'rooms') && (
-          <div className="mb-3">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder={`Search ${activeTab}...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 min-h-[44px]"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Overview Tab - Mobile */}
-        {activeTab === 'overview' && (
-          <div className="space-y-4">
-            {/* Stats Grid - 2 columns for mobile */}
-            <div className="grid grid-cols-2 gap-2">
-              <MobileStatsCard 
-                title="Houses" 
-                value={totalHouses} 
-                icon={<Building size={14} />} 
-                trend={12}
-                color="bg-cyan-500/20 text-cyan-400"
-              />
-              <MobileStatsCard 
-                title="Rooms" 
-                value={totalRooms} 
-                icon={<Bed size={14} />} 
-                trend={8}
-                color="bg-purple-500/20 text-purple-400"
-              />
-              <MobileStatsCard 
-                title="Tenants" 
-                value={totalTenants} 
-                icon={<Users size={14} />} 
-                trend={15}
-                color="bg-green-500/20 text-green-400"
-              />
-              <MobileStatsCard 
-                title="Occupancy" 
-                value={`${occupancyRate}%`} 
-                icon={<TrendingUp size={14} />} 
-                trend={5}
-                color="bg-yellow-500/20 text-yellow-400"
-              />
-            </div>
-
-            {/* Revenue Card */}
-            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-              <h3 className="text-xs font-medium text-cyan-300 mb-2 flex items-center gap-1">
-                <DollarSign size={12} />
-                Monthly Revenue
-              </h3>
-              <p className="text-xl font-bold text-white">Rs.{monthlyRevenue.toLocaleString()}</p>
-              <p className="text-[9px] text-gray-400 mt-0.5">from {totalTenants} tenants</p>
-              <div className="mt-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full w-3/4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" />
-              </div>
-            </div>
-
-            {/* Recent Tenants */}
-            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-              <h3 className="text-xs font-medium text-cyan-300 mb-2 flex items-center gap-1">
-                <Users size={12} />
-                Recent Tenants
-              </h3>
-              <MobileTenantList tenants={allTenants.slice(0, 3)} rooms={rooms} />
-              {allTenants.length > 3 && (
-                <button 
-                  onClick={() => setActiveTab('tenants')}
-                  className="w-full mt-2 py-2 text-[9px] text-cyan-400 active:text-cyan-300 border-t border-white/10 pt-2 min-h-[44px]"
-                >
-                  View All Tenants
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Houses Tab - Mobile */}
-        {activeTab === 'houses' && (
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-bold text-white">My Houses</h2>
-              <button 
-                onClick={() => {
-                  resetHouseEditor();
-                  setShowAddHouse(true);
-                }}
-                className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
-              >
-                <Plus size={14} />
-                Add
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              {houses.map(house => (
-                <MobileHouseCard 
-                  key={house.id}
-                  house={house}
-                  onSelect={() => {}}
-                  onEdit={handleEditHouse}
-                  onDelete={handleDeleteHouse}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Rooms Tab - Mobile */}
-        {activeTab === 'rooms' && (
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-bold text-white">Rooms</h2>
-              <div className="flex gap-1">
-                <select 
-                  value={filterHouse}
-                  onChange={(e) => setFilterHouse(e.target.value)}
-                  className="px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] text-white min-h-[44px]"
-                >
-                  <option value="all">All Houses</option>
-                  {houses.map(house => (
-                    <option key={house.id} value={house.id}>{house.name}</option>
-                  ))}
-                </select>
-                <button 
-                  onClick={() => setShowAddRoom(true)}
-                  className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
-                >
-                  <Plus size={14} />
-                  Add
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              {filteredRooms
-                .filter(room => 
-                  room.roomNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  room.tenants.some(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                )
-                .map(room => (
-                  <MobileRoomCard 
-                    key={room.id}
-                    room={room}
-                    onEdit={() => {}}
-                    onDelete={() => {}}
-                    onViewTenants={handleViewTenants}
-                  />
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tenants Tab - Mobile */}
-        {activeTab === 'tenants' && (
-          <div className="space-y-3">
-            <h2 className="text-sm font-bold text-white">All Tenants</h2>
-            <MobileTenantList tenants={filteredTenants} rooms={rooms} />
-          </div>
-        )}
-
-        {/* Payments Tab - Mobile */}
-        {activeTab === 'payments' && (
-          <div className="space-y-3">
-            <h2 className="text-sm font-bold text-white">Payments</h2>
-            
-            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-              <h3 className="text-xs font-medium text-cyan-300 mb-2">Summary</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[9px] text-gray-400">Total Collected</span>
-                  <span className="text-sm font-bold text-white">Rs.{monthlyRevenue.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[9px] text-gray-400">Pending</span>
-                  <span className="text-xs text-yellow-400">Rs.{(pendingPayments * 15000).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-              <h3 className="text-xs font-medium text-cyan-300 mb-2">Recent Payments</h3>
-              <div className="space-y-2">
-                {allTenants.filter(t => t.paymentStatus === 'paid').slice(0, 5).map(tenant => {
-                  const room = rooms.find(r => r.id === tenant.roomId);
-                  return (
-                    <div key={tenant.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                      <div>
-                        <p className="text-[9px] text-white">{tenant.name}</p>
-                        <p className="text-[7px] text-gray-400">Room {room?.roomNumber}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-white">Rs.{tenant.monthlyRent.toLocaleString()}</span>
-                        <button 
-                          onClick={() => handleDownloadTenantReceipt(tenant)}
-                          className="p-1.5 active:bg-white/10 rounded min-h-[32px] min-w-[32px] flex items-center justify-center">
-                          <Download size={10} className="text-cyan-400" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <button 
-                onClick={handleDownloadReceipts}
-                className="w-full mt-2 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-[9px] font-medium min-h-[44px]">
-                Download All Receipts
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Add House Modal - Mobile Optimized */}
-        {showAddHouse && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-end md:items-center">
-            <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-t-xl md:rounded-xl w-full max-w-md mx-auto p-4 border border-white/10 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-bold text-white">Add New House</h3>
-                <button
-                  onClick={() => setShowAddHouse(false)}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <X className="text-gray-400 hover:text-white" size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-gray-300 mb-1">House Name *</label>
-                  <input
-                    type="text"
-                    value={newHouse.name}
-                    onChange={(e) => setNewHouse((prev) => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs text-gray-300 mb-1">Distance from SLIIT *</label>
-                  <input
-                    type="text"
-                    value={newHouse.address}
-                    onChange={(e) => setNewHouse((prev) => ({ ...prev, address: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-300 mb-1">Total Rooms</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={newHouse.totalRooms}
-                      onChange={(e) => setNewHouse((prev) => ({ ...prev, totalRooms: Number(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-300 mb-1">Price</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={newHouse.monthlyPrice}
-                      onChange={(e) => setNewHouse((prev) => ({ ...prev, monthlyPrice: Number(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-3">
-                  <button
-                    onClick={() => setShowAddHouse(false)}
-                    className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveHouse}
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
-                  >
-                    Save Boarding House
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      )}
 
       {/* Add Room Modal - Desktop */}
       {showAddRoom && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-2xl w-full my-8 p-6 shadow-2xl">
-            {/* Room Modal Content Here (same as before) */}
+          <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-2xl w-full my-8 p-6 shadow-2xl" >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Plus size={24} className="text-cyan-400" /> Add New Room
+              </h2>
+              <button
+                onClick={() => setShowAddRoom(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="text-gray-400 hover:text-white" size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Room Images Upload */}
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                <label className="block text-sm font-medium text-cyan-300 mb-2">Room Images</label>
+                <div className="space-y-2">
+                  <button
+                    onClick={handleOpenFileDialog}
+                    className="w-full px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Upload size={16} /> Upload Images (Multiple)
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+
+                  {uploadedRoomImages.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {uploadedRoomImages.map((img, idx) => (
+                        <div key={idx} className="relative group">
+                          <img src={img} alt={`Room ${idx}`} className="w-full h-20 rounded-lg object-cover border border-white/10" />
+                          <button
+                            onClick={() => removeImage(idx)}
+                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Basic Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-300 mb-1">Listing Title</label>
+                  <input
+                    type="text"
+                    value={newRoom.listingTitle}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, listingTitle: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g., Modern Boarding House near SLIIT"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">House *</label>
+                  <select
+                    value={newRoom.houseId}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, houseId: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="">Select House</option>
+                    {houses.map((h) => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Room Number *</label>
+                  <input
+                    type="text"
+                    value={newRoom.roomNumber}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, roomNumber: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g., 101"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Location *</label>
+                  <input
+                    type="text"
+                    value={newRoom.location}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, location: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g., Malabe (0.8km from SLIIT)"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Tip: Add distance from campus, e.g. 0.8km from SLIIT</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Room Type</label>
+                  <select
+                    value={newRoom.roomType}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, roomType: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option>Single Room</option>
+                    <option>Shared Room</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Monthly Price (Rs.)</label>
+                  <input
+                    type="number"
+                    value={newRoom.price}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, price: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="18000"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Bodim Price (Rs.)</label>
+                  <input
+                    type="number"
+                    value={newRoom.deposit}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, deposit: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                    placeholder="e.g., 18000"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Bed Count</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newRoom.bedCount}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, bedCount: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Available From</label>
+                  <input
+                    type="date"
+                    value={newRoom.availableFrom}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, availableFrom: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Gender Preference</label>
+                  <select
+                    value={newRoom.genderPreference}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, genderPreference: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option>Any</option>
+                    <option>Female Only</option>
+                    <option>Male Only</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Roommate Count</label>
+                  <select
+                    value={newRoom.roommateCount}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, roommateCount: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option>None (Private)</option>
+                    <option>1 Roommate</option>
+                    <option>2 Roommates</option>
+                    <option>3+ Roommates</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Floor</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newRoom.floor}
+                    onChange={(e) => setNewRoom((prev) => ({ ...prev, floor: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={newRoom.description}
+                  onChange={(e) => setNewRoom((prev) => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none h-24"
+                  placeholder="Spacious, fully furnished room with attached bathroom. Walking distance to SLIIT campus. Includes WiFi, AC, and study table."
+                />
+              </div>
+
+              {/* Facilities */}
+              <div>
+                <label className="block text-xs text-gray-300 mb-2">Features</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {facilitiesList.map((facility) => (
+                    <label key={facility.id} className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:border-cyan-400/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={newRoom.facilities.includes(facility.id)}
+                        onChange={() => handleFacilityToggle(facility.id)}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-300 flex items-center gap-1">
+                        {facility.icon}
+                        {facility.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t border-white/10">
+                <button
+                  onClick={() => setShowAddRoom(false)}
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveRoom}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                >
+                  Save Room
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
+      </>
     );
   }
+
+  // Mobile view continues from here  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
+      <div className="text-center py-20 text-white">
+        <p>Mobile view - Work in progress</p>
+      </div>
+    </div>
+  );
 }
