@@ -14,6 +14,7 @@ exports.browseProfiles = async (req, res) => {
       success: false,
       message: 'Failed to fetch roommate profiles',
     });
+  const RoommateProfile = require('../models/RoommateProfile');
   }
 
 };
