@@ -1493,7 +1493,7 @@ export default function Chat() {
                 {showEmojiPicker && (
                   <div className="absolute bottom-full mb-2 right-0">
                     <EmojiPicker
-                      onEmojiClick={(emoji) => {
+                      onEmojiClick={(emoji: any) => {
                         setNewMessage(prev => prev + emoji.emoji);
                         setShowEmojiPicker(false);
                       }}
