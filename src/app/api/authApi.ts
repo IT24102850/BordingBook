@@ -101,47 +101,6 @@ async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined>
     credentials: 'include',
   });
 
-async function signIn(payload: SignInPayload): Promise<SignInResult> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    credentials: 'include', // Allow cookies for cross-origin
-  });
-
-  const result = await parseJson<SignInResult>(response);
-
-  if (!response.ok || !result.success || !result.data) {
-    throw new AuthApiError(
-      result.message || 'Sign in failed',
-      response.status,
-      Boolean(result.needsVerification)
-    );
-  }
-
-  return result.data;
-}
-
-async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    credentials: 'include', // Allow cookies for cross-origin
-  });
-  const result = await parseJson<SignUpResult>(response);
-
-  if (!response.ok || !result.success) {
-    throw new AuthApiError(
-      result.message || 'Sign up failed',
-      response.status,
-      Boolean(result.needsVerification)
-    );
-  }
-
-  return result.data;
-}
-
 export const authApi = {
   signIn,
   signUp,
