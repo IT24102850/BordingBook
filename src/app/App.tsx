@@ -123,6 +123,8 @@ export default function App() {
         <Route path="/chatbot" element={<ChatbotSection standalone={true} />} />
         <Route path="/owner-dashboard" element={<OwnerDashboard />} />
 
+        {/* Catch-all: Redirect unknown routes to /signin */}
+        <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
     </BrowserRouter>
   );
