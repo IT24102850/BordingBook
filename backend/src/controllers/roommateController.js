@@ -2,17 +2,29 @@
  * @route GET /api/roommates/browse
  * @access Private
  */
-const RoommateProfile = require('../models/RoommateProfile');
+const User = require('../models/User');
 
 exports.browseProfiles = async (req, res) => {
   try {
-    // Optionally filter out the current user's own profile
     const userId = req.user && req.user.userId;
     const query = { isActive: true };
     if (userId) {
-      query.userId = { $ne: userId };
+      query._id = { $ne: userId };
     }
-    const profiles = await RoommateProfile.find(query).select('-__v');
+    // Select only the fields needed for roommate browsing
+    const users = await User.find(query).select('name email gender academicYear profilePicture description tags boardingHouse');
+    // Map to expected frontend format if needed
+    const profiles = users.map(user => ({
+      id: user._id,
+      userId: user._id,
+      name: user.name || 'Student',
+      email: user.email || '',
+      gender: user.gender || 'Any',
+      university: user.boardingHouse || user.academicYear || '',
+      bio: user.description || '',
+      image: user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+      interests: Array.isArray(user.tags) ? user.tags : [],
+    }));
     res.json({
       success: true,
       data: profiles,
