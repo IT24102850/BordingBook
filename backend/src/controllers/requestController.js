@@ -1,13 +1,9 @@
-
 /**
  * Request Controller - Stub
  * Placeholder for future request functionality
  */
 
-
-
-// Note: The actual implementations below should be used instead of the stubs above
-const RoommateRequest = require('../models/RoommateRequest');
+// Remove any duplicate require of RoommateRequest below this line
 const User = require('../models/User');
 
 /**
