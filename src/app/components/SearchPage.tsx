@@ -1,3 +1,18 @@
+import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { 
+  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
+  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
+  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
+  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
+  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
+  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
+} from 'react-icons/fa';
+import { MdOutlineVerified } from 'react-icons/md';
+import { RiUserSharedLine } from 'react-icons/ri';
+import { BiCurrentLocation } from 'react-icons/bi';
+import { distMap } from '../data/rooms';
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
@@ -303,7 +318,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [mutualMatches, setMutualMatches] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
-  // Side panels always visible in window/desktop mode
+  const [showSidePanels, setShowSidePanels] = React.useState(false);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
   const [groups, setGroups] = React.useState<any[]>([]);
@@ -587,11 +602,18 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
 
           <div className="hidden md:block">
             <div className="flex items-center justify-between mb-4 px-1">
-              <p className="text-xs text-gray-400">Passed and Favorites are always visible in window mode.</p>
+              <p className="text-xs text-gray-400">Focus mode keeps swipe actions clear on smaller windows.</p>
+              <button
+                onClick={() => setShowSidePanels((prev) => !prev)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 border border-white/15 text-cyan-200 hover:bg-white/15 transition"
+              >
+                {showSidePanels ? 'Hide Passed & Favorites' : 'Show Passed & Favorites'}
+              </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div className={showSidePanels ? 'grid grid-cols-3 gap-6' : 'grid grid-cols-1 gap-6'}>
               {/* Left Column - Passed Roommates */}
+              {showSidePanels && (
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                 <div className="flex items-center gap-2 mb-4">
                   <FaHistory className="text-red-400" />
@@ -611,8 +633,10 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   )}
                 </div>
               </div>
+              )}
+
               {/* Center Column - Main Swipe Card */}
-              <div>
+              <div className={showSidePanels ? '' : 'max-w-2xl mx-auto'}>
                 <div className="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center justify-between">
                   <span className="text-xs text-cyan-200">
                     Profile {Math.min(currentIdx + 1, Math.max(1, roommateData.length))} of {roommateData.length}
@@ -650,6 +674,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
               </div>
 
               {/* Right Column - Liked Roommates */}
+              {showSidePanels && (
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                 <div className="flex items-center gap-2 mb-4">
                   <FaBookmark className="text-green-400" />
@@ -674,8 +699,10 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   </button>
                 )}
               </div>
-              </div> {/* close grid */}
-            </div> {/* close md:block */}
+              )}
+            </div>
+          </div>
+
           {/* Mobile View */}
           <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
             <div className="w-full max-w-md mb-3 px-4">
@@ -883,7 +910,70 @@ function MapViewPlaceholder() {
   );
 }
 
+// Define types
+interface Roommate {
+  id: number | string;
+  userId?: string;
+  name: string;
+  email?: string;
+  age: number;
+  gender: string;
+  university: string;
+  bio: string;
+  image: string;
+  interests: string[];
+  mutualCount?: number;
+}
 
+interface Listing {
+  id: number;
+  title: string;
+  images: string[];
+  price: number;
+  location: string;
+  distance: number;
+  distanceUnit: string;
+  travelTime: string;
+  roomType: string;
+  genderPreference: string;
+  availableFrom: string;
+  billsIncluded: boolean;
+  verified: boolean;
+  badges: string[];
+  description: string;
+  features: string[];
+  deposit: number;
+  roommateCount: number;
+  rating?: number;
+  campus?: string[];
+  fullAddress?: string;
+  vacancy?: string;
+  totalRooms?: number;
+  occupiedRooms?: number;
+}
+
+interface ListingCardProps {
+  listing: Listing;
+  onLike: () => void;
+  onPass: () => void;
+  onViewDetails: (listing: Listing) => void;
+  isAnimating: boolean;
+  direction: 'left' | 'right' | null;
+  viewMode?: 'card' | 'grid' | 'mini';
+}
+
+interface DetailsModalProps {
+  listing: Listing | null;
+  onClose: () => void;
+  onLike: () => void;
+  onBooking?: (listing: Listing) => void;
+}
+
+interface FilterChip {
+  id: string;
+  label: string;
+  icon: ReactNode;
+}
 
 // Real boarding room images
 const roomImages: string[] = [
@@ -1026,7 +1116,7 @@ const filterChips: FilterChip[] = [
   { id: 'verified', label: 'Verified', icon: React.createElement(MdOutlineVerified) },
   { id: 'single', label: 'Single Room', icon: React.createElement(FaBed) },
   { id: 'shared', label: 'Shared Room', icon: React.createElement(FaUserFriends) },
-  { id: 'bills', label: 'Bills Included', icon: React.createElement(FaBolt) }
+  { id: 'bills', label: 'Bills Included', icon: React.createElement(FaBolt) },
 ];
 
 // Travel time icons based on distance
@@ -1398,8 +1488,8 @@ const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = 
       </div>
     </div>
   );
-    </div>
-  );
+};
+
 // Card View Component (for mobile and desktop card mode)
 const ListingCard: React.FC<ListingCardProps> = ({ 
   listing, 
@@ -2026,7 +2116,7 @@ const FiltersPanel: React.FC<{
 };
 
 // Notification Interface
-export interface Notification {
+interface Notification {
   id: string;
   type:
     | 'owner_approval'
