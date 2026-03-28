@@ -44,7 +44,9 @@ exports.rejectRequest = async (req, res) => {
     success: false,
     message: 'Request rejection not yet implemented',
   });
+};
 
+// Note: The actual implementations below should be used instead of the stubs above
 const RoommateRequest = require('../models/RoommateRequest');
 const User = require('../models/User');
 

@@ -67,7 +67,6 @@ const getFallbackRooms = () => [
 exports.getAllRooms = async (req, res) => {
   try {
     const {
-
       search,
       maxPrice,
       minPrice,
@@ -76,13 +75,7 @@ exports.getAllRooms = async (req, res) => {
       facilities,
       minRating,
       minVacancy,
-
       location,
-      minPrice,
-      maxPrice,
-      minVacancy,
-      facilities,
-
       sort,
     } = req.query;
 
@@ -186,7 +179,7 @@ exports.getAllRooms = async (req, res) => {
 
     if (minVacancy) {
       // Using aggregation for vacancy filter
-      const rooms = await Room.aggregate([
+      const roomsWithVacancy = await Room.aggregate([
         {
           $addFields: {
             vacancy: { $subtract: ['$totalSpots', '$occupancy'] },
@@ -205,28 +198,10 @@ exports.getAllRooms = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        count: rooms.length,
-        data: rooms,
+        count: roomsWithVacancy.length,
+        data: roomsWithVacancy,
       });
     }
-
-    if (facilities) {
-      const facilityArray = Array.isArray(facilities)
-        ? facilities
-        : [facilities];
-      filter.facilities = { $in: facilityArray };
-    }
-
-    let query = Room.find(filter);
-
-    if (sort === 'price') {
-      query = query.sort({ price: 1 });
-    } else {
-      query = query.sort({ createdAt: -1 });
-    }
-
-    const rooms = await query;
-
 
     res.status(200).json({
       success: true,
