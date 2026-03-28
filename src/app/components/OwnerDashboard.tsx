@@ -1,14 +1,52 @@
-import React, { useState, useEffect, useRef, ReactNode } from 'react';
-import { 
-  Wifi, Wind, Bath, Coffee, Building, Home, Eye, TrendingUp, Edit, Trash2, Star, Bed, DollarSign, Users, MapPin, Calendar, Phone, Mail, Download,
-  BarChart, FileText, Settings, Bell, LogOut, Plus, AlertCircle, Award, CreditCard, Upload, Camera, ArrowRight, X
-} from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ownerDashboardApi } from '../api/ownerDashboardApi';
-import type { OwnerHouseDto, OwnerRoomDto } from '../api/ownerDashboardApi';
+import { 
+  Building, Home, Bed, Users, Star, Download, Edit, Trash2, 
+  Plus, Wifi, Coffee, Bath, Wind, Upload, 
+  Calendar, AlertCircle, DollarSign,
+  Camera, Eye, Settings,
+  BarChart, CreditCard, Award, TrendingUp, Menu, X,
+  Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight, LogOut
+} from 'lucide-react';
+import BookingManagementSystem from './booking/BookingManagementSystem';
+import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
+
 // ============================================
-// TYPES (move all to top)
+// TYPES
 // ============================================
+
+interface BoardingHouse {
+  id: string;
+  name: string;
+  address: string;
+  totalRooms: number;
+  monthlyPrice?: number;
+  roomType?: string;
+  availableFrom?: string;
+  deposit?: number;
+  roommateCount?: string;
+  description?: string;
+  features?: string[];
+  occupiedRooms: number;
+  rating: number;
+  totalReviews: number;
+  image: string;
+  images?: string[];
+  status: 'active' | 'inactive';
+  genderPreference?: 'any' | 'girls' | 'boys';
+}
+
+interface Tenant {
+  id: string;
+  name: string;
+  roomId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  paymentStatus: 'paid' | 'pending' | 'overdue';
+  monthlyRent: number;
+  phone?: string;
+  email?: string;
+}
 
 interface Room {
   id: string;
@@ -19,9 +57,10 @@ interface Room {
   occupiedBeds: number;
   price: number;
   facilities: string[];
-  status: string;
+  status: 'available' | 'partial' | 'full';
   images: string[];
   tenants: Tenant[];
+  location?: string;
   roomType?: string;
   genderPreference?: string;
   availableFrom?: string;
@@ -30,43 +69,64 @@ interface Room {
   description?: string;
 }
 
-interface Tenant {
-  id: string;
-  name: string;
-  roomId: string;
-  checkInDate: string;
-  checkOutDate: string;
-  paymentStatus: string;
-  monthlyRent: number;
-  phone: string;
-  email: string;
-}
-
 interface Facility {
   id: string;
   name: string;
   icon: React.ReactNode;
 }
 
-interface BoardingHouse {
-  id: string;
-  name: string;
-  address: string;
-  totalRooms: number;
-  occupiedRooms: number;
-  rating: number;
-  totalReviews: number;
-  image: string;
-  status: string;
-  genderPreference?: 'girls' | 'boys' | 'any';
-  monthlyPrice?: number;
-  roomType?: string;
-  availableFrom?: string;
-  deposit?: number;
-  roommateCount?: string;
-  description?: string;
-  features?: string[];
-  images?: string[];
+interface StatsCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend: number;
+  color: string;
+}
+
+interface MobileStatsCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend: number;
+  color: string;
+}
+
+interface HouseCardProps {
+  house: BoardingHouse;
+  onEdit: (house: BoardingHouse) => void;
+  onDelete: (house: BoardingHouse) => void;
+  onSelect: (house: BoardingHouse) => void;
+}
+
+interface MobileHouseCardProps {
+  house: BoardingHouse;
+  onEdit: (house: BoardingHouse) => void;
+  onDelete: (house: BoardingHouse) => void;
+  onSelect: (house: BoardingHouse) => void;
+}
+
+interface RoomCardProps {
+  room: Room;
+  onEdit: (room: Room) => void;
+  onDelete: (room: Room) => void;
+  onViewTenants: (room: Room) => void;
+}
+
+interface MobileRoomCardProps {
+  room: Room;
+  onEdit: (room: Room) => void;
+  onDelete: (room: Room) => void;
+  onViewTenants: (room: Room) => void;
+}
+
+interface TenantTableProps {
+  tenants: Tenant[];
+  rooms: Room[];
+}
+
+interface MobileTenantListProps {
+  tenants: Tenant[];
+  rooms: Room[];
 }
 
 interface OwnerProfile {
@@ -80,27 +140,23 @@ interface OwnerProfile {
   profileImage?: string;
 }
 
-// ====== Additional Types ======
-
-interface MobileHouseCardProps {
-  house: BoardingHouse;
-  onEdit: (house: BoardingHouse) => void;
-  onDelete: (house: BoardingHouse) => void;
-  onSelect: (house: BoardingHouse) => void;
+interface SparklineProps {
+  data: number[];
+  color: string;
 }
 
 interface StatsCardProps {
   title: string;
-  value: number | string;
-  icon: ReactNode;
+  value: string | number;
+  icon: React.ReactNode;
   trend: number;
   color: string;
 }
 
 interface MobileStatsCardProps {
   title: string;
-  value: number | string;
-  icon: ReactNode;
+  value: string | number;
+  icon: React.ReactNode;
   trend: number;
   color: string;
 }
@@ -112,6 +168,12 @@ interface HouseCardProps {
   onSelect: (house: BoardingHouse) => void;
 }
 
+interface MobileHouseCardProps {
+  house: BoardingHouse;
+  onEdit: (house: BoardingHouse) => void;
+  onDelete: (house: BoardingHouse) => void;
+  onSelect: (house: BoardingHouse) => void;
+}
 
 interface RoomCardProps {
   room: Room;
@@ -410,7 +472,7 @@ const MobileHouseCard: React.FC<MobileHouseCardProps> = ({ house, onEdit, onDele
 
 // Room Card Component (Desktop)
 const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenants }) => {
-  const statusColors: { [key: string]: string } = {
+  const statusColors = {
     available: 'text-green-400 bg-green-500/20',
     partial: 'text-yellow-400 bg-yellow-500/20',
     full: 'text-red-400 bg-red-500/20'
@@ -476,7 +538,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenan
 
 // Mobile Room Card Component
 const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete, onViewTenants }) => {
-  const statusColors: { [key: string]: string } = {
+  const statusColors = {
     available: 'text-green-400 bg-green-500/20',
     partial: 'text-yellow-400 bg-yellow-500/20',
     full: 'text-red-400 bg-red-500/20'
@@ -515,7 +577,7 @@ const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete,
           <span className="bg-white/10 text-gray-400 px-1 py-0.5 rounded-full text-[6px]">
             +{room.facilities.length - 3}
           </span>
-        )}
+        )
       </div>
 
       <div className="flex justify-end gap-2 mt-1.5 pt-1.5 border-t border-white/10">
@@ -552,7 +614,7 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, rooms }) => {
     return room ? room.roomNumber : 'N/A';
   };
 
-  const paymentColors: { [key: string]: string } = {
+  const paymentColors = {
     paid: 'text-green-400 bg-green-500/20',
     pending: 'text-yellow-400 bg-yellow-500/20',
     overdue: 'text-red-400 bg-red-500/20'
@@ -629,7 +691,7 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
     paid: 'text-green-400 bg-green-500/20',
     pending: 'text-yellow-400 bg-yellow-500/20',
     overdue: 'text-red-400 bg-red-500/20'
-  } as { [key: string]: string };
+  };
 
   const bookingStatus = getBookingStatus;
 
@@ -689,14 +751,6 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
 // ============================================
 
 export default function OwnerDashboard() {
-    // Handler for editing a room (must be in top-level scope)
-    const handleEditRoom = (room: Room) => {
-      // Implement room edit logic (e.g., open modal, set state)
-      // Example: setSelectedRoomForEdit(room);
-      // setShowEditRoomModal(true);
-      // For now, just log
-      console.log('Edit room:', room);
-    };
   const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -749,6 +803,7 @@ export default function OwnerDashboard() {
   const [newHouse, setNewHouse] = useState({
     name: '',
     address: '',
+    location: '',
     totalRooms: 0,
     monthlyPrice: 0,
     roomType: 'Single Room',
@@ -765,6 +820,7 @@ export default function OwnerDashboard() {
     setNewHouse({
       name: '',
       address: '',
+      location: '',
       totalRooms: 0,
       monthlyPrice: 0,
       roomType: 'Single Room',
@@ -785,6 +841,7 @@ export default function OwnerDashboard() {
     setNewHouse({
       name: house.name,
       address: house.address,
+      location: (house as any).location || '',
       totalRooms: house.totalRooms,
       monthlyPrice: house.monthlyPrice || 0,
       roomType: house.roomType || 'Single Room',
@@ -901,6 +958,7 @@ export default function OwnerDashboard() {
       status: occupiedBeds <= 0 ? 'available' : occupiedBeds < bedCount ? 'partial' : 'full',
       images: room.images?.length ? room.images : ['https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
       tenants: [],
+      location: room.location,
       roomType: room.roomType,
       genderPreference: room.genderPreference,
       availableFrom: room.availableFrom,
@@ -911,8 +969,26 @@ export default function OwnerDashboard() {
   };
 
   useEffect(() => {
-    // Load owner data if needed
-    // (No invalid return or room usage here)
+    const loadOwnerData = async () => {
+      const token = localStorage.getItem('bb_access_token');
+      if (!token) {
+        return;
+      }
+
+      try {
+        const [houseData, roomData] = await Promise.all([
+          ownerDashboardApi.getHouses(),
+          ownerDashboardApi.getRooms(),
+        ]);
+
+        setHouses(houseData.map(mapHouseDtoToUi));
+        setRooms(roomData.map(mapRoomDtoToUi));
+      } catch (error) {
+        console.error('Failed to load owner dashboard data:', error);
+      }
+    };
+
+    loadOwnerData();
   }, []);
 
   // ============================================
@@ -992,11 +1068,35 @@ export default function OwnerDashboard() {
       return;
     }
 
-    // Implement actual delete logic here
-    // Remove house and its rooms from state
-    setHouses(prev => prev.filter(h => h.id !== house.id));
-    setRooms(prev => prev.filter(r => r.houseId !== house.id));
-    // Add this handler if missing
+    try {
+      await ownerDashboardApi.deleteHouse(house.id);
+      setHouses((prev) => prev.filter((h) => h.id !== house.id));
+      setRooms((prev) => prev.filter((room) => room.houseId !== house.id));
+      if (selectedHouse?.id === house.id) {
+        resetHouseEditor();
+      }
+    } catch (error) {
+      alert((error as Error).message || 'Failed to delete house');
+    }
+  };
+
+  const handleEditRoom = async (room: Room) => {
+    const nextPriceRaw = window.prompt('Update monthly price (Rs.)', String(room.price));
+    if (!nextPriceRaw) {
+      return;
+    }
+    const nextPrice = Number(nextPriceRaw);
+    if (Number.isNaN(nextPrice) || nextPrice <= 0) {
+      alert('Invalid price value');
+      return;
+    }
+
+    try {
+      const updated = await ownerDashboardApi.updateRoom(room.id, { price: nextPrice });
+      setRooms((prev) => prev.map((r) => (r.id === room.id ? mapRoomDtoToUi(updated) : r)));
+    } catch (error) {
+      alert((error as Error).message || 'Failed to update room');
+    }
   };
 
   const handleDeleteRoom = async (room: Room) => {
@@ -2346,8 +2446,7 @@ export default function OwnerDashboard() {
                   <span>Manage student booking requests</span>
                 </div>
               </div>
-              {/* BookingManagementSystem is not implemented. Placeholder below. */}
-              <div className="text-white">Booking management coming soon.</div>
+              <BookingManagementSystem />
             </div>
           )}
 
@@ -2673,6 +2772,7 @@ export default function OwnerDashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-8 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
                     <div className="md:col-span-2">
                       <label className="block text-xs text-gray-300 mb-1">House Name *</label>
                       <input
@@ -2692,6 +2792,17 @@ export default function OwnerDashboard() {
                         onChange={(e) => setNewHouse((prev) => ({ ...prev, address: e.target.value }))}
                         className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
                         placeholder="e.g., 0.8 km from SLIIT"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-gray-300 mb-1">Location (Google Map link or coordinates)</label>
+                      <input
+                        type="text"
+                        value={newHouse.location || ''}
+                        onChange={(e) => setNewHouse((prev) => ({ ...prev, location: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                        placeholder="Paste Google Maps link or coordinates here"
                       />
                     </div>
 
@@ -2896,10 +3007,10 @@ export default function OwnerDashboard() {
               </div>
             </div>
           </div>
-        )
+        )}
 
-          {/* Tenant Details Modal - Desktop */}
-          {showTenantModal && selectedRoomForTenants && (
+        {/* Tenant Details Modal - Desktop */}
+        {showTenantModal && selectedRoomForTenants && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl max-w-md w-full p-6 border border-white/10">
                 <h3 className="text-lg font-bold text-white mb-4">
@@ -2942,6 +3053,229 @@ export default function OwnerDashboard() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // Mobile view (Redmi Note 13 optimized)
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
+      {/* Header - Mobile Optimized */}
+      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-10">
+        <div className="px-3 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Building className="text-cyan-400" size={isRedmiNote13 ? 20 : 24} />
+              <h1 className="text-base font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
+                Owner Dashboard
+              </h1>
+            </div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 active:text-white touch-manipulation"
+              >
+                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu Dropdown */}
+          {mobileMenuOpen && (
+            <div className="mt-2 p-2 bg-white/10 rounded-lg border border-white/10">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
+                  JD
+                </div>
+                <div>
+                  <p className="text-xs text-white font-medium">John Doe</p>
+                  <p className="text-[8px] text-gray-400">john.doe@boarding.com</p>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <button className="w-full text-left px-2 py-2 text-xs text-gray-300 active:bg-white/10 rounded-lg min-h-[44px]">
+                  Profile Settings
+                </button>
+                <button className="w-full text-left px-2 py-2 text-xs text-gray-300 active:bg-white/10 rounded-lg min-h-[44px]">
+                  Notifications
+                </button>
+                <button className="w-full text-left px-2 py-2 text-xs text-red-400 active:bg-white/10 rounded-lg min-h-[44px]">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Tabs - Scrollable */}
+          <div className="flex gap-1 mt-2 overflow-x-auto pb-1 scrollbar-hide touch-pan-x">
+            {[
+              { id: 'overview', label: 'Overview', icon: <BarChart size={12} /> },
+              { id: 'houses', label: 'Houses', icon: <Building size={12} /> },
+              { id: 'rooms', label: 'Rooms', icon: <Bed size={12} /> },
+              { id: 'tenants', label: 'Tenants', icon: <Users size={12} /> },
+              { id: 'payments', label: 'Payments', icon: <CreditCard size={12} /> }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[9px] font-medium transition-all whitespace-nowrap min-h-[36px] touch-manipulation ${
+                  activeTab === tab.id
+                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
+                    : 'text-gray-400 active:text-white active:bg-white/5'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-3 py-3 max-w-7xl mx-auto">
+        {/* Search Bar - Mobile Optimized */}
+        {(activeTab === 'tenants' || activeTab === 'rooms') && (
+          <div className="mb-3">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder={`Search ${activeTab}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 min-h-[44px]"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Overview Tab - Mobile */}
+        {activeTab === 'overview' && (
+          <div className="space-y-4">
+            {/* Stats Grid - 2 columns for mobile */}
+            <div className="grid grid-cols-2 gap-2">
+              <MobileStatsCard 
+                title="Houses" 
+                value={totalHouses} 
+                icon={<Building size={14} />} 
+                trend={12}
+                color="bg-cyan-500/20 text-cyan-400"
+              />
+              <MobileStatsCard 
+                title="Rooms" 
+                value={totalRooms} 
+                icon={<Bed size={14} />} 
+                trend={8}
+                color="bg-purple-500/20 text-purple-400"
+              />
+              <MobileStatsCard 
+                title="Tenants" 
+                value={totalTenants} 
+                icon={<Users size={14} />} 
+                trend={15}
+                color="bg-green-500/20 text-green-400"
+              />
+              <MobileStatsCard 
+                title="Occupancy" 
+                value={`${occupancyRate}%`} 
+                icon={<TrendingUp size={14} />} 
+                trend={5}
+                color="bg-yellow-500/20 text-yellow-400"
+              />
+            </div>
+
+            {/* Revenue Card */}
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <h3 className="text-xs font-medium text-cyan-300 mb-2 flex items-center gap-1">
+                <DollarSign size={12} />
+                Monthly Revenue
+              </h3>
+              <p className="text-xl font-bold text-white">Rs.{monthlyRevenue.toLocaleString()}</p>
+              <p className="text-[9px] text-gray-400 mt-0.5">from {totalTenants} tenants</p>
+              <div className="mt-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full w-3/4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" />
+              </div>
+            </div>
+
+            {/* Recent Tenants */}
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <h3 className="text-xs font-medium text-cyan-300 mb-2 flex items-center gap-1">
+                <Users size={12} />
+                Recent Tenants
+              </h3>
+              <MobileTenantList tenants={allTenants.slice(0, 3)} rooms={rooms} />
+              {allTenants.length > 3 && (
+                <button 
+                  onClick={() => setActiveTab('tenants')}
+                  className="w-full mt-2 py-2 text-[9px] text-cyan-400 active:text-cyan-300 border-t border-white/10 pt-2 min-h-[44px]"
+                >
+                  View All Tenants
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Houses Tab - Mobile */}
+        {activeTab === 'houses' && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h2 className="text-sm font-bold text-white">My Houses</h2>
+              <button 
+                onClick={() => {
+                  resetHouseEditor();
+                  setShowAddHouse(true);
+                }}
+                className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
+              >
+                <Plus size={14} />
+                Add
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              {houses.map(house => (
+                <MobileHouseCard 
+                  key={house.id}
+                  house={house}
+                  onSelect={() => {}}
+                  onEdit={handleEditHouse}
+                  onDelete={handleDeleteHouse}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Rooms Tab - Mobile */}
+        {activeTab === 'rooms' && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h2 className="text-sm font-bold text-white">Rooms</h2>
+              <div className="flex gap-1">
+                <select 
+                  value={filterHouse}
+                  onChange={(e) => setFilterHouse(e.target.value)}
+                  className="px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] text-white min-h-[44px]"
+                >
+                  <option value="all">All Houses</option>
+                  {houses.map(house => (
+                    <option key={house.id} value={house.id}>{house.name}</option>
+                  ))}
+                </select>
+                <button 
+                  onClick={() => setShowAddRoom(true)}
+                  className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium min-h-[44px] flex items-center gap-1 touch-manipulation"
+                >
+                  <Plus size={14} />
+                  Add
+                </button>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-2">
               {filteredRooms
