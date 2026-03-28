@@ -3,6 +3,7 @@
  * Group Controller - Placeholder for future group functionality
  */
 
+
 const BookingGroup = require('../models/BookingGroup');
 const RoommateProfile = require('../models/RoommateProfile');
 const User = require('../models/User');
@@ -13,8 +14,6 @@ exports.createGroup = async (req, res) => {
     message: 'Group functionality not yet implemented',
   });
 };
-
-const BookingGroup = require('../models/BookingGroup');
 
 exports.getUserGroups = async (req, res) => {
   try {
