@@ -310,130 +310,13 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
 
 // Roommate Finder tab content with swipe logic
 function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] }) {
-  const navigate = useNavigate();
-  const [roommateTab, setRoommateTab] = React.useState<'browse' | 'requests' | 'inbox' | 'groups'>('browse');
   const [currentIdx, setCurrentIdx] = React.useState(0);
   const [liked, setLiked] = React.useState<any[]>([]);
   const [passed, setPassed] = React.useState<any[]>([]);
-  const [mutualMatches, setMutualMatches] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
-  const [showSidePanels, setShowSidePanels] = React.useState(false);
-  const [sentRequests, setSentRequests] = React.useState<any[]>([]);
-  const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
-  const [groups, setGroups] = React.useState<any[]>([]);
-  const [apiNotice, setApiNotice] = React.useState('');
+  const [showSidePanels, setShowSidePanels] = React.useState(true);
   const current = roommateData[currentIdx];
-
-  const isMongoId = (value: any): boolean => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
-
-  const callRoommateApi = React.useCallback(
-    async (path: string, options: RequestInit = {}) => {
-      const token = localStorage.getItem('bb_access_token') || '';
-      if (!token) {
-        throw new Error('Please sign in to use roommate features');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/roommates${path}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          ...(options.headers || {}),
-        },
-      });
-
-      const json = await response.json().catch(() => ({}));
-      if (!response.ok || json?.success === false) {
-        throw new Error(json?.message || 'Roommate request failed');
-      }
-
-      return json;
-    },
-    []
-  );
-
-  const mapProfileToRoommate = React.useCallback((profile: any) => ({
-    id: normalizeIdValue(profile._id || profile.id),
-    userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-    name: profile.name || profile.fullName || (profile.email ? profile.email.split('@')[0] : 'Student'),
-    email: profile.email || '',
-    age: deriveProfileAge(profile),
-    gender: profile.gender || 'Any',
-    university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-    bio: profile.description || profile.bio || 'Looking for a compatible roommate.',
-    image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-    interests: Array.isArray(profile.tags) ? profile.tags : [],
-    mutualCount: Number(profile.mutualCount) || 0,
-  }), []);
-
-  const loadRoommateNetworkData = React.useCallback(async () => {
-    try {
-      const [likedRes, sentRes, inboxRes, mutualRes, groupsRes] = await Promise.allSettled([
-        callRoommateApi('/liked'),
-        callRoommateApi('/request/sent'),
-        callRoommateApi('/request/inbox'),
-        callRoommateApi('/mutual'),
-        callRoommateApi('/groups'),
-      ]);
-
-      if (likedRes.status === 'fulfilled') {
-        const profiles = Array.isArray(likedRes.value?.data) ? likedRes.value.data : [];
-        setLiked(profiles.map(mapProfileToRoommate));
-      }
-
-      if (sentRes.status === 'fulfilled') {
-        const requests = Array.isArray(sentRes.value?.data) ? sentRes.value.data : [];
-        setSentRequests(
-          requests.map((req: any) => ({
-            id: req._id,
-            message: req.message,
-            status: req.status,
-            from: mapProfileToRoommate({
-              _id: req.recipientId?._id,
-              userId: req.recipientId?._id,
-              fullName: req.recipientId?.fullName,
-              email: req.recipientId?.email,
-              profilePicture: req.recipientId?.profilePicture,
-            }),
-          }))
-        );
-      }
-
-      if (inboxRes.status === 'fulfilled') {
-        const requests = Array.isArray(inboxRes.value?.data) ? inboxRes.value.data : [];
-        setInboxRequests(
-          requests.map((req: any) => ({
-            id: req._id,
-            message: req.message,
-            status: req.status,
-            from: mapProfileToRoommate({
-              _id: req.senderId?._id,
-              userId: req.senderId?._id,
-              fullName: req.senderId?.fullName,
-              email: req.senderId?.email,
-              profilePicture: req.senderId?.profilePicture,
-            }),
-          }))
-        );
-      }
-
-      if (mutualRes.status === 'fulfilled') {
-        const matches = Array.isArray(mutualRes.value?.data) ? mutualRes.value.data : [];
-        setMutualMatches(matches.map(mapProfileToRoommate));
-      }
-
-      if (groupsRes.status === 'fulfilled') {
-        setGroups(Array.isArray(groupsRes.value?.data) ? groupsRes.value.data : []);
-      }
-    } catch {
-      // Network sync is best-effort; keep UI usable with local fallback states.
-    }
-  }, [callRoommateApi, mapProfileToRoommate]);
-
-  React.useEffect(() => {
-    loadRoommateNetworkData();
-  }, [loadRoommateNetworkData]);
 
   const handleLike = () => {
     if (!current || isAnimating) return;
@@ -441,37 +324,9 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     setDirection('right');
     setTimeout(() => {
       setLiked((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-      if (currentIdx < roommateData.length - 1) {
-        setCurrentIdx(currentIdx + 1);
-      }
+      setCurrentIdx((idx) => idx + 1);
       setDirection(null);
       setIsAnimating(false);
-
-      void (async () => {
-        try {
-          if (isMongoId(current.id)) {
-            await callRoommateApi('/swipe', {
-              method: 'POST',
-              body: JSON.stringify({ profileId: current.id, action: 'like' }),
-            });
-          }
-
-          if (isMongoId(current.userId)) {
-            await callRoommateApi('/request/send', {
-              method: 'POST',
-              body: JSON.stringify({
-                recipientId: current.userId,
-                message: 'Hi! I think we could be great roommates. Want to connect?',
-              }),
-            });
-          }
-
-          await loadRoommateNetworkData();
-          setApiNotice('Like saved and request sent.');
-        } catch (error) {
-          setApiNotice((error as Error).message || 'Unable to sync roommate request');
-        }
-      })();
     }, 250);
   };
 
@@ -481,421 +336,116 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     setDirection('left');
     setTimeout(() => {
       setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-      if (currentIdx < roommateData.length - 1) {
-        setCurrentIdx(currentIdx + 1);
-      }
+      setCurrentIdx((idx) => idx + 1);
       setDirection(null);
       setIsAnimating(false);
-
-      void (async () => {
-        try {
-          if (isMongoId(current.id)) {
-            await callRoommateApi('/swipe', {
-              method: 'POST',
-              body: JSON.stringify({ profileId: current.id, action: 'pass' }),
-            });
-          }
-        } catch {
-          // Keep pass action local if backend sync fails.
-        }
-      })();
     }, 250);
   };
 
   const handleUndo = () => {
-    if (currentIdx > 0) {
-      setCurrentIdx(currentIdx - 1);
-      setDirection(null);
-    }
-  };
-
-  const handleRequestResponse = async (requestId: string, accept: boolean) => {
-    try {
-      await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, {
-        method: 'PATCH',
-      });
-      await loadRoommateNetworkData();
-      setApiNotice(accept ? 'Request accepted. You can start chatting now.' : 'Request rejected.');
-    } catch (error) {
-      setApiNotice((error as Error).message || 'Failed to update request status');
-    }
-  };
-
-  const createGroupFromLiked = async () => {
-    try {
-      const memberEmails = liked.map((m) => m.email).filter(Boolean);
-      if (memberEmails.length === 0) {
-        setApiNotice('Like at least one roommate before creating a group.');
-        return;
-      }
-
-      await callRoommateApi('/group', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: `Roommate Group ${new Date().toLocaleDateString()}`,
-          memberEmails,
-        }),
-      });
-
-      await loadRoommateNetworkData();
-      setApiNotice('Group created successfully. Members will receive invites.');
-    } catch (error) {
-      setApiNotice((error as Error).message || 'Failed to create group');
-    }
+    if (currentIdx === 0) return;
+    const prevIdx = currentIdx - 1;
+    const prevRoommate = roommateData[prevIdx];
+    setCurrentIdx(prevIdx);
+    setLiked((prev) => prev.filter((r) => r.id !== prevRoommate.id));
+    setPassed((prev) => prev.filter((r) => r.id !== prevRoommate.id));
+    setDirection(null);
   };
 
   return (
     <div className="space-y-4">
-      {/* Tab Navigation */}
       <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
-        {[
-          { id: 'browse', label: 'Browse' },
-          { id: 'requests', label: `Sent (${sentRequests.length})` },
-          { id: 'inbox', label: `Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})` },
-          { id: 'groups', label: 'Groups' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setRoommateTab(tab.id as any)}
-            className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-semibold ${
-              roommateTab === tab.id
-                ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg'
-                : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <button
+          className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-semibold bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg`}
+        >Browse</button>
       </div>
-
-      {/* BROWSE TAB */}
-      {roommateTab === 'browse' && (
-        <>
-          {apiNotice && (
-            <div className="text-xs text-cyan-200 bg-cyan-500/10 border border-cyan-500/30 rounded-lg px-3 py-2">
-              {apiNotice}
+      <div className={showSidePanels ? 'grid grid-cols-3 gap-6' : 'grid grid-cols-1 gap-6'}>
+        {/* Left Column - Passed Roommates */}
+        {showSidePanels && (
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-4">
+              <FaHistory className="text-red-400" />
+              <h3 className="text-sm font-bold text-white">Passed</h3>
+              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">{passed.length}</span>
             </div>
-          )}
-
-          {mutualMatches.length > 0 && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
-              <p className="text-sm text-emerald-200 font-semibold mb-2">Mutual Matches ({mutualMatches.length})</p>
-              <div className="flex flex-wrap gap-2">
-                {mutualMatches.slice(0, 6).map((match) => (
-                  <button
-                    key={match.id}
-                    onClick={() => {
-                      const recipientId = String(match.userId || match.id || '');
-                      navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
-                        state: { selectedRoommate: match, chatType: 'direct-message', recipientId },
-                      });
-                    }}
-                    className="flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
-                  >
-                    <img src={match.image} alt={match.name} className="w-6 h-6 rounded-full object-cover" />
-                    <span className="text-xs text-emerald-100">{match.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="hidden md:block">
-            <div className="flex items-center justify-between mb-4 px-1">
-              <p className="text-xs text-gray-400">Focus mode keeps swipe actions clear on smaller windows.</p>
-              <button
-                onClick={() => setShowSidePanels((prev) => !prev)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 border border-white/15 text-cyan-200 hover:bg-white/15 transition"
-              >
-                {showSidePanels ? 'Hide Passed & Favorites' : 'Show Passed & Favorites'}
-              </button>
-            </div>
-
-            <div className={showSidePanels ? 'grid grid-cols-3 gap-6' : 'grid grid-cols-1 gap-6'}>
-              {/* Left Column - Passed Roommates */}
-              {showSidePanels && (
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaHistory className="text-red-400" />
-                  <h3 className="text-sm font-bold text-white">Passed</h3>
-                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">{passed.length}</span>
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {passed.length > 0 ? (
+                passed.map((roommate) => (
+                  <MiniRoommateCard key={roommate.id} roommate={roommate} type="passed" />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-gray-500">No passed profiles yet</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
                 </div>
-                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                  {passed.length > 0 ? (
-                    passed.map((roommate) => (
-                      <MiniRoommateCard key={roommate.id} roommate={roommate} type="passed" />
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-xs text-gray-500">No passed profiles yet</p>
-                      <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              )}
-
-              {/* Center Column - Main Swipe Card */}
-              <div className={showSidePanels ? '' : 'max-w-2xl mx-auto'}>
-                <div className="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs text-cyan-200">
-                    Profile {Math.min(currentIdx + 1, Math.max(1, roommateData.length))} of {roommateData.length}
-                  </span>
-                  <span className="text-xs text-gray-400">{Math.max(0, roommateData.length - currentIdx)} remaining</span>
-                </div>
-                <div className="relative h-[460px] mb-4 perspective-1000">
-                  {currentIdx < roommateData.length - 1 && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
-                  )}
-                  {current ? (
-                    <RoommateSwipeCard
-                      roommate={current}
-                      onLike={handleLike}
-                      onPass={handlePass}
-                      isAnimating={isAnimating}
-                      direction={direction}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10">
-                      <p className="text-gray-400 text-center">No more profiles!</p>
-                    </div>
-                  )}
-                </div>
-                <div className="relative z-20 flex justify-end items-center mt-5">
-                  <button
-                    onClick={handleUndo}
-                    disabled={currentIdx === 0}
-                    className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <FaUndo /> Undo
-                  </button>
-                </div>
-
-              </div>
-
-              {/* Right Column - Liked Roommates */}
-              {showSidePanels && (
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaBookmark className="text-green-400" />
-                  <h3 className="text-sm font-bold text-white">Favorites</h3>
-                  <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">{liked.length}</span>
-                </div>
-                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                  {liked.length > 0 ? (
-                    liked.map((roommate) => (
-                      <MiniRoommateCard key={roommate.id} roommate={roommate} type="liked" />
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-xs text-gray-500">No favorites yet</p>
-                      <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
-                    </div>
-                  )}
-                </div>
-                {liked.length > 0 && (
-                  <button className="w-full mt-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
-                    View All Favorites
-                  </button>
-                )}
-              </div>
               )}
             </div>
           </div>
-
-          {/* Mobile View */}
-          <div className="md:hidden flex flex-col items-center justify-center min-h-[400px]">
-            <div className="w-full max-w-md mb-3 px-4">
-              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center justify-between">
-                <span className="text-xs text-cyan-200">
-                  Profile {Math.min(currentIdx + 1, Math.max(1, roommateData.length))} of {roommateData.length}
-                </span>
-                <span className="text-xs text-gray-400">{Math.max(0, roommateData.length - currentIdx)} left</span>
-              </div>
-            </div>
+        )}
+        {/* Center Column - Main Swipe Card */}
+        <div className={showSidePanels ? '' : 'max-w-2xl mx-auto'}>
+          <div className="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 flex items-center justify-between">
+            <span className="text-xs text-cyan-200">
+              Profile {Math.min(currentIdx + 1, Math.max(1, roommateData.length))} of {roommateData.length}
+            </span>
+            <span className="text-xs text-gray-400">{Math.max(0, roommateData.length - currentIdx)} remaining</span>
+          </div>
+          <div className="relative h-[460px] mb-4 perspective-1000">
+            {currentIdx < roommateData.length - 1 && (
+              <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+            )}
             {current ? (
-              <>
-                <RoommateSwipeCard
-                  roommate={current}
-                  onLike={handleLike}
-                  onPass={handlePass}
-                  isAnimating={isAnimating}
-                  direction={direction}
-                />
-                <div className="relative z-20 flex justify-end w-full max-w-md mt-5 px-4">
-                  <button
-                    onClick={handleUndo}
-                    disabled={currentIdx === 0}
-                    className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <FaUndo /> Undo
-                  </button>
-                </div>
-              </>
+              <RoommateSwipeCard
+                roommate={current}
+                onLike={handleLike}
+                onPass={handlePass}
+                isAnimating={isAnimating}
+                direction={direction}
+              />
             ) : (
-              <p className="text-gray-400">No more profiles!</p>
+              <div className="flex items-center justify-center h-full bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10">
+                <p className="text-gray-400 text-center">No more profiles!</p>
+              </div>
             )}
           </div>
-        </>
-      )}
-
-      {/* SENT REQUESTS TAB */}
-      {roommateTab === 'requests' && (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">Requests Sent</h3>
-          <div className="space-y-3">
-            {sentRequests.length > 0 ? (
-              sentRequests.map((req) => (
-                <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img src={req.from.image} alt="" className="w-12 h-12 rounded-full object-cover border border-pink-400" />
-                    <div>
-                      <p className="text-white font-semibold">{req.from.name}</p>
-                      <p className="text-xs text-gray-400">{req.message}</p>
-                    </div>
-                  </div>
-                  <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>
-                    {req.status.toUpperCase()}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-400 text-center py-8">No requests sent yet</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* INBOX TAB */}
-      {roommateTab === 'inbox' && (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">Requests Received</h3>
-          <div className="space-y-3">
-            {inboxRequests.length > 0 ? (
-              inboxRequests.map((req) => (
-                <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <img src={req.from.image} alt="" className="w-12 h-12 rounded-full object-cover border border-pink-400" />
-                      <div>
-                        <p className="text-white font-semibold">{req.from.name}</p>
-                        <p className="text-xs text-gray-400">{req.from.university}</p>
-                      </div>
-                    </div>
-                    <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>
-                      {req.status.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-gray-300 mb-3 text-sm">{req.message}</p>
-                  {req.status === 'pending' && (
-                    <div className="flex gap-2">
-                      <button onClick={() => handleRequestResponse(req.id, true)} className="flex-1 px-3 py-2 bg-green-600/30 border border-green-600 text-green-300 rounded-lg hover:bg-green-600/50 text-xs font-semibold">
-                        Accept
-                      </button>
-                      <button onClick={() => handleRequestResponse(req.id, false)} className="flex-1 px-3 py-2 bg-red-600/30 border border-red-600 text-red-300 rounded-lg hover:bg-red-600/50 text-xs font-semibold">
-                        Decline
-                      </button>
-                    </div>
-                  )}
-                  {req.status === 'accepted' && (
-                    <button
-                      onClick={() => {
-                        // Always normalize recipientId and ensure selectedRoommate.userId is set
-                        const recipientId = normalizeIdValue(req.from.userId || req.from.id || '');
-                        const selectedRoommate = { ...req.from, userId: normalizeIdValue(req.from.userId || req.from.id || '') };
-                        navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
-                          state: { selectedRoommate, chatType: 'direct-message', recipientId },
-                        });
-                      }}
-                      className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
-                    >
-                      Start Chat
-                    </button>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-400 text-center py-8">No requests received yet</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* GROUPS TAB */}
-      {roommateTab === 'groups' && (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-white">Groups</h3>
-            <button 
-              onClick={createGroupFromLiked}
-              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition"
+          <div className="relative z-20 flex justify-end items-center mt-5">
+            <button
+              onClick={handleUndo}
+              disabled={currentIdx === 0}
+              className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <FaPlus size={16} />
-              Create Group
+              <FaUndo /> Undo
             </button>
           </div>
-
-          {groups.length > 0 && (
-            <div className="mb-6 space-y-2">
-              {groups.map((group: any) => (
-                <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-white font-semibold text-sm">{group.name}</p>
-                    <p className="text-xs text-gray-400">
-                      {Array.isArray(group.members) ? group.members.length : 0} members • Status: {group.status || 'forming'}
-                    </p>
-                  </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                    Synced
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {liked.length > 0 ? (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
-                <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  {liked.map((roommate) => (
-                    <div key={roommate.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
-                      <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
-                      <div className="flex-1">
-                        <p className="text-white font-semibold text-sm">{roommate.name}</p>
-                        <p className="text-gray-400 text-xs">{roommate.age} | {roommate.university}</p>
-                      </div>
-                      <FaCheckCircle className="text-green-400" />
-                    </div>
-                  ))}
-                </div>
-                <p className="text-sm text-gray-300 mb-4">
-                  Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
-                </p>
-                <button 
-                  onClick={createGroupFromLiked}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
-                >
-                  <FaUserFriends size={18} />
-                  Create Group with These Members
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
-              <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
-              <p className="text-gray-300 font-semibold mb-2">No groups yet</p>
-              <p className="text-sm text-gray-400 mb-4">Start by liking roommates in the Browse tab</p>
-              <button 
-                onClick={() => setRoommateTab('browse')}
-                className="px-4 py-2 bg-white/10 border border-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition"
-              >
-                Browse Roommates
-              </button>
-            </div>
-          )}
         </div>
-      )}
+        {/* Right Column - Liked Roommates */}
+        {showSidePanels && (
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-4">
+              <FaBookmark className="text-green-400" />
+              <h3 className="text-sm font-bold text-white">Favorites</h3>
+              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">{liked.length}</span>
+            </div>
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {liked.length > 0 ? (
+                liked.map((roommate) => (
+                  <MiniRoommateCard key={roommate.id} roommate={roommate} type="liked" />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-gray-500">No favorites yet</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Swipe right to save</p>
+                </div>
+              )}
+            </div>
+            {liked.length > 0 && (
+              <button className="w-full mt-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all">
+                View All Favorites
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
