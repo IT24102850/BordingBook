@@ -21,6 +21,8 @@ exports.browseProfiles = async (req, res) => {
         ? user.profilePictures
         : (user.profilePicture ? [user.profilePicture] : []),
       profilePicture: user.profilePicture || '',
+      // If no image, return empty array and empty string
+      ...( (!user.profilePicture && (!user.profilePictures || user.profilePictures.length === 0)) ? { profilePictures: [], profilePicture: '' } : {} ),
       gender: user.gender || '',
       university: user.boardingHouse || user.academicYear || '',
       email: user.email || '',

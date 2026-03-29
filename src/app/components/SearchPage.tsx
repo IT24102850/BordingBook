@@ -2756,7 +2756,7 @@ export default function SearchPage() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState('Guest');
   const [currentUserName, setCurrentUserName] = useState('');
-  const [currentUserImage, setCurrentUserImage] = useState('https://randomuser.me/api/portraits/lego/1.jpg');
+  const [currentUserImage, setCurrentUserImage] = useState('');
   const [popupNotification, setPopupNotification] = useState<Notification | null>(null);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
   const popupHideTimerRef = useRef<number | null>(null);
@@ -3162,7 +3162,7 @@ export default function SearchPage() {
               gender: profile.gender || 'Any',
               university: profile.boardingHouse || profile.academicYear || 'SLIIT',
               bio: profile.description || 'Looking for a compatible roommate.',
-              image: profile.image || 'https://randomuser.me/api/portraits/lego/1.jpg',
+              image: profile.image || '',
               interests: profileInterests,
               mutualCount,
             };
