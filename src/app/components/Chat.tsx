@@ -186,6 +186,23 @@ export default function Chat() {
   const token = localStorage.getItem('bb_access_token') || '';
 
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  // State for passed and favourites
+  const [passed, setPassed] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('bb_passed');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [favourites, setFavourites] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('bb_favourites');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
   const [acceptedRoommates, setAcceptedRoommates] = useState<AcceptedRoommate[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
