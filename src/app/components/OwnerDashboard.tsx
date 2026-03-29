@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+// @ts-ignore
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { useNavigate } from 'react-router-dom';
 import { 
   Building, Home, Bed, Users, Star, Download, Edit, Trash2, 
@@ -6,7 +9,8 @@ import {
   Calendar, AlertCircle, DollarSign,
   Camera, Eye, Settings,
   BarChart, CreditCard, Award, TrendingUp, Menu, X,
-  Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight, LogOut
+  Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight, LogOut,
+  ChevronUp, ChevronDown
 } from 'lucide-react';
 import BookingManagementSystem from './booking/BookingManagementSystem';
 import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
@@ -689,6 +693,158 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
 // ============================================
 
 export default function OwnerDashboard() {
+      // ================= Signed Agreements State & Helpers =================
+      // Mock agreement instance data (replace with API integration as needed)
+      type AgreementTenant = {
+        studentId: string;
+        name: string;
+        signatureStatus: 'SIGNED' | 'PENDING';
+        signedDate?: string;
+        meta?: string;
+      };
+
+      type AgreementInstance = {
+        id: string;
+        bookingType: 'SINGLE' | 'GROUP';
+        status: 'SIGNED' | 'PENDING' | 'EXPIRED';
+        room: string;
+        tenants: AgreementTenant[];
+        duration: number; // in months
+        signedDate?: string;
+      };
+
+      // Example mock data for demonstration
+      const [agreementInstances] = useState<AgreementInstance[]>([
+        {
+          id: 'AG-2024-001',
+          bookingType: 'SINGLE',
+          status: 'SIGNED',
+          room: '101',
+          tenants: [
+            { studentId: 'S1', name: 'John Doe', signatureStatus: 'SIGNED', signedDate: '2024-05-01' }
+          ],
+          duration: 12,
+          signedDate: '2024-05-01',
+        },
+        {
+          id: 'AG-2024-002',
+          bookingType: 'GROUP',
+          status: 'PENDING',
+          room: '202',
+          tenants: [
+            { studentId: 'S2', name: 'Jane Smith', signatureStatus: 'SIGNED', signedDate: '2024-05-02' },
+            { studentId: 'S3', name: 'Alice Lee', signatureStatus: 'PENDING' }
+          ],
+          duration: 6,
+        },
+        {
+          id: 'AG-2024-003',
+          bookingType: 'SINGLE',
+          status: 'EXPIRED',
+          room: '303',
+          tenants: [
+            { studentId: 'S4', name: 'Bob Brown', signatureStatus: 'SIGNED', signedDate: '2023-01-01' }
+          ],
+          duration: 3,
+          signedDate: '2023-01-01',
+        },
+      ]);
+
+      // Filtering and sorting logic
+      const [agreementSearch, setAgreementSearch] = useState('');
+      const filteredAgreementInstances = agreementInstances.filter((a: AgreementInstance) =>
+        a.id.toLowerCase().includes(agreementSearch.toLowerCase()) ||
+        a.room.toLowerCase().includes(agreementSearch.toLowerCase()) ||
+        a.tenants.some((t: AgreementTenant) => t.name.toLowerCase().includes(agreementSearch.toLowerCase()))
+      );
+      const sortedFilteredAgreementInstances = [...filteredAgreementInstances].sort((a: AgreementInstance, b: AgreementInstance) => {
+        // Sort by signedDate descending, then by id
+        const dateA = a.signedDate ? new Date(a.signedDate).getTime() : 0;
+        const dateB = b.signedDate ? new Date(b.signedDate).getTime() : 0;
+        return dateB - dateA || b.id.localeCompare(a.id);
+      });
+
+      // Expanded group agreement state
+      const [expandedGroupAgreementId, setExpandedGroupAgreementId] = useState<string | null>(null);
+      const toggleGroupAgreementExpansion = (agreement: AgreementInstance) => {
+        if (agreement.bookingType !== 'GROUP') return;
+        setExpandedGroupAgreementId(prev => (prev === agreement.id ? null : agreement.id));
+      };
+
+      // Helper functions for agreement display
+      const formatAgreementId = (id: string) => id;
+      const getAgreementStatusClass = (agreement: AgreementInstance) => {
+        switch (agreement.status) {
+          case 'SIGNED': return 'bg-green-500/20 text-green-400';
+          case 'PENDING': return 'bg-yellow-500/20 text-yellow-400';
+          case 'EXPIRED': return 'bg-red-500/20 text-red-400';
+          default: return 'bg-gray-500/20 text-gray-400';
+        }
+      };
+      const getAgreementStatusLabel = (agreement: AgreementInstance) => {
+        switch (agreement.status) {
+          case 'SIGNED': return 'Signed';
+          case 'PENDING': return 'Pending';
+          case 'EXPIRED': return 'Expired';
+          default: return 'Unknown';
+        }
+      };
+      const getAgreementTypeClass = (type: 'SINGLE' | 'GROUP') =>
+        type === 'GROUP' ? 'bg-purple-500/20 text-purple-300' : 'bg-cyan-500/20 text-cyan-300';
+      const getAgreementTypeLabel = (type: 'SINGLE' | 'GROUP') =>
+        type === 'GROUP' ? 'Group' : 'Single';
+      const getAgreementStudentsTooltip = (agreement: AgreementInstance) =>
+        agreement.tenants.map((t: AgreementTenant) => t.name).join(', ');
+      const getAgreementStudentSummary = (agreement: AgreementInstance) =>
+        agreement.tenants.map((t: AgreementTenant) => t.name).join(', ');
+      const getAgreementDurationLabel = (months: number) => `${months} month${months === 1 ? '' : 's'}`;
+      const getTenantSignatureStatusClass = (tenant: AgreementTenant) =>
+        tenant.signatureStatus === 'SIGNED' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400';
+      const getTenantSignatureStatusLabel = (tenant: AgreementTenant) =>
+        tenant.signatureStatus === 'SIGNED' ? 'Signed' : 'Pending';
+      const getTenantMetaLine = (tenant: AgreementTenant) => tenant.meta || '';
+      const canOwnerDownloadAgreement = (agreement: AgreementInstance) => agreement.status === 'SIGNED';
+      const handleDownloadAgreementPdf = (agreement: AgreementInstance) => {
+        alert(`Download PDF for agreement ${agreement.id}`);
+      };
+    // Agreement tab state
+    const [agreementTitle, setAgreementTitle] = useState('');
+    const [agreementContent, setAgreementContent] = useState('');
+    const [agreementError, setAgreementError] = useState('');
+    const [agreementTemplates, setAgreementTemplates] = useState<Array<{id: string, title: string, content: string, version: number, updatedAt: string}>>([]);
+
+    // Quill editor formats
+    const agreementEditorFormats = [
+      'header', 'bold', 'italic', 'list', 'bullet', 'indent', 'link', 'underline', 'strike', 'blockquote', 'code-block',
+    ];
+
+    // Sync editor content
+    const syncAgreementEditorContent = (content: string) => {
+      setAgreementContent(content);
+    };
+
+    // Handle create template
+    const handleCreateAgreementTemplate = () => {
+      if (!agreementTitle.trim()) {
+        setAgreementError('Template title is required.');
+        return;
+      }
+      if (!agreementContent.trim() || agreementContent === '<p><br></p>') {
+        setAgreementError('Agreement content cannot be empty.');
+        return;
+      }
+      setAgreementError('');
+      const newTemplate = {
+        id: Date.now().toString(),
+        title: agreementTitle.trim(),
+        content: agreementContent,
+        version: agreementTemplates.length + 1,
+        updatedAt: new Date().toISOString(),
+      };
+      setAgreementTemplates(prev => [...prev, newTemplate]);
+      setAgreementTitle('');
+      setAgreementContent('');
+    };
   const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -697,7 +853,7 @@ export default function OwnerDashboard() {
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [selectedRoomForTenants, setSelectedRoomForTenants] = useState<Room | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'rooms' | 'tenants' | 'payments' | 'bookings' | 'notifications' | 'notices' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'rooms' | 'tenants' | 'payments' | 'bookings' | 'agreements' | 'notifications' | 'notices' | 'profile'>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1812,7 +1968,23 @@ export default function OwnerDashboard() {
             </div>
           )}
 
-          {/* Bookings Tab - Desktop */}
+
+          {/* Bookings & Agreements Tabs - Desktop */}
+          <div className="flex gap-2 mb-4">
+            <button
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'bookings' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
+              onClick={() => setActiveTab('bookings')}
+            >
+              Bookings
+            </button>
+            <button
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'agreements' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
+              onClick={() => setActiveTab('agreements')}
+            >
+              Agreements
+            </button>
+          </div>
+
           {activeTab === 'bookings' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-4">
@@ -1823,6 +1995,192 @@ export default function OwnerDashboard() {
                 </div>
               </div>
               <BookingManagementSystem />
+            </div>
+          )}
+
+          {/* Agreement Templates Tab - Desktop */}
+          {activeTab === 'agreements' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white">Agreement Templates</h2>
+              </div>
+
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
+                <h3 className="text-sm font-medium text-cyan-300">Create Agreement</h3>
+
+                <div>
+                  <label className="text-xs text-cyan-300 block mb-1">Template Title</label>
+                  <input
+                    type="text"
+                    value={agreementTitle}
+                    onChange={(e) => setAgreementTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm"
+                    placeholder="Standard Student Boarding Agreement"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-cyan-300 block mb-1">Agreement Content</label>
+                  <div className="space-y-2">
+                    <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden [&_.ql-toolbar]:hidden [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[160px] [&_.ql-editor]:text-white [&_.ql-editor]:text-sm [&_.ql-editor]:px-3 [&_.ql-editor]:py-2 [&_.ql-editor.ql-blank::before]:text-gray-400">
+                      <ReactQuill
+                        theme="snow"
+                        value={agreementContent}
+                        onChange={syncAgreementEditorContent}
+                        modules={{ toolbar: { container: '#agreement-toolbar-desktop' } }}
+                        formats={agreementEditorFormats}
+                        placeholder="Write agreement conditions here..."
+                      />
+                    </div>
+
+                    <div id="agreement-toolbar-desktop" className="flex items-center gap-2 flex-wrap">
+                      <select className="ql-header px-2 py-1 bg-white/5 border border-transparent rounded text-xs text-cyan-200 hover:bg-white/10 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 transition-colors">
+                        <option value="1">H1</option>
+                        <option value="2">Heading</option>
+                        <option value="3">Subheading</option>
+                        <option value="">Body</option>
+                      </select>
+                      <button
+                        type="button"
+                        className="ql-bold px-2 py-1 bg-white/5 border border-transparent rounded text-xs text-cyan-300 hover:bg-white/10 active:bg-cyan-500/10 active:border-cyan-400/30 transition-colors"
+                      >
+                        <span className="font-bold">B</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="ql-italic px-2 py-1 bg-white/5 border border-transparent rounded text-xs text-cyan-300 hover:bg-white/10 active:bg-cyan-500/10 active:border-cyan-400/30 transition-colors"
+                      >
+                        <span className="italic">I</span>
+                      </button>
+                      <button
+                        type="button"
+                        value="bullet"
+                        className="ql-list px-2 py-1 bg-white/5 border border-transparent rounded text-xs text-cyan-300 hover:bg-white/10 active:bg-cyan-500/10 active:border-cyan-400/30 transition-colors"
+                      >
+                        • List
+                      </button>
+                      <button
+                        type="button"
+                        value="ordered"
+                        className="ql-list px-2 py-1 bg-white/5 border border-transparent rounded text-xs text-cyan-300 hover:bg-white/10 active:bg-cyan-500/10 active:border-cyan-400/30 transition-colors"
+                      >
+                        1. List
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400">Use the buttons below to style selected agreement text.</p>
+                  </div>
+                </div>
+
+                {agreementError && (
+                  <div className="text-xs text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-3 py-2">
+                    {agreementError}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleCreateAgreementTemplate}
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                >
+                  Create Template
+                </button>
+              </div>
+
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <h3 className="text-sm font-medium text-cyan-300 mb-3">Template Versions</h3>
+                <div className="space-y-3">
+                  {[...agreementTemplates]
+                    .sort((a, b) => b.version - a.version)
+                    .map(template => (
+                      <div key={template.id} className="bg-white/5 rounded-lg p-3 border border-white/10">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className="text-sm font-semibold text-white">v{template.version} • {template.title}</p>
+                            <p className="text-[10px] text-gray-400">Updated: {new Date(template.updatedAt).toLocaleString()}</p>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-300 line-clamp-2" dangerouslySetInnerHTML={{ __html: template.content }} />
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Signed Agreements Tab - Mobile */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-bold text-white">Signed Agreements</h2>
+                  <span className="text-[9px] text-gray-400">{filteredAgreementInstances.length} records</span>
+                </div>
+
+                <div className="space-y-2">
+                  {sortedFilteredAgreementInstances.map(agreement => (
+                    <div key={agreement.id} className="bg-white/5 rounded-xl p-3 border border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroupAgreementExpansion(agreement)}
+                        className={`w-full text-left ${agreement.bookingType === 'GROUP' ? 'cursor-pointer' : 'cursor-default'}`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5 gap-2">
+                          <p className="text-xs font-semibold text-white truncate">{formatAgreementId(agreement.id)}</p>
+                          <span className={`text-[8px] px-2 py-0.5 rounded-full whitespace-nowrap ${getAgreementStatusClass(agreement)}`}>
+                            {getAgreementStatusLabel(agreement)}
+                          </span>
+                        </div>
+                        <div className="mb-1.5">
+                          <span className={`text-[8px] px-2 py-0.5 rounded-full ${getAgreementTypeClass(agreement.bookingType)}`}>
+                            {getAgreementTypeLabel(agreement.bookingType)}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-white">{agreement.room}</p>
+                        <p className="text-[9px] text-gray-300" title={getAgreementStudentsTooltip(agreement)}>
+                          Students: {getAgreementStudentSummary(agreement)}
+                          {agreement.bookingType === 'GROUP' && (
+                            <span className="inline-flex align-middle ml-1">
+                              {expandedGroupAgreementId === agreement.id ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[9px] text-gray-400">Duration: {getAgreementDurationLabel(agreement.duration)}</p>
+                      </button>
+
+                      {agreement.bookingType === 'GROUP' && expandedGroupAgreementId === agreement.id && (
+                        <div className="mt-2 space-y-1.5 rounded-lg border border-white/10 bg-[#0f172a]/40 p-2">
+                          {agreement.tenants.map((tenant) => (
+                            <div key={`${agreement.id}-mobile-${tenant.studentId}-${tenant.name}`} className="rounded-md border border-white/10 bg-white/5 px-2 py-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[10px] text-white font-medium truncate">{tenant.name}</p>
+                                <span className={`text-[8px] px-2 py-0.5 rounded-full ${getTenantSignatureStatusClass(tenant)}`}>
+                                  {getTenantSignatureStatusLabel(tenant)}
+                                </span>
+                              </div>
+                              {getTenantMetaLine(tenant) && (
+                                <p className="text-[8px] text-gray-400 truncate">{getTenantMetaLine(tenant)}</p>
+                              )}
+                              <p className="text-[8px] text-gray-400">{tenant.signedDate ? `Signed on ${new Date(tenant.signedDate).toLocaleDateString()}` : 'Awaiting sign'}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {canOwnerDownloadAgreement(agreement) ? (
+                        <button
+                          onClick={() => handleDownloadAgreementPdf(agreement)}
+                          className="mt-2 text-[10px] text-cyan-300 active:text-cyan-200 inline-flex items-center gap-1 min-h-[36px]"
+                        >
+                          <Download size={11} /> PDF
+                        </button>
+                      ) : (
+                        <p className="mt-2 inline-flex items-center px-2 py-1 rounded-md bg-white/5 border border-white/10 text-[9px] text-gray-400">After signing</p>
+                      )}
+                    </div>
+                  ))}
+
+                  {filteredAgreementInstances.length === 0 && (
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/10 text-center text-xs text-gray-400">
+                      No signed agreement records yet.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

@@ -158,42 +158,6 @@ const roomImages: string[] = [
   'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
 ];
 
-// Mock roommate data (fallback)
-const mockRoommates: Roommate[] = [
-  {
-    id: 1,
-    name: 'Ayesha Perera',
-    email: 'ayesha@sliit.lk',
-    age: 22,
-    gender: 'Female',
-    university: 'SLIIT',
-    bio: 'Looking for a friendly roommate. Loves music and reading.',
-    image: 'https://randomuser.me/api/portraits/women/44.jpg',
-    interests: ['Music', 'Reading', 'Cooking'],
-  },
-  {
-    id: 2,
-    name: 'Nimal Silva',
-    email: 'nimal@sliit.lk',
-    age: 24,
-    gender: 'Male',
-    university: 'CINEC',
-    bio: 'Clean, quiet, and respectful. Enjoys sports and movies.',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    interests: ['Sports', 'Movies', 'Travel'],
-  },
-  {
-    id: 3,
-    name: 'Sajini Fernando',
-    email: 'sajini@sliit.lk',
-    age: 21,
-    gender: 'Female',
-    university: 'NSBM',
-    bio: 'Outgoing and social. Loves to cook and explore new places.',
-    image: 'https://randomuser.me/api/portraits/women/68.jpg',
-    interests: ['Cooking', 'Travel', 'Dancing'],
-  },
-];
 
 // Filter chips data
 const filterChips: FilterChip[] = [
@@ -559,7 +523,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     try {
       const token = localStorage.getItem('bb_access_token') || '';
       if (!token) {
-        setLocalRoommateData(mockRoommates);
+        setLocalRoommateData([]);
         setIsLoadingRoommates(false);
         return;
       }
@@ -575,11 +539,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
         const mappedProfiles = profiles.map(mapProfileToRoommate);
         setLocalRoommateData(mappedProfiles);
       } else {
-        setLocalRoommateData(mockRoommates);
+        setLocalRoommateData([]);
       }
     } catch (error) {
       console.error('Error loading roommate profiles:', error);
-      setLocalRoommateData(mockRoommates);
+      setLocalRoommateData([]);
     } finally {
       setIsLoadingRoommates(false);
     }
@@ -2484,11 +2448,11 @@ export default function SearchPage() {
 
           setDbRoommates(mappedRoommates);
         } else {
-          setDbRoommates(mockRoommates);
+          setDbRoommates([]);
         }
       } catch {
         setDbListings([]);
-        setDbRoommates(mockRoommates);
+        setDbRoommates([]);
       } finally {
         if (!isCancelled) {
           setIsListingsLoading(false);
