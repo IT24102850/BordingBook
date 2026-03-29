@@ -272,9 +272,9 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
       </div>
 
       <div className="flex flex-col items-center p-4">
-        <h3 className="text-xl font-bold text-white mb-1">{displayName}, <span className="text-pink-300">{roommate.age || 20}</span></h3>
-        <div className="text-sm text-pink-200 mb-1">{roommate.gender || 'Any'} | {roommate.university || 'SLIIT'}</div>
-        <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio || 'Looking for a compatible roommate.'}</div>
+        <h3 className="text-xl font-bold text-white mb-1">{displayName}, <span className="text-pink-300">{roommate.age}</span></h3>
+        <div className="text-sm text-pink-200 mb-1">{roommate.gender} | {roommate.university}</div>
+        <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio}</div>
         {typeof roommate.mutualCount === 'number' && roommate.mutualCount > 0 && (
           <div className="mb-3 text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-400/30">
             {roommate.mutualCount} mutual interests
@@ -1228,7 +1228,7 @@ const BookingForm: React.FC<{
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-white/10">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] p-4 border-b border-white/10 flex justify-between items-center">
+        <div className="sticky top-0 bg-gradient-to-r from-[#181f36] to-[#0f172a] p-4 border-b border-white/10 flex justify-between items-center">
           <h3 className="text-lg font-bold bg-gradient-to-r from-purple-300 to-cyan-300 bg-clip-text text-transparent">Booking Form</h3>
           <button
             onClick={onClose}
@@ -1463,7 +1463,7 @@ const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = 
 
         {/* Vacancy Badge */}
         {room.vacancy && (() => {
-          const vacancyInfo = getVacancyInfo(room.vacancy, room.totalRooms, room.occupiedRooms);
+          const vacancyInfo = getVacancyInfo(room.vacancy, room.totalRooms || 1, room.occupiedRooms || 0);
           return (
             <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 border ${vacancyInfo.bgColor}`}>
               {vacancyInfo.label}
@@ -1800,7 +1800,7 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, o
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl max-w-md w-full max-h-[80vh] overflow-y-auto border border-white/10">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] p-4 border-b border-white/10 flex justify-between items-center">
+        <div className="sticky top-0 bg-gradient-to-r from-[#181f36] to-[#0f172a] p-4 border-b border-white/10 flex justify-between items-center">
           <h3 className="text-lg font-bold text-white">Room Details</h3>
           <button
             onClick={onClose}
@@ -2268,15 +2268,15 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
                   </div>
                   <div className="flex items-center gap-2">
                     <FaCalendarAlt className="text-purple-400" size={16} />
-                    <span>Move-in: {new Date(mockBookingDetails.moveInDate).toLocaleDateString()}</span>
+                    <span>{mockBookingDetails.moveInDate}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <FaMoneyBillWave className="text-emerald-400" size={16} />
-                    <span>LKR {mockBookingDetails.roomPrice.toLocaleString()}/month +� {mockBookingDetails.duration} months</span>
+                    <span>{mockBookingDetails.roomPrice.toLocaleString()}/month +{mockBookingDetails.duration} months</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <FaUserFriends className="text-amber-400" size={16} />
-                    <span>Owner: {mockBookingDetails.ownerName}</span>
+                    <span>{mockBookingDetails.ownerName}</span>
                   </div>
                 </div>
               </div>
@@ -3462,49 +3462,48 @@ export default function SearchPage() {
         {/* Header */}
         <div className="flex flex-col items-center w-full mb-6">
           <div className="w-full mb-4 md:max-w-5xl md:mx-auto rounded-2xl border border-white/10 bg-[#0f172a]/70 backdrop-blur-xl shadow-2xl px-3 py-3 md:px-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { window.location.href = '/'; }}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                  aria-label="Go to home"
-                >
-                  <FaArrowLeft className="text-white text-sm" />
-                </button>
-                <button
-                  onClick={() => { window.location.href = '/'; }}
-                  className="text-left"
-                >
-                  <h1 className="text-base md:text-xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent leading-tight">
-                    BoardingBook
-                  </h1>
-                  <p className="text-[10px] md:text-xs text-cyan-100/70">Find & Search</p>
-                </button>
-              </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { window.location.href = '/'; }}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                aria-label="Go to home"
+              >
+                <FaArrowLeft className="text-white text-sm" />
+              </button>
+              <button
+                onClick={() => { window.location.href = '/'; }}
+                className="text-left"
+              >
+                <h1 className="text-base md:text-xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent leading-tight">
+                  BoardingBook
+                </h1>
+                <p className="text-[10px] md:text-xs text-cyan-100/70">Find & Search</p>
+              </button>
+            </div>
 
-              <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
-                <button
-                  onClick={() => navigate('/')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  Home
-                </button>
-                <button
-                  onClick={() => navigate('/chatbot')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/chatbot' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  AI Chatbot
-                </button>
-                <button
-                  onClick={() => navigate('/owner-dashboard')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/owner-dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  List Your Property
-                </button>
-              </div>
+            <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
+              <button
+                onClick={() => navigate('/')}
+                className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => navigate('/chatbot')}
+                className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/chatbot' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+              >
+                AI Chatbot
+              </button>
+              <button
+                onClick={() => navigate('/owner-dashboard')}
+                className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/owner-dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+              >
+                List Your Property
+              </button>
+            </div>
 
-              <div className="flex items-center gap-2">
-                <div className="relative z-[130]">
+            <div className="flex items-center gap-2">
+              <div className="relative z-[130]">
                 <button
                   ref={notificationButtonRef}
                   onClick={() => setShowNotifications(!showNotifications)}
@@ -3573,6 +3572,7 @@ export default function SearchPage() {
                                 notif.type === 'payment_verified' ? 'bg-emerald-500/20' :
                                 notif.type === 'receipt_generated' ? 'bg-blue-500/20' :
                                 notif.type === 'booking_confirmed' ? 'bg-purple-500/20' :
+                                notif.type === 'checkin_reminder' ? 'bg-amber-500/20' :
                                 notif.type === 'roommate_request_received' ? 'bg-cyan-500/20' :
                                 notif.type === 'roommate_request_accepted' ? 'bg-green-500/20' :
                                 notif.type === 'roommate_request_rejected' ? 'bg-red-500/20' :
@@ -3812,9 +3812,7 @@ export default function SearchPage() {
                     <div className="flex items-center gap-2 mb-4">
                       <FaHistory className="text-red-400" />
                       <h3 className="text-sm font-bold text-white">Passed</h3>
-                      <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">
-                        {passedListings.length}
-                      </span>
+                      <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">{passedListings.length}</span>
                     </div>
                     <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                       {passedListings.length > 0 ? (
@@ -3884,9 +3882,7 @@ export default function SearchPage() {
                     <div className="flex items-center gap-2 mb-4">
                       <FaBookmark className="text-green-400" />
                       <h3 className="text-sm font-bold text-white">Favorites</h3>
-                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">
-                        {likedListings.length}
-                      </span>
+                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">{likedListings.length}</span>
                     </div>
                     <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                       {likedListings.length > 0 ? (
@@ -3968,7 +3964,6 @@ export default function SearchPage() {
                             key={room.id}
                             room={room}
                             onOpen={(id: number) => {
-                              // Convert room to listing format for details modal
                               const r = roomDataset.find((rm: any) => rm.id === id);
                               if (!r) return;
                               const listing: Listing = {
@@ -4002,8 +3997,8 @@ export default function SearchPage() {
                     ) : (
                       <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
                         <FaSearch className="text-4xl text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-400 mb-2">No rooms match your filters</p>
-                        <p className="text-sm text-gray-500">Try adjusting your search criteria</p>
+                        <p className="text-gray-400 text-sm mb-1">No rooms match your filters</p>
+                        <p className="text-sm text-gray-500">Try adjusting your criteria</p>
                       </div>
                     )}
                   </div>
