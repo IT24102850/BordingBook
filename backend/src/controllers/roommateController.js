@@ -11,30 +11,21 @@ exports.browseProfiles = async (req, res) => {
     if (userId) {
       query._id = { $ne: userId };
     }
-    // Select only the fields needed for roommate browsing
-    const users = await User.find(query).select('name email gender academicYear profilePicture description tags boardingHouse');
-    // Map to expected frontend format if needed
+    const users = await User.find(query).select('name email gender academicYear profilePicture profilePictures description tags boardingHouse');
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
       name: user.name || 'Student',
-      email: user.email || '',
+      bio: user.description || '',
+      profilePictures: user.profilePictures && user.profilePictures.length > 0 ? user.profilePictures : [user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg'],
       gender: user.gender || 'Any',
       university: user.boardingHouse || user.academicYear || '',
-      bio: user.description || '',
-      image: user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+      email: user.email || '',
       interests: Array.isArray(user.tags) ? user.tags : [],
     }));
-    res.json({
-      success: true,
-      data: profiles,
-    });
+    res.json({ success: true, data: profiles });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch roommate profiles',
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch roommate profiles', error: error.message });
   }
 };
 
@@ -62,17 +53,27 @@ exports.getMyProfile = async (req, res) => {
   });
 };
 
-
 /**
  * @desc Swipe on a profile (like/pass)
  * @route POST /api/roommates/swipe
  * @access Private
  */
 exports.swipeProfile = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Swipe functionality not yet implemented',
-  });
+  try {
+    const userId = req.user.userId;
+    const { profileId, action } = req.body;
+    if (!profileId || !['like', 'pass'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Invalid swipe action or profileId' });
+    }
+    const update =
+      action === 'like'
+        ? { $addToSet: { liked: profileId } }
+        : { $addToSet: { passed: profileId } };
+    await User.findByIdAndUpdate(userId, update);
+    res.json({ success: true, message: `Profile ${action}d successfully` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Swipe failed', error: error.message });
+  }
 };
 
 /**
@@ -83,20 +84,19 @@ exports.swipeProfile = async (req, res) => {
 exports.getLikedProfiles = async (req, res) => {
   try {
     const userId = req.user.userId;
-    // Assume you store liked user IDs in a 'liked' array on the user document
     const user = await User.findById(userId);
     const likedIds = user.liked || [];
     const users = await User.find({ _id: { $in: likedIds }, isActive: true })
-      .select('name email gender academicYear profilePicture description tags boardingHouse');
+      .select('name email gender academicYear profilePicture profilePictures description tags boardingHouse');
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
       name: user.name || 'Student',
-      email: user.email || '',
+      bio: user.description || '',
+      profilePictures: user.profilePictures && user.profilePictures.length > 0 ? user.profilePictures : [user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg'],
       gender: user.gender || 'Any',
       university: user.boardingHouse || user.academicYear || '',
-      bio: user.description || '',
-      image: user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+      email: user.email || '',
       interests: Array.isArray(user.tags) ? user.tags : [],
     }));
     res.json({ success: true, data: profiles });
@@ -113,20 +113,19 @@ exports.getLikedProfiles = async (req, res) => {
 exports.getPassedProfiles = async (req, res) => {
   try {
     const userId = req.user.userId;
-    // Assume you store passed user IDs in a 'passed' array on the user document
     const user = await User.findById(userId);
     const passedIds = user.passed || [];
     const users = await User.find({ _id: { $in: passedIds }, isActive: true })
-      .select('name email gender academicYear profilePicture description tags boardingHouse');
+      .select('name email gender academicYear profilePicture profilePictures description tags boardingHouse');
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
       name: user.name || 'Student',
-      email: user.email || '',
+      bio: user.description || '',
+      profilePictures: user.profilePictures && user.profilePictures.length > 0 ? user.profilePictures : [user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg'],
       gender: user.gender || 'Any',
       university: user.boardingHouse || user.academicYear || '',
-      bio: user.description || '',
-      image: user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+      email: user.email || '',
       interests: Array.isArray(user.tags) ? user.tags : [],
     }));
     res.json({ success: true, data: profiles });
