@@ -11,11 +11,11 @@ exports.browseProfiles = async (req, res) => {
     if (userId) {
       query._id = { $ne: userId };
     }
-    const users = await User.find(query).select('name email gender academicYear profilePicture profilePictures description tags boardingHouse');
+    const users = await User.find(query).select('name fullName email gender academicYear profilePicture profilePictures description tags boardingHouse');
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
-      name: user.name || '',
+      name: user.name || user.fullName || '',
       bio: user.description || '',
       profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
         ? user.profilePictures
