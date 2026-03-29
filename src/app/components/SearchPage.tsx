@@ -364,15 +364,15 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const mapProfileToRoommate = React.useCallback((profile: any) => ({
     id: normalizeIdValue(profile._id || profile.id),
     userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-    name: profile.name || profile.fullName || (profile.email ? profile.email.split('@')[0] : 'Student'),
-    email: profile.email || '',
+    name: profile.name, // Only real name from DB
+    email: profile.email,
     age: deriveProfileAge(profile),
-    gender: profile.gender || 'Any',
-    university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-    bio: profile.description || profile.bio || 'Looking for a compatible roommate.',
-    image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+    gender: profile.gender,
+    university: profile.boardingHouse || profile.academicYear,
+    bio: profile.description, // Only real description from DB
     interests: Array.isArray(profile.tags) ? profile.tags : [],
     mutualCount: Number(profile.mutualCount) || 0,
+    profilePictures: Array.isArray(profile.profilePictures) ? profile.profilePictures : [], // Only real images from DB
   }), []);
 
   const loadRoommateNetworkData = React.useCallback(async () => {
