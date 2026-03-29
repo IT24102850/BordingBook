@@ -11,19 +11,22 @@ exports.browseProfiles = async (req, res) => {
     if (userId) {
       query._id = { $ne: userId };
     }
-    const users = await User.find(query).select('name fullName email gender academicYear profilePicture profilePictures description tags boardingHouse');
+    const users = await User.find(query).select('name fullName email gender academicYear profilePicture profilePictures description bio tags boardingHouse age dateOfBirth dob birthDate');
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
       name: user.name || user.fullName || '',
-      bio: user.description || '',
+      bio: user.bio || user.description || '',
       profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
         ? user.profilePictures
         : (user.profilePicture ? [user.profilePicture] : []),
+      profilePicture: user.profilePicture || '',
       gender: user.gender || '',
       university: user.boardingHouse || user.academicYear || '',
       email: user.email || '',
       interests: Array.isArray(user.tags) ? user.tags : [],
+      age: user.age,
+      dateOfBirth: user.dateOfBirth || user.dob || user.birthDate || '',
     }));
     res.json({ success: true, data: profiles });
   } catch (error) {
