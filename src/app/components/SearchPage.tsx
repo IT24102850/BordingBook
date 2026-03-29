@@ -134,10 +134,11 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
   const [dragStartX, setDragStartX] = useState(0);
   const [imageIndex, setImageIndex] = useState(0);
 
-  const displayName = roommate.name && roommate.name.trim() ? roommate.name : (roommate.email || 'Student');
+  // Use only real data from the database, no fallbacks
+  const displayName = roommate.name;
   const images: string[] = Array.isArray(roommate.profilePictures) && roommate.profilePictures.length > 0
     ? roommate.profilePictures.map((img: any) => String(img))
-    : [String(roommate.image || 'https://randomuser.me/api/portraits/lego/1.jpg')];
+    : (roommate.image ? [String(roommate.image)] : []);
 
   const resetCardTransform = () => {
     if (!cardRef.current) return;
@@ -226,11 +227,15 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
     >
       {/* Image Carousel */}
       <div className="relative w-full aspect-square bg-gray-800 overflow-hidden">
-        <img 
-          src={images[imageIndex]} 
-          alt={displayName} 
-          className="w-full h-full object-cover transition-all duration-300"
-        />
+        {images.length > 0 ? (
+          <img 
+            src={images[imageIndex]} 
+            alt={displayName} 
+            className="w-full h-full object-cover transition-all duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-700 text-white">No Image</div>
+        )}
         {/* Image Navigation Arrows */}
         {images.length > 1 && (
           <>
@@ -269,9 +274,15 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
         )}
       </div>
       <div className="flex flex-col items-center p-4">
-        <h3 className="text-xl font-bold text-white mb-1">{displayName}, <span className="text-pink-300">{roommate.age}</span></h3>
-        <div className="text-sm text-pink-200 mb-1">{roommate.gender} | {roommate.university}</div>
-        <div className="text-sm text-gray-300 mb-3 text-center">{roommate.bio}</div>
+        <h3 className="text-xl font-bold text-white mb-1">
+          {displayName}, <span className="text-pink-300">{roommate.age}</span>
+        </h3>
+        <div className="text-sm text-pink-200 mb-1">
+          {roommate.gender} | {roommate.university}
+        </div>
+        <div className="text-sm text-gray-300 mb-3 text-center">
+          {roommate.bio}
+        </div>
         {typeof roommate.mutualCount === 'number' && roommate.mutualCount > 0 && (
           <div className="mb-3 text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-400/30">
             {roommate.mutualCount} mutual interests
