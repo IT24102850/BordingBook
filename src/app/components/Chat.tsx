@@ -498,7 +498,7 @@ export default function Chat() {
   }, [selectedConversationId, currentUser, token]);
 
   // Start a chat with an accepted roommate
-  const startChatWithRoommate = useCallback(async (roommate: AcceptedRoommate) => {
+  const startChatWithRoommate = useCallback(async (roommate: any) => {
     if (!token || !currentUser) {
       setError('Please sign in to start a chat');
       return;
@@ -506,19 +506,30 @@ export default function Chat() {
 
     setInitializingChat(true);
     try {
-      const recipientId = roommate.userId || roommate.id;
-      console.log('[Chat] Starting chat with roommate:', roommate.name, recipientId);
-      
+      // Robust ID extraction
+      let recipientId = normalizeId(
+        roommate.userId ||
+        roommate.id ||
+        roommate._id ||
+        roommate.userID ||
+        roommate.ID
+      );
+      if (!recipientId && roommate._id) {
+        recipientId = String(roommate._id);
+      }
+      if (!recipientId) {
+        setError('Could not start chat - missing user ID.');
+        return;
+      }
+      console.log('[Chat] Starting chat with roommate:', roommate.name || roommate.fullName, recipientId);
       const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
         method: 'POST',
         body: JSON.stringify({ recipientId }),
       });
-      
-      console.log('[Chat] Conversation created/found:', data.id);
       setSelectedConversationId(data.id);
       selectedConversationIdRef.current = data.id;
       await fetchConversations(data.id);
-      setSidebarTab('chats'); // Switch to chats tab after opening
+      setSidebarTab('chats');
     } catch (error) {
       console.error('[Chat] Error starting chat:', error);
       setError((error as Error).message || 'Unable to start chat');
@@ -532,20 +543,17 @@ export default function Chat() {
     if (!token || !currentUser) return;
 
     const state = (location.state || {}) as any;
-    const selectedRoommate = state?.selectedRoommate;
-    const queryRecipientId = normalizeId(new URLSearchParams(location.search).get('recipientId'));
-    
-    const recipientId = normalizeId(
-      selectedRoommate?.userId ||
-      selectedRoommate?.id ||
+    let recipientId = normalizeId(
       state?.recipientId ||
-      queryRecipientId ||
-      ''
+      state?.selectedRoommate?.userId ||
+      state?.selectedRoommate?.id ||
+      state?.selectedRoommate?._id ||
+      new URLSearchParams(location.search).get('recipientId')
     );
-    
+
     if (!recipientId) return;
     if (lastRecipientBootstrapRef.current === recipientId) return;
-    
+
     setInitializingChat(true);
     lastRecipientBootstrapRef.current = recipientId;
 
@@ -554,7 +562,7 @@ export default function Chat() {
         method: 'POST',
         body: JSON.stringify({ recipientId }),
       });
-      
+
       setSelectedConversationId(data.id);
       selectedConversationIdRef.current = data.id;
       await fetchConversations(data.id);

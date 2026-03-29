@@ -1,3 +1,45 @@
+// Robust ID extraction for chat navigation
+function startChatWithUser(roommate: any, navigate: any) {
+  if (!roommate) {
+    alert("Cannot start chat - user data missing");
+    return;
+  }
+
+  // Robust ID extraction - tries multiple possible fields
+  let recipientId = normalizeIdValue(
+    roommate.userId || 
+    roommate.id || 
+    roommate._id || 
+    roommate.userID ||
+    roommate.ID
+  );
+
+  // Extra fallback: if it's an object with _id
+  if (!recipientId && roommate._id) {
+    recipientId = String(roommate._id);
+  }
+
+  if (!recipientId) {
+    console.error("Missing recipientId for:", roommate);
+    alert("Could not start chat - missing user ID. Please try again or contact support.");
+    return;
+  }
+
+  console.log("Starting chat with:", roommate.name || roommate.fullName, "| ID:", recipientId);
+
+  navigate('/chat', {
+    state: {
+      selectedRoommate: {
+        ...roommate,
+        userId: recipientId,      // standardize the field
+        fullName: roommate.name || roommate.fullName,
+        avatar: roommate.image || roommate.profilePicture || roommate.avatar,
+      },
+      recipientId: recipientId,
+    },
+    replace: true,   // prevents duplicate history entries
+  });
+}
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -800,10 +842,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   <button
                     key={match.id}
                     onClick={() => {
-                      const recipientId = String(match.userId || match.id || '');
-                      navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
-                        state: { selectedRoommate: match, chatType: 'direct-message', recipientId },
-                      });
+                      startChatWithUser(match, navigate);
                     }}
                     className="flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
                   >
@@ -1039,11 +1078,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   {req.status === 'accepted' && (
                     <button
                       onClick={() => {
-                        const recipientId = normalizeIdValue(req.from.userId || req.from.id || '');
-                        const selectedRoommate = { ...req.from, userId: normalizeIdValue(req.from.userId || req.from.id || '') };
-                        navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
-                          state: { selectedRoommate, chatType: 'direct-message', recipientId },
-                        });
+                        startChatWithUser(req.from, navigate);
                       }}
                       className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
                     >
