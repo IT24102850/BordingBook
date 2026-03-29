@@ -81,10 +81,58 @@ exports.swipeProfile = async (req, res) => {
  * @access Private
  */
 exports.getLikedProfiles = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Liked profiles not yet implemented',
-  });
+  try {
+    const userId = req.user.userId;
+    // Assume you store liked user IDs in a 'liked' array on the user document
+    const user = await User.findById(userId);
+    const likedIds = user.liked || [];
+    const users = await User.find({ _id: { $in: likedIds }, isActive: true })
+      .select('name email gender academicYear profilePicture description tags boardingHouse');
+    const profiles = users.map(user => ({
+      id: user._id,
+      userId: user._id,
+      name: user.name || 'Student',
+      email: user.email || '',
+      gender: user.gender || 'Any',
+      university: user.boardingHouse || user.academicYear || '',
+      bio: user.description || '',
+      image: user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+      interests: Array.isArray(user.tags) ? user.tags : [],
+    }));
+    res.json({ success: true, data: profiles });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch liked profiles', error: error.message });
+  }
+};
+
+/**
+ * @desc Get passed profiles (if you track them)
+ * @route GET /api/roommates/passed
+ * @access Private
+ */
+exports.getPassedProfiles = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    // Assume you store passed user IDs in a 'passed' array on the user document
+    const user = await User.findById(userId);
+    const passedIds = user.passed || [];
+    const users = await User.find({ _id: { $in: passedIds }, isActive: true })
+      .select('name email gender academicYear profilePicture description tags boardingHouse');
+    const profiles = users.map(user => ({
+      id: user._id,
+      userId: user._id,
+      name: user.name || 'Student',
+      email: user.email || '',
+      gender: user.gender || 'Any',
+      university: user.boardingHouse || user.academicYear || '',
+      bio: user.description || '',
+      image: user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+      interests: Array.isArray(user.tags) ? user.tags : [],
+    }));
+    res.json({ success: true, data: profiles });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch passed profiles', error: error.message });
+  }
 };
 
 /**
