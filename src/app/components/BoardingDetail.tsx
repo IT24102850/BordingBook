@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   MapPin, Phone, Mail, Home, Users, Zap, Wifi, DollarSign,
-  MapMarkerIcon, School, Heart, Share2, ChevronLeft, Star,
+  School, Heart, Share2, ChevronLeft, Star,
   Calendar, Bed, Bath, Utensils, Check
 } from 'lucide-react';
-import { FaArrowLeft, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaArrowLeft, FaPhone, FaEnvelope } from 'react-icons/fa';
 
 interface BoardingPlace {
   id: string;

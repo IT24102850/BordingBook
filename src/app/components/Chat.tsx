@@ -172,6 +172,7 @@ function appendMessageIfMissing(existing: ChatMessage[], incoming: ChatMessage):
 function normalizeId(input: any): string {
   if (!input) return '';
   if (typeof input === 'string') return input;
+  if (typeof input === 'number') return String(input);
   if (typeof input === 'object') {
     if (input._id) return String(input._id);
     if (input.id) return String(input.id);
@@ -205,6 +206,7 @@ export default function Chat() {
   const [showConversationMenu, setShowConversationMenu] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [initializingChat, setInitializingChat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -317,6 +319,7 @@ export default function Chat() {
 
       if (preferredConversationId && nextConversations.some((conversation) => conversation.id === preferredConversationId)) {
         setSelectedConversationId(preferredConversationId);
+        selectedConversationIdRef.current = preferredConversationId;
       } else if (selectedConversationIdRef.current && nextConversations.some((conversation) => conversation.id === selectedConversationIdRef.current)) {
         setSelectedConversationId(selectedConversationIdRef.current);
       } else if (selectedConversationIdRef.current === '' && preferredConversationId === undefined) {
@@ -432,64 +435,94 @@ export default function Chat() {
     }
   }, [selectedConversationId, currentUser, token]);
 
+  // Improved function to handle opening chat from roommate
   const ensureDirectConversationFromRouteState = useCallback(async () => {
-    if (!token) return;
+    if (!token || !currentUser) {
+      console.log('[Chat] No token or user, skipping route state check');
+      return;
+    }
 
     const state = (location.state || {}) as any;
     const selectedRoommate = state?.selectedRoommate;
     const queryRecipientId = normalizeId(new URLSearchParams(location.search).get('recipientId'));
+    
+    // Get recipient ID from various sources
     const recipientId = normalizeId(
       selectedRoommate?.userId ||
+      selectedRoommate?.id ||
       state?.recipientId ||
       queryRecipientId ||
-      selectedRoommate?.id ||
       state?.selectedUserId ||
       ''
     );
     
+    console.log('[Chat] Ensuring direct conversation with recipient:', recipientId);
+    console.log('[Chat] Selected roommate data:', selectedRoommate);
+    
     if (!recipientId) {
+      console.log('[Chat] No recipient ID found, skipping');
       return;
     }
-    if (lastRecipientBootstrapRef.current === recipientId) return;
+    
+    // Prevent duplicate initialization
+    if (lastRecipientBootstrapRef.current === recipientId) {
+      console.log('[Chat] Already initializing chat with this recipient');
+      return;
+    }
+    
+    setInitializingChat(true);
+    lastRecipientBootstrapRef.current = recipientId;
 
-    const normalizedName = String(selectedRoommate?.name || '').trim().toLowerCase();
-    const normalizedEmail = String(selectedRoommate?.email || '').trim().toLowerCase();
-
+    // Helper to find existing conversation
     const findMatchingConversation = (items: ChatConversation[]): ChatConversation | undefined => {
       return items.find((conversation) => {
         const hasParticipantById = conversation.participants.some((participant) => participant.id === recipientId);
-        const hasParticipantByEmail = normalizedEmail
-          ? conversation.participants.some((participant) => participant.email?.toLowerCase() === normalizedEmail)
+        const hasParticipantByEmail = selectedRoommate?.email 
+          ? conversation.participants.some((participant) => participant.email?.toLowerCase() === selectedRoommate.email.toLowerCase())
           : false;
-        const hasNameMatch = normalizedName ? conversation.name.toLowerCase().includes(normalizedName) : false;
+        const hasNameMatch = selectedRoommate?.name 
+          ? conversation.name.toLowerCase().includes(selectedRoommate.name.toLowerCase())
+          : false;
 
         return hasParticipantById || hasParticipantByEmail || hasNameMatch;
       });
     };
 
     try {
+      console.log('[Chat] Attempting to create/find direct conversation...');
       const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
         method: 'POST',
         body: JSON.stringify({ recipientId }),
       });
-      lastRecipientBootstrapRef.current = recipientId;
+      
+      console.log('[Chat] Conversation created/found:', data.id);
       setError('');
       setSelectedConversationId(data.id);
+      selectedConversationIdRef.current = data.id;
       await fetchConversations(data.id);
+      
+      // Clear the route state to prevent re-initialization
+      navigate(location.pathname, { replace: true, state: {} });
     } catch (createError) {
+      console.error('[Chat] Error creating conversation:', createError);
+      
+      // Try to find existing conversation
       const latest = await fetchConversations();
       const fallback = findMatchingConversation(latest);
 
       if (fallback) {
-        lastRecipientBootstrapRef.current = recipientId;
+        console.log('[Chat] Found existing conversation:', fallback.id);
         setError('');
         setSelectedConversationId(fallback.id);
-        return;
+        selectedConversationIdRef.current = fallback.id;
+        navigate(location.pathname, { replace: true, state: {} });
+      } else {
+        setError((createError as Error).message || 'Unable to open direct conversation. Please try again from the matches page.');
       }
-
-      setError((createError as Error).message || 'Unable to open direct conversation. Please try again from the matches page.');
+    } finally {
+      setInitializingChat(false);
     }
-  }, [fetchConversations, location.search, location.state, token]);
+  }, [fetchConversations, location.pathname, location.search, location.state, navigate, token, currentUser]);
 
   const fetchContacts = useCallback(
     async (search = '') => {
@@ -520,6 +553,7 @@ export default function Chat() {
 
         console.log('[Chat] Conversation created:', data.id);
         setSelectedConversationId(data.id);
+        selectedConversationIdRef.current = data.id;
         setShowNewChatModal(false);
         setContactSearchQuery('');
         await fetchConversations(data.id);
@@ -834,13 +868,22 @@ export default function Chat() {
     }
   }, [token]);
 
+  // Initial load
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
 
+  // Handle route state for opening chat from roommate
   useEffect(() => {
-    ensureDirectConversationFromRouteState();
-  }, [ensureDirectConversationFromRouteState]);
+    // Small delay to ensure conversations are loaded first
+    const timer = setTimeout(() => {
+      if (!initializingChat) {
+        ensureDirectConversationFromRouteState();
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [ensureDirectConversationFromRouteState, initializingChat]);
 
   useEffect(() => {
     if (!showNewChatModal) return;
@@ -869,6 +912,7 @@ export default function Chat() {
     activeCallRef.current = activeCall;
   }, [activeCall]);
 
+  // Socket connection
   useEffect(() => {
     if (!token || !currentUser) return;
     const socketUrl = API_BASE_URL || window.location.origin;
@@ -1063,6 +1107,18 @@ export default function Chat() {
       document.documentElement.style.overflow = previousHtmlOverflow;
     };
   }, []);
+
+  // Loading state while initializing chat
+  if (initializingChat) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-cyan-200 text-sm">Opening chat...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!token || !currentUser) {
     return (
@@ -1491,7 +1547,7 @@ export default function Chat() {
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none"
                 />
                 {showEmojiPicker && (
-                  <div className="absolute bottom-full mb-2 right-0">
+                  <div className="absolute bottom-full mb-2 right-0 z-50">
                     <EmojiPicker
                       onEmojiClick={(emoji: any) => {
                         setNewMessage(prev => prev + emoji.emoji);
@@ -1514,7 +1570,7 @@ export default function Chat() {
         </div>
       )}
 
-      {!selectedConversation && (
+      {!selectedConversation && !initializingChat && (
         <div className="hidden lg:flex flex-1 items-center justify-center">
           <div className="text-center">
             <MessageSquarePlus size={64} className="mx-auto mb-4 text-gray-500 opacity-50" />
