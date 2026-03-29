@@ -450,6 +450,41 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
 }
 
 // Roommate Finder Component
+
+// --- Mutual Friends Sidebar for Chat (Desktop) ---
+// (useState is already imported from React)
+
+interface MutualFriendsSidebarProps {
+  mutualMatches: Roommate[];
+  onSelect: (friend: Roommate) => void;
+  selectedId: string | number | undefined | null;
+}
+
+function MutualFriendsSidebar({ mutualMatches, onSelect, selectedId }: MutualFriendsSidebarProps) {
+  return (
+    <div className="hidden md:flex flex-col w-80 bg-[#18191a] border-r border-[#222] h-[calc(100vh-2rem)] mt-4 rounded-xl overflow-y-auto">
+      <div className="p-4 text-lg font-bold text-white">Messages</div>
+      {mutualMatches.length === 0 && (
+        <div className="px-4 text-gray-400">No mutual friends yet</div>
+      )}
+      {mutualMatches.map((friend: Roommate) => (
+        <div
+          key={friend.id}
+          className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#232526] ${selectedId === friend.id ? 'bg-[#232526]' : ''}`}
+          onClick={() => onSelect(friend)}
+        >
+          <img src={friend.image} alt={friend.name} className="w-10 h-10 rounded-full object-cover" />
+          <div>
+            <div className="text-white font-semibold">{friend.name}</div>
+            {/* Optionally show last message or status */}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// --- Main RoommateFinderPlaceholder with Sidebar Layout ---
 function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] }) {
   const navigate = useNavigate();
   const [roommateTab, setRoommateTab] = React.useState<'browse' | 'requests' | 'inbox' | 'groups'>('browse');
@@ -466,6 +501,9 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [apiNotice, setApiNotice] = React.useState('');
   const [isLoadingRoommates, setIsLoadingRoommates] = React.useState(false);
   const [localRoommateData, setLocalRoommateData] = React.useState<any[]>([]);
+
+  // --- Chat state ---
+  const [selectedChatFriend, setSelectedChatFriend] = React.useState<Roommate | null>(null);
 
   const studentsOnly = React.useMemo(() => {
     const data = localRoommateData.length > 0 ? localRoommateData : roommateData;
@@ -618,121 +656,36 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     loadRoommateNetworkData();
   }, [loadRoommateProfiles, loadRoommateNetworkData]);
 
-  const handleLike = () => {
-    if (!current || isAnimating) return;
-    setIsAnimating(true);
-    setDirection('right');
-    setTimeout(() => {
-      setLiked((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-      if (currentIdx < studentsOnly.length - 1) {
-        setCurrentIdx(currentIdx + 1);
-      }
-      setDirection(null);
-      setIsAnimating(false);
-
-      void (async () => {
-        try {
-          if (isMongoId(current.id)) {
-            await callRoommateApi('/swipe', {
-              method: 'POST',
-              body: JSON.stringify({ profileId: current.id, action: 'like' }),
-            });
-          }
-
-          if (isMongoId(current.userId)) {
-            await callRoommateApi('/request/send', {
-              method: 'POST',
-              body: JSON.stringify({
-                recipientId: current.userId,
-                message: 'Hi! I think we could be great roommates. Want to connect?',
-              }),
-            });
-          }
-
-          await loadRoommateNetworkData();
-          setApiNotice('Like saved and request sent.');
-          setTimeout(() => setApiNotice(''), 3000);
-        } catch (error) {
-          setApiNotice((error as Error).message || 'Unable to sync roommate request');
-          setTimeout(() => setApiNotice(''), 3000);
-        }
-      })();
-    }, 250);
-  };
-
-  const handlePass = () => {
-    if (!current || isAnimating) return;
-    setIsAnimating(true);
-    setDirection('left');
-    setTimeout(() => {
-      setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-      if (currentIdx < studentsOnly.length - 1) {
-        setCurrentIdx(currentIdx + 1);
-      }
-      setDirection(null);
-      setIsAnimating(false);
-
-      void (async () => {
-        try {
-          if (isMongoId(current.id)) {
-            await callRoommateApi('/swipe', {
-              method: 'POST',
-              body: JSON.stringify({ profileId: current.id, action: 'pass' }),
-            });
-          }
-        } catch (error) {
-          console.error('Error syncing pass:', error);
-        }
-      })();
-    }, 250);
-  };
-
-  const handleUndo = () => {
-    if (currentIdx > 0) {
-      setCurrentIdx(currentIdx - 1);
-      setDirection(null);
-    }
-  };
-
-  const handleRequestResponse = async (requestId: string, accept: boolean) => {
-    try {
-      await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, {
-        method: 'PATCH',
-      });
-      await loadRoommateNetworkData();
-      setApiNotice(accept ? 'Request accepted. You can start chatting now.' : 'Request rejected.');
-      setTimeout(() => setApiNotice(''), 3000);
-    } catch (error) {
-      setApiNotice((error as Error).message || 'Failed to update request status');
-      setTimeout(() => setApiNotice(''), 3000);
-    }
-  };
-
-  const createGroupFromLiked = async () => {
-    try {
-      const memberEmails = liked.map((m) => m.email).filter(Boolean);
-      if (memberEmails.length === 0) {
-        setApiNotice('Like at least one roommate before creating a group.');
-        setTimeout(() => setApiNotice(''), 3000);
-        return;
-      }
-
-      await callRoommateApi('/group', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: `Roommate Group ${new Date().toLocaleDateString()}`,
-          memberEmails,
-        }),
-      });
-
-      await loadRoommateNetworkData();
-      setApiNotice('Group created successfully. Members will receive invites.');
-      setTimeout(() => setApiNotice(''), 3000);
-    } catch (error) {
-      setApiNotice((error as Error).message || 'Failed to create group');
-      setTimeout(() => setApiNotice(''), 3000);
-    }
-  };
+  // --- Chat Layout: Sidebar + Main ---
+  // Only show the chat layout if there are mutual matches or a chat is selected
+  if (mutualMatches.length > 0 || selectedChatFriend) {
+    return (
+      <div className="flex min-h-[80vh]">
+        {/* Sidebar: Mutual Friends */}
+        <MutualFriendsSidebar
+          mutualMatches={mutualMatches}
+          onSelect={setSelectedChatFriend}
+          selectedId={selectedChatFriend?.id}
+        />
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col items-center justify-center bg-[#111214] rounded-xl mt-4 ml-4">
+          {selectedChatFriend ? (
+            <div className="w-full max-w-2xl p-8">
+              <div className="flex items-center gap-3 mb-4">
+                <img src={selectedChatFriend.image} alt={selectedChatFriend.name} className="w-10 h-10 rounded-full" />
+                <span className="text-lg font-bold text-white">{selectedChatFriend.name}</span>
+              </div>
+              {/* Chat messages and input would go here */}
+              <div className="text-gray-400 text-center mt-8">Chat functionality coming soon.</div>
+            </div>
+          ) : (
+            <div className="text-gray-400 text-xl">Select a friend to start chatting</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+}
 
   if (isLoadingRoommates && studentsOnly.length === 0) {
     return (
