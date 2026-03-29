@@ -35,13 +35,8 @@ function deriveProfileAge(profile: any): number {
     }
   }
 
-  const yearToken = String(profile?.academicYear || '').toLowerCase();
-  if (yearToken.includes('1')) return 19;
-  if (yearToken.includes('2')) return 20;
-  if (yearToken.includes('3')) return 21;
-  if (yearToken.includes('4')) return 22;
-
-  return 18;
+  // No fallback to academicYear or default age
+  return 0;
 }
 
 function normalizeIdValue(value: any): string {
@@ -3161,7 +3156,7 @@ export default function SearchPage() {
               age: deriveProfileAge(profile),
               gender: profile.gender || 'Any',
               university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-              bio: profile.description || 'Looking for a compatible roommate.',
+              bio: profile.description || '',
               image: profile.image || '',
               interests: profileInterests,
               mutualCount,
