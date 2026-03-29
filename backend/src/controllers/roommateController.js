@@ -12,6 +12,22 @@ exports.browseProfiles = async (req, res) => {
       query._id = { $ne: userId };
     }
     const users = await User.find(query).select('name fullName email gender academicYear profilePicture profilePictures description bio tags boardingHouse age dateOfBirth dob birthDate');
+    const deriveAge = (user) => {
+      if (user.age && user.age > 0) return user.age;
+      const dobRaw = user.dateOfBirth || user.dob || user.birthDate;
+      if (dobRaw) {
+        const dob = new Date(dobRaw);
+        if (!Number.isNaN(dob.getTime())) {
+          const today = new Date();
+          let years = today.getFullYear() - dob.getFullYear();
+          const monthDelta = today.getMonth() - dob.getMonth();
+          const beforeBirthday = monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate());
+          if (beforeBirthday) years -= 1;
+          if (years > 0) return years;
+        }
+      }
+      return 0;
+    };
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
@@ -21,13 +37,12 @@ exports.browseProfiles = async (req, res) => {
         ? user.profilePictures
         : (user.profilePicture ? [user.profilePicture] : []),
       profilePicture: user.profilePicture || '',
-      // If no image, return empty array and empty string
       ...( (!user.profilePicture && (!user.profilePictures || user.profilePictures.length === 0)) ? { profilePictures: [], profilePicture: '' } : {} ),
       gender: user.gender || '',
       university: user.boardingHouse || user.academicYear || '',
       email: user.email || '',
       interests: Array.isArray(user.tags) ? user.tags : [],
-      age: user.age,
+      age: deriveAge(user),
       dateOfBirth: user.dateOfBirth || user.dob || user.birthDate || '',
     }));
     res.json({ success: true, data: profiles });
