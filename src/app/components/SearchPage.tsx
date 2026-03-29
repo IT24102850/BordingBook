@@ -498,6 +498,8 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [showSidePanels, setShowSidePanels] = React.useState(true);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
+  // Only render the current roommate card for performance (use studentsOnly)
+  // const current = roommateData && roommateData.length > 0 ? roommateData[currentIdx] : null;
   const [groups, setGroups] = React.useState<any[]>([]);
   const [apiNotice, setApiNotice] = React.useState('');
   const [isLoadingRoommates, setIsLoadingRoommates] = React.useState(false);
