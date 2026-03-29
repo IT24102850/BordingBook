@@ -6,7 +6,7 @@ import {
   MessageSquarePlus, X, Smile, Paperclip, Image, MoreVertical,
   Check, CheckCheck, Mic, MicOff, Camera, CameraOff, Users,
   UserPlus, Settings, Info, Bell, BellOff, Pin, Trash2,
-  Reply, Copy, Forward, Star, Flag, Volume2, VolumeX
+  Reply, Copy, Forward, Star, Flag, Volume2, VolumeX, UserCheck
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
@@ -70,6 +70,19 @@ interface ChatContact {
   conversationId: string | null;
   isOnline?: boolean;
   lastSeen?: string;
+}
+
+interface AcceptedRoommate {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  age: number;
+  gender: string;
+  university: string;
+  bio: string;
+  image: string;
+  interests?: string[];
 }
 
 interface IncomingCall {
@@ -136,7 +149,6 @@ function formatTime(value: string | Date | undefined): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
   const isToday = date.toDateString() === now.toDateString();
   const isYesterday = new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
   
@@ -147,19 +159,6 @@ function formatTime(value: string | Date | undefined): string {
   } else {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
-}
-
-function formatFullDateTime(value: string | Date | undefined): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString([], { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
 }
 
 function appendMessageIfMissing(existing: ChatMessage[], incoming: ChatMessage): ChatMessage[] {
@@ -187,11 +186,13 @@ export default function Chat() {
   const token = localStorage.getItem('bb_access_token') || '';
 
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [acceptedRoommates, setAcceptedRoommates] = useState<AcceptedRoommate[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingAcceptedRoommates, setLoadingAcceptedRoommates] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState('');
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
@@ -203,10 +204,11 @@ export default function Chat() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null);
-  const [showConversationMenu, setShowConversationMenu] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [initializingChat, setInitializingChat] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'chats' | 'roommates'>('chats');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -237,6 +239,15 @@ export default function Chat() {
     if (!query) return conversations;
     return conversations.filter((conversation) => conversation.name.toLowerCase().includes(query));
   }, [conversations, searchQuery]);
+
+  const filteredAcceptedRoommates = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return acceptedRoommates;
+    return acceptedRoommates.filter((roommate) => 
+      roommate.name.toLowerCase().includes(query) || 
+      roommate.email.toLowerCase().includes(query)
+    );
+  }, [acceptedRoommates, searchQuery]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -305,6 +316,40 @@ export default function Chat() {
     [activeCall, cleanupMedia, cleanupPeer]
   );
 
+  // Fetch accepted roommates from API
+  const fetchAcceptedRoommates = useCallback(async () => {
+    if (!token) return;
+    try {
+      setLoadingAcceptedRoommates(true);
+      const response = await fetch(`${API_BASE_URL}/api/roommates/mutual`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await response.json();
+      
+      if (response.ok && json.success !== false) {
+        const roommates = Array.isArray(json?.data) ? json.data : [];
+        const mappedRoommates: AcceptedRoommate[] = roommates.map((roommate: any) => ({
+          id: normalizeId(roommate._id || roommate.id),
+          userId: normalizeId(roommate.userId || roommate._id || roommate.id),
+          name: roommate.name || roommate.fullName || 'Student',
+          email: roommate.email || '',
+          age: roommate.age || 20,
+          gender: roommate.gender || 'Any',
+          university: roommate.university || roommate.boardingHouse || 'Student',
+          bio: roommate.bio || roommate.description || 'Looking for a compatible roommate.',
+          image: roommate.image || roommate.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+          interests: Array.isArray(roommate.interests) ? roommate.interests : (Array.isArray(roommate.tags) ? roommate.tags : []),
+        }));
+        setAcceptedRoommates(mappedRoommates);
+      }
+    } catch (error) {
+      console.error('Error fetching accepted roommates:', error);
+    } finally {
+      setLoadingAcceptedRoommates(false);
+    }
+  }, [token]);
+
+  // Fetch conversations
   const fetchConversations = useCallback(async (preferredConversationId?: string): Promise<ChatConversation[]> => {
     if (!token) return [];
     try {
@@ -435,90 +480,71 @@ export default function Chat() {
     }
   }, [selectedConversationId, currentUser, token]);
 
-  // Improved function to handle opening chat from roommate
-  const ensureDirectConversationFromRouteState = useCallback(async () => {
+  // Start a chat with an accepted roommate
+  const startChatWithRoommate = useCallback(async (roommate: AcceptedRoommate) => {
     if (!token || !currentUser) {
-      console.log('[Chat] No token or user, skipping route state check');
+      setError('Please sign in to start a chat');
       return;
     }
 
-    const state = (location.state || {}) as any;
-    const selectedRoommate = state?.selectedRoommate;
-    const queryRecipientId = normalizeId(new URLSearchParams(location.search).get('recipientId'));
-    
-    // Get recipient ID from various sources
-    const recipientId = normalizeId(
-      selectedRoommate?.userId ||
-      selectedRoommate?.id ||
-      state?.recipientId ||
-      queryRecipientId ||
-      state?.selectedUserId ||
-      ''
-    );
-    
-    console.log('[Chat] Ensuring direct conversation with recipient:', recipientId);
-    console.log('[Chat] Selected roommate data:', selectedRoommate);
-    
-    if (!recipientId) {
-      console.log('[Chat] No recipient ID found, skipping');
-      return;
-    }
-    
-    // Prevent duplicate initialization
-    if (lastRecipientBootstrapRef.current === recipientId) {
-      console.log('[Chat] Already initializing chat with this recipient');
-      return;
-    }
-    
     setInitializingChat(true);
-    lastRecipientBootstrapRef.current = recipientId;
-
-    // Helper to find existing conversation
-    const findMatchingConversation = (items: ChatConversation[]): ChatConversation | undefined => {
-      return items.find((conversation) => {
-        const hasParticipantById = conversation.participants.some((participant) => participant.id === recipientId);
-        const hasParticipantByEmail = selectedRoommate?.email 
-          ? conversation.participants.some((participant) => participant.email?.toLowerCase() === selectedRoommate.email.toLowerCase())
-          : false;
-        const hasNameMatch = selectedRoommate?.name 
-          ? conversation.name.toLowerCase().includes(selectedRoommate.name.toLowerCase())
-          : false;
-
-        return hasParticipantById || hasParticipantByEmail || hasNameMatch;
-      });
-    };
-
     try {
-      console.log('[Chat] Attempting to create/find direct conversation...');
+      const recipientId = roommate.userId || roommate.id;
+      console.log('[Chat] Starting chat with roommate:', roommate.name, recipientId);
+      
       const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
         method: 'POST',
         body: JSON.stringify({ recipientId }),
       });
       
       console.log('[Chat] Conversation created/found:', data.id);
-      setError('');
       setSelectedConversationId(data.id);
       selectedConversationIdRef.current = data.id;
       await fetchConversations(data.id);
+      setSidebarTab('chats'); // Switch to chats tab after opening
+    } catch (error) {
+      console.error('[Chat] Error starting chat:', error);
+      setError((error as Error).message || 'Unable to start chat');
+    } finally {
+      setInitializingChat(false);
+    }
+  }, [token, currentUser, fetchConversations]);
+
+  // Open chat from route state (when coming from search page)
+  const ensureDirectConversationFromRouteState = useCallback(async () => {
+    if (!token || !currentUser) return;
+
+    const state = (location.state || {}) as any;
+    const selectedRoommate = state?.selectedRoommate;
+    const queryRecipientId = normalizeId(new URLSearchParams(location.search).get('recipientId'));
+    
+    const recipientId = normalizeId(
+      selectedRoommate?.userId ||
+      selectedRoommate?.id ||
+      state?.recipientId ||
+      queryRecipientId ||
+      ''
+    );
+    
+    if (!recipientId) return;
+    if (lastRecipientBootstrapRef.current === recipientId) return;
+    
+    setInitializingChat(true);
+    lastRecipientBootstrapRef.current = recipientId;
+
+    try {
+      const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
+        method: 'POST',
+        body: JSON.stringify({ recipientId }),
+      });
       
-      // Clear the route state to prevent re-initialization
+      setSelectedConversationId(data.id);
+      selectedConversationIdRef.current = data.id;
+      await fetchConversations(data.id);
       navigate(location.pathname, { replace: true, state: {} });
     } catch (createError) {
       console.error('[Chat] Error creating conversation:', createError);
-      
-      // Try to find existing conversation
-      const latest = await fetchConversations();
-      const fallback = findMatchingConversation(latest);
-
-      if (fallback) {
-        console.log('[Chat] Found existing conversation:', fallback.id);
-        setError('');
-        setSelectedConversationId(fallback.id);
-        selectedConversationIdRef.current = fallback.id;
-        navigate(location.pathname, { replace: true, state: {} });
-      } else {
-        setError((createError as Error).message || 'Unable to open direct conversation. Please try again from the matches page.');
-      }
+      setError((createError as Error).message || 'Unable to open direct conversation.');
     } finally {
       setInitializingChat(false);
     }
@@ -545,13 +571,11 @@ export default function Chat() {
     async (recipientId: string) => {
       try {
         setError('');
-        console.log('[Chat] Starting direct conversation with:', recipientId);
         const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
           method: 'POST',
           body: JSON.stringify({ recipientId }),
         });
 
-        console.log('[Chat] Conversation created:', data.id);
         setSelectedConversationId(data.id);
         selectedConversationIdRef.current = data.id;
         setShowNewChatModal(false);
@@ -711,7 +735,6 @@ export default function Chat() {
         body: JSON.stringify({ content, replyToId: replyToMessage?.id }),
       });
       
-      // Replace temp message with real one
       setMessages((prev) => {
         const filtered = prev.filter((m) => m.id !== tempId);
         return [...filtered, response];
@@ -741,7 +764,6 @@ export default function Chat() {
         },
         async (ack: any) => {
           if (ack?.ok && ack?.data) {
-            // Replace temp message with confirmed message
             setMessages((prev) => {
               const filtered = prev.filter((m) => m.id !== tempId);
               return [...filtered, { ...ack.data, mine: true }];
@@ -751,7 +773,6 @@ export default function Chat() {
               await sendViaRest();
             } catch (sendError) {
               setError((sendError as Error).message || 'Unable to send message');
-              // Remove temp message on error
               setMessages((prev) => prev.filter((m) => m.id !== tempId));
             }
           }
@@ -830,58 +851,19 @@ export default function Chat() {
     setIncomingCall(null);
   }, [incomingCall]);
 
-  const togglePinConversation = useCallback(async (conversationId: string) => {
-    if (!token) return;
-    try {
-      await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/pin`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setConversations(prev =>
-        prev.map(conv =>
-          conv.id === conversationId
-            ? { ...conv, isPinned: !conv.isPinned }
-            : conv
-        )
-      );
-    } catch (error) {
-      console.error('Failed to pin conversation:', error);
-    }
-  }, [token]);
-
-  const toggleMuteConversation = useCallback(async (conversationId: string) => {
-    if (!token) return;
-    try {
-      await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/mute`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setConversations(prev =>
-        prev.map(conv =>
-          conv.id === conversationId
-            ? { ...conv, isMuted: !conv.isMuted }
-            : conv
-        )
-      );
-    } catch (error) {
-      console.error('Failed to mute conversation:', error);
-    }
-  }, [token]);
-
-  // Initial load
+  // Initial data loading
   useEffect(() => {
     fetchConversations();
-  }, [fetchConversations]);
+    fetchAcceptedRoommates();
+  }, [fetchConversations, fetchAcceptedRoommates]);
 
   // Handle route state for opening chat from roommate
   useEffect(() => {
-    // Small delay to ensure conversations are loaded first
     const timer = setTimeout(() => {
       if (!initializingChat) {
         ensureDirectConversationFromRouteState();
       }
     }, 500);
-    
     return () => clearTimeout(timer);
   }, [ensureDirectConversationFromRouteState, initializingChat]);
 
@@ -961,29 +943,24 @@ export default function Chat() {
         setMessages((prev) => appendMessageIfMissing(prev, { ...incoming, mine: incoming.sender.id === currentUser.id }));
       }
       
-      // Play notification sound for new messages
       if (incoming.conversationId !== selectedConversationIdRef.current && !incoming.mine) {
         const audio = new Audio('/notification.mp3');
         audio.play().catch(() => {});
       }
     });
 
-    socket.on('message:delivered', ({ messageId, userId }: { messageId: string; userId: string }) => {
+    socket.on('message:delivered', ({ messageId }: { messageId: string; userId: string }) => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === messageId
-            ? { ...msg, delivered: true }
-            : msg
+          msg.id === messageId ? { ...msg, delivered: true } : msg
         )
       );
     });
 
-    socket.on('message:read', ({ messageId, userId }: { messageId: string; userId: string }) => {
+    socket.on('message:read', ({ messageId }: { messageId: string; userId: string }) => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === messageId
-            ? { ...msg, read: true }
-            : msg
+          msg.id === messageId ? { ...msg, read: true } : msg
         )
       );
     });
@@ -1007,9 +984,7 @@ export default function Chat() {
     socket.on('user:online', ({ userId }: { userId: string }) => {
       setContacts(prev =>
         prev.map(contact =>
-          contact.id === userId
-            ? { ...contact, isOnline: true }
-            : contact
+          contact.id === userId ? { ...contact, isOnline: true } : contact
         )
       );
       setConversations(prev =>
@@ -1025,9 +1000,7 @@ export default function Chat() {
     socket.on('user:offline', ({ userId, lastSeen }: { userId: string; lastSeen: string }) => {
       setContacts(prev =>
         prev.map(contact =>
-          contact.id === userId
-            ? { ...contact, isOnline: false, lastSeen }
-            : contact
+          contact.id === userId ? { ...contact, isOnline: false, lastSeen } : contact
         )
       );
       setConversations(prev =>
@@ -1108,7 +1081,6 @@ export default function Chat() {
     };
   }, []);
 
-  // Loading state while initializing chat
   if (initializingChat) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex items-center justify-center">
@@ -1138,36 +1110,50 @@ export default function Chat() {
 
   return (
     <div className="h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden">
-      {/* Conversations Sidebar */}
+      {/* Sidebar */}
       <div className={`w-full lg:w-96 border-r border-white/10 h-full overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'} flex-col`}>
+        {/* Sidebar Header with Tabs */}
         <div className="p-4 border-b border-white/10 flex-shrink-0">
           <div className="mb-3 flex items-center justify-between">
             <button
               onClick={() => navigate(-1)}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors text-xs font-semibold"
-              title="Back"
             >
               <ArrowLeft size={14} />
               Back
             </button>
           </div>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-xs text-gray-400">Chat with your matched roommates</p>
+          
+          {/* Tab Switcher */}
+          <div className="flex gap-2 mb-4">
             <button
-              onClick={() => {
-                setShowNewChatModal(true);
-                setContactSearchQuery('');
-              }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-semibold"
+              onClick={() => setSidebarTab('chats')}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                sidebarTab === 'chats'
+                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
+                  : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
+              }`}
             >
-              <MessageSquarePlus size={14} /> New Chat
+              Chats ({conversations.length})
+            </button>
+            <button
+              onClick={() => setSidebarTab('roommates')}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                sidebarTab === 'roommates'
+                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
+                  : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
+              }`}
+            >
+              Roommates ({acceptedRoommates.length})
             </button>
           </div>
+          
+          {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input
               type="text"
-              placeholder="Search conversations..."
+              placeholder={sidebarTab === 'chats' ? "Search conversations..." : "Search roommates..."}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
@@ -1175,79 +1161,136 @@ export default function Chat() {
           </div>
         </div>
 
+        {/* Content based on selected tab */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {loadingConversations && (
-            <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin" /> Loading conversations...
-            </div>
-          )}
-
-          {!loadingConversations && filteredConversations.length === 0 && (
-            <div className="p-6 text-gray-400 text-sm text-center">
-              <MessageSquarePlus size={40} className="mx-auto mb-3 opacity-50" />
-              <p>No conversations yet.</p>
-              <p className="text-xs mt-1">Start a chat with your accepted roommates!</p>
-            </div>
-          )}
-
-          {filteredConversations.map((conversation) => (
-            <div key={conversation.id} className="relative group">
-              <button
-                onClick={() => setSelectedConversationId(conversation.id)}
-                className={`w-full p-4 border-b border-white/10 hover:bg-white/5 transition text-left ${
-                  selectedConversationId === conversation.id ? 'bg-white/10' : ''
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="relative">
-                    <img
-                      src={conversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
-                      alt={conversation.name}
-                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                    />
-                    {conversation.type === 'direct' && conversation.participants.find(p => p.id !== currentUser.id)?.isOnline && (
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131d3a]"></div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-white font-semibold truncate">
-                        {conversation.name}
-                        {conversation.isPinned && <Pin size={12} className="inline ml-1 text-cyan-400" />}
-                      </h3>
-                      {conversation.unreadCount > 0 && !conversation.isMuted && (
-                        <span className="bg-cyan-400 text-black text-xs font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center flex-shrink-0">
-                          {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
-                        </span>
-                      )}
-                      {conversation.isMuted && <BellOff size={12} className="text-gray-500" />}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {typingUsers.size > 0 && conversation.id === selectedConversationId ? (
-                        <p className="text-cyan-400 text-sm italic">typing...</p>
-                      ) : (
-                        <p className="text-gray-400 text-sm truncate">
-                          {conversation.lastMessage?.text || 'No messages yet'}
-                        </p>
-                      )}
-                    </div>
-                    <p className="text-gray-500 text-xs">{formatTime(conversation.updatedAt)}</p>
-                  </div>
+          {/* CHATS TAB */}
+          {sidebarTab === 'chats' && (
+            <>
+              {loadingConversations && (
+                <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Loading conversations...
                 </div>
-              </button>
-              
-              {/* Conversation Menu Button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowConversationMenu(!showConversationMenu);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-white/10 rounded-lg"
-              >
-                <MoreVertical size={16} className="text-gray-400" />
-              </button>
-            </div>
-          ))}
+              )}
+
+              {!loadingConversations && filteredConversations.length === 0 && (
+                <div className="p-6 text-gray-400 text-sm text-center">
+                  <MessageSquarePlus size={40} className="mx-auto mb-3 opacity-50" />
+                  <p>No conversations yet.</p>
+                  <p className="text-xs mt-1">Start a chat with your accepted roommates!</p>
+                </div>
+              )}
+
+              {filteredConversations.map((conversation) => (
+                <button
+                  key={conversation.id}
+                  onClick={() => setSelectedConversationId(conversation.id)}
+                  className={`w-full p-4 border-b border-white/10 hover:bg-white/5 transition text-left ${
+                    selectedConversationId === conversation.id ? 'bg-white/10' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      <img
+                        src={conversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                        alt={conversation.name}
+                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                      />
+                      {conversation.type === 'direct' && conversation.participants.find(p => p.id !== currentUser.id)?.isOnline && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131d3a]"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-white font-semibold truncate">
+                          {conversation.name}
+                          {conversation.isPinned && <Pin size={12} className="inline ml-1 text-cyan-400" />}
+                        </h3>
+                        {conversation.unreadCount > 0 && !conversation.isMuted && (
+                          <span className="bg-cyan-400 text-black text-xs font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center flex-shrink-0">
+                            {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+                          </span>
+                        )}
+                        {conversation.isMuted && <BellOff size={12} className="text-gray-500" />}
+                      </div>
+                      <p className="text-gray-400 text-sm truncate">
+                        {conversation.lastMessage?.text || 'No messages yet'}
+                      </p>
+                      <p className="text-gray-500 text-xs">{formatTime(conversation.updatedAt)}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* ROOMMATES TAB - Show accepted roommates */}
+          {sidebarTab === 'roommates' && (
+            <>
+              {loadingAcceptedRoommates && (
+                <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Loading roommates...
+                </div>
+              )}
+
+              {!loadingAcceptedRoommates && filteredAcceptedRoommates.length === 0 && (
+                <div className="p-6 text-gray-400 text-sm text-center">
+                  <UserCheck size={40} className="mx-auto mb-3 opacity-50" />
+                  <p>No accepted roommates yet.</p>
+                  <p className="text-xs mt-1">When you accept a roommate request, they'll appear here.</p>
+                  <button
+                    onClick={() => navigate('/search')}
+                    className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
+                  >
+                    Find Roommates
+                  </button>
+                </div>
+              )}
+
+              {filteredAcceptedRoommates.map((roommate) => (
+                <button
+                  key={roommate.id}
+                  onClick={() => startChatWithRoommate(roommate)}
+                  className="w-full p-4 border-b border-white/10 hover:bg-white/5 transition text-left group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      <img
+                        src={roommate.image || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                        alt={roommate.name}
+                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                      />
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131d3a]"></div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-white font-semibold truncate">{roommate.name}</h3>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                          Chat
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                        <span>{roommate.age} yrs</span>
+                        <span>•</span>
+                        <span>{roommate.gender}</span>
+                        <span>•</span>
+                        <span>{roommate.university}</span>
+                      </div>
+                      <p className="text-gray-500 text-xs mt-1 line-clamp-1">{roommate.bio}</p>
+                      {roommate.interests && roommate.interests.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {roommate.interests.slice(0, 3).map((interest, idx) => (
+                            <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300">
+                              {interest}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -1260,7 +1303,6 @@ export default function Chat() {
               <button 
                 onClick={() => setSelectedConversationId('')} 
                 className="lg:hidden text-cyan-400 hover:text-cyan-300"
-                title="Close conversation"
               >
                 <ArrowLeft size={20} />
               </button>
@@ -1293,21 +1335,18 @@ export default function Chat() {
                 <button
                   onClick={() => startCall('audio')}
                   className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                  title="Start audio call"
                 >
                   <Phone size={20} />
                 </button>
                 <button
                   onClick={() => startCall('video')}
                   className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                  title="Start video call"
                 >
                   <Video size={20} />
                 </button>
                 <button
                   onClick={() => setShowUserProfile(true)}
                   className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                  title="View profile"
                 >
                   <Info size={20} />
                 </button>
@@ -1407,7 +1446,6 @@ export default function Chat() {
                         <p className="text-xs font-bold mb-1 text-cyan-300">{message.sender.fullName || message.sender.email}</p>
                       )}
                       
-                      {/* Reply To Preview */}
                       {message.replyTo && (
                         <div className={`mb-1 px-2 py-1 rounded text-xs border-l-2 ${message.mine ? 'bg-cyan-500/20 border-cyan-300' : 'bg-white/5 border-gray-500'}`}>
                           <p className="text-gray-400">Replying to {message.replyTo.sender.fullName}</p>
@@ -1488,21 +1526,18 @@ export default function Chat() {
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                  title="Add emoji"
                 >
                   <Smile size={20} />
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                  title="Attach file"
                 >
                   <Paperclip size={20} />
                 </button>
                 <button
                   onClick={() => imageInputRef.current?.click()}
                   className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                  title="Upload image"
                 >
                   <Image size={20} />
                 </button>
