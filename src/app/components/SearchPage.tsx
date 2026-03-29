@@ -329,15 +329,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     userId: normalizeIdValue(profile.userId || profile._id || profile.id),
     name: profile.name || profile.fullName || '',
     email: profile.email || '',
-    age: (profile.age && profile.age > 0)
-      ? profile.age
-      : deriveProfileAge({ ...profile, dateOfBirth: profile.dateOfBirth || profile.birthday || profile.dob || profile.birthDate }),
+    age: profile.age,
     gender: profile.gender || '',
     university: profile.boardingHouse || profile.academicYear || '',
-    bio: profile.bio || profile.description || '',
-    image: (Array.isArray(profile.profilePictures) && profile.profilePictures.length > 0)
-      ? profile.profilePictures[0]
-      : (profile.profilePicture || ''),
+    bio: profile.bio,
+    image: profile.profilePicture || (Array.isArray(profile.profilePictures) && profile.profilePictures.length > 0 ? profile.profilePictures[0] : ''),
     profilePictures: Array.isArray(profile.profilePictures) ? profile.profilePictures : [],
     interests: Array.isArray(profile.tags) ? profile.tags : [],
     mutualCount: Number(profile.mutualCount) || 0,
