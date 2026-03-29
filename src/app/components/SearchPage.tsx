@@ -332,16 +332,20 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const mapProfileToRoommate = React.useCallback((profile: any) => ({
     id: normalizeIdValue(profile._id || profile.id),
     userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-    // Only show real name from DB, no fallback to 'Student'
     name: profile.name || profile.fullName || '',
     email: profile.email || '',
-    age: deriveProfileAge(profile),
+    // Prefer explicit age, else derive from birthday, else academicYear
+    age: (profile.age && profile.age > 0)
+      ? profile.age
+      : deriveProfileAge({ ...profile, dateOfBirth: profile.dateOfBirth || profile.birthday || profile.dob || profile.birthDate }),
     gender: profile.gender || '',
     university: profile.boardingHouse || profile.academicYear || '',
-    // Only show real bio/description from DB, no fallback
-    bio: profile.description || profile.bio || '',
-    // Only show real image from DB, no fallback to lego image
-    image: profile.image || profile.profilePicture || '',
+    // Prefer bio over description
+    bio: profile.bio || profile.description || '',
+    // Prefer profilePictures array, else profilePicture string, else nothing
+    image: (Array.isArray(profile.profilePictures) && profile.profilePictures.length > 0)
+      ? profile.profilePictures[0]
+      : (profile.profilePicture || ''),
     profilePictures: Array.isArray(profile.profilePictures) ? profile.profilePictures : [],
     interests: Array.isArray(profile.tags) ? profile.tags : [],
     mutualCount: Number(profile.mutualCount) || 0,
