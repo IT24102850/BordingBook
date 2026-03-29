@@ -231,7 +231,6 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
           alt={displayName} 
           className="w-full h-full object-cover transition-all duration-300"
         />
-        
         {/* Image Navigation Arrows */}
         {images.length > 1 && (
           <>
@@ -255,7 +254,6 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
             </button>
           </>
         )}
-
         {/* Image Indicators */}
         {images.length > 1 && (
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
@@ -270,7 +268,6 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
           </div>
         )}
       </div>
-
       <div className="flex flex-col items-center p-4">
         <h3 className="text-xl font-bold text-white mb-1">{displayName}, <span className="text-pink-300">{roommate.age}</span></h3>
         <div className="text-sm text-pink-200 mb-1">{roommate.gender} | {roommate.university}</div>
@@ -1139,34 +1136,41 @@ const getTravelTime = (distance: number): string => {
 const getVacancyInfo = (vacancy: string, totalRooms: number, occupiedRooms: number): { label: string; color: string; bgColor: string; icon: string } => {
   switch (vacancy) {
     case 'low':
-      return { 
-        label: `${totalRooms - occupiedRooms} Vacancy Left`, 
-        color: 'text-red-300', 
-        bgColor: 'bg-red-500/20 border-red-500/30',
-        icon: '!' 
+      return {
+        label: 'Low Vacancy',
+        color: 'text-yellow-300',
+        bgColor: 'bg-yellow-500/20 border-yellow-500/30',
+        icon: '!' // Replace with icon component if needed
       };
     case 'full':
-      return { 
-        label: 'Fully Booked', 
-        color: 'text-gray-300', 
-        bgColor: 'bg-gray-500/20 border-gray-500/30',
-        icon: 'X'
+      return {
+        label: 'Full',
+        color: 'text-red-300',
+        bgColor: 'bg-red-500/20 border-red-500/30',
+        icon: 'X' // Replace with icon component if needed
       };
     case 'coming':
-      return { 
-        label: 'Coming Soon', 
-        color: 'text-blue-300', 
+      return {
+        label: 'Coming Soon',
+        color: 'text-blue-300',
         bgColor: 'bg-blue-500/20 border-blue-500/30',
-        icon: '...'
+        icon: '...' // Replace with icon component if needed
       };
     default: // 'available'
-      return { 
-        label: `${totalRooms - occupiedRooms} Available`, 
-        color: 'text-green-300', 
+      return {
+        label: `${totalRooms - occupiedRooms} Available`,
+        color: 'text-green-300',
         bgColor: 'bg-green-500/20 border-green-500/30',
-        icon: 'OK'
+        icon: 'OK' // Replace with icon component if needed
       };
   }
+  // Fallback return to satisfy TypeScript
+  return {
+    label: 'Unknown',
+    color: 'text-gray-300',
+    bgColor: 'bg-gray-500/20 border-gray-500/30',
+    icon: '?'
+  };
 };
 
 // Booking Form Component
@@ -4337,78 +4341,62 @@ export default function SearchPage() {
             </div>
           </div>
         )}
-      </div>
-
       {/* Global Animations */}
       <style>{`
         @keyframes swipe-left {
           0% { transform: translateX(0) rotate(0); opacity: 1; }
           100% { transform: translateX(-300px) rotate(-15deg); opacity: 0; }
         }
-        
         @keyframes swipe-right {
           0% { transform: translateX(0) rotate(0); opacity: 1; }
           100% { transform: translateX(300px) rotate(15deg); opacity: 0; }
         }
-        
         .animate-swipe-left {
           animation: swipe-left 0.3s ease-out forwards;
         }
-        
         .animate-swipe-right {
           animation: swipe-right 0.3s ease-out forwards;
         }
-        
         @keyframes fade-in {
           from { opacity: 0; }
           to { opacity: 1; }
         }
-        
         @keyframes fade-in-up {
           0% { opacity: 0; transform: translate(-50%, 20px); }
           100% { opacity: 1; transform: translate(-50%, 0); }
         }
-        
         .animate-fade-in {
           animation: fade-in 0.3s ease-out;
         }
-        
         .animate-fade-in-up {
           animation: fade-in-up 0.3s ease-out;
         }
-        
         .perspective-1000 {
           perspective: 1000px;
         }
-        
         .line-clamp-1 {
           display: -webkit-box;
           -webkit-line-clamp: 1;
           -webkit-box-orient: vertical;
           overflow: hidden;
         }
-        
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
         }
-        
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
         }
-        
         .custom-scrollbar::-webkit-scrollbar-track {
           background: rgba(255, 255, 255, 0.05);
           border-radius: 10px;
         }
-        
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: rgba(34, 211, 238, 0.3);
           border-radius: 10px;
         }
-        
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(34, 211, 238, 0.5);
         }
