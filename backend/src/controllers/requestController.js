@@ -3,7 +3,8 @@
  * Placeholder for future request functionality
  */
 
-// Remove any duplicate require of RoommateRequest below this line
+// Only one require for RoommateRequest should exist at the top of the file:
+const RoommateRequest = require('../models/RoommateRequest');
 const User = require('../models/User');
 
 /**
