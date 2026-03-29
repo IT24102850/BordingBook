@@ -15,10 +15,12 @@ exports.browseProfiles = async (req, res) => {
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
-      name: user.name || 'Student',
+      name: user.name || '',
       bio: user.description || '',
-      profilePictures: user.profilePictures && user.profilePictures.length > 0 ? user.profilePictures : [user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg'],
-      gender: user.gender || 'Any',
+      profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
+        ? user.profilePictures
+        : (user.profilePicture ? [user.profilePicture] : []),
+      gender: user.gender || '',
       university: user.boardingHouse || user.academicYear || '',
       email: user.email || '',
       interests: Array.isArray(user.tags) ? user.tags : [],
