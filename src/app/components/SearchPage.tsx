@@ -55,41 +55,9 @@ function normalizeIdValue(value: any): string {
 }
 
 // Mock roommate data
-const roommates = [
-  {
-    id: 1,
-    name: 'Ayesha Perera',
-    email: 'ayesha@sliit.lk',
-    age: 22,
-    gender: 'Female',
-    university: 'SLIIT',
-    bio: 'Looking for a friendly roommate. Loves music and reading.',
-    image: 'https://randomuser.me/api/portraits/women/44.jpg',
-    interests: ['Music', 'Reading', 'Cooking'],
-  },
-  {
-    id: 2,
-    name: 'Nimal Silva',
-    email: 'nimal@sliit.lk',
-    age: 24,
-    gender: 'Male',
-    university: 'CINEC',
-    bio: 'Clean, quiet, and respectful. Enjoys sports and movies.',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    interests: ['Sports', 'Movies', 'Travel'],
-  },
-  {
-    id: 3,
-    name: 'Sajini Fernando',
-    email: 'sajini@sliit.lk',
-    age: 21,
-    gender: 'Female',
-    university: 'NSBM',
-    bio: 'Outgoing and social. Loves to cook and explore new places.',
-    image: 'https://randomuser.me/api/portraits/women/68.jpg',
-    interests: ['Cooking', 'Travel', 'Dancing'],
-  },
-];
+
+ 
+
 
 // Mini Roommate Card for passed/favorites columns
 const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
