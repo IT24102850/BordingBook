@@ -98,10 +98,13 @@ exports.getLikedProfiles = async (req, res) => {
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
-      name: user.name || 'Student',
-      bio: user.description || '',
-      profilePictures: user.profilePictures && user.profilePictures.length > 0 ? user.profilePictures : [user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg'],
-      gender: user.gender || 'Any',
+      name: user.name || user.fullName || '',
+      bio: user.bio || user.description || '',
+      profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
+        ? user.profilePictures
+        : (user.profilePicture ? [user.profilePicture] : []),
+      profilePicture: user.profilePicture || '',
+      gender: user.gender || '',
       university: user.boardingHouse || user.academicYear || '',
       email: user.email || '',
       interests: Array.isArray(user.tags) ? user.tags : [],
@@ -127,10 +130,13 @@ exports.getPassedProfiles = async (req, res) => {
     const profiles = users.map(user => ({
       id: user._id,
       userId: user._id,
-      name: user.name || 'Student',
-      bio: user.description || '',
-      profilePictures: user.profilePictures && user.profilePictures.length > 0 ? user.profilePictures : [user.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg'],
-      gender: user.gender || 'Any',
+      name: user.name || user.fullName || '',
+      bio: user.bio || user.description || '',
+      profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
+        ? user.profilePictures
+        : (user.profilePicture ? [user.profilePicture] : []),
+      profilePicture: user.profilePicture || '',
+      gender: user.gender || '',
       university: user.boardingHouse || user.academicYear || '',
       email: user.email || '',
       interests: Array.isArray(user.tags) ? user.tags : [],

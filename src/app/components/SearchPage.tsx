@@ -329,15 +329,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     userId: normalizeIdValue(profile.userId || profile._id || profile.id),
     name: profile.name || profile.fullName || '',
     email: profile.email || '',
-    // Prefer explicit age, else derive from birthday, else academicYear
     age: (profile.age && profile.age > 0)
       ? profile.age
       : deriveProfileAge({ ...profile, dateOfBirth: profile.dateOfBirth || profile.birthday || profile.dob || profile.birthDate }),
     gender: profile.gender || '',
     university: profile.boardingHouse || profile.academicYear || '',
-    // Prefer bio over description
     bio: profile.bio || profile.description || '',
-    // Prefer profilePictures array, else profilePicture string, else nothing
     image: (Array.isArray(profile.profilePictures) && profile.profilePictures.length > 0)
       ? profile.profilePictures[0]
       : (profile.profilePicture || ''),
