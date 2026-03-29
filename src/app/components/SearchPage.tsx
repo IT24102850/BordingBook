@@ -495,7 +495,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [mutualMatches, setMutualMatches] = React.useState<any[]>([]);
   const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = React.useState(false);
-  const [showSidePanels, setShowSidePanels] = React.useState(false);
+  const [showSidePanels, setShowSidePanels] = React.useState(true);
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
   const [groups, setGroups] = React.useState<any[]>([]);
@@ -1849,7 +1849,14 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
   );
 }
 
-// Booking Form Component (simplified for brevity)
+
+
+
+
+
+
+
+// Booking Form Component (advanced version)
 const BookingForm: React.FC<{
   listing: Listing | null;
   onClose: () => void;
@@ -1858,64 +1865,181 @@ const BookingForm: React.FC<{
   currentUserEmail?: string;
   currentUserImage?: string;
 }> = ({ listing, onClose, onSubmit, currentUserName = '', currentUserEmail = '', currentUserImage = '' }) => {
-  const [fullName, setFullName] = useState(currentUserName);
-  const [contact, setContact] = useState('');
+  const [bookingType, setBookingType] = useState<'INDIVIDUAL' | 'GROUP'>('INDIVIDUAL');
+  const [studentName, setStudentName] = useState(currentUserName);
+  const [groupName, setGroupName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [moveInDate, setMoveInDate] = useState('');
-  const [duration, setDuration] = useState('');
+  const [durationMonths, setDurationMonths] = useState('');
+  const [specialNotes, setSpecialNotes] = useState('');
+  const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSubmit = () => {
-    if (!contact || !moveInDate || !duration) {
-      alert('Please fill all required fields');
+  const listingTitle = listing?.title || 'N/A';
+  const listingId = listing?.id || 'N/A';
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    setSuccessMessage('');
+    if (
+      (bookingType === 'INDIVIDUAL' && !studentName) ||
+      (bookingType === 'GROUP' && !groupName) ||
+      !contactNumber ||
+      !moveInDate ||
+      !durationMonths
+    ) {
+      setFormError('Please fill all required fields.');
       return;
     }
-    onSubmit({ fullName, contact, moveInDate, duration });
+    onSubmit({
+      bookingType,
+      studentName,
+      groupName,
+      contactNumber,
+      moveInDate,
+      durationMonths,
+      specialNotes,
+      listingId,
+      listingTitle,
+    });
+    setSuccessMessage('Booking request submitted!');
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl max-w-md w-full border border-white/10">
-        <div className="p-4 border-b border-white/10 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-white">Booking Form</h3>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
-            <FaTimes className="text-gray-400" />
-          </button>
+      <div className="w-full max-w-lg">
+        <h2 className="text-2xl md:text-3xl font-extrabold mb-2 text-center bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">Booking Form</h2>
+        <p className="text-center text-gray-300 mb-8">Submit your room booking request</p>
+
+        <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-1">Selected Room</h3>
+          <p className="text-sm text-gray-300">{listingTitle} • ID: {listingId}</p>
         </div>
-        <div className="p-4 space-y-4">
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
-          />
-          <input
-            type="tel"
-            placeholder="Contact Number"
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
-          />
-          <input
-            type="date"
-            value={moveInDate}
-            onChange={(e) => setMoveInDate(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
-          />
-          <input
-            type="number"
-            placeholder="Duration (months)"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
-          />
-          <button
-            onClick={handleSubmit}
-            className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg font-semibold"
-          >
-            Submit Booking
-          </button>
-        </div>
+
+        <form onSubmit={handleSubmit} className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 space-y-4">
+          <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
+            <button
+              type="button"
+              onClick={() => {
+                setBookingType('INDIVIDUAL');
+                setFormError('');
+                setSuccessMessage('');
+              }}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${bookingType === 'INDIVIDUAL'
+                ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+                : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Individual Booking
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBookingType('GROUP');
+                setFormError('');
+                setSuccessMessage('');
+              }}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${bookingType === 'GROUP'
+                ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+                : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Group Booking
+            </button>
+          </div>
+
+          {bookingType === 'INDIVIDUAL' ? (
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Full Name *</label>
+              <input
+                type="text"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="Enter full name"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Group Name *</label>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="e.g. SLIIT Friends"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Contact Number *</label>
+            <input
+              type="tel"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              placeholder="e.g. 0771234567"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Move-in Date *</label>
+              <input
+                type="date"
+                value={moveInDate}
+                onChange={(e) => setMoveInDate(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Duration (months) *</label>
+              <input
+                type="number"
+                min="1"
+                value={durationMonths}
+                onChange={(e) => setDurationMonths(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="e.g. 6"
+              />
+            </div>
+          </div>
+
+          {bookingType === 'INDIVIDUAL' && (
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Special Notes</label>
+              <textarea
+                value={specialNotes}
+                onChange={(e) => setSpecialNotes(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="Any additional requests"
+              />
+            </div>
+          )}
+
+          {formError && <p className="text-red-400 text-sm text-center">{formError}</p>}
+          {successMessage && <p className="text-green-400 text-sm text-center">{successMessage}</p>}
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+            >
+              Submit Booking Request
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
