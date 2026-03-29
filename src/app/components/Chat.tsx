@@ -1315,11 +1315,11 @@ export default function Chat() {
       {selectedConversation && (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Chat Header */}
-          <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5">
-            <div className="flex items-center gap-3">
+          <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5 sticky top-0 z-10">
+            <div className="flex items-center gap-3 min-w-0">
               <button 
                 onClick={() => setSelectedConversationId('')} 
-                className="lg:hidden text-cyan-400 hover:text-cyan-300"
+                className="lg:hidden text-cyan-400 hover:text-cyan-300 flex-shrink-0"
               >
                 <ArrowLeft size={20} />
               </button>
@@ -1333,9 +1333,9 @@ export default function Chat() {
                   <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#131d3a]"></div>
                 )}
               </div>
-              <div>
-                <h2 className="text-white font-semibold">{selectedConversation.name}</h2>
-                <p className="text-gray-400 text-xs">
+              <div className="min-w-0">
+                <h2 className="text-white font-semibold truncate text-base sm:text-lg">{selectedConversation.name}</h2>
+                <p className="text-gray-400 text-xs truncate">
                   {selectedConversation.type === 'group' 
                     ? `${selectedConversation.participants.length} members` 
                     : targetParticipant?.isOnline 
