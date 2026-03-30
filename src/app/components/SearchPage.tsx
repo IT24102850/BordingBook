@@ -493,6 +493,8 @@ function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }:
 
 // Roommate Finder Component
 function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] }) {
+    const [loadTimeout, setLoadTimeout] = React.useState(false);
+    const [retryKey, setRetryKey] = React.useState(0);
   const navigate = useNavigate();
   const [roommateTab, setRoommateTab] = React.useState<'browse' | 'requests' | 'inbox' | 'groups'>('browse');
   const [currentIdx, setCurrentIdx] = React.useState(0);
@@ -656,9 +658,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   }, [callRoommateApi, mapProfileToRoommate]);
 
   React.useEffect(() => {
+    setLoadTimeout(false);
+    const timeout = setTimeout(() => setLoadTimeout(true), 15000); // 15s timeout
     loadRoommateProfiles();
     loadRoommateNetworkData();
-  }, [loadRoommateProfiles, loadRoommateNetworkData]);
+    return () => clearTimeout(timeout);
+  }, [loadRoommateProfiles, loadRoommateNetworkData, retryKey]);
 
   const handleLike = () => {
     if (!current || isAnimating) return;
@@ -777,6 +782,20 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   };
 
   if (isLoadingRoommates && studentsOnly.length === 0) {
+    if (loadTimeout) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="w-12 h-12 border-4 border-red-400/30 border-t-red-300 rounded-full animate-spin mb-4" />
+          <p className="text-red-300 text-sm mb-2">Roommate profiles are taking too long to load.</p>
+          <button
+            onClick={() => { setRetryKey((k) => k + 1); }}
+            className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
