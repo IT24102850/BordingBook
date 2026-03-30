@@ -14,62 +14,60 @@ async function startServer() {
     await connectDatabase();
     console.log('✓ Database connected successfully');
 
-    // ====================== MOUNT ALL ROUTES HERE ======================
-    // Use the exact filenames from your routes folder
+    // ====================== ROUTE MOUNTING ======================
 
-    // Admin Routes - We will create this file next
+    // Admin Routes (Correct filename)
     try {
       const adminRoutes = require('./routes/adminRoutes');
       app.use('/api/admin', adminRoutes);
       console.log('✓ Admin routes mounted successfully');
     } catch (err) {
-      console.warn('⚠️ Could not load adminRoutes:', err.message);
+      console.error('✗ Failed to load adminRoutes:', err.message);
     }
 
-    // Other existing routes (uncomment when ready)
+    // Other routes
     try {
       const authRoutes = require('./routes/authRoutes');
       app.use('/api/auth', authRoutes);
       console.log('✓ Auth routes mounted');
-    } catch (err) {
-      console.warn('⚠️ Could not load authRoutes');
+    } catch (e) {
+      console.warn('⚠️ Auth routes not loaded');
     }
 
     try {
       const ownerRoutes = require('./routes/ownerRoutes');
       app.use('/api/owner', ownerRoutes);
       console.log('✓ Owner routes mounted');
-    } catch (err) {
-      console.warn('⚠️ Could not load ownerRoutes');
+    } catch (e) {
+      console.warn('⚠️ Owner routes not loaded');
     }
 
     try {
       const roommateRoutes = require('./routes/roommateRoutes');
       app.use('/api/roommates', roommateRoutes);
       console.log('✓ Roommate routes mounted');
-    } catch (err) {
-      console.warn('⚠️ Could not load roommateRoutes');
+    } catch (e) {
+      console.warn('⚠️ Roommate routes not loaded');
     }
 
     try {
       const chatRoutes = require('./routes/chatRoutes');
       app.use('/api/chat', chatRoutes);
       console.log('✓ Chat routes mounted');
-    } catch (err) {
-      console.warn('⚠️ Could not load chatRoutes');
+    } catch (e) {
+      console.warn('⚠️ Chat routes not loaded');
     }
 
-    // Health check route (very useful)
+    // Health check route
     app.get('/api/health', (req, res) => {
       res.json({
         success: true,
-        message: 'Server is healthy',
-        environment: env.nodeEnv || 'production',
-        timestamp: new Date().toISOString()
+        message: 'Server is running',
+        environment: env.nodeEnv || 'production'
       });
     });
 
-    // ====================== 404 HANDLER - MUST BE LAST ======================
+    // 404 handler - MUST BE LAST
     app.use((req, res) => {
       res.status(404).json({
         success: false,
@@ -95,7 +93,6 @@ async function startServer() {
       console.log(`✓ Server running on port ${env.port}`);
       console.log(`✓ Environment: ${env.nodeEnv}`);
       console.log(`✓ Health check: /api/health`);
-      console.log(`✓ Try admin login: /api/admin/login`);
     });
 
   } catch (error) {
@@ -106,7 +103,7 @@ async function startServer() {
 
 // Graceful shutdown
 function shutdown(signal) {
-  console.log(`${signal} received. Shutting down gracefully...`);
+  console.log(`${signal} received. Shutting down...`);
   if (server) {
     server.close(async () => {
       await mongoose.connection.close(false);
