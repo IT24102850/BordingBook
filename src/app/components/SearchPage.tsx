@@ -1679,11 +1679,11 @@ const FiltersPanel: React.FC<{
   ];
 
   const distanceOptions = [
-    { label: '500m', value: '500m' },
-    { label: '1km', value: 'walking' },
-    { label: '2km', value: 'cycling' },
-    { label: '5km', value: 'bus' },
-    { label: 'Any', value: 'any' }
+    { label: '1km', value: 1 },
+    { label: '2km', value: 2 },
+    { label: '5km', value: 5 },
+    { label: '10km', value: 10 },
+    { label: '20km', value: 20 },
   ];
 
   const roomTypeOptions = ['All', 'Single', 'Master', 'Sharing', 'Annex'];
