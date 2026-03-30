@@ -1405,10 +1405,10 @@ const ListingCard: React.FC<ListingCardProps> = ({
           <div className="flex justify-between items-start mb-2">
             <h2 className="text-xl font-bold text-white">{listing.title}</h2>
             <div className="flex items-center gap-1 text-xs bg-cyan-500/20 px-2 py-1 rounded-full">
-              {getTravelIcon(listing.distance)}
-              <span className="text-cyan-300">{listing.travelTime}</span>
-            </div>
-          </div>
+              setSelectedRoomForBooking: (listing: Listing) => void;
+              setShowBooking: (show: boolean) => void;
+            }
+            const DetailsModal: React.FC<DetailsModalPropsFixed> = ({ listing, onClose, onLike, onBooking, setSelectedRoomForBooking, setShowBooking }) => {
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <FaMapMarkerAlt className="text-purple-400" />
             <span>{listing.location} | {listing.distance}km from SLIIT</span>
@@ -1501,6 +1501,11 @@ const ListingCard: React.FC<ListingCardProps> = ({
 };
 
 // Details Modal Component
+interface DetailsModalPropsFixed extends DetailsModalProps {
+  setSelectedRoomForBooking: (listing: Listing) => void;
+  setShowBooking: (show: boolean) => void;
+}
+const DetailsModal: React.FC<DetailsModalPropsFixed> = ({ listing, onClose, onLike, onBooking, setSelectedRoomForBooking, setShowBooking }) => {
 const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, onBooking }) => {
   if (!listing) return null;
 
@@ -1592,21 +1597,30 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, o
           <div className="space-y-2">
             <button
               onClick={() => {
-                onBooking?.(listing);
+                setSelectedRoomForBooking(listing);
+                setShowBooking(true);
                 onClose();
               }}
               className="w-full py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
             >
               <FaCheckCircle />
               Book Now
-            </button>
             <button
               onClick={() => {
-                onLike();
+                setSelectedRoomForBooking(listing);
+                setShowBooking(true);
                 onClose();
               }}
-              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
             >
+              export default function SearchPage() {
+                // ...existing code...
+                // Pass setSelectedRoomForBooking and setShowBooking to DetailsModal
+                // ...existing code...
+                // When rendering DetailsModal:
+                // <DetailsModal ... setSelectedRoomForBooking={setSelectedRoomForBooking} setShowBooking={setShowBooking} />
+                // ...existing code...
+              }
               <FaHeart />
               Like This Room
             </button>
