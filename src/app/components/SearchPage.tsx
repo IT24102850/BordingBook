@@ -1815,12 +1815,32 @@ const BookingForm: React.FC<{
   currentUserImage?: string;
 }> = ({ listing, onClose, onSubmit, currentUserName = '', currentUserEmail = '', currentUserImage = '' }) => {
 
-  const [fullName, setFullName] = useState(currentUserName);
-  const [contact, setContact] = useState('');
+  // Booking type: 'INDIVIDUAL' or 'GROUP'
+  const [bookingType, setBookingType] = useState<'INDIVIDUAL' | 'GROUP'>('INDIVIDUAL');
+  // For individual booking
+  const [studentName, setStudentName] = useState(currentUserName || '');
+  // For group booking
+  const [groupName, setGroupName] = useState('');
+  // Contact number
+  const [contactNumber, setContactNumber] = useState('');
+  // Move-in date
   const [moveInDate, setMoveInDate] = useState('');
-  const [duration, setDuration] = useState('');
+  // Duration in months
+  const [durationMonths, setDurationMonths] = useState('');
+  // Special notes (for individual)
+  const [specialNotes, setSpecialNotes] = useState('');
+  // Error and success messages
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  // For backward compatibility with previous logic
+  const fullName = bookingType === 'INDIVIDUAL' ? studentName : groupName;
+  const contact = contactNumber;
+  const duration = durationMonths;
+
+  // Listing info for display
+  const listingTitle = listing?.title || '';
+  const listingId = listing?.id || '';
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -1860,53 +1880,126 @@ const BookingForm: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl max-w-md w-full border border-white/10">
-        <div className="p-4 border-b border-white/10 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-white">Booking Form</h3>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
-            <FaTimes className="text-gray-400" />
+    <>
+      <h2 className="text-2xl md:text-3xl font-extrabold mb-2 text-center bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">Booking Form</h2>
+      <p className="text-center text-gray-300 mb-8">Submit your room booking request</p>
+
+      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-1">Selected Room</h3>
+        <p className="text-sm text-gray-300">{listing?.title || ''} • ID: {listing?.id || ''}</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 space-y-4">
+        <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
+          <button
+            type="button"
+            onClick={() => {
+              setBookingType('INDIVIDUAL');
+              setFormError('');
+              setSuccessMessage('');
+            }}
+            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${bookingType === 'INDIVIDUAL'
+              ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+              : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            Individual Booking
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setBookingType('GROUP');
+              setFormError('');
+              setSuccessMessage('');
+            }}
+            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${bookingType === 'GROUP'
+              ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+              : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            Group Booking
           </button>
         </div>
-        <form className="p-4 space-y-4" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
-          />
+
+        {bookingType === 'INDIVIDUAL' ? (
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Full Name *</label>
+            <input
+              type="text"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              placeholder="Enter full name"
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Group Name *</label>
+            <input
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              placeholder="e.g. SLIIT Friends"
+            />
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm text-gray-300 mb-1">Contact Number *</label>
           <input
             type="tel"
-            placeholder="Contact Number"
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
+            value={contactNumber}
+            onChange={(e) => setContactNumber(e.target.value)}
+            className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            placeholder="e.g. 0771234567"
           />
-          <input
-            type="date"
-            value={moveInDate}
-            onChange={(e) => setMoveInDate(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
-          />
-          <input
-            type="number"
-            placeholder="Duration (months)"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
-          />
-          {formError && <div className="text-red-400 text-sm">{formError}</div>}
-          {successMessage && <div className="text-green-400 text-sm">{successMessage}</div>}
-          <button
-            type="submit"
-            className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg font-semibold"
-          >
-            Submit Booking
-          </button>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Move-in Date *</label>
+            <input
+              type="date"
+              value={moveInDate}
+              onChange={(e) => setMoveInDate(e.target.value)}
+              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Duration (months) *</label>
+            <input
+              type="number"
+              min="1"
+              value={durationMonths}
+              onChange={(e) => setDurationMonths(e.target.value)}
+              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              placeholder="e.g. 6"
+            />
+          </div>
+        </div>
+
+        {bookingType === 'INDIVIDUAL' && (
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Special Notes</label>
+            <textarea
+              value={specialNotes}
+              onChange={(e) => setSpecialNotes(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              placeholder="Any additional requests"
+            />
+          </div>
+        )}
+
+        <button
+          type="submit"
+          className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+        >
+          Submit Booking Request
+        </button>
+      </form>
+    </>
   );
 };
 
