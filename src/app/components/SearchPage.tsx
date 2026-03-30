@@ -661,89 +661,113 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     }, 250);
   };
 
-  const handlePass = () => {
-    if (!current || isAnimating) return;
-    setIsAnimating(true);
-    setDirection('left');
-    setTimeout(() => {
-      setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-        // Only call API if not already liked
-        if (likedRoommates.includes(current.id)) return;
-        const token = localStorage.getItem('bb_access_token') || '';
-        if (!token) return;
-        
-        await fetch(`${API_BASE_URL}/api/roommates/like/${current.id}`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-          if (isMongoId(current.id)) {
-            await callRoommateApi('/swipe', {
-              method: 'POST',
-              body: JSON.stringify({ profileId: current.id, action: 'pass' }),
-            });
-          }
-        } catch (error) {
-          console.error('Error syncing pass:', error);
+
+
+
+
+const handlePass = () => {
+  if (!current || isAnimating) return;
+  setIsAnimating(true);
+  setDirection('left');
+  setTimeout(() => {
+    setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
+    if (currentIdx < studentsOnly.length - 1) {
+      setCurrentIdx(currentIdx + 1);
+    }
+    setDirection(null);
+    setIsAnimating(false);
+
+    void (async () => {
+      try {
+        if (isMongoId(current.id)) {
+          await callRoommateApi('/swipe', {
+            method: 'POST',
+            body: JSON.stringify({ profileId: current.id, action: 'pass' }),
+          });
         }
-      })();
-    }, 250);
-  };
-
-  const handleUndo = () => {
-    if (currentIdx > 0) {
-      setCurrentIdx(currentIdx - 1);
-      setDirection(null);
-    }
-  };
-
-  const handleRequestResponse = async (requestId: string, accept: boolean) => {
-    try {
-      await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, {
-        method: 'PATCH',
-      });
-      await loadRoommateNetworkData();
-      setApiNotice(accept ? 'Request accepted. You can start chatting now.' : 'Request rejected.');
-      setTimeout(() => setApiNotice(''), 3000);
-    } catch (error) {
-      setApiNotice((error as Error).message || 'Failed to update request status');
-      setTimeout(() => setApiNotice(''), 3000);
-    }
-  };
-
-  const createGroupFromLiked = async () => {
-    try {
-      const memberEmails = liked.map((m) => m.email).filter(Boolean);
-      if (memberEmails.length === 0) {
-        setApiNotice('Like at least one roommate before creating a group.');
-        setTimeout(() => setApiNotice(''), 3000);
-        return;
+      } catch (error) {
+        console.error('Error syncing pass:', error);
       }
+    })();
+  }, 250);
+};
 
-      await callRoommateApi('/group', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: `Roommate Group ${new Date().toLocaleDateString()}`,
-          memberEmails,
-        }),
-      });
-
-      await loadRoommateNetworkData();
-      setApiNotice('Group created successfully. Members will receive invites.');
-      setTimeout(() => setApiNotice(''), 3000);
-    } catch (error) {
-      setApiNotice((error as Error).message || 'Failed to create group');
-      setTimeout(() => setApiNotice(''), 3000);
-    }
-  };
-
-  if (isLoadingRoommates && studentsOnly.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
-        <p className="text-cyan-200 text-sm">Loading roommate profiles...</p>
-      </div>
-    );
+const handleUndo = () => {
+  if (currentIdx > 0) {
+    setCurrentIdx(currentIdx - 1);
+    setDirection(null);
   }
+};
+
+const handleRequestResponse = async (requestId: string, accept: boolean) => {
+  try {
+    await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, {
+      method: 'PATCH',
+    });
+    await loadRoommateNetworkData();
+    setApiNotice(accept ? 'Request accepted. You can start chatting now.' : 'Request rejected.');
+    setTimeout(() => setApiNotice(''), 3000);
+  } catch (error) {
+    setApiNotice((error as Error).message || 'Failed to update request status');
+    setTimeout(() => setApiNotice(''), 3000);
+  }
+};
+
+const createGroupFromLiked = async () => {
+  try {
+    const memberEmails = liked.map((m) => m.email).filter(Boolean);
+    if (memberEmails.length === 0) {
+      setApiNotice('Like at least one roommate before creating a group.');
+      setTimeout(() => setApiNotice(''), 3000);
+      return;
+    }
+
+    await callRoommateApi('/group', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: `Roommate Group ${new Date().toLocaleDateString()}`,
+        memberEmails,
+      }),
+    });
+
+    await loadRoommateNetworkData();
+    setApiNotice('Group created successfully. Members will receive invites.');
+    setTimeout(() => setApiNotice(''), 3000);
+  } catch (error) {
+    setApiNotice((error as Error).message || 'Failed to create group');
+    setTimeout(() => setApiNotice(''), 3000);
+  }
+};
+
+if (isLoadingRoommates && studentsOnly.length === 0) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
+      <p className="text-cyan-200 text-sm">Loading roommate profiles...</p>
+    </div>
+  );
+}
+
+if (!isLoadingRoommates && studentsOnly.length === 0) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 bg-white/5 rounded-xl border border-white/10">
+      <FaUserFriends className="text-4xl text-cyan-400 mx-auto mb-3 opacity-50" />
+      <p className="text-gray-300 font-semibold mb-2">No roommate profiles found</p>
+      <p className="text-sm text-gray-400 mb-4">Complete your profile to start finding roommates</p>
+      <button
+        onClick={() => navigate('/profile')}
+        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
+      >
+        Update Your Profile
+      </button>
+    </div>
+  );
+}
+
+
+
+
+
 
   if (!isLoadingRoommates && studentsOnly.length === 0) {
     return (
