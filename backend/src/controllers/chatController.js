@@ -296,19 +296,21 @@ exports.getOrCreateGroupConversation = async (req, res) => {
         .populate('lastMessage.sender', 'fullName email profilePicture role');
 
       if (!conversation) {
-        const userIds = group.members
+        // Only include members with status: 'accepted'
+        const acceptedUserIds = group.members
+          .filter((member) => member.status === 'accepted')
           .map((member) => toObjectId(member.userId))
           .filter(Boolean);
 
-        if (userIds.length < 2) {
-          return res.status(400).json({ success: false, message: 'Group must have at least 2 users to start chat' });
+        if (acceptedUserIds.length < 2) {
+          return res.status(400).json({ success: false, message: 'At least 2 accepted members required to start group chat' });
         }
 
         conversation = await ChatConversation.create({
           type: 'group',
           groupRef: group._id,
           name: group.name || 'Group Chat',
-          participants: userIds.map((id) => ({ user: id })),
+          participants: acceptedUserIds.map((id) => ({ user: id })),
         });
 
         conversation = await ChatConversation.findById(conversation._id)
