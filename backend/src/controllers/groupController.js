@@ -9,10 +9,62 @@ const RoommateProfile = require('../models/RoommateProfile');
 const User = require('../models/User');
 
 exports.createGroup = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Group functionality not yet implemented',
-  });
+  try {
+    const userId = req.user && req.user.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const { name, memberEmails } = req.body;
+    if (!name || !Array.isArray(memberEmails) || memberEmails.length === 0) {
+      return res.status(400).json({ success: false, message: 'Group name and member emails are required' });
+    }
+
+    // Find users by email, exclude duplicates and the creator
+    const users = await User.find({ email: { $in: memberEmails, $ne: req.user.email } });
+    // Always include the creator as a member (status: accepted)
+    const creator = await User.findById(userId);
+    if (!creator) {
+      return res.status(404).json({ success: false, message: 'Creator not found' });
+    }
+
+    // Build members array
+    const members = [
+      {
+        userId: creator._id,
+        email: creator.email,
+        name: creator.fullName || creator.name || creator.email,
+        status: 'accepted',
+        joinedAt: new Date(),
+      },
+      ...users.map(u => ({
+        userId: u._id,
+        email: u.email,
+        name: u.fullName || u.name || u.email,
+        status: 'pending',
+        joinedAt: null,
+      }))
+    ];
+
+    // Create group
+    const group = new BookingGroup({
+      name,
+      creatorId: creator._id,
+      members,
+      status: 'forming',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await group.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Group created successfully',
+      data: group,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to create group', error: error.message });
+  }
 };
 
 exports.getUserGroups = async (req, res) => {

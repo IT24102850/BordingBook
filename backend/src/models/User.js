@@ -130,6 +130,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    liked: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: [],
+    }],
+    passed: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: [],
+    }],
   },
   {
     timestamps: true, // Adds createdAt and updatedAt fields
