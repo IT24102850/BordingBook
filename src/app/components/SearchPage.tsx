@@ -12,7 +12,7 @@ import {
 import { MdOutlineVerified } from 'react-icons/md';
 import { RiUserSharedLine } from 'react-icons/ri';
 import { BiCurrentLocation } from 'react-icons/bi';
-import { distMap } from '../data/rooms';
+import { distMap } from '../data/rooms'; // Only use distMap, not static room data
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
@@ -2497,6 +2497,7 @@ export default function SearchPage() {
     };
   }, [activeTab]);
 
+  // Only use database/API listings and roommates
   const effectiveListings = dbListings;
   const effectiveRoommates = dbRoommates;
 
@@ -2551,6 +2552,7 @@ export default function SearchPage() {
     return listingScore(b) - listingScore(a);
   });
 
+  // Only use dbListings for roomDataset
   const roomDataset: any[] = dbListings.map((listing, index) => ({
     id: listing.id || index + 1,
     name: listing.title,
