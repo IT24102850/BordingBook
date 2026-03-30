@@ -420,6 +420,34 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenan
     full: 'text-red-400 bg-red-500/20'
   };
 
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [localStatus, setLocalStatus] = useState(room.status);
+
+  // Helper to map status to occupancy
+  const getOccupancyForStatus = (status: 'available' | 'partial' | 'full') => {
+    if (status === 'available') return 0;
+    if (status === 'partial') return Math.max(1, Math.floor(room.bedCount / 2));
+    if (status === 'full') return room.bedCount;
+    return 0;
+  };
+
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = e.target.value as 'available' | 'partial' | 'full';
+    setUpdatingStatus(true);
+    try {
+      // Update occupancy in backend
+      const newOccupancy = getOccupancyForStatus(newStatus);
+      await ownerDashboardApi.updateRoom(room.id, { occupancy: newOccupancy });
+      setLocalStatus(newStatus);
+      // Optionally: trigger a reload of rooms in parent if needed
+      // (parent should update room.occupiedBeds and status from backend)
+    } catch (err) {
+      alert('Failed to update room status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   return (
     <div className="bg-white/5 rounded-lg p-3 border border-white/10 hover:border-purple-400/30 transition-all">
       <div className="flex justify-between items-start mb-2">
@@ -427,11 +455,11 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenan
           <h4 className="text-white font-medium text-sm">Room {room.roomNumber}</h4>
           <p className="text-xs text-gray-400">Floor {room.floor}</p>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full ${statusColors[room.status]}`}>
-          {room.status === 'available' ? 'Available' : room.status === 'partial' ? 'Partial' : 'Full'}
+        <span className={`text-xs px-2 py-1 rounded-full ${statusColors[localStatus]}`}> 
+          {localStatus === 'available' ? 'Available' : localStatus === 'partial' ? 'Partial' : 'Full'}
         </span>
       </div>
-      
+
       <div className="flex items-center gap-2 mb-2">
         <Bed size={12} className="text-cyan-400" />
         <span className="text-xs text-white">{room.occupiedBeds}/{room.bedCount} beds</span>
@@ -449,6 +477,22 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenan
             </span>
           ) : null;
         })}
+      </div>
+
+      {/* Availability Dropdown */}
+      <div className="flex items-center gap-2 mb-2">
+        <label className="text-xs text-gray-300">Set Availability:</label>
+        <select
+          value={localStatus}
+          onChange={handleStatusChange}
+          disabled={updatingStatus}
+          className="px-2 py-1 rounded bg-white/10 text-xs text-white border border-white/10 focus:outline-none"
+        >
+          <option value="available">Available</option>
+          <option value="partial">Partial</option>
+          <option value="full">Full</option>
+        </select>
+        {updatingStatus && <span className="text-xs text-cyan-400 ml-1">Updating...</span>}
       </div>
 
       <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/10">
@@ -850,6 +894,7 @@ export default function OwnerDashboard() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedHouse, setSelectedHouse] = useState<BoardingHouse | null>(null);
   const [showAddHouse, setShowAddHouse] = useState(false);
+  const [editingHouse, setEditingHouse] = useState<BoardingHouse | null>(null);
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [selectedRoomForTenants, setSelectedRoomForTenants] = useState<Room | null>(null);
@@ -1109,27 +1154,23 @@ export default function OwnerDashboard() {
     setShowTenantModal(true);
   };
 
-  const handleEditHouse = async (house: BoardingHouse) => {
-    const nextName = window.prompt('Update boarding house name', house.name);
-    if (!nextName) {
-      return;
-    }
-
-    const nextAddress = window.prompt('Update distance from SLIIT', house.address);
-    if (!nextAddress) {
-      return;
-    }
-
-    try {
-      const updated = await ownerDashboardApi.updateHouse(house.id, {
-        name: nextName,
-        address: nextAddress,
-      });
-
-      setHouses((prev) => prev.map((h) => (h.id === house.id ? mapHouseDtoToUi(updated) : h)));
-    } catch (error) {
-      alert((error as Error).message || 'Failed to update house');
-    }
+  const handleEditHouse = (house: BoardingHouse) => {
+    setEditingHouse(house);
+    setNewHouse({
+      name: house.name || '',
+      address: house.address || '',
+      totalRooms: house.totalRooms || 0,
+      monthlyPrice: house.monthlyPrice || 0,
+      roomType: house.roomType || 'Single Room',
+      availableFrom: house.availableFrom || '',
+      deposit: house.deposit || 0,
+      roommateCount: house.roommateCount || 'None (Private)',
+      description: house.description || '',
+      features: house.features || [],
+      genderPreference: house.genderPreference || 'any',
+    });
+    setUploadedHouseImages(house.images || (house.image ? [house.image] : []));
+    setShowAddHouse(true);
   };
 
   const handleDeleteHouse = async (house: BoardingHouse) => {
@@ -1414,44 +1455,80 @@ export default function OwnerDashboard() {
     }
 
     try {
-      const created = await ownerDashboardApi.createHouse({
-        name: newHouse.name,
-        address: newHouse.address,
-        totalRooms: newHouse.totalRooms,
-        monthlyPrice: newHouse.monthlyPrice,
-        roomType: newHouse.roomType,
-        availableFrom: newHouse.availableFrom,
-        deposit: newHouse.deposit,
-        roommateCount: newHouse.roommateCount,
-        description: newHouse.description,
-        features: newHouse.features,
-        image: uploadedHouseImages[0],
-        images: uploadedHouseImages,
-        status: 'active',
-        genderPreference: newHouse.genderPreference,
-      });
-
-      setHouses((prev) => [...prev, mapHouseDtoToUi(created)]);
-      setShowAddHouse(false);
-
-      setNewHouse({
-        name: '',
-        address: '',
-        totalRooms: 0,
-        monthlyPrice: 0,
-        roomType: 'Single Room',
-        availableFrom: '',
-        deposit: 0,
-        roommateCount: 'None (Private)',
-        description: '',
-        features: [],
-        genderPreference: 'any',
-      });
-      setUploadedHouseImages([]);
-
-      alert(`Boarding House "${created.name}" added successfully!`);
+      if (editingHouse) {
+        // Update existing house
+        const updated = await ownerDashboardApi.updateHouse(editingHouse.id, {
+          name: newHouse.name,
+          address: newHouse.address,
+          totalRooms: newHouse.totalRooms,
+          monthlyPrice: newHouse.monthlyPrice,
+          roomType: newHouse.roomType,
+          availableFrom: newHouse.availableFrom,
+          deposit: newHouse.deposit,
+          roommateCount: newHouse.roommateCount,
+          description: newHouse.description,
+          features: newHouse.features,
+          image: uploadedHouseImages[0],
+          images: uploadedHouseImages,
+          status: 'active',
+          genderPreference: newHouse.genderPreference,
+        });
+        setHouses((prev) => prev.map((h) => (h.id === editingHouse.id ? mapHouseDtoToUi(updated) : h)));
+        setShowAddHouse(false);
+        setEditingHouse(null);
+        setNewHouse({
+          name: '',
+          address: '',
+          totalRooms: 0,
+          monthlyPrice: 0,
+          roomType: 'Single Room',
+          availableFrom: '',
+          deposit: 0,
+          roommateCount: 'None (Private)',
+          description: '',
+          features: [],
+          genderPreference: 'any',
+        });
+        setUploadedHouseImages([]);
+        alert(`Boarding House "${updated.name}" updated successfully!`);
+      } else {
+        // Create new house
+        const created = await ownerDashboardApi.createHouse({
+          name: newHouse.name,
+          address: newHouse.address,
+          totalRooms: newHouse.totalRooms,
+          monthlyPrice: newHouse.monthlyPrice,
+          roomType: newHouse.roomType,
+          availableFrom: newHouse.availableFrom,
+          deposit: newHouse.deposit,
+          roommateCount: newHouse.roommateCount,
+          description: newHouse.description,
+          features: newHouse.features,
+          image: uploadedHouseImages[0],
+          images: uploadedHouseImages,
+          status: 'active',
+          genderPreference: newHouse.genderPreference,
+        });
+        setHouses((prev) => [...prev, mapHouseDtoToUi(created)]);
+        setShowAddHouse(false);
+        setNewHouse({
+          name: '',
+          address: '',
+          totalRooms: 0,
+          monthlyPrice: 0,
+          roomType: 'Single Room',
+          availableFrom: '',
+          deposit: 0,
+          roommateCount: 'None (Private)',
+          description: '',
+          features: [],
+          genderPreference: 'any',
+        });
+        setUploadedHouseImages([]);
+        alert(`Boarding House "${created.name}" added successfully!`);
+      }
     } catch (error) {
-      alert((error as Error).message || 'Failed to add boarding house');
+      alert((error as Error).message || (editingHouse ? 'Failed to update boarding house' : 'Failed to add boarding house'));
     }
   };
 
@@ -2499,10 +2576,33 @@ export default function OwnerDashboard() {
           <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-5xl w-full my-8 p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Plus size={22} className="text-cyan-400" /> Add Boarding House
+                {editingHouse ? (
+                  <>
+                    <span className="inline-flex items-center gap-2"><Plus size={22} className="text-cyan-400" /> Edit Boarding House</span>
+                  </>
+                ) : (
+                  <><Plus size={22} className="text-cyan-400" /> Add Boarding House</>
+                )}
               </h2>
               <button
-                onClick={() => setShowAddHouse(false)}
+                onClick={() => {
+                  setShowAddHouse(false);
+                  setEditingHouse(null);
+                  setNewHouse({
+                    name: '',
+                    address: '',
+                    totalRooms: 0,
+                    monthlyPrice: 0,
+                    roomType: 'Single Room',
+                    availableFrom: '',
+                    deposit: 0,
+                    roommateCount: 'None (Private)',
+                    description: '',
+                    features: [],
+                    genderPreference: 'any',
+                  });
+                  setUploadedHouseImages([]);
+                }}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
                 <X className="text-gray-400 hover:text-white" size={20} />
@@ -2722,7 +2822,24 @@ export default function OwnerDashboard() {
 
               <div className="flex gap-2 pt-4 border-t border-white/10 sticky bottom-0 bg-gradient-to-r from-[#131d3a]/95 to-[#0b132b]/95">
                 <button
-                  onClick={() => setShowAddHouse(false)}
+                  onClick={() => {
+                    setShowAddHouse(false);
+                    setEditingHouse(null);
+                    setNewHouse({
+                      name: '',
+                      address: '',
+                      totalRooms: 0,
+                      monthlyPrice: 0,
+                      roomType: 'Single Room',
+                      availableFrom: '',
+                      deposit: 0,
+                      roommateCount: 'None (Private)',
+                      description: '',
+                      features: [],
+                      genderPreference: 'any',
+                    });
+                    setUploadedHouseImages([]);
+                  }}
                   className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancel
@@ -2731,7 +2848,7 @@ export default function OwnerDashboard() {
                   onClick={handleSaveHouse}
                   className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
                 >
-                  Save Boarding House
+                  {editingHouse ? 'Update Boarding House' : 'Save Boarding House'}
                 </button>
               </div>
             </div>

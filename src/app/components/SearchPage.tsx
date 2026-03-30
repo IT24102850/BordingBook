@@ -222,140 +222,159 @@ const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = 
           <h4 className="text-xs font-bold text-white truncate">{roommate.name}, {roommate.age}</h4>
           <div className="flex items-center gap-1 text-[10px] text-gray-400">
             <FaUserFriends className="text-pink-400" />
-            <span className="truncate">{roommate.university}</span>
-          </div>
-          <div className="text-[10px] text-pink-400 truncate">
-            {roommate.gender}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+            // Load rooms + auth on mount only
+            useEffect(() => {
+              let isCancelled = false;
 
-// Roommate Swipe Card Component
-function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }: { roommate: any; onLike: () => void; onPass: () => void; isAnimating: boolean; direction: string | null }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const touchStartX = useRef(0);
-  const touchCurrentX = useRef(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartX, setDragStartX] = useState(0);
-  const [imageIndex, setImageIndex] = useState(0);
+              const loadSearchData = async () => {
+                try {
+                  const token = localStorage.getItem('bb_access_token') || '';
 
-  const displayName = roommate.name || 'Student';
-  const images: string[] = Array.isArray(roommate.profilePictures) && roommate.profilePictures.length > 0
-    ? roommate.profilePictures.map((img: any) => String(img))
-    : (roommate.image ? [String(roommate.image)] : ['https://randomuser.me/api/portraits/lego/1.jpg']);
+                  // Public data — no auth needed
+                  const [roomsResponse, housesResponse] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/roommates/rooms`),
+                    fetch(`${API_BASE_URL}/api/owner/public/houses`),
+                  ]);
+                  const [roomsJson, housesJson] = await Promise.all([
+                    roomsResponse.json(),
+                    housesResponse.json(),
+                  ]);
 
-  const resetCardTransform = () => {
-    if (!cardRef.current) return;
-    cardRef.current.style.transform = '';
-    cardRef.current.style.opacity = '';
-    cardRef.current.style.transition = '';
-  };
+                  if (!isCancelled) {
+                    const roomsData = Array.isArray(roomsJson?.data) ? roomsJson.data
+                      : Array.isArray(roomsJson?.rooms) ? roomsJson.rooms
+                      : Array.isArray(roomsJson) ? roomsJson : [];
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (isAnimating) return;
-    touchStartX.current = e.touches[0].clientX;
-    touchCurrentX.current = e.touches[0].clientX;
-  };
+                    const housesData = Array.isArray(housesJson?.data) ? housesJson.data
+                      : Array.isArray(housesJson?.houses) ? housesJson.houses
+                      : Array.isArray(housesJson) ? housesJson : [];
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (isAnimating || !cardRef.current) return;
-    touchCurrentX.current = e.touches[0].clientX;
-    const diff = touchCurrentX.current - touchStartX.current;
+                    const mappedRooms: Listing[] = roomsData.map((roomItem: any, index: number) => ({
+                      id: index + 1,
+                      title: roomItem.name || 'Room Listing',
+                      images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [],
+                      price: Number(roomItem.price) || 0,
+                      location: roomItem.location || 'Unknown',
+                      distance: 1,
+                      distanceUnit: 'km',
+                      travelTime: 'Near campus',
+                      roomType: roomItem.roomType || 'Single Room',
+                      genderPreference: roomItem.genderPreference || 'Any',
+                      availableFrom: roomItem.availableFrom || '',
+                      billsIncluded: Array.isArray(roomItem.facilities) ? roomItem.facilities.includes('Meals') : false,
+                      verified: true,
+                      badges: [roomItem.occupancy < roomItem.totalSpots ? 'Available' : 'Occupied'],
+                      description: roomItem.description || '',
+                      features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
+                      deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
+                      roommateCount: Number(roomItem.occupancy) || 0,
+                    }));
 
-    if (Math.abs(diff) > 10) {
-      e.preventDefault();
-      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.03}deg)`;
-      cardRef.current.style.opacity = `${1 - Math.min(Math.abs(diff) / 420, 0.6)}`;
-    }
-  };
+                    const mappedHouses: Listing[] = housesData.map((house: any, index: number) => ({
+                      id: 100000 + index,
+                      title: house.name || 'Boarding House',
+                      images: Array.isArray(house.images) && house.images.length > 0 ? house.images
+                        : house.image ? [house.image] : [],
+                      price: Number(house.monthlyPrice) || 0,
+                      location: house.address || 'Unknown',
+                      distance: 1.2,
+                      distanceUnit: 'km',
+                      travelTime: 'Near city',
+                      roomType: house.roomType || 'Single Room',
+                      genderPreference: house.genderPreference || 'any',
+                      availableFrom: house.availableFrom || '',
+                      billsIncluded: false,
+                      verified: true,
+                      badges: [house.status === 'active' ? 'Available' : 'Occupied'],
+                      description: house.description || '',
+                      features: Array.isArray(house.features) ? house.features : [],
+                      deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
+                      roommateCount: Number(house.occupiedRooms) || 0,
+                    }));
 
-  const handleTouchEnd = () => {
-    if (isAnimating) return;
-    const diff = touchCurrentX.current - touchStartX.current;
-    resetCardTransform();
+                    setDbListings([...mappedRooms, ...mappedHouses]);
+                  }
 
-    if (diff > 90) onLike();
-    else if (diff < -90) onPass();
-  };
+                  // Auth-protected data — only if token exists
+                  if (!token) {
+                    if (!isCancelled) setIsListingsLoading(false);
+                    return;
+                  }
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (isAnimating || !cardRef.current) return;
-    setIsDragging(true);
-    setDragStartX(e.clientX);
-    cardRef.current.style.transition = 'none';
-  };
+                  const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                  const meJson = await meResponse.json();
+                  const currentUser = meJson?.data || null;
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || isAnimating || !cardRef.current) return;
-    const diff = e.clientX - dragStartX;
+                  if (!isCancelled && currentUser?.email) {
+                    setCurrentUserId(String(currentUser._id || currentUser.id || ''));
+                    setCurrentUserEmail(currentUser.email);
+                    setCurrentUserName(currentUser.fullName || '');
+                    if (currentUser.profilePicture) setCurrentUserImage(currentUser.profilePicture);
+                  }
 
-    if (Math.abs(diff) > 10) {
-      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.03}deg)`;
-      cardRef.current.style.opacity = `${1 - Math.min(Math.abs(diff) / 420, 0.6)}`;
-    }
-  };
+                  const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
+                  if (!isCancelled && resolvedUserId) {
+                    await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
+                  }
 
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDragging || isAnimating) {
-      setIsDragging(false);
-      resetCardTransform();
-      return;
-    }
+                } catch {
+                  setDbListings([]);
+                } finally {
+                  if (!isCancelled) setIsListingsLoading(false);
+                }
+              };
 
-    const diff = e.clientX - dragStartX;
-    setIsDragging(false);
-    resetCardTransform();
+              loadSearchData();
+              return () => { isCancelled = true; };
+            }, []); // ← runs once only
 
-    if (diff > 90) onLike();
-    else if (diff < -90) onPass();
-  };
+            // NEW: load roommates only when Matches tab is opened
+            useEffect(() => {
+              if (activeTab !== 'roommate') return;
 
-  const handleMouseLeave = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    resetCardTransform();
-  };
+              const token = localStorage.getItem('bb_access_token') || '';
+              if (!token) return;
 
-  return (
-    <div
-      ref={cardRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-      className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden border border-white/10 w-full max-w-[20rem] mx-auto transition-all duration-300 cursor-grab active:cursor-grabbing ${direction === 'left' ? 'animate-swipe-left' : ''} ${direction === 'right' ? 'animate-swipe-right' : ''}`}
-      style={{ minHeight: 340, touchAction: 'pan-y' }}
-    >
-      <div className="relative w-full aspect-square bg-gray-800 overflow-hidden">
-        <img 
-          src={images[imageIndex]} 
-          alt={displayName} 
-          className="w-full h-full object-cover transition-all duration-300"
-        />
-        {images.length > 1 && (
-          <>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setImageIndex((i) => (i - 1 + images.length) % images.length);
-              }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-all"
-            >
-              ‹
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setImageIndex((i) => (i + 1) % images.length);
-              }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-all"
-            >
+              // Prevent re-fetching if already loaded
+              if (dbRoommates.length > 0) return;
+
+              const loadRoommates = async () => {
+                try {
+                  const response = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                  const json = await response.json();
+                  if (!response.ok) return;
+
+                  const data = Array.isArray(json?.data) ? json.data
+                    : Array.isArray(json?.profiles) ? json.profiles
+                    : Array.isArray(json) ? json : [];
+
+                  const mapped: Roommate[] = data.map((profile: any) => ({
+                    id: normalizeIdValue(profile._id || profile.id),
+                    userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+                    name: profile.name || 'Student',
+                    email: profile.email || '',
+                    age: deriveProfileAge(profile),
+                    gender: profile.gender || 'Any',
+                    university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+                    bio: profile.description || 'Looking for a compatible roommate.',
+                    image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+                    interests: Array.isArray(profile.tags) ? profile.tags : [],
+                    mutualCount: 0,
+                    role: profile.role || '',
+                  }));
+
+                  setDbRoommates(mapped);
+                } catch {
+                  // silently fail — don't crash the page
+                }
+              };
+
+              loadRoommates();
+            }, [activeTab]); // ← only fires when tab changes to 'roommate'
               ›
             </button>
           </>
@@ -618,7 +637,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
             });
           }
 
-          await loadRoommateNetworkData();
+          // Don't reload all network data — update state locally instead
           setApiNotice('Like saved and request sent.');
           setTimeout(() => setApiNotice(''), 3000);
         } catch (error) {
@@ -1614,6 +1633,12 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, o
               className="w-full py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
             >
               export default function SearchPage() {
+                  // Debounce search — wait 400ms after user stops typing before filtering
+                  const [debouncedSearch, setDebouncedSearch] = React.useState(searchTerm);
+                  React.useEffect(() => {
+                    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 400);
+                    return () => clearTimeout(timer);
+                  }, [searchTerm]);
                 // ...existing code...
                 // Pass setSelectedRoomForBooking and setShowBooking to DetailsModal
                 // ...existing code...
@@ -2264,13 +2289,19 @@ export default function SearchPage() {
     const token = localStorage.getItem('bb_access_token') || '';
     if (!token) return;
 
-    const intervalId = window.setInterval(() => {
-      void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
-    }, 15000);
+    let intervalId: number;
 
-    return () => {
-      window.clearInterval(intervalId);
+    const startPolling = () => {
+      intervalId = window.setInterval(() => {
+        // Don't poll if the browser tab is hidden — saves calls when user switches tabs
+        if (document.hidden) return;
+        void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
+      }, 60000); // was 15000 — notifications don't need to be instant
     };
+
+    startPolling();
+
+    return () => window.clearInterval(intervalId);
   }, [currentUserId, fetchLatestNotifications]);
 
   useEffect(() => {
@@ -2470,12 +2501,12 @@ export default function SearchPage() {
   const effectiveListings = dbListings;
   const effectiveRoommates = dbRoommates;
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const normalizedSearch = debouncedSearch.trim().toLowerCase();
   const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean);
 
   const filteredListings: Listing[] = effectiveListings.filter(listing => {
-    if (searchTerm && !listing.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !listing.location.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (debouncedSearch && !listing.title.toLowerCase().includes(debouncedSearch.toLowerCase()) && 
+        !listing.location.toLowerCase().includes(debouncedSearch.toLowerCase())) {
       return false;
     }
     if (selectedFilters.includes('budget') && listing.price > 20000) return false;
@@ -2538,8 +2569,8 @@ export default function SearchPage() {
 
   const getFilteredRooms = () => {
     return roomDataset.filter((r: any) => {
-      if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-          !r.location.toLowerCase().includes(searchTerm.toLowerCase())) {
+      if (debouncedSearch && !r.name.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
+          !r.location.toLowerCase().includes(debouncedSearch.toLowerCase())) {
         return false;
       }
       if (r.price > priceMax) return false;
