@@ -1054,16 +1054,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
         <div className="bg-white/5 border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-white">Groups</h3>
-            <button 
-              onClick={createGroupFromLiked}
-              disabled={liked.length === 0}
-              className={`px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition ${
-                liked.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:from-purple-600 hover:to-pink-600'
-              }`}
-            >
-              <FaPlus size={16} />
-              Create Group
-            </button>
           </div>
 
           {groups.length > 0 && (
@@ -1124,7 +1114,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                 </button>
               </div>
             </div>
-          ) : null}
+          ) : (
             <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
               <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
               <p className="text-gray-300 font-semibold mb-2">No groups yet</p>
