@@ -16,120 +16,147 @@ import { distMap } from '../data/rooms';
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
-// Utility functions
+// Utility to normalize ID values (handles string, number, object with _id/id)
 function normalizeIdValue(value: any): string {
   if (!value) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
   if (typeof value === 'object') {
     if (value._id) return String(value._id);
-    useEffect(() => {
-      let isCancelled = false;
+    if (value.id) return String(value.id);
+  }
+  return '';
+}
 
-      const loadSearchData = async () => {
-        try {
-          const token = localStorage.getItem('bb_access_token') || '';
+// Utility to derive age from a profile object
+function deriveProfileAge(profile: any): number {
+  if (!profile) return 18;
+  const numericAge = Number(profile?.age);
+  if (Number.isFinite(numericAge) && numericAge > 0) {
+    return Math.floor(numericAge);
+  }
 
-          // Fetch real data from backend
-          const [roomsResponse, housesResponse] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/roommates/rooms`),
-            fetch(`${API_BASE_URL}/api/owner/public/houses`),
-          ]);
-          const [roomsJson, housesJson] = await Promise.all([
-            roomsResponse.json(),
-            housesResponse.json(),
-          ]);
+  const dobRaw = profile?.dateOfBirth || profile?.dob || profile?.birthDate;
+  if (dobRaw) {
+    const dob = new Date(dobRaw);
+    if (!Number.isNaN(dob.getTime())) {
+      const today = new Date();
+      let years = today.getFullYear() - dob.getFullYear();
+      const monthDelta = today.getMonth() - dob.getMonth();
+      const beforeBirthday = monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate());
+      if (beforeBirthday) years -= 1;
+      if (years > 0) return years;
+    }
+  }
 
-          if (!isCancelled) {
-            const roomsData = Array.isArray(roomsJson?.data)
-              ? roomsJson.data
-              : (Array.isArray(roomsJson?.rooms) ? roomsJson.rooms : (Array.isArray(roomsJson) ? roomsJson : []));
+  const yearToken = String(profile?.academicYear || '').toLowerCase();
+  if (yearToken.includes('1')) return 19;
+  if (yearToken.includes('2')) return 20;
+  if (yearToken.includes('3')) return 21;
+  if (yearToken.includes('4')) return 22;
 
-            const housesData = Array.isArray(housesJson?.data)
-              ? housesJson.data
-              : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
+  return 18;
+}
 
-            // Only use real database data for listings
-            const mappedRooms: Listing[] = roomsResponse.ok && roomsData.length > 0
-              ? roomsData.map((roomItem: any) => ({
-                  id: normalizeIdValue(roomItem._id || roomItem.id),
-                  title: roomItem.listingTitle || roomItem.roomNumber || 'Room',
-                  location: roomItem.location || roomItem.houseName || 'Malabe',
-                  price: Number(roomItem.price) || 0,
-                  distance: Number(roomItem.distance) || 1,
-                  roomType: roomItem.roomType || 'Single Room',
-                  available: roomItem.occupancy < roomItem.bedCount,
-                  facilities: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
-                  rating: roomItem.rating || 4.0,
-                  reviews: 10,
-                  badges: [roomItem.occupancy < roomItem.bedCount ? 'Available' : 'Occupied'],
-                  description: roomItem.description || '',
-                  features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
-                  deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
-                  roommateCount: Number(roomItem.occupancy) || 0,
-                }))
-              : [];
+// Define types
+interface Roommate {
+  id: number | string;
+  userId?: string;
+  name: string;
+  email?: string;
+  age: number;
+  gender: string;
+  university: string;
+  bio: string;
+  image: string;
+  profilePictures?: string[];
+  interests?: string[];
+  mutualCount?: number;
+  role?: string;
+}
 
-            const mappedHouses: Listing[] = housesResponse.ok && housesData.length > 0
-              ? housesData.map((house: any) => ({
-                  id: normalizeIdValue(house._id || house.id),
-                  title: house.name || 'Boarding House',
-                  location: house.address || 'Malabe',
-                  price: Number(house.monthlyPrice) || 0,
-                  distance: Number(house.distance) || 1,
-                  roomType: house.roomType || 'Single Room',
-                  available: house.status === 'active',
-                  facilities: Array.isArray(house.features) ? house.features : [],
-                  rating: house.rating || 4.0,
-                  reviews: house.totalReviews || 0,
-                  badges: [house.status === 'active' ? 'Available' : 'Occupied'],
-                  description: house.description || '',
-                  features: Array.isArray(house.features) ? house.features : [],
-                  deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
-                  roommateCount: Number(house.occupiedRooms) || 0,
-                }))
-              : [];
+interface Listing {
+  id: number;
+  title: string;
+  images: string[];
+  price: number;
+  location: string;
+  distance: number;
+  distanceUnit: string;
+  travelTime: string;
+  roomType: string;
+  genderPreference: string;
+  availableFrom: string;
+  billsIncluded: boolean;
+  verified: boolean;
+  badges: string[];
+  description: string;
+  features: string[];
+  deposit: number;
+  roommateCount: number;
+  rating?: number;
+  campus?: string[];
+  fullAddress?: string;
+  vacancy?: string;
+  totalRooms?: number;
+  occupiedRooms?: number;
+}
 
-            setDbListings([...mappedRooms, ...mappedHouses]);
-          }
+interface ListingCardProps {
+  listing: Listing;
+  onLike: () => void;
+  onPass: () => void;
+  onViewDetails: (listing: Listing) => void;
+  isAnimating: boolean;
+  direction: 'left' | 'right' | null;
+  viewMode?: 'card' | 'grid' | 'mini';
+}
 
-          if (!token) return;
+interface DetailsModalProps {
+  listing: Listing | null;
+  onClose: () => void;
+  onLike: () => void;
+  onBooking?: (listing: Listing) => void;
+}
 
-          const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const meJson = await meResponse.json();
-          const currentUser = meJson?.data || null;
+interface FilterChip {
+  id: string;
+  label: string;
+  icon: ReactNode;
+}
 
-          if (!isCancelled && currentUser?.email) {
-            setCurrentUserId(String(currentUser._id || currentUser.id || ''));
-            setCurrentUserEmail(currentUser.email);
-            setCurrentUserName(currentUser.fullName || '');
-            if (currentUser.profilePicture) setCurrentUserImage(currentUser.profilePicture);
-          }
-
-          const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
-          if (!isCancelled && resolvedUserId) {
-            await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
-          }
-
-        } catch {
-          setDbListings([]);
-        } finally {
-          if (!isCancelled) setIsListingsLoading(false);
-        }
-      };
-
-      loadSearchData();
-      return () => {
-        isCancelled = true;
-      };
-    }, []);
-  // bookingId?: string;
-  // roomTitle?: string;
+interface Notification {
+  id: string;
+  type:
+    | 'owner_approval'
+    | 'payment_pending'
+    | 'payment_verified'
+    | 'receipt_generated'
+    | 'booking_confirmed'
+    | 'checkin_reminder'
+    | 'roommate_request_received'
+    | 'roommate_request_accepted'
+    | 'roommate_request_rejected'
+    | 'group_invitation'
+    | 'group_status_ready'
+    | 'group_status_booked';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionRequired: boolean;
+  bookingId?: string;
+  roomTitle?: string;
 }
 
 // Real boarding room images
+const roomImages: string[] = [
+  'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1598928636135-d146006ff4be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+];
 
 
 // Filter chips data
@@ -148,6 +175,41 @@ const getTravelIcon = (distance: number): ReactNode => {
   if (distance <= 2) return React.createElement(FaBicycle, { className: "text-blue-400" });
   if (distance <= 3) return React.createElement(FaBus, { className: "text-yellow-400" });
   return React.createElement(FaCar, { className: "text-red-400" });
+};
+
+// Get vacancy badge info
+const getVacancyInfo = (vacancy: string, totalRooms: number, occupiedRooms: number): { label: string; color: string; bgColor: string; icon: string } => {
+  const available = totalRooms - occupiedRooms;
+  switch (vacancy) {
+    case 'low':
+      return { 
+        label: `${available} Vacancy Left`, 
+        color: 'text-red-300', 
+        bgColor: 'bg-red-500/20 border-red-500/30',
+        icon: '!' 
+      };
+    case 'full':
+      return { 
+        label: 'Fully Booked', 
+        color: 'text-gray-300', 
+        bgColor: 'bg-gray-500/20 border-gray-500/30',
+        icon: 'X'
+      };
+    case 'coming':
+      return { 
+        label: 'Coming Soon', 
+        color: 'text-blue-300', 
+        bgColor: 'bg-blue-500/20 border-blue-500/30',
+        icon: '...'
+      };
+    default:
+      return { 
+        label: `${available} Available`, 
+        color: 'text-green-300', 
+        bgColor: 'bg-green-500/20 border-green-500/30',
+        icon: '✓'
+      };
+  }
 };
 
 const READ_NOTIFICATIONS_STORAGE_KEY = 'bb_read_notification_ids';
@@ -175,30 +237,6 @@ const saveReadNotificationIds = (notifications: Notification[]) => {
   window.localStorage.setItem(READ_NOTIFICATIONS_STORAGE_KEY, JSON.stringify(ids));
 };
 
-// Helper function to start chat with user
-function startChatWithUser(roommate: any, navigate: any) {
-  if (!roommate) {
-    alert("Cannot start chat - user data missing");
-    return;
-  }
-
-  const recipientId = normalizeIdValue(
-    roommate.userId || 
-    roommate._id || 
-    roommate.id || 
-    roommate.recipientId
-  );
-  
-  if (!recipientId) {
-    alert("Cannot start chat - user ID missing");
-    return;
-  }
-
-  navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
-    state: { selectedRoommate: roommate, chatType: 'direct-message', recipientId },
-  });
-}
-
 // Mini Roommate Card Component
 const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = ({ roommate, type }) => {
   return (
@@ -222,106 +260,140 @@ const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = 
           <h4 className="text-xs font-bold text-white truncate">{roommate.name}, {roommate.age}</h4>
           <div className="flex items-center gap-1 text-[10px] text-gray-400">
             <FaUserFriends className="text-pink-400" />
-                      price: Number(house.monthlyPrice) || 0,
-                      location: house.address || 'Unknown',
-                      distance: 1.2,
-                      distanceUnit: 'km',
-                      travelTime: 'Near city',
-                      roomType: house.roomType || 'Single Room',
-                      genderPreference: house.genderPreference || 'any',
-                      availableFrom: house.availableFrom || '',
-                      billsIncluded: false,
-                      verified: true,
-                      badges: [house.status === 'active' ? 'Available' : 'Occupied'],
-                      description: house.description || '',
-                      features: Array.isArray(house.features) ? house.features : [],
-                      deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
-                      roommateCount: Number(house.occupiedRooms) || 0,
-                    }));
+            <span className="truncate">{roommate.university}</span>
+          </div>
+          <div className="text-[10px] text-pink-400 truncate">
+            {roommate.gender}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-                    setDbListings([...mappedRooms, ...mappedHouses]);
-                  }
+// Roommate Swipe Card Component
+function RoommateSwipeCard({ roommate, onLike, onPass, isAnimating, direction }: { roommate: any; onLike: () => void; onPass: () => void; isAnimating: boolean; direction: string | null }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+  const touchCurrentX = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [imageIndex, setImageIndex] = useState(0);
 
-                  // Auth-protected data — only if token exists
-                  if (!token) {
-                    if (!isCancelled) setIsListingsLoading(false);
-                    return;
-                  }
+  const displayName = roommate.name || 'Student';
+  const images: string[] = Array.isArray(roommate.profilePictures) && roommate.profilePictures.length > 0
+    ? roommate.profilePictures.map((img: any) => String(img))
+    : (roommate.image ? [String(roommate.image)] : ['https://randomuser.me/api/portraits/lego/1.jpg']);
 
-                  const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                  });
-                  const meJson = await meResponse.json();
-                  const currentUser = meJson?.data || null;
+  const resetCardTransform = () => {
+    if (!cardRef.current) return;
+    cardRef.current.style.transform = '';
+    cardRef.current.style.opacity = '';
+    cardRef.current.style.transition = '';
+  };
 
-                  if (!isCancelled && currentUser?.email) {
-                    setCurrentUserId(String(currentUser._id || currentUser.id || ''));
-                    setCurrentUserEmail(currentUser.email);
-                    setCurrentUserName(currentUser.fullName || '');
-                    if (currentUser.profilePicture) setCurrentUserImage(currentUser.profilePicture);
-                  }
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isAnimating) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+  };
 
-                  const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
-                  if (!isCancelled && resolvedUserId) {
-                    await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
-                  }
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isAnimating || !cardRef.current) return;
+    touchCurrentX.current = e.touches[0].clientX;
+    const diff = touchCurrentX.current - touchStartX.current;
 
-                } catch {
-                  setDbListings([]);
-                } finally {
-                  if (!isCancelled) setIsListingsLoading(false);
-                }
-              };
+    if (Math.abs(diff) > 10) {
+      e.preventDefault();
+      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.03}deg)`;
+      cardRef.current.style.opacity = `${1 - Math.min(Math.abs(diff) / 420, 0.6)}`;
+    }
+  };
 
-              loadSearchData();
-              return () => { isCancelled = true; };
-            }, []); // ← runs once only
+  const handleTouchEnd = () => {
+    if (isAnimating) return;
+    const diff = touchCurrentX.current - touchStartX.current;
+    resetCardTransform();
 
-            // NEW: load roommates only when Matches tab is opened
-            useEffect(() => {
-              if (activeTab !== 'roommate') return;
+    if (diff > 90) onLike();
+    else if (diff < -90) onPass();
+  };
 
-              const token = localStorage.getItem('bb_access_token') || '';
-              if (!token) return;
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isAnimating || !cardRef.current) return;
+    setIsDragging(true);
+    setDragStartX(e.clientX);
+    cardRef.current.style.transition = 'none';
+  };
 
-              // Prevent re-fetching if already loaded
-              if (dbRoommates.length > 0) return;
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || isAnimating || !cardRef.current) return;
+    const diff = e.clientX - dragStartX;
 
-              const loadRoommates = async () => {
-                try {
-                  const response = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                  });
-                  const json = await response.json();
-                  if (!response.ok) return;
+    if (Math.abs(diff) > 10) {
+      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.03}deg)`;
+      cardRef.current.style.opacity = `${1 - Math.min(Math.abs(diff) / 420, 0.6)}`;
+    }
+  };
 
-                  const data = Array.isArray(json?.data) ? json.data
-                    : Array.isArray(json?.profiles) ? json.profiles
-                    : Array.isArray(json) ? json : [];
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!isDragging || isAnimating) {
+      setIsDragging(false);
+      resetCardTransform();
+      return;
+    }
 
-                  const mapped: Roommate[] = data.map((profile: any) => ({
-                    id: normalizeIdValue(profile._id || profile.id),
-                    userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-                    name: profile.name || 'Student',
-                    email: profile.email || '',
-                    age: deriveProfileAge(profile),
-                    gender: profile.gender || 'Any',
-                    university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-                    bio: profile.description || 'Looking for a compatible roommate.',
-                    image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-                    interests: Array.isArray(profile.tags) ? profile.tags : [],
-                    mutualCount: 0,
-                    role: profile.role || '',
-                  }));
+    const diff = e.clientX - dragStartX;
+    setIsDragging(false);
+    resetCardTransform();
 
-                  setDbRoommates(mapped);
-                } catch {
-                  // silently fail — don't crash the page
-                }
-              };
+    if (diff > 90) onLike();
+    else if (diff < -90) onPass();
+  };
 
-              loadRoommates();
-            }, [activeTab]); // ← only fires when tab changes to 'roommate'
+  const handleMouseLeave = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    resetCardTransform();
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl shadow-2xl overflow-hidden border border-white/10 w-full max-w-[20rem] mx-auto transition-all duration-300 cursor-grab active:cursor-grabbing ${direction === 'left' ? 'animate-swipe-left' : ''} ${direction === 'right' ? 'animate-swipe-right' : ''}`}
+      style={{ minHeight: 340, touchAction: 'pan-y' }}
+    >
+      <div className="relative w-full aspect-square bg-gray-800 overflow-hidden">
+        <img 
+          src={images[imageIndex]} 
+          alt={displayName} 
+          className="w-full h-full object-cover transition-all duration-300"
+        />
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setImageIndex((i) => (i - 1 + images.length) % images.length);
+              }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-all"
+            >
+              ‹
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setImageIndex((i) => (i + 1) % images.length);
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-all"
+            >
               ›
             </button>
           </>
@@ -380,22 +452,20 @@ const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = 
 // Roommate Finder Component
 function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] }) {
   const navigate = useNavigate();
-  const [roommateTab, setRoommateTab] = useState<'browse' | 'requests' | 'inbox' | 'groups'>('browse');
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [liked, setLiked] = useState<any[]>([]);
-  const [passed, setPassed] = useState<any[]>([]);
-  const [mutualMatches, setMutualMatches] = useState<any[]>([]);
-  const [direction, setDirection] = useState<'left' | 'right' | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [showSidePanels, setShowSidePanels] = useState(true);
-  const [sentRequests, setSentRequests] = useState<any[]>([]);
-  const [inboxRequests, setInboxRequests] = useState<any[]>([]);
-  const [groups, setGroups] = useState<any[]>([]);
-  const [apiNotice, setApiNotice] = useState('');
-  const [isLoadingRoommates, setIsLoadingRoommates] = useState(false);
-  const [localRoommateData, setLocalRoommateData] = useState<any[]>([]);
-  const [loadTimeout, setLoadTimeout] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
+  const [roommateTab, setRoommateTab] = React.useState<'browse' | 'requests' | 'inbox' | 'groups'>('browse');
+  const [currentIdx, setCurrentIdx] = React.useState(0);
+  const [liked, setLiked] = React.useState<any[]>([]);
+  const [passed, setPassed] = React.useState<any[]>([]);
+  const [mutualMatches, setMutualMatches] = React.useState<any[]>([]);
+  const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
+  const [isAnimating, setIsAnimating] = React.useState(false);
+  const [showSidePanels, setShowSidePanels] = React.useState(true);
+  const [sentRequests, setSentRequests] = React.useState<any[]>([]);
+  const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
+  const [groups, setGroups] = React.useState<any[]>([]);
+  const [apiNotice, setApiNotice] = React.useState('');
+  const [isLoadingRoommates, setIsLoadingRoommates] = React.useState(false);
+  const [localRoommateData, setLocalRoommateData] = React.useState<any[]>([]);
 
   const studentsOnly = React.useMemo(() => {
     const data = localRoommateData.length > 0 ? localRoommateData : roommateData;
@@ -450,15 +520,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
 
   const loadRoommateProfiles = React.useCallback(async () => {
     setIsLoadingRoommates(true);
-    setLoadTimeout(false);
-    const timeout = setTimeout(() => setLoadTimeout(true), 15000);
-    
     try {
       const token = localStorage.getItem('bb_access_token') || '';
       if (!token) {
         setLocalRoommateData([]);
         setIsLoadingRoommates(false);
-        clearTimeout(timeout);
         return;
       }
 
@@ -480,7 +546,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
       setLocalRoommateData([]);
     } finally {
       setIsLoadingRoommates(false);
-      clearTimeout(timeout);
     }
   }, [mapProfileToRoommate]);
 
@@ -551,7 +616,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   React.useEffect(() => {
     loadRoommateProfiles();
     loadRoommateNetworkData();
-  }, [loadRoommateProfiles, loadRoommateNetworkData, retryKey]);
+  }, [loadRoommateProfiles, loadRoommateNetworkData]);
 
   const handleLike = () => {
     if (!current || isAnimating) return;
@@ -584,7 +649,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
             });
           }
 
-          // Don't reload all network data — update state locally instead
+          await loadRoommateNetworkData();
           setApiNotice('Like saved and request sent.');
           setTimeout(() => setApiNotice(''), 3000);
         } catch (error) {
@@ -643,22 +708,16 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     }
   };
 
-  // State for selected roommates for group creation
-  const [selectedRoommateIds, setSelectedRoommateIds] = useState<string[]>([]);
-
-  const createGroupFromSelected = async () => {
+  const createGroupFromLiked = async () => {
     try {
-      const memberEmails = liked
-        .filter((m) => selectedRoommateIds.includes(m.id))
-        .map((m) => m.email)
-        .filter(Boolean);
+      const memberEmails = liked.map((m) => m.email).filter(Boolean);
       if (memberEmails.length === 0) {
-        setApiNotice('Select at least one roommate to create a group.');
+        setApiNotice('Like at least one roommate before creating a group.');
         setTimeout(() => setApiNotice(''), 3000);
         return;
       }
 
-      const response = await callRoommateApi('/group', {
+      await callRoommateApi('/group', {
         method: 'POST',
         body: JSON.stringify({
           name: `Roommate Group ${new Date().toLocaleDateString()}`,
@@ -669,11 +728,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
       await loadRoommateNetworkData();
       setApiNotice('Group created successfully. Members will receive invites.');
       setTimeout(() => setApiNotice(''), 3000);
-
-      // After group creation, navigate to group chat if groupId is returned
-      if (response?.success && response.data?._id) {
-        navigate(`/chat?groupId=${response.data._id}`);
-      }
     } catch (error) {
       setApiNotice((error as Error).message || 'Failed to create group');
       setTimeout(() => setApiNotice(''), 3000);
@@ -681,20 +735,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   };
 
   if (isLoadingRoommates && studentsOnly.length === 0) {
-    if (loadTimeout) {
-      return (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-12 h-12 border-4 border-red-400/30 border-t-red-300 rounded-full animate-spin mb-4" />
-          <p className="text-red-300 text-sm mb-2">Roommate profiles are taking too long to load.</p>
-          <button
-            onClick={() => { setRetryKey((k) => k + 1); }}
-            className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
-          >
-            Retry
-          </button>
-        </div>
-      );
-    }
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
@@ -759,7 +799,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                 {mutualMatches.slice(0, 6).map((match) => (
                   <button
                     key={match.id}
-                    onClick={() => startChatWithUser(match, navigate)}
+                    onClick={() => {
+                      const recipientId = String(match.userId || match.id || '');
+                      navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
+                        state: { selectedRoommate: match, chatType: 'direct-message', recipientId },
+                      });
+                    }}
                     className="flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
                   >
                     <img src={match.image} alt={match.name} className="w-6 h-6 rounded-full object-cover" />
@@ -993,7 +1038,13 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                   )}
                   {req.status === 'accepted' && (
                     <button
-                      onClick={() => startChatWithUser(req.from, navigate)}
+                      onClick={() => {
+                        const recipientId = normalizeIdValue(req.from.userId || req.from.id || '');
+                        const selectedRoommate = { ...req.from, userId: normalizeIdValue(req.from.userId || req.from.id || '') };
+                        navigate(`/chat?recipientId=${encodeURIComponent(recipientId)}`, {
+                          state: { selectedRoommate, chatType: 'direct-message', recipientId },
+                        });
+                      }}
                       className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold flex items-center justify-center gap-2"
                     >
                       Start Chat
@@ -1013,6 +1064,16 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
         <div className="bg-white/5 border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-white">Groups</h3>
+            <button 
+              onClick={createGroupFromLiked}
+              disabled={liked.length === 0}
+              className={`px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition ${
+                liked.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:from-purple-600 hover:to-pink-600'
+              }`}
+            >
+              <FaPlus size={16} />
+              Create Group
+            </button>
           </div>
 
           {groups.length > 0 && (
@@ -1039,37 +1100,25 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                 <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   {liked.map((roommate) => (
-                    <label key={roommate.id} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-lg p-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedRoommateIds.includes(roommate.id)}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setSelectedRoommateIds([...selectedRoommateIds, roommate.id]);
-                          } else {
-                            setSelectedRoommateIds(selectedRoommateIds.filter(id => id !== roommate.id));
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
+                    <div key={roommate.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
                       <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
                       <div className="flex-1">
                         <p className="text-white font-semibold text-sm">{roommate.name}</p>
                         <p className="text-gray-400 text-xs">{roommate.age} | {roommate.university}</p>
                       </div>
-                    </label>
+                      <FaCheckCircle className="text-green-400" />
+                    </div>
                   ))}
                 </div>
                 <p className="text-sm text-gray-300 mb-4">
-                  Select your favorite roommates to invite to a group. Only checked roommates will be invited.
+                  Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
                 </p>
-                <button
-                  onClick={createGroupFromSelected}
+                <button 
+                  onClick={createGroupFromLiked}
                   className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
-                  disabled={selectedRoommateIds.length === 0}
                 >
                   <FaUserFriends size={18} />
-                  Create Group with Selected
+                  Create Group with These Members
                 </button>
               </div>
             </div>
@@ -1371,10 +1420,10 @@ const ListingCard: React.FC<ListingCardProps> = ({
           <div className="flex justify-between items-start mb-2">
             <h2 className="text-xl font-bold text-white">{listing.title}</h2>
             <div className="flex items-center gap-1 text-xs bg-cyan-500/20 px-2 py-1 rounded-full">
-              setSelectedRoomForBooking: (listing: Listing) => void;
-              setShowBooking: (show: boolean) => void;
-            }
-            const DetailsModal: React.FC<DetailsModalPropsFixed> = ({ listing, onClose, onLike, onBooking, setSelectedRoomForBooking, setShowBooking }) => {
+              {getTravelIcon(listing.distance)}
+              <span className="text-cyan-300">{listing.travelTime}</span>
+            </div>
+          </div>
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <FaMapMarkerAlt className="text-purple-400" />
             <span>{listing.location} | {listing.distance}km from SLIIT</span>
@@ -1467,11 +1516,6 @@ const ListingCard: React.FC<ListingCardProps> = ({
 };
 
 // Details Modal Component
-interface DetailsModalPropsFixed extends DetailsModalProps {
-  setSelectedRoomForBooking: (listing: Listing) => void;
-  setShowBooking: (show: boolean) => void;
-}
-const DetailsModal: React.FC<DetailsModalPropsFixed> = ({ listing, onClose, onLike, onBooking, setSelectedRoomForBooking, setShowBooking }) => {
 const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, onBooking }) => {
   if (!listing) return null;
 
@@ -1563,36 +1607,21 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, o
           <div className="space-y-2">
             <button
               onClick={() => {
-                setSelectedRoomForBooking(listing);
-                setShowBooking(true);
+                onBooking?.(listing);
                 onClose();
               }}
               className="w-full py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
             >
               <FaCheckCircle />
               Book Now
+            </button>
             <button
               onClick={() => {
-                setSelectedRoomForBooking(listing);
-                setShowBooking(true);
+                onLike();
                 onClose();
               }}
-              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
             >
-              export default function SearchPage() {
-                  // Debounce search — wait 400ms after user stops typing before filtering
-                  const [debouncedSearch, setDebouncedSearch] = React.useState(searchTerm);
-                  React.useEffect(() => {
-                    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 400);
-                    return () => clearTimeout(timer);
-                  }, [searchTerm]);
-                // ...existing code...
-                // Pass setSelectedRoomForBooking and setShowBooking to DetailsModal
-                // ...existing code...
-                // When rendering DetailsModal:
-                // <DetailsModal ... setSelectedRoomForBooking={setSelectedRoomForBooking} setShowBooking={setShowBooking} />
-                // ...existing code...
-              }
               <FaHeart />
               Like This Room
             </button>
@@ -1771,7 +1800,7 @@ const FiltersPanel: React.FC<{
   );
 };
 
-// Student Payment Portal Content Component
+// Student Payment Portal Content Component (simplified for brevity)
 function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }) {
   return (
     <div className="space-y-6">
@@ -1784,7 +1813,14 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
   );
 }
 
-// Booking Form Component
+
+
+
+
+
+
+
+// Booking Form Component (advanced version)
 const BookingForm: React.FC<{
   listing: Listing | null;
   onClose: () => void;
@@ -1793,192 +1829,183 @@ const BookingForm: React.FC<{
   currentUserEmail?: string;
   currentUserImage?: string;
 }> = ({ listing, onClose, onSubmit, currentUserName = '', currentUserEmail = '', currentUserImage = '' }) => {
-
-  // Booking type: 'INDIVIDUAL' or 'GROUP'
   const [bookingType, setBookingType] = useState<'INDIVIDUAL' | 'GROUP'>('INDIVIDUAL');
-  // For individual booking
-  const [studentName, setStudentName] = useState(currentUserName || '');
-  // For group booking
+  const [studentName, setStudentName] = useState(currentUserName);
   const [groupName, setGroupName] = useState('');
-  // Contact number
   const [contactNumber, setContactNumber] = useState('');
-  // Move-in date
   const [moveInDate, setMoveInDate] = useState('');
-  // Duration in months
   const [durationMonths, setDurationMonths] = useState('');
-  // Special notes (for individual)
   const [specialNotes, setSpecialNotes] = useState('');
-  // Error and success messages
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // For backward compatibility with previous logic
-  const fullName = bookingType === 'INDIVIDUAL' ? studentName : groupName;
-  const contact = contactNumber;
-  const duration = durationMonths;
+  const listingTitle = listing?.title || 'N/A';
+  const listingId = listing?.id || 'N/A';
 
-  // Listing info for display
-  const listingTitle = listing?.title || '';
-  const listingId = listing?.id || '';
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     setFormError('');
     setSuccessMessage('');
-    if (!contact || !moveInDate || !duration || !fullName) {
-      setFormError('Please fill all required fields');
+    if (
+      (bookingType === 'INDIVIDUAL' && !studentName) ||
+      (bookingType === 'GROUP' && !groupName) ||
+      !contactNumber ||
+      !moveInDate ||
+      !durationMonths
+    ) {
+      setFormError('Please fill all required fields.');
       return;
     }
-    try {
-      const payload = {
-        fullName,
-        contact,
-        moveInDate,
-        duration,
-        listingId: listing?.id,
-        listingTitle: listing?.title,
-      };
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage('Booking request submitted!');
-        setTimeout(() => {
-          setSuccessMessage('');
-          onClose();
-        }, 1500);
-      } else {
-        setFormError(data.message || 'Failed to submit booking.');
-      }
-    } catch (err) {
-      setFormError('Server error. Please try again.');
-    }
+    onSubmit({
+      bookingType,
+      studentName,
+      groupName,
+      contactNumber,
+      moveInDate,
+      durationMonths,
+      specialNotes,
+      listingId,
+      listingTitle,
+    });
+    setSuccessMessage('Booking request submitted!');
+    onClose();
   };
 
   return (
-    <>
-      <h2 className="text-2xl md:text-3xl font-extrabold mb-2 text-center bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">Booking Form</h2>
-      <p className="text-center text-gray-300 mb-8">Submit your room booking request</p>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="w-full max-w-lg">
+        <h2 className="text-2xl md:text-3xl font-extrabold mb-2 text-center bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">Booking Form</h2>
+        <p className="text-center text-gray-300 mb-8">Submit your room booking request</p>
 
-      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-1">Selected Room</h3>
-        <p className="text-sm text-gray-300">{listing?.title || ''} • ID: {listing?.id || ''}</p>
+        <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-1">Selected Room</h3>
+          <p className="text-sm text-gray-300">{listingTitle} • ID: {listingId}</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 space-y-4">
+          <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
+            <button
+              type="button"
+              onClick={() => {
+                setBookingType('INDIVIDUAL');
+                setFormError('');
+                setSuccessMessage('');
+              }}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${bookingType === 'INDIVIDUAL'
+                ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+                : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Individual Booking
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBookingType('GROUP');
+                setFormError('');
+                setSuccessMessage('');
+              }}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${bookingType === 'GROUP'
+                ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
+                : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Group Booking
+            </button>
+          </div>
+
+          {bookingType === 'INDIVIDUAL' ? (
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Full Name *</label>
+              <input
+                type="text"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="Enter full name"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Group Name *</label>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="e.g. SLIIT Friends"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Contact Number *</label>
+            <input
+              type="tel"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              placeholder="e.g. 0771234567"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Move-in Date *</label>
+              <input
+                type="date"
+                value={moveInDate}
+                onChange={(e) => setMoveInDate(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Duration (months) *</label>
+              <input
+                type="number"
+                min="1"
+                value={durationMonths}
+                onChange={(e) => setDurationMonths(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="e.g. 6"
+              />
+            </div>
+          </div>
+
+          {bookingType === 'INDIVIDUAL' && (
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Special Notes</label>
+              <textarea
+                value={specialNotes}
+                onChange={(e) => setSpecialNotes(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="Any additional requests"
+              />
+            </div>
+          )}
+
+          {formError && <p className="text-red-400 text-sm text-center">{formError}</p>}
+          {successMessage && <p className="text-green-400 text-sm text-center">{successMessage}</p>}
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+            >
+              Submit Booking Request
+            </button>
+          </div>
+        </form>
       </div>
-
-      <form onSubmit={handleSubmit} className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 space-y-4">
-        <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
-          <button
-            type="button"
-            onClick={() => {
-              setBookingType('INDIVIDUAL');
-              setFormError('');
-              setSuccessMessage('');
-            }}
-            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${bookingType === 'INDIVIDUAL'
-              ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
-              : 'text-gray-300 hover:text-white'
-            }`}
-          >
-            Individual Booking
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setBookingType('GROUP');
-              setFormError('');
-              setSuccessMessage('');
-            }}
-            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${bookingType === 'GROUP'
-              ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
-              : 'text-gray-300 hover:text-white'
-            }`}
-          >
-            Group Booking
-          </button>
-        </div>
-
-        {bookingType === 'INDIVIDUAL' ? (
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Full Name *</label>
-            <input
-              type="text"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              placeholder="Enter full name"
-            />
-          </div>
-        ) : (
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Group Name *</label>
-            <input
-              type="text"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              placeholder="e.g. SLIIT Friends"
-            />
-          </div>
-        )}
-
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Contact Number *</label>
-          <input
-            type="tel"
-            value={contactNumber}
-            onChange={(e) => setContactNumber(e.target.value)}
-            className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            placeholder="e.g. 0771234567"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Move-in Date *</label>
-            <input
-              type="date"
-              value={moveInDate}
-              onChange={(e) => setMoveInDate(e.target.value)}
-              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Duration (months) *</label>
-            <input
-              type="number"
-              min="1"
-              value={durationMonths}
-              onChange={(e) => setDurationMonths(e.target.value)}
-              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              placeholder="e.g. 6"
-            />
-          </div>
-        </div>
-
-        {bookingType === 'INDIVIDUAL' && (
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Special Notes</label>
-            <textarea
-              value={specialNotes}
-              onChange={(e) => setSpecialNotes(e.target.value)}
-              rows={3}
-              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              placeholder="Any additional requests"
-            />
-          </div>
-        )}
-
-        <button
-          type="submit"
-          className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
-        >
-          Submit Booking Request
-        </button>
-      </form>
-    </>
+    </div>
   );
 };
 
@@ -2108,7 +2135,7 @@ export default function SearchPage() {
 
         const inboxNotifications: Notification[] = inboxItems.map((req: any) => {
           const senderName = req?.senderId?.fullName || req?.senderId?.email || 'A student';
-          const type = req?.status === 'accepted'
+          const type: Notification['type'] = req?.status === 'accepted'
             ? 'roommate_request_accepted'
             : req?.status === 'rejected'
             ? 'roommate_request_rejected'
@@ -2236,19 +2263,13 @@ export default function SearchPage() {
     const token = localStorage.getItem('bb_access_token') || '';
     if (!token) return;
 
-    let intervalId: number;
+    const intervalId = window.setInterval(() => {
+      void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
+    }, 15000);
 
-    const startPolling = () => {
-      intervalId = window.setInterval(() => {
-        // Don't poll if the browser tab is hidden — saves calls when user switches tabs
-        if (document.hidden) return;
-        void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
-      }, 60000); // was 15000 — notifications don't need to be instant
+    return () => {
+      window.clearInterval(intervalId);
     };
-
-    startPolling();
-
-    return () => window.clearInterval(intervalId);
   }, [currentUserId, fetchLatestNotifications]);
 
   useEffect(() => {
@@ -2308,7 +2329,6 @@ export default function SearchPage() {
     };
   }, [showNotifications]);
 
-  // Load data on mount
   useEffect(() => {
     let isCancelled = false;
 
@@ -2329,12 +2349,11 @@ export default function SearchPage() {
             ? housesJson.data
             : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
 
-
           const mappedRooms: Listing[] = roomsResponse.ok && roomsData.length > 0
             ? roomsData.map((roomItem: any, index: number) => ({
                 id: index + 1,
                 title: roomItem.name || 'Room Listing',
-                images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [],
+                images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
                 price: Number(roomItem.price) || 0,
                 location: roomItem.location || 'Unknown',
                 distance: 1,
@@ -2353,14 +2372,13 @@ export default function SearchPage() {
               }))
             : [];
 
-
           const mappedHouses: Listing[] = housesResponse.ok && housesData.length > 0
             ? housesData.map((house: any, index: number) => ({
                 id: 100000 + index,
                 title: house.name || 'Boarding House',
                 images: Array.isArray(house.images) && house.images.length > 0
                   ? house.images
-                  : (house.image ? [house.image] : []),
+                  : (house.image ? [house.image] : [roomImages[index % roomImages.length]]),
                 price: Number(house.monthlyPrice) || 0,
                 location: house.address || 'Unknown',
                 distance: 1.2,
@@ -2429,9 +2447,12 @@ export default function SearchPage() {
           }));
 
           setDbRoommates(mappedRoommates);
+        } else {
+          setDbRoommates([]);
         }
       } catch {
         setDbListings([]);
+        setDbRoommates([]);
       } finally {
         if (!isCancelled) {
           setIsListingsLoading(false);
@@ -2448,12 +2469,12 @@ export default function SearchPage() {
   const effectiveListings = dbListings;
   const effectiveRoommates = dbRoommates;
 
-  const normalizedSearch = debouncedSearch.trim().toLowerCase();
+  const normalizedSearch = searchTerm.trim().toLowerCase();
   const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean);
 
   const filteredListings: Listing[] = effectiveListings.filter(listing => {
-    if (debouncedSearch && !listing.title.toLowerCase().includes(debouncedSearch.toLowerCase()) && 
-        !listing.location.toLowerCase().includes(debouncedSearch.toLowerCase())) {
+    if (searchTerm && !listing.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
+        !listing.location.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     if (selectedFilters.includes('budget') && listing.price > 20000) return false;
@@ -2499,7 +2520,7 @@ export default function SearchPage() {
     return listingScore(b) - listingScore(a);
   });
 
-  const roomDataset: any[] = effectiveListings.map((listing, index) => ({
+  const roomDataset: any[] = dbListings.map((listing, index) => ({
     id: listing.id || index + 1,
     name: listing.title,
     location: listing.location,
@@ -2516,8 +2537,8 @@ export default function SearchPage() {
 
   const getFilteredRooms = () => {
     return roomDataset.filter((r: any) => {
-      if (debouncedSearch && !r.name.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
-          !r.location.toLowerCase().includes(debouncedSearch.toLowerCase())) {
+      if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !r.location.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
       if (r.price > priceMax) return false;
