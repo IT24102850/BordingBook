@@ -652,7 +652,32 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
             });
           }
 
+const handlePass = () => {
+  if (!current || isAnimating) return;
+  setIsAnimating(true);
+  setDirection('left');
+  setTimeout(() => {
+    setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
+    if (currentIdx < studentsOnly.length - 1) {
+      setCurrentIdx(currentIdx + 1);
+    }
+    setDirection(null);
+    setIsAnimating(false);
 
+    void (async () => {
+      try {
+        if (isMongoId(current.id)) {
+          await callRoommateApi('/swipe', {
+            method: 'POST',
+            body: JSON.stringify({ profileId: current.id, action: 'pass' }),
+          });
+        }
+      } catch (error) {
+        console.error('Error syncing pass:', error);
+      }
+    })();
+  }, 250);
+};
 
 
 
