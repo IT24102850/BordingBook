@@ -583,6 +583,15 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
         );
       }
 
+
+
+
+
+
+
+
+
+
       if (inboxRes.status === 'fulfilled') {
         const requests = Array.isArray(inboxRes.value?.data) ? inboxRes.value.data : [];
         setInboxRequests(
@@ -619,6 +628,9 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     loadRoommateNetworkData();
   }, [loadRoommateProfiles, loadRoommateNetworkData]);
 
+
+
+
   const handleLike = () => {
     if (!current || isAnimating) return;
     setIsAnimating(true);
@@ -639,6 +651,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
               body: JSON.stringify({ profileId: current.id, action: 'like' }),
             });
           }
+
+
+
+
+
 
           if (isMongoId(current.userId)) {
             await callRoommateApi('/request/send', {
@@ -661,6 +678,17 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     }, 250);
   };
 
+
+
+
+
+
+const handleUndo = () => {
+  if (currentIdx > 0) {
+    setCurrentIdx(currentIdx - 1);
+    setDirection(null);
+  }
+};
 
 
 
@@ -692,12 +720,9 @@ const handlePass = () => {
   }, 250);
 };
 
-const handleUndo = () => {
-  if (currentIdx > 0) {
-    setCurrentIdx(currentIdx - 1);
-    setDirection(null);
-  }
-};
+
+
+
 
 const handleRequestResponse = async (requestId: string, accept: boolean) => {
   try {
@@ -748,42 +773,12 @@ if (isLoadingRoommates && studentsOnly.length === 0) {
   );
 }
 
-if (!isLoadingRoommates && studentsOnly.length === 0) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 bg-white/5 rounded-xl border border-white/10">
-      <FaUserFriends className="text-4xl text-cyan-400 mx-auto mb-3 opacity-50" />
-      <p className="text-gray-300 font-semibold mb-2">No roommate profiles found</p>
-      <p className="text-sm text-gray-400 mb-4">Complete your profile to start finding roommates</p>
-      <button
-        onClick={() => navigate('/profile')}
-        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
-      >
-        Update Your Profile
-      </button>
-    </div>
-  );
-}
 
 
 
 
 
 
-  if (!isLoadingRoommates && studentsOnly.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 bg-white/5 rounded-xl border border-white/10">
-        <FaUserFriends className="text-4xl text-cyan-400 mx-auto mb-3 opacity-50" />
-        <p className="text-gray-300 font-semibold mb-2">No roommate profiles found</p>
-        <p className="text-sm text-gray-400 mb-4">Complete your profile to start finding roommates</p>
-        <button
-          onClick={() => navigate('/profile')}
-          className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
-        >
-          Update Your Profile
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
