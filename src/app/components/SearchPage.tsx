@@ -652,32 +652,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
             });
           }
 
-const handlePass = () => {
-  if (!current || isAnimating) return;
-  setIsAnimating(true);
-  setDirection('left');
-  setTimeout(() => {
-    setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-    if (currentIdx < studentsOnly.length - 1) {
-      setCurrentIdx(currentIdx + 1);
-    }
-    setDirection(null);
-    setIsAnimating(false);
 
-    void (async () => {
-      try {
-        if (isMongoId(current.id)) {
-          await callRoommateApi('/swipe', {
-            method: 'POST',
-            body: JSON.stringify({ profileId: current.id, action: 'pass' }),
-          });
-        }
-      } catch (error) {
-        console.error('Error syncing pass:', error);
-      }
-    })();
-  }, 250);
-};
 
 
 
@@ -718,7 +693,9 @@ const handleUndo = () => {
 
 
 
-const handlePass = () => {
+
+// Roommate Finder Pass Handler (renamed for clarity)
+const handleRoommatePass = () => {
   if (!current || isAnimating) return;
   setIsAnimating(true);
   setDirection('left');
@@ -916,7 +893,7 @@ if (isLoadingRoommates && studentsOnly.length === 0) {
                     <RoommateSwipeCard
                       roommate={current}
                       onLike={handleLike}
-                      onPass={handlePass}
+                      onPass={handleRoommatePass}
                       isAnimating={isAnimating}
                       direction={direction}
                     />
@@ -991,7 +968,7 @@ if (isLoadingRoommates && studentsOnly.length === 0) {
                 <RoommateSwipeCard
                   roommate={current}
                   onLike={handleLike}
-                  onPass={handlePass}
+                  onPass={handleRoommatePass}
                   isAnimating={isAnimating}
                   direction={direction}
                 />
@@ -2677,6 +2654,7 @@ export default function SearchPage() {
     }, 150);
   };
 
+  // Room Listings Pass Handler (keep this for main listings)
   const handlePass = (): void => {
     if (!currentListing || isAnimating) return;
     
