@@ -130,14 +130,7 @@ interface Notification {
 }
 
 // Real boarding room images
-const roomImages: string[] = [
-  'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1598928506911-5c200b0e2f4b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1598928636135-d146006ff4be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-];
+
 
 // Filter chips data
 const filterChips: FilterChip[] = [
@@ -2344,11 +2337,12 @@ export default function SearchPage() {
             ? housesJson.data
             : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
 
+
           const mappedRooms: Listing[] = roomsResponse.ok && roomsData.length > 0
             ? roomsData.map((roomItem: any, index: number) => ({
                 id: index + 1,
                 title: roomItem.name || 'Room Listing',
-                images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
+                images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [],
                 price: Number(roomItem.price) || 0,
                 location: roomItem.location || 'Unknown',
                 distance: 1,
@@ -2367,13 +2361,14 @@ export default function SearchPage() {
               }))
             : [];
 
+
           const mappedHouses: Listing[] = housesResponse.ok && housesData.length > 0
             ? housesData.map((house: any, index: number) => ({
                 id: 100000 + index,
                 title: house.name || 'Boarding House',
                 images: Array.isArray(house.images) && house.images.length > 0
                   ? house.images
-                  : (house.image ? [house.image] : [roomImages[index % roomImages.length]]),
+                  : (house.image ? [house.image] : []),
                 price: Number(house.monthlyPrice) || 0,
                 location: house.address || 'Unknown',
                 distance: 1.2,
