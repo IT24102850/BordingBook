@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, ReactNode, useCallback } from 'react';
+import React, { useState, useEffect, useRef, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
@@ -12,7 +12,7 @@ import {
 import { MdOutlineVerified } from 'react-icons/md';
 import { RiUserSharedLine } from 'react-icons/ri';
 import { BiCurrentLocation } from 'react-icons/bi';
-import { distMap } from '../data/rooms'; // Only use distMap, not static room data
+import { distMap } from '../data/rooms';
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
@@ -22,8 +22,7 @@ function normalizeIdValue(value: any): string {
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   if (typeof value === 'object') {
     if (value._id) return String(value._id);
-
-    // ...existing code...
+    if (value.id) return String(value.id);
   }
   return '';
 }
@@ -467,7 +466,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [apiNotice, setApiNotice] = React.useState('');
   const [isLoadingRoommates, setIsLoadingRoommates] = React.useState(false);
   const [localRoommateData, setLocalRoommateData] = React.useState<any[]>([]);
-  const [selectedRoommateIds, setSelectedRoommateIds] = React.useState<string[]>([]);
 
   const studentsOnly = React.useMemo(() => {
     const data = localRoommateData.length > 0 ? localRoommateData : roommateData;
@@ -584,15 +582,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
         );
       }
 
-
-
-
-
-
-
-
-
-
       if (inboxRes.status === 'fulfilled') {
         const requests = Array.isArray(inboxRes.value?.data) ? inboxRes.value.data : [];
         setInboxRequests(
@@ -629,9 +618,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     loadRoommateNetworkData();
   }, [loadRoommateProfiles, loadRoommateNetworkData]);
 
-
-
-
   const handleLike = () => {
     if (!current || isAnimating) return;
     setIsAnimating(true);
@@ -652,11 +638,6 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
               body: JSON.stringify({ profileId: current.id, action: 'like' }),
             });
           }
-
-
-
-
-
 
           if (isMongoId(current.userId)) {
             await callRoommateApi('/request/send', {
@@ -679,109 +660,104 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     }, 250);
   };
 
-
-
-
-
-
-const handleUndo = () => {
-  if (currentIdx > 0) {
-    setCurrentIdx(currentIdx - 1);
-    setDirection(null);
-  }
-};
-
-
-
-
-
-// Roommate Finder Pass Handler (renamed for clarity)
-const handleRoommatePass = () => {
-  if (!current || isAnimating) return;
-  setIsAnimating(true);
-  setDirection('left');
-  setTimeout(() => {
-    setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-    if (currentIdx < studentsOnly.length - 1) {
-      setCurrentIdx(currentIdx + 1);
-    }
-    setDirection(null);
-    setIsAnimating(false);
-
-    void (async () => {
-      try {
-        if (isMongoId(current.id)) {
-          await callRoommateApi('/swipe', {
-            method: 'POST',
-            body: JSON.stringify({ profileId: current.id, action: 'pass' }),
-          });
-        }
-      } catch (error) {
-        console.error('Error syncing pass:', error);
+  const handlePass = () => {
+    if (!current || isAnimating) return;
+    setIsAnimating(true);
+    setDirection('left');
+    setTimeout(() => {
+      setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
+      if (currentIdx < studentsOnly.length - 1) {
+        setCurrentIdx(currentIdx + 1);
       }
-    })();
-  }, 250);
-};
+      setDirection(null);
+      setIsAnimating(false);
 
+      void (async () => {
+        try {
+          if (isMongoId(current.id)) {
+            await callRoommateApi('/swipe', {
+              method: 'POST',
+              body: JSON.stringify({ profileId: current.id, action: 'pass' }),
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing pass:', error);
+        }
+      })();
+    }, 250);
+  };
 
-
-
-
-const handleRequestResponse = async (requestId: string, accept: boolean) => {
-  try {
-    await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, {
-      method: 'PATCH',
-    });
-    await loadRoommateNetworkData();
-    setApiNotice(accept ? 'Request accepted. You can start chatting now.' : 'Request rejected.');
-    setTimeout(() => setApiNotice(''), 3000);
-  } catch (error) {
-    setApiNotice((error as Error).message || 'Failed to update request status');
-    setTimeout(() => setApiNotice(''), 3000);
-  }
-};
-
-const createGroupFromLiked = async () => {
-  try {
-    const memberEmails = liked.map((m) => m.email).filter(Boolean);
-    if (memberEmails.length === 0) {
-      setApiNotice('Like at least one roommate before creating a group.');
-      setTimeout(() => setApiNotice(''), 3000);
-      return;
+  const handleUndo = () => {
+    if (currentIdx > 0) {
+      setCurrentIdx(currentIdx - 1);
+      setDirection(null);
     }
+  };
 
-    await callRoommateApi('/group', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: `Roommate Group ${new Date().toLocaleDateString()}`,
-        memberEmails,
-      }),
-    });
+  const handleRequestResponse = async (requestId: string, accept: boolean) => {
+    try {
+      await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, {
+        method: 'PATCH',
+      });
+      await loadRoommateNetworkData();
+      setApiNotice(accept ? 'Request accepted. You can start chatting now.' : 'Request rejected.');
+      setTimeout(() => setApiNotice(''), 3000);
+    } catch (error) {
+      setApiNotice((error as Error).message || 'Failed to update request status');
+      setTimeout(() => setApiNotice(''), 3000);
+    }
+  };
 
-    await loadRoommateNetworkData();
-    setApiNotice('Group created successfully. Members will receive invites.');
-    setTimeout(() => setApiNotice(''), 3000);
-  } catch (error) {
-    setApiNotice((error as Error).message || 'Failed to create group');
-    setTimeout(() => setApiNotice(''), 3000);
+  const createGroupFromLiked = async () => {
+    try {
+      const memberEmails = liked.map((m) => m.email).filter(Boolean);
+      if (memberEmails.length === 0) {
+        setApiNotice('Like at least one roommate before creating a group.');
+        setTimeout(() => setApiNotice(''), 3000);
+        return;
+      }
+
+      await callRoommateApi('/group', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `Roommate Group ${new Date().toLocaleDateString()}`,
+          memberEmails,
+        }),
+      });
+
+      await loadRoommateNetworkData();
+      setApiNotice('Group created successfully. Members will receive invites.');
+      setTimeout(() => setApiNotice(''), 3000);
+    } catch (error) {
+      setApiNotice((error as Error).message || 'Failed to create group');
+      setTimeout(() => setApiNotice(''), 3000);
+    }
+  };
+
+  if (isLoadingRoommates && studentsOnly.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
+        <p className="text-cyan-200 text-sm">Loading roommate profiles...</p>
+      </div>
+    );
   }
-};
 
-if (isLoadingRoommates && studentsOnly.length === 0) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12">
-      <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
-      <p className="text-cyan-200 text-sm">Loading roommate profiles...</p>
-    </div>
-  );
-}
-
-
-
-
-
-
-
+  if (!isLoadingRoommates && studentsOnly.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 bg-white/5 rounded-xl border border-white/10">
+        <FaUserFriends className="text-4xl text-cyan-400 mx-auto mb-3 opacity-50" />
+        <p className="text-gray-300 font-semibold mb-2">No roommate profiles found</p>
+        <p className="text-sm text-gray-400 mb-4">Complete your profile to start finding roommates</p>
+        <button
+          onClick={() => navigate('/profile')}
+          className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
+        >
+          Update Your Profile
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -894,7 +870,7 @@ if (isLoadingRoommates && studentsOnly.length === 0) {
                     <RoommateSwipeCard
                       roommate={current}
                       onLike={handleLike}
-                      onPass={handleRoommatePass}
+                      onPass={handlePass}
                       isAnimating={isAnimating}
                       direction={direction}
                     />
@@ -969,7 +945,7 @@ if (isLoadingRoommates && studentsOnly.length === 0) {
                 <RoommateSwipeCard
                   roommate={current}
                   onLike={handleLike}
-                  onPass={handleRoommatePass}
+                  onPass={handlePass}
                   isAnimating={isAnimating}
                   direction={direction}
                 />
@@ -1677,11 +1653,11 @@ const FiltersPanel: React.FC<{
   ];
 
   const distanceOptions = [
-    { label: '1km', value: 1 },
-    { label: '2km', value: 2 },
-    { label: '5km', value: 5 },
-    { label: '10km', value: 10 },
-    { label: '20km', value: 20 },
+    { label: '500m', value: '500m' },
+    { label: '1km', value: 'walking' },
+    { label: '2km', value: 'cycling' },
+    { label: '5km', value: 'bus' },
+    { label: 'Any', value: 'any' }
   ];
 
   const roomTypeOptions = ['All', 'Single', 'Master', 'Sharing', 'Annex'];
@@ -2041,7 +2017,6 @@ export default function SearchPage() {
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
   const [passedListings, setPassedListings] = useState<Listing[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -2066,12 +2041,10 @@ export default function SearchPage() {
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
   
   const [priceMax, setPriceMax] = useState<number>(50000);
-  const [priceMin, setPriceMin] = useState<number>(0);
-  const [dist, setDist] = useState<number>(10); // in km
+  const [dist, setDist] = useState<string>('any');
   const [room, setRoom] = useState<string>('any');
   const [avail, setAvail] = useState<string>('all');
   const [facs, setFacs] = useState<string[]>([]);
-  const [ratingMin, setRatingMin] = useState<number>(0);
   const [showFilters, setShowFilters] = useState<boolean>(true);
   const [sortMode, setSortMode] = useState<'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance'>('discovery');
   const [dbListings, setDbListings] = useState<Listing[]>([]);
@@ -2290,10 +2263,9 @@ export default function SearchPage() {
     const token = localStorage.getItem('bb_access_token') || '';
     if (!token) return;
 
-    // Poll notifications every 60 seconds instead of 15
     const intervalId = window.setInterval(() => {
       void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
-    }, 60000);
+    }, 15000);
 
     return () => {
       window.clearInterval(intervalId);
@@ -2428,58 +2400,55 @@ export default function SearchPage() {
           setDbListings([...mappedRooms, ...mappedHouses]);
         }
 
-        // Lazy load roommates only when activeTab is 'roommate'
-        if (!isCancelled && activeTab === 'roommate') {
-          if (!token) return;
+        if (!token) return;
 
-          const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const meJson = await meResponse.json();
-          const currentUser = meJson?.data || null;
+        const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const meJson = await meResponse.json();
+        const currentUser = meJson?.data || null;
 
-          if (!isCancelled && currentUser?.email) {
-            setCurrentUserId(String(currentUser._id || currentUser.id || ''));
-            setCurrentUserEmail(currentUser.email);
-            setCurrentUserName(currentUser.fullName || '');
-            if (currentUser.profilePicture) {
-              setCurrentUserImage(currentUser.profilePicture);
-            }
+        if (!isCancelled && currentUser?.email) {
+          setCurrentUserId(String(currentUser._id || currentUser.id || ''));
+          setCurrentUserEmail(currentUser.email);
+          setCurrentUserName(currentUser.fullName || '');
+          if (currentUser.profilePicture) {
+            setCurrentUserImage(currentUser.profilePicture);
           }
-          const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
-          if (!isCancelled) {
-            await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
-          }
+        }
+        const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
+        if (!isCancelled) {
+          await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
+        }
 
-          const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const roommateJson = await roommateResponse.json();
+        const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const roommateJson = await roommateResponse.json();
 
-          if (!isCancelled && roommateResponse.ok) {
-            const roommateData = Array.isArray(roommateJson?.data)
-              ? roommateJson.data
-              : (Array.isArray(roommateJson?.profiles) ? roommateJson.profiles : (Array.isArray(roommateJson) ? roommateJson : []));
+        if (!isCancelled && roommateResponse.ok) {
+          const roommateData = Array.isArray(roommateJson?.data)
+            ? roommateJson.data
+            : (Array.isArray(roommateJson?.profiles) ? roommateJson.profiles : (Array.isArray(roommateJson) ? roommateJson : []));
 
-            const mappedRoommates: Roommate[] = roommateData.map((profile: any) => ({
-              id: normalizeIdValue(profile._id || profile.id),
-              userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-              name: profile.name || 'Student',
-              email: profile.email || '',
-              age: deriveProfileAge(profile),
-              gender: profile.gender || 'Any',
-              university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-              bio: profile.description || 'Looking for a compatible roommate.',
-              image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-              interests: Array.isArray(profile.tags) ? profile.tags : [],
-              mutualCount: 0,
-              role: profile.role || '',
-            }));
+          const mappedRoommates: Roommate[] = roommateData.map((profile: any) => ({
+            id: normalizeIdValue(profile._id || profile.id),
+            userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+            name: profile.name || 'Student',
+            email: profile.email || '',
+            age: deriveProfileAge(profile),
+            gender: profile.gender || 'Any',
+            university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+            bio: profile.description || 'Looking for a compatible roommate.',
+            image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+            interests: Array.isArray(profile.tags) ? profile.tags : [],
+            mutualCount: 0,
+            role: profile.role || '',
+          }));
 
-            setDbRoommates(mappedRoommates);
-          } else {
-            setDbRoommates([]);
-          }
+          setDbRoommates(mappedRoommates);
+        } else {
+          setDbRoommates([]);
         }
       } catch {
         setDbListings([]);
@@ -2495,9 +2464,8 @@ export default function SearchPage() {
     return () => {
       isCancelled = true;
     };
-  }, [activeTab]);
+  }, []);
 
-  // Only use database/API listings and roommates
   const effectiveListings = dbListings;
   const effectiveRoommates = dbRoommates;
 
@@ -2552,7 +2520,6 @@ export default function SearchPage() {
     return listingScore(b) - listingScore(a);
   });
 
-  // Only use dbListings for roomDataset
   const roomDataset: any[] = dbListings.map((listing, index) => ({
     id: listing.id || index + 1,
     name: listing.title,
@@ -2574,15 +2541,14 @@ export default function SearchPage() {
           !r.location.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
-      if (r.price > priceMax || r.price < priceMin) return false;
-      if (dist !== null && r.distKm > dist) return false;
+      if (r.price > priceMax) return false;
+      if (dist !== 'any' && r.distKm > (distMap as any)[dist]) return false;
       if (room !== 'any' && r.roomType.toLowerCase() !== room.toLowerCase()) return false;
       if (avail === 'available' && !r.available) return false;
       if (avail === 'occupied' && r.available) return false;
       if (facs.length > 0 && !facs.every(f => r.facilities.map((fac: string) => fac.toLowerCase()).includes(f.toLowerCase()))) {
         return false;
       }
-      if (ratingMin > 0 && (r.rating || 0) < ratingMin) return false;
       return true;
     });
   };
@@ -2655,7 +2621,6 @@ export default function SearchPage() {
     }, 150);
   };
 
-  // Room Listings Pass Handler (keep this for main listings)
   const handlePass = (): void => {
     if (!currentListing || isAnimating) return;
     
@@ -2735,53 +2700,6 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
-        {/* --- Enhanced Filters UI --- */}
-        <div className="mb-6 bg-white/5 rounded-xl p-4 flex flex-wrap gap-4 items-center justify-between border border-white/10">
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-200">Price Range (Rs.)</label>
-            <div className="flex gap-2 items-center">
-              <input type="number" min="0" max={priceMax} value={priceMin} onChange={e => { setPriceMin(Number(e.target.value)); setCurrentIndex(0); }} className="w-20 rounded px-2 py-1 text-xs" />
-              <span className="text-cyan-100">to</span>
-              <input type="number" min={priceMin} max="50000" value={priceMax} onChange={e => { setPriceMax(Number(e.target.value)); setCurrentIndex(0); }} className="w-20 rounded px-2 py-1 text-xs" />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-200">Distance (km)</label>
-            <input type="range" min="1" max="20" value={dist} onChange={e => { setDist(Number(e.target.value)); setCurrentIndex(0); }} className="w-32" />
-            <span className="text-xs text-cyan-100">Up to {dist} km</span>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-200">Room Type</label>
-            <select value={room} onChange={e => { setRoom(e.target.value); setCurrentIndex(0); }} className="rounded px-2 py-1 text-xs">
-              <option value="any">Any</option>
-              <option value="Single">Single</option>
-              <option value="Master">Master</option>
-              <option value="Annex">Annex</option>
-              <option value="Sharing">Sharing</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-200">Availability</label>
-            <select value={avail} onChange={e => { setAvail(e.target.value); setCurrentIndex(0); }} className="rounded px-2 py-1 text-xs">
-              <option value="all">All</option>
-              <option value="available">Available</option>
-              <option value="occupied">Occupied</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-200">Facilities</label>
-            <div className="flex flex-wrap gap-1">
-              {['WiFi','AC','Parking','Meals','Laundry','Security','Gym','Kitchen','Balcony'].map(fac => (
-                <button key={fac} onClick={() => { setFacs(facs.includes(fac) ? facs.filter(f => f !== fac) : [...facs, fac]); setCurrentIndex(0); }} className={`px-2 py-1 rounded text-xs border ${facs.includes(fac) ? 'bg-cyan-500/30 border-cyan-400 text-white' : 'bg-white/10 border-white/20 text-cyan-100'}`}>{fac}</button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-200">Min. Rating</label>
-            <input type="range" min="0" max="5" step="0.5" value={ratingMin} onChange={e => { setRatingMin(Number(e.target.value)); setCurrentIndex(0); }} className="w-24" />
-            <span className="text-xs text-cyan-100">{ratingMin}+</span>
-          </div>
-        </div>
         {/* Header */}
         <div className="flex flex-col items-center w-full mb-6">
           <div className="w-full mb-4 md:max-w-5xl md:mx-auto rounded-2xl border border-white/10 bg-[#0f172a]/70 backdrop-blur-xl shadow-2xl px-3 py-3 md:px-5">
@@ -3037,16 +2955,10 @@ export default function SearchPage() {
                   type="text"
                   placeholder="Search by location or keyword..."
                   value={searchTerm}
-                  onChange={useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-                    const value = e.target.value;
-                    if (searchDebounceRef.current) {
-                      clearTimeout(searchDebounceRef.current);
-                    }
-                    searchDebounceRef.current = setTimeout(() => {
-                      setSearchTerm(value);
-                      setCurrentIndex(0);
-                    }, 300);
-                  }, [])}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentIndex(0);
+                  }}
                   className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                 />
               </div>
@@ -3104,7 +3016,7 @@ export default function SearchPage() {
                   setters={{ setPriceMax, setDist, setRoom, setAvail, setFacs }}
                   onReset={() => {
                     setPriceMax(50000);
-                    setDist(20); // Reset to max distance
+                    setDist('any');
                     setRoom('any');
                     setAvail('all');
                     setFacs([]);
@@ -3238,11 +3150,11 @@ export default function SearchPage() {
                       <h2 className="text-xl font-bold text-white">
                         All Available Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
                       </h2>
-                      {(priceMax < 50000 || dist < 20 || room !== 'any' || avail !== 'all' || facs.length > 0) && (
+                      {(priceMax < 50000 || dist !== 'any' || room !== 'any' || avail !== 'all' || facs.length > 0) && (
                         <button
                           onClick={() => {
                             setPriceMax(50000);
-                            setDist(20);
+                            setDist('any');
                             setRoom('any');
                             setAvail('all');
                             setFacs([]);
