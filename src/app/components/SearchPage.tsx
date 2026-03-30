@@ -2082,9 +2082,12 @@ export default function SearchPage() {
   const [facs, setFacs] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState<boolean>(true);
   const [sortMode, setSortMode] = useState<'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance'>('discovery');
-  const [dbListings, setDbListings] = useState<Listing[]>([]);
+  const [dbRooms, setDbRooms] = useState<Listing[]>([]);
+  const [dbHouses, setDbHouses] = useState<Listing[]>([]);
   const [dbRoommates, setDbRoommates] = useState<Roommate[]>([]);
-  const [isListingsLoading, setIsListingsLoading] = useState<boolean>(true);
+  const [isRoomsLoading, setIsRoomsLoading] = useState<boolean>(true);
+  const [isHousesLoading, setIsHousesLoading] = useState<boolean>(true);
+  const [isRoommatesLoading, setIsRoommatesLoading] = useState<boolean>(true);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState('Guest');
   const [currentUserName, setCurrentUserName] = useState('');
@@ -2367,141 +2370,124 @@ export default function SearchPage() {
   useEffect(() => {
     let isCancelled = false;
 
-    const loadSearchData = async () => {
-      try {
-        const token = localStorage.getItem('bb_access_token') || '';
+    // Fetch rooms
+    setIsRoomsLoading(true);
+    fetch(`${API_BASE_URL}/api/roommates/rooms`)
+      .then((res) => res.json().then((json) => [res.ok, json]))
+      .then(([ok, roomsJson]) => {
+        if (isCancelled) return;
+        const roomsData = Array.isArray(roomsJson?.data)
+          ? roomsJson.data
+          : (Array.isArray(roomsJson?.rooms) ? roomsJson.rooms : (Array.isArray(roomsJson) ? roomsJson : []));
+        const mappedRooms: Listing[] = ok && roomsData.length > 0
+          ? roomsData.map((roomItem: any, index: number) => ({
+              id: index + 1,
+              title: roomItem.name || 'Room Listing',
+              images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
+              price: Number(roomItem.price) || 0,
+              location: roomItem.location || 'Unknown',
+              distance: 1,
+              distanceUnit: 'km',
+              travelTime: 'Near campus',
+              roomType: roomItem.roomType || 'Single Room',
+              genderPreference: roomItem.genderPreference || 'Any',
+              availableFrom: roomItem.availableFrom || '',
+              billsIncluded: Array.isArray(roomItem.facilities) ? roomItem.facilities.includes('Meals') : false,
+              verified: true,
+              badges: [roomItem.occupancy < roomItem.totalSpots ? 'Available' : 'Occupied'],
+              description: roomItem.description || '',
+              features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
+              deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
+              roommateCount: Number(roomItem.occupancy) || 0,
+            }))
+          : [];
+        setDbRooms(mappedRooms);
+      })
+      .catch(() => setDbRooms([]))
+      .finally(() => { if (!isCancelled) setIsRoomsLoading(false); });
 
-        const roomsResponse = await fetch(`${API_BASE_URL}/api/roommates/rooms`);
-        const housesResponse = await fetch(`${API_BASE_URL}/api/owner/public/houses`);
-        const [roomsJson, housesJson] = await Promise.all([roomsResponse.json(), housesResponse.json()]);
+    // Fetch houses
+    setIsHousesLoading(true);
+    fetch(`${API_BASE_URL}/api/owner/public/houses`)
+      .then((res) => res.json().then((json) => [res.ok, json]))
+      .then(([ok, housesJson]) => {
+        if (isCancelled) return;
+        const housesData = Array.isArray(housesJson?.data)
+          ? housesJson.data
+          : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
+        const mappedHouses: Listing[] = ok && housesData.length > 0
+          ? housesData.map((house: any, index: number) => ({
+              id: 100000 + index,
+              title: house.name || 'Boarding House',
+              images: Array.isArray(house.images) && house.images.length > 0
+                ? house.images
+                : (house.image ? [house.image] : [roomImages[index % roomImages.length]]),
+              price: Number(house.monthlyPrice) || 0,
+              location: house.address || 'Unknown',
+              distance: 1.2,
+              distanceUnit: 'km',
+              travelTime: 'Near city',
+              roomType: house.roomType || 'Single Room',
+              genderPreference: house.genderPreference || 'any',
+              availableFrom: house.availableFrom || '',
+              billsIncluded: false,
+              verified: true,
+              badges: [house.status === 'active' ? 'Available' : 'Occupied'],
+              description: house.description || '',
+              features: Array.isArray(house.features) ? house.features : [],
+              deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
+              roommateCount: Number(house.occupiedRooms) || 0,
+            }))
+          : [];
+        setDbHouses(mappedHouses);
+      })
+      .catch(() => setDbHouses([]))
+      .finally(() => { if (!isCancelled) setIsHousesLoading(false); });
 
-        if (!isCancelled) {
-          const roomsData = Array.isArray(roomsJson?.data)
-            ? roomsJson.data
-            : (Array.isArray(roomsJson?.rooms) ? roomsJson.rooms : (Array.isArray(roomsJson) ? roomsJson : []));
-
-          const housesData = Array.isArray(housesJson?.data)
-            ? housesJson.data
-            : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
-
-          const mappedRooms: Listing[] = roomsResponse.ok && roomsData.length > 0
-            ? roomsData.map((roomItem: any, index: number) => ({
-                id: index + 1,
-                title: roomItem.name || 'Room Listing',
-                images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
-                price: Number(roomItem.price) || 0,
-                location: roomItem.location || 'Unknown',
-                distance: 1,
-                distanceUnit: 'km',
-                travelTime: 'Near campus',
-                roomType: roomItem.roomType || 'Single Room',
-                genderPreference: roomItem.genderPreference || 'Any',
-                availableFrom: roomItem.availableFrom || '',
-                billsIncluded: Array.isArray(roomItem.facilities) ? roomItem.facilities.includes('Meals') : false,
-                verified: true,
-                badges: [roomItem.occupancy < roomItem.totalSpots ? 'Available' : 'Occupied'],
-                description: roomItem.description || '',
-                features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
-                deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
-                roommateCount: Number(roomItem.occupancy) || 0,
-              }))
-            : [];
-
-          const mappedHouses: Listing[] = housesResponse.ok && housesData.length > 0
-            ? housesData.map((house: any, index: number) => ({
-                id: 100000 + index,
-                title: house.name || 'Boarding House',
-                images: Array.isArray(house.images) && house.images.length > 0
-                  ? house.images
-                  : (house.image ? [house.image] : [roomImages[index % roomImages.length]]),
-                price: Number(house.monthlyPrice) || 0,
-                location: house.address || 'Unknown',
-                distance: 1.2,
-                distanceUnit: 'km',
-                travelTime: 'Near city',
-                roomType: house.roomType || 'Single Room',
-                genderPreference: house.genderPreference || 'any',
-                availableFrom: house.availableFrom || '',
-                billsIncluded: false,
-                verified: true,
-                badges: [house.status === 'active' ? 'Available' : 'Occupied'],
-                description: house.description || '',
-                features: Array.isArray(house.features) ? house.features : [],
-                deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
-                roommateCount: Number(house.occupiedRooms) || 0,
-              }))
-            : [];
-
-          setDbListings([...mappedRooms, ...mappedHouses]);
-        }
-
-        if (!token) return;
-
-        const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const meJson = await meResponse.json();
-        const currentUser = meJson?.data || null;
-
-        if (!isCancelled && currentUser?.email) {
-          setCurrentUserId(String(currentUser._id || currentUser.id || ''));
-          setCurrentUserEmail(currentUser.email);
-          setCurrentUserName(currentUser.fullName || '');
-          if (currentUser.profilePicture) {
-            setCurrentUserImage(currentUser.profilePicture);
-          }
-        }
-        const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
-        if (!isCancelled) {
-          await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
-        }
-
-        const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const roommateJson = await roommateResponse.json();
-
-        if (!isCancelled && roommateResponse.ok) {
+    // Fetch roommates
+    setIsRoommatesLoading(true);
+    const token = localStorage.getItem('bb_access_token') || '';
+    if (token) {
+      fetch(`${API_BASE_URL}/api/roommates/browse`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json().then((json) => [res.ok, json]))
+        .then(([ok, roommateJson]) => {
+          if (isCancelled) return;
           const roommateData = Array.isArray(roommateJson?.data)
             ? roommateJson.data
             : (Array.isArray(roommateJson?.profiles) ? roommateJson.profiles : (Array.isArray(roommateJson) ? roommateJson : []));
-
-          const mappedRoommates: Roommate[] = roommateData.map((profile: any) => ({
-            id: normalizeIdValue(profile._id || profile.id),
-            userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-            name: profile.name || 'Student',
-            email: profile.email || '',
-            age: deriveProfileAge(profile),
-            gender: profile.gender || 'Any',
-            university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-            bio: profile.description || 'Looking for a compatible roommate.',
-            image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-            interests: Array.isArray(profile.tags) ? profile.tags : [],
-            mutualCount: 0,
-            role: profile.role || '',
-          }));
-
+          const mappedRoommates: Roommate[] = ok && roommateData.length > 0
+            ? roommateData.map((profile: any) => ({
+                id: normalizeIdValue(profile._id || profile.id),
+                userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+                name: profile.name || 'Student',
+                email: profile.email || '',
+                age: deriveProfileAge(profile),
+                gender: profile.gender || 'Any',
+                university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+                bio: profile.description || 'Looking for a compatible roommate.',
+                image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+                interests: Array.isArray(profile.tags) ? profile.tags : [],
+                mutualCount: 0,
+                role: profile.role || '',
+              }))
+            : [];
           setDbRoommates(mappedRoommates);
-        } else {
-          setDbRoommates([]);
-        }
-      } catch {
-        setDbListings([]);
-        setDbRoommates([]);
-      } finally {
-        if (!isCancelled) {
-          setIsListingsLoading(false);
-        }
-      }
-    };
+        })
+        .catch(() => setDbRoommates([]))
+        .finally(() => { if (!isCancelled) setIsRoommatesLoading(false); });
+    } else {
+      setDbRoommates([]);
+      setIsRoommatesLoading(false);
+    }
 
-    loadSearchData();
     return () => {
       isCancelled = true;
     };
   }, []);
 
-  const effectiveListings = dbListings;
+  const effectiveListings = [...dbRooms, ...dbHouses];
   const effectiveRoommates = dbRoommates;
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -2555,7 +2541,7 @@ export default function SearchPage() {
     return listingScore(b) - listingScore(a);
   });
 
-  const roomDataset: any[] = dbListings.map((listing, index) => ({
+  const roomDataset: any[] = effectiveListings.map((listing: Listing, index: number) => ({
     id: listing.id || index + 1,
     name: listing.title,
     location: listing.location,
@@ -2721,7 +2707,9 @@ export default function SearchPage() {
     navigate('/signin');
   };
 
-  if (isListingsLoading) {
+
+  // Show independent loading spinners for rooms and houses
+  if (isRoomsLoading && isHousesLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4">
         <div className="text-center">
