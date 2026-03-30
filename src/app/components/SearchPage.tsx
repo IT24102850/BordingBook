@@ -1814,18 +1814,49 @@ const BookingForm: React.FC<{
   currentUserEmail?: string;
   currentUserImage?: string;
 }> = ({ listing, onClose, onSubmit, currentUserName = '', currentUserEmail = '', currentUserImage = '' }) => {
+
   const [fullName, setFullName] = useState(currentUserName);
   const [contact, setContact] = useState('');
   const [moveInDate, setMoveInDate] = useState('');
   const [duration, setDuration] = useState('');
+  const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSubmit = () => {
-    if (!contact || !moveInDate || !duration) {
-      alert('Please fill all required fields');
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setFormError('');
+    setSuccessMessage('');
+    if (!contact || !moveInDate || !duration || !fullName) {
+      setFormError('Please fill all required fields');
       return;
     }
-    onSubmit({ fullName, contact, moveInDate, duration });
-    onClose();
+    try {
+      const payload = {
+        fullName,
+        contact,
+        moveInDate,
+        duration,
+        listingId: listing?.id,
+        listingTitle: listing?.title,
+      };
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMessage('Booking request submitted!');
+        setTimeout(() => {
+          setSuccessMessage('');
+          onClose();
+        }, 1500);
+      } else {
+        setFormError(data.message || 'Failed to submit booking.');
+      }
+    } catch (err) {
+      setFormError('Server error. Please try again.');
+    }
   };
 
   return (
@@ -1837,7 +1868,7 @@ const BookingForm: React.FC<{
             <FaTimes className="text-gray-400" />
           </button>
         </div>
-        <div className="p-4 space-y-4">
+        <form className="p-4 space-y-4" onSubmit={handleSubmit}>
           <input
             type="text"
             placeholder="Full Name"
@@ -1865,13 +1896,15 @@ const BookingForm: React.FC<{
             onChange={(e) => setDuration(e.target.value)}
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
           />
+          {formError && <div className="text-red-400 text-sm">{formError}</div>}
+          {successMessage && <div className="text-green-400 text-sm">{successMessage}</div>}
           <button
-            onClick={handleSubmit}
+            type="submit"
             className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg font-semibold"
           >
             Submit Booking
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
