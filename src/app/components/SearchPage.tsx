@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import React, { useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
@@ -466,6 +466,7 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [apiNotice, setApiNotice] = React.useState('');
   const [isLoadingRoommates, setIsLoadingRoommates] = React.useState(false);
   const [localRoommateData, setLocalRoommateData] = React.useState<any[]>([]);
+  const [selectedRoommateIds, setSelectedRoommateIds] = React.useState<string[]>([]);
 
   const studentsOnly = React.useMemo(() => {
     const data = localRoommateData.length > 0 ? localRoommateData : roommateData;
@@ -666,14 +667,15 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     setDirection('left');
     setTimeout(() => {
       setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-      if (currentIdx < studentsOnly.length - 1) {
-        setCurrentIdx(currentIdx + 1);
-      }
-      setDirection(null);
-      setIsAnimating(false);
-
-      void (async () => {
-        try {
+        // Only call API if not already liked
+        if (likedRoommates.includes(current.id)) return;
+        const token = localStorage.getItem('bb_access_token') || '';
+        if (!token) return;
+        
+        await fetch(`${API_BASE_URL}/api/roommates/like/${current.id}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
           if (isMongoId(current.id)) {
             await callRoommateApi('/swipe', {
               method: 'POST',
@@ -2017,6 +2019,7 @@ export default function SearchPage() {
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
   const [passedListings, setPassedListings] = useState<Listing[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -2263,9 +2266,10 @@ export default function SearchPage() {
     const token = localStorage.getItem('bb_access_token') || '';
     if (!token) return;
 
+    // Poll notifications every 60 seconds instead of 15
     const intervalId = window.setInterval(() => {
       void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
-    }, 15000);
+    }, 60000);
 
     return () => {
       window.clearInterval(intervalId);
@@ -2400,55 +2404,58 @@ export default function SearchPage() {
           setDbListings([...mappedRooms, ...mappedHouses]);
         }
 
-        if (!token) return;
+        // Lazy load roommates only when activeTab is 'roommate'
+        if (!isCancelled && activeTab === 'roommate') {
+          if (!token) return;
 
-        const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const meJson = await meResponse.json();
-        const currentUser = meJson?.data || null;
+          const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const meJson = await meResponse.json();
+          const currentUser = meJson?.data || null;
 
-        if (!isCancelled && currentUser?.email) {
-          setCurrentUserId(String(currentUser._id || currentUser.id || ''));
-          setCurrentUserEmail(currentUser.email);
-          setCurrentUserName(currentUser.fullName || '');
-          if (currentUser.profilePicture) {
-            setCurrentUserImage(currentUser.profilePicture);
+          if (!isCancelled && currentUser?.email) {
+            setCurrentUserId(String(currentUser._id || currentUser.id || ''));
+            setCurrentUserEmail(currentUser.email);
+            setCurrentUserName(currentUser.fullName || '');
+            if (currentUser.profilePicture) {
+              setCurrentUserImage(currentUser.profilePicture);
+            }
           }
-        }
-        const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
-        if (!isCancelled) {
-          await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
-        }
+          const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
+          if (!isCancelled) {
+            await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
+          }
 
-        const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const roommateJson = await roommateResponse.json();
+          const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const roommateJson = await roommateResponse.json();
 
-        if (!isCancelled && roommateResponse.ok) {
-          const roommateData = Array.isArray(roommateJson?.data)
-            ? roommateJson.data
-            : (Array.isArray(roommateJson?.profiles) ? roommateJson.profiles : (Array.isArray(roommateJson) ? roommateJson : []));
+          if (!isCancelled && roommateResponse.ok) {
+            const roommateData = Array.isArray(roommateJson?.data)
+              ? roommateJson.data
+              : (Array.isArray(roommateJson?.profiles) ? roommateJson.profiles : (Array.isArray(roommateJson) ? roommateJson : []));
 
-          const mappedRoommates: Roommate[] = roommateData.map((profile: any) => ({
-            id: normalizeIdValue(profile._id || profile.id),
-            userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-            name: profile.name || 'Student',
-            email: profile.email || '',
-            age: deriveProfileAge(profile),
-            gender: profile.gender || 'Any',
-            university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-            bio: profile.description || 'Looking for a compatible roommate.',
-            image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-            interests: Array.isArray(profile.tags) ? profile.tags : [],
-            mutualCount: 0,
-            role: profile.role || '',
-          }));
+            const mappedRoommates: Roommate[] = roommateData.map((profile: any) => ({
+              id: normalizeIdValue(profile._id || profile.id),
+              userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+              name: profile.name || 'Student',
+              email: profile.email || '',
+              age: deriveProfileAge(profile),
+              gender: profile.gender || 'Any',
+              university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+              bio: profile.description || 'Looking for a compatible roommate.',
+              image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+              interests: Array.isArray(profile.tags) ? profile.tags : [],
+              mutualCount: 0,
+              role: profile.role || '',
+            }));
 
-          setDbRoommates(mappedRoommates);
-        } else {
-          setDbRoommates([]);
+            setDbRoommates(mappedRoommates);
+          } else {
+            setDbRoommates([]);
+          }
         }
       } catch {
         setDbListings([]);
@@ -2464,7 +2471,7 @@ export default function SearchPage() {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [activeTab]);
 
   const effectiveListings = dbListings;
   const effectiveRoommates = dbRoommates;
@@ -2955,10 +2962,16 @@ export default function SearchPage() {
                   type="text"
                   placeholder="Search by location or keyword..."
                   value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentIndex(0);
-                  }}
+                  onChange={useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+                    const value = e.target.value;
+                    if (searchDebounceRef.current) {
+                      clearTimeout(searchDebounceRef.current);
+                    }
+                    searchDebounceRef.current = setTimeout(() => {
+                      setSearchTerm(value);
+                      setCurrentIndex(0);
+                    }, 300);
+                  }, [])}
                   className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                 />
               </div>
