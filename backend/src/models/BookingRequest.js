@@ -30,6 +30,12 @@ const bookingRequestSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BookingGroup',
+      default: null,
+      index: true,
+    },
     groupSize: {
       type: Number,
       default: 1,

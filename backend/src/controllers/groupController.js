@@ -17,9 +17,10 @@ exports.createGroup = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
 
-    const { name, memberEmails } = req.body;
-    if (!name || !Array.isArray(memberEmails) || memberEmails.length === 0) {
-      return res.status(400).json({ success: false, message: 'Group name and member emails are required' });
+
+    const { memberEmails } = req.body;
+    if (!Array.isArray(memberEmails) || memberEmails.length === 0) {
+      return res.status(400).json({ success: false, message: 'At least one member email is required' });
     }
 
     // Find users by email, exclude duplicates and the creator
@@ -49,8 +50,9 @@ exports.createGroup = async (req, res) => {
     ];
 
     // Create group
+    // Generate a unique group ID (MongoDB _id)
     const group = new BookingGroup({
-      name,
+      name: `Group-${new Date().getTime()}`,
       creatorId: creator._id,
       members,
       status: 'forming',
@@ -62,7 +64,7 @@ exports.createGroup = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Group created successfully',
-      data: group,
+      data: { groupId: group._id, ...group.toObject() },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create group', error: error.message });

@@ -472,6 +472,31 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [apiNotice, setApiNotice] = React.useState('');
   const [isLoadingRoommates, setIsLoadingRoommates] = React.useState(false);
   const [localRoommateData, setLocalRoommateData] = React.useState<any[]>([]);
+type RoommateFinderPlaceholderProps = {
+  roommateData: Roommate[];
+  dbListings: any[];
+};
+
+function RoommateFinderPlaceholder({ roommateData, dbListings }: RoommateFinderPlaceholderProps) {
+  const [currentIdx, setCurrentIdx] = React.useState(0);
+  const [liked, setLiked] = React.useState<any[]>([]);
+  const [passed, setPassed] = React.useState<any[]>([]);
+  const [mutualMatches, setMutualMatches] = React.useState<any[]>([]);
+  const [direction, setDirection] = React.useState<'left' | 'right' | null>(null);
+  const [isAnimating, setIsAnimating] = React.useState(false);
+  const [showSidePanels, setShowSidePanels] = React.useState(true);
+  const [sentRequests, setSentRequests] = React.useState<any[]>([]);
+  const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
+  const [groups, setGroups] = React.useState<any[]>([]);
+  const [showCreateGroup, setShowCreateGroup] = React.useState(false);
+  const [selectedGroupMembers, setSelectedGroupMembers] = React.useState<string[]>([]);
+  const [canAddMembers, setCanAddMembers] = React.useState<{ [userId: string]: boolean }>({});
+  const [creatingGroup, setCreatingGroup] = React.useState(false);
+  const [groupScenario, setGroupScenario] = React.useState<'existing-room' | 'new-place'>('new-place');
+  const [selectedRoomId, setSelectedRoomId] = React.useState<string>('');
+  const [apiNotice, setApiNotice] = React.useState('');
+  const [isLoadingRoommates, setIsLoadingRoommates] = React.useState(false);
+  const [localRoommateData, setLocalRoommateData] = React.useState<any[]>([]);
 
   const studentsOnly = React.useMemo(() => {
     const data = localRoommateData.length > 0 ? localRoommateData : roommateData;
@@ -1187,10 +1212,29 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                         onChange={e => setSelectedRoomId(e.target.value)}
                       >
                         <option value="">-- Select a room --</option>
-                        {Array.isArray(window.dbListings) ? window.dbListings.map((room: any) => (
+                        {Array.isArray(dbListings) ? dbListings.map((room: any) => (
                           <option key={room.id} value={room.id}>{room.title} ({room.location})</option>
                         )) : null}
                       </select>
+                      {/* Tag if 1 vacancy left */}
+                      {Array.isArray(dbListings) && selectedRoomId && (() => {
+                        const selected = dbListings.find((r: any) => String(r.id) === String(selectedRoomId));
+                        if (selected && typeof selected.vacancy !== 'undefined' && (selected.vacancy === 'low' || selected.vacancy === 1 || selected.vacancy === '1')) {
+                          return (
+                            <div className="mt-2 inline-block px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-semibold border border-red-400/30">
+                              Only 1 vacancy left!
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                  {groupScenario === 'new-place' && (
+                    <div className="mb-3">
+                      <span className="inline-block px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-semibold border border-blue-400/30">
+                        Planned boarding house
+                      </span>
                     </div>
                   )}
                   <p className="text-xs text-gray-300 mb-2">Select at least 2 mutual friends to add to the group:</p>
@@ -2647,6 +2691,15 @@ export default function SearchPage() {
     desc: listing.description || '',
   }));
 
+  // Distance mapping for filtering
+  const distMap: Record<string, number> = {
+    '500m': 0.5,
+    'walking': 1,
+    'cycling': 2,
+    'bus': 5,
+    'any': 9999
+  };
+
   const getFilteredRooms = () => {
     return roomDataset.filter((r: any) => {
       if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -2654,7 +2707,7 @@ export default function SearchPage() {
         return false;
       }
       if (r.price > priceMax) return false;
-      if (dist !== 'any' && r.distKm > (distMap as any)[dist]) return false;
+      if (dist !== 'any' && r.distKm > distMap[dist]) return false;
       if (room !== 'any' && r.roomType.toLowerCase() !== room.toLowerCase()) return false;
       if (avail === 'available' && !r.available) return false;
       if (avail === 'occupied' && r.available) return false;
@@ -3458,7 +3511,7 @@ export default function SearchPage() {
         ) : activeTab === 'map' ? (
           <MapViewPlaceholder />
         ) : (
-          <RoommateFinderPlaceholder roommateData={effectiveRoommates} />
+          <RoommateFinderPlaceholder roommateData={effectiveRoommates} dbListings={dbListings} />
         )}
 
         {/* Popup Notification */}

@@ -1,7 +1,12 @@
+
 const mongoose = require('mongoose');
 const BookingRequest = require('../models/BookingRequest');
 const BookingAgreement = require('../models/BookingAgreement');
 const Room = require('../models/Room');
+const Notification = require('../models/Notification');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 
 function isOwnerOrAdmin(user) {
   return user && ['owner', 'admin'].includes(user.role);
@@ -20,11 +25,12 @@ exports.createBookingRequest = async (req, res) => {
     const {
       roomId,
       bookingType = 'individual',
-      groupName = '',
+      groupId = null,
       groupSize = 1,
       moveInDate,
       durationMonths = 6,
       message = '',
+      mutualFriendIds = [],
     } = req.body;
 
     if (!roomId || !mongoose.Types.ObjectId.isValid(roomId)) {
@@ -40,13 +46,53 @@ exports.createBookingRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Room not found' });
     }
 
+    let group = null;
+    if (bookingType === 'group') {
+      // If groupId is not provided, create a new group with mutual friends
+      if (!groupId) {
+        const BookingGroup = require('../models/BookingGroup');
+        const User = require('../models/User');
+        const creator = await User.findById(req.user.userId);
+        const users = await User.find({ _id: { $in: mutualFriendIds } });
+        const members = [
+          {
+            userId: creator._id,
+            email: creator.email,
+            name: creator.fullName || creator.name || creator.email,
+            status: 'accepted',
+            joinedAt: new Date(),
+          },
+          ...users.map(u => ({
+            userId: u._id,
+            email: u.email,
+            name: u.fullName || u.name || u.email,
+            status: 'pending',
+            joinedAt: null,
+          })),
+        ];
+        group = new BookingGroup({
+          name: `Group-${new Date().getTime()}`,
+          creatorId: creator._id,
+          members,
+          status: 'forming',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        await group.save();
+      } else {
+        const BookingGroup = require('../models/BookingGroup');
+        group = await BookingGroup.findById(groupId);
+      }
+    }
+
     const request = await BookingRequest.create({
       studentId: req.user.userId,
       ownerId: room.ownerId,
       roomId: room._id,
       bookingType: bookingType === 'group' ? 'group' : 'individual',
-      groupName: bookingType === 'group' ? groupName : '',
+      groupName: '',
       groupSize: bookingType === 'group' ? Math.max(1, Number(groupSize) || 1) : 1,
+      groupId: group ? group._id : null,
       moveInDate,
       durationMonths: Math.max(1, Number(durationMonths) || 6),
       message,
@@ -221,6 +267,15 @@ exports.createAgreementForRequest = async (req, res) => {
       .populate('roomId', 'name roomNumber price location')
       .lean();
 
+    // Send notification to student
+    await Notification.create({
+      user: agreement.studentId,
+      type: 'system',
+      title: 'New Agreement Sent',
+      message: `A digital rental agreement has been sent to you for room: ${hydrated.roomId?.name || ''}. Please review and sign to proceed with your booking.`,
+      data: { agreementId: agreement._id, bookingRequestId: agreement.bookingRequestId },
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Agreement created and sent',
@@ -302,16 +357,63 @@ exports.respondToAgreement = async (req, res) => {
     agreement.rejectedAt = status === 'rejected' ? new Date() : null;
     await agreement.save();
 
+    let pdfUrl = null;
+    if (status === 'accepted') {
+      // Generate PDF
+      const pdfDir = path.join(__dirname, '../../public/agreements');
+      if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
+      const pdfPath = path.join(pdfDir, `agreement_${agreement._id}.pdf`);
+      const doc = new PDFDocument();
+      doc.pipe(fs.createWriteStream(pdfPath));
+      doc.fontSize(20).text('Boarding House Rental Agreement', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Agreement ID: ${agreement._id}`);
+      doc.text(`Room: ${agreement.roomId}`);
+      doc.text(`Student: ${req.user.userId}`);
+      doc.text(`Owner: ${agreement.ownerId}`);
+      doc.text(`Period: ${agreement.periodStart?.toISOString().slice(0,10)} to ${agreement.periodEnd?.toISOString().slice(0,10)}`);
+      doc.moveDown();
+      doc.text('Terms:');
+      doc.text(agreement.terms);
+      if (agreement.additionalClauses && agreement.additionalClauses.length > 0) {
+        doc.moveDown();
+        doc.text('Additional Clauses:');
+        agreement.additionalClauses.forEach((clause, idx) => {
+          doc.text(`${idx + 1}. ${clause}`);
+        });
+      }
+      doc.end();
+      pdfUrl = `/agreements/agreement_${agreement._id}.pdf`;
+    }
+
     const hydrated = await BookingAgreement.findById(agreement._id)
       .populate('bookingRequestId', 'status moveInDate durationMonths bookingType groupName groupSize')
       .populate('ownerId', 'fullName email phoneNumber mobileNumber')
       .populate('roomId', 'name roomNumber price location')
       .lean();
 
+    // Notify owner and student on sign
+    if (status === 'accepted') {
+      await Notification.create({
+        user: agreement.ownerId,
+        type: 'system',
+        title: 'Agreement Signed',
+        message: `The student has signed the agreement for room: ${hydrated.roomId?.name || ''}.`,
+        data: { agreementId: agreement._id, bookingRequestId: agreement.bookingRequestId, pdfUrl },
+      });
+      await Notification.create({
+        user: agreement.studentId,
+        type: 'system',
+        title: 'Agreement Signed',
+        message: `You have signed the agreement. Download your PDF here.`,
+        data: { agreementId: agreement._id, bookingRequestId: agreement.bookingRequestId, pdfUrl },
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: `Agreement ${status}`,
-      data: hydrated,
+      data: { ...hydrated, pdfUrl },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to respond to agreement', error: error.message });
