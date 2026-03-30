@@ -4,8 +4,10 @@
  */
 
 // Only one require for RoommateRequest should exist at the top of the file:
+
 const RoommateRequest = require('../models/RoommateRequest');
 const User = require('../models/User');
+const { redis } = require('../lib/redis');
 
 /**
  * @desc Send roommate request to another user
@@ -61,6 +63,10 @@ exports.sendRequest = async (req, res) => {
 
     await request.save();
 
+    // after saving to MongoDB, clear stale cache
+    await redis.del(`inbox:${recipientId}`);
+    await redis.del(`sent:${senderId}`);
+
     res.status(201).json({
       success: true,
       message: 'Request sent successfully',
@@ -84,6 +90,13 @@ exports.getInboxRequests = async (req, res) => {
   try {
     const recipientId = req.user.userId;
     const { status } = req.query;
+    const cacheKey = status ? `inbox:${recipientId}:status:${status}` : `inbox:${recipientId}`;
+
+    // check cache first
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
+    }
 
     const filter = { recipientId };
     if (status) {
@@ -93,6 +106,9 @@ exports.getInboxRequests = async (req, res) => {
     const requests = await RoommateRequest.find(filter)
       .populate('senderId', 'fullName email profilePicture')
       .sort({ createdAt: -1 });
+
+    // save to cache for 60 seconds
+    await redis.setex(cacheKey, 60, JSON.stringify(requests));
 
     res.status(200).json({
       success: true,
@@ -117,6 +133,12 @@ exports.getSentRequests = async (req, res) => {
   try {
     const senderId = req.user.userId;
     const { status } = req.query;
+    const cacheKey = status ? `sent:${senderId}:status:${status}` : `sent:${senderId}`;
+
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
+    }
 
     const filter = { senderId };
     if (status) {
@@ -126,6 +148,8 @@ exports.getSentRequests = async (req, res) => {
     const requests = await RoommateRequest.find(filter)
       .populate('recipientId', 'fullName email profilePicture')
       .sort({ createdAt: -1 });
+
+    await redis.setex(cacheKey, 60, JSON.stringify(requests));
 
     res.status(200).json({
       success: true,
@@ -172,6 +196,10 @@ exports.acceptRequest = async (req, res) => {
     request.respondedAt = new Date();
     await request.save();
 
+    // after saving to MongoDB, clear stale cache
+    await redis.del(`inbox:${userId}`);
+    await redis.del(`sent:${request.senderId}`);
+
     res.status(200).json({
       success: true,
       message: 'Request accepted',
@@ -216,6 +244,10 @@ exports.rejectRequest = async (req, res) => {
     request.status = 'rejected';
     request.respondedAt = new Date();
     await request.save();
+
+    // after saving to MongoDB, clear stale cache
+    await redis.del(`inbox:${userId}`);
+    await redis.del(`sent:${request.senderId}`);
 
     res.status(200).json({
       success: true,

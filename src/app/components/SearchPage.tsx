@@ -463,6 +463,12 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
   const [sentRequests, setSentRequests] = React.useState<any[]>([]);
   const [inboxRequests, setInboxRequests] = React.useState<any[]>([]);
   const [groups, setGroups] = React.useState<any[]>([]);
+  const [showCreateGroup, setShowCreateGroup] = React.useState(false);
+  const [selectedGroupMembers, setSelectedGroupMembers] = React.useState<string[]>([]);
+  const [canAddMembers, setCanAddMembers] = React.useState<{ [userId: string]: boolean }>({});
+  const [creatingGroup, setCreatingGroup] = React.useState(false);
+  const [groupScenario, setGroupScenario] = React.useState<'existing-room' | 'new-place'>('new-place');
+  const [selectedRoomId, setSelectedRoomId] = React.useState<string>('');
   const [apiNotice, setApiNotice] = React.useState('');
   const [isLoadingRoommates, setIsLoadingRoommates] = React.useState(false);
   const [localRoommateData, setLocalRoommateData] = React.useState<any[]>([]);
@@ -708,28 +714,77 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     }
   };
 
-  const createGroupFromLiked = async () => {
-    try {
-      const memberEmails = liked.map((m) => m.email).filter(Boolean);
-      if (memberEmails.length === 0) {
-        setApiNotice('Like at least one roommate before creating a group.');
-        setTimeout(() => setApiNotice(''), 3000);
-        return;
-      }
+  // New group creation logic: only mutual friends, can add members, notifications, min 2 members
+  const mutualFriendOptions = mutualMatches;
 
-      await callRoommateApi('/group', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: `Roommate Group ${new Date().toLocaleDateString()}`,
-          memberEmails,
-        }),
-      });
+  const handleToggleGroupMember = (userId: string) => {
+    setSelectedGroupMembers((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
 
-      await loadRoommateNetworkData();
-      setApiNotice('Group created successfully. Members will receive invites.');
+  const handleToggleCanAdd = (userId: string) => {
+    setCanAddMembers((prev) => ({ ...prev, [userId]: !prev[userId] }));
+  };
+
+  const handleCreateGroup = async () => {
+    if (selectedGroupMembers.length < 2) {
+      setApiNotice('Select at least 2 members to create a group.');
       setTimeout(() => setApiNotice(''), 3000);
+      return;
+    }
+    if (groupScenario === 'existing-room' && !selectedRoomId) {
+      setApiNotice('Select a room to join.');
+      setTimeout(() => setApiNotice(''), 3000);
+      return;
+    }
+    setCreatingGroup(true);
+    try {
+      // Find member objects
+      const members = mutualFriendOptions.filter((m) => selectedGroupMembers.includes(m.userId));
+      const memberEmails = members.map((m) => m.email).filter(Boolean);
+      const canAddList = selectedGroupMembers.filter((id) => canAddMembers[id]);
+      // Prepare group payload
+      const groupPayload: any = {
+        name: `Roommate Group ${new Date().toLocaleDateString()}`,
+        memberEmails,
+        canAddMembers: canAddList,
+        scenario: groupScenario,
+      };
+      if (groupScenario === 'existing-room') {
+        groupPayload.roomId = selectedRoomId;
+      }
+      // Create group API
+      const res = await callRoommateApi('/group', {
+        method: 'POST',
+        body: JSON.stringify(groupPayload),
+      });
+      // Send notifications to members (simulate, or backend should handle)
+      for (const m of members) {
+        await callRoommateApi('/notifications/send', {
+          method: 'POST',
+          body: JSON.stringify({
+            recipientId: m.userId,
+            type: 'group_invitation',
+            message: `You have been invited to join a group. Accept or reject the invitation.`,
+          }),
+        });
+      }
+      await loadRoommateNetworkData();
+      setApiNotice('Group created. Members notified to accept or reject.');
+      setShowCreateGroup(false);
+      setSelectedGroupMembers([]);
+      setCanAddMembers({});
+      setGroupScenario('new-place');
+      setSelectedRoomId('');
+      // Start group chat (navigate to chat page with group info)
+      if (res?.data?._id) {
+        navigate(`/chat?groupId=${res.data._id}`);
+      }
     } catch (error) {
       setApiNotice((error as Error).message || 'Failed to create group');
+    } finally {
+      setCreatingGroup(false);
       setTimeout(() => setApiNotice(''), 3000);
     }
   };
@@ -1064,12 +1119,9 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
         <div className="bg-white/5 border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-white">Groups</h3>
-            <button 
-              onClick={createGroupFromLiked}
-              disabled={liked.length === 0}
-              className={`px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition ${
-                liked.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:from-purple-600 hover:to-pink-600'
-              }`}
+            <button
+              onClick={() => setShowCreateGroup(true)}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 hover:from-purple-600 hover:to-pink-600"
             >
               <FaPlus size={16} />
               Create Group
@@ -1093,45 +1145,105 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
               ))}
             </div>
           )}
-          
-          {liked.length > 0 ? (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
-                <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  {liked.map((roommate) => (
-                    <div key={roommate.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
-                      <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
-                      <div className="flex-1">
-                        <p className="text-white font-semibold text-sm">{roommate.name}</p>
-                        <p className="text-gray-400 text-xs">{roommate.age} | {roommate.university}</p>
-                      </div>
-                      <FaCheckCircle className="text-green-400" />
-                    </div>
-                  ))}
-                </div>
-                <p className="text-sm text-gray-300 mb-4">
-                  Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
-                </p>
-                <button 
-                  onClick={createGroupFromLiked}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
+
+          {showCreateGroup && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+              <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl p-6 w-full max-w-md border border-white/10 relative">
+                <button
+                  className="absolute top-2 right-2 text-gray-400 hover:text-white"
+                  onClick={() => setShowCreateGroup(false)}
                 >
-                  <FaUserFriends size={18} />
-                  Create Group with These Members
+                  <FaTimes />
+                </button>
+                <h4 className="text-lg font-bold text-white mb-4">Create Group (Mutual Friends Only)</h4>
+                <div className="mb-4">
+                  <label className="block text-xs text-gray-300 mb-2 font-semibold">Group Scenario</label>
+                  <div className="flex gap-3 mb-3">
+                    <label className="flex items-center gap-2 text-sm text-cyan-200">
+                      <input
+                        type="radio"
+                        checked={groupScenario === 'existing-room'}
+                        onChange={() => setGroupScenario('existing-room')}
+                        className="accent-cyan-500"
+                      />
+                      Join existing room
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-cyan-200">
+                      <input
+                        type="radio"
+                        checked={groupScenario === 'new-place'}
+                        onChange={() => setGroupScenario('new-place')}
+                        className="accent-purple-500"
+                      />
+                      Form group for new place
+                    </label>
+                  </div>
+                  {groupScenario === 'existing-room' && (
+                    <div className="mb-3">
+                      <label className="block text-xs text-gray-300 mb-1">Select Room</label>
+                      <select
+                        className="w-full rounded-lg px-2 py-2 bg-white/10 border border-white/20 text-white"
+                        value={selectedRoomId}
+                        onChange={e => setSelectedRoomId(e.target.value)}
+                      >
+                        <option value="">-- Select a room --</option>
+                        {Array.isArray(window.dbListings) ? window.dbListings.map((room: any) => (
+                          <option key={room.id} value={room.id}>{room.title} ({room.location})</option>
+                        )) : null}
+                      </select>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-300 mb-2">Select at least 2 mutual friends to add to the group:</p>
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {mutualFriendOptions.length === 0 && (
+                      <div className="text-gray-400 text-xs">No mutual friends available.</div>
+                    )}
+                    {mutualFriendOptions.map((friend) => (
+                      <div key={friend.userId} className="flex items-center gap-2 bg-white/5 rounded-lg px-2 py-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedGroupMembers.includes(friend.userId)}
+                          onChange={() => handleToggleGroupMember(friend.userId)}
+                          className="accent-cyan-500"
+                        />
+                        <img src={friend.image} alt={friend.name} className="w-7 h-7 rounded-full object-cover" />
+                        <span className="text-white text-sm">{friend.name}</span>
+                        <span className="text-xs text-gray-400 ml-2">{friend.email}</span>
+                        <label className="ml-auto flex items-center gap-1 text-xs text-cyan-300">
+                          <input
+                            type="checkbox"
+                            checked={!!canAddMembers[friend.userId]}
+                            onChange={() => handleToggleCanAdd(friend.userId)}
+                            className="accent-purple-500"
+                            disabled={!selectedGroupMembers.includes(friend.userId)}
+                          />
+                          Can add members
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={handleCreateGroup}
+                  disabled={creatingGroup}
+                  className="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {creatingGroup ? 'Creating...' : 'Create Group & Notify'}
                 </button>
               </div>
             </div>
-          ) : (
+          )}
+
+          {groups.length === 0 && !showCreateGroup && (
             <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
               <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
               <p className="text-gray-300 font-semibold mb-2">No groups yet</p>
-              <p className="text-sm text-gray-400 mb-4">Start by liking roommates in the Browse tab</p>
-              <button 
-                onClick={() => setRoommateTab('browse')}
+              <p className="text-sm text-gray-400 mb-4">Start by creating a group with your mutual friends</p>
+              <button
+                onClick={() => setShowCreateGroup(true)}
                 className="px-4 py-2 bg-white/10 border border-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition"
               >
-                Browse Roommates
+                Create Group
               </button>
             </div>
           )}

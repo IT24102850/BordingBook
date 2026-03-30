@@ -180,6 +180,47 @@ async function deleteRoom(roomId: string): Promise<void> {
   }
 }
 
+
+// Booking Requests API
+export type BookingRequestDto = {
+  _id: string;
+  studentId: string;
+  ownerId: string;
+  roomId: string;
+  bookingType: 'individual' | 'group';
+  groupName?: string;
+  groupSize?: number;
+  moveInDate: string;
+  durationMonths: number;
+  message?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  agreementId?: string;
+  processedAt?: string;
+  processedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  room?: any;
+  student?: any;
+};
+
+async function getBookingRequests(status?: string): Promise<BookingRequestDto[]> {
+  const url = status
+    ? `${API_BASE_URL}/api/owner/booking-requests?status=${status}`
+    : `${API_BASE_URL}/api/owner/booking-requests`;
+  const response = await fetch(url, { headers: getAuthHeaders() });
+  return ensureSuccess<BookingRequestDto[]>(response);
+}
+
+async function updateBookingRequestStatus(requestId: string, status: 'approved' | 'rejected', rejectionReason?: string): Promise<BookingRequestDto> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/booking-requests/${requestId}/status`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status, rejectionReason }),
+  });
+  return ensureSuccess<BookingRequestDto>(response);
+}
+
 export const ownerDashboardApi = {
   getHouses,
   createHouse,
@@ -189,4 +230,6 @@ export const ownerDashboardApi = {
   createRoom,
   updateRoom,
   deleteRoom,
+  getBookingRequests,
+  updateBookingRequestStatus,
 };

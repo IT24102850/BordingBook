@@ -4,9 +4,11 @@
  */
 
 
+
 const BookingGroup = require('../models/BookingGroup');
 const RoommateProfile = require('../models/RoommateProfile');
 const User = require('../models/User');
+const { redis } = require('../lib/redis');
 
 exports.createGroup = async (req, res) => {
   try {
@@ -76,6 +78,11 @@ exports.getUserGroups = async (req, res) => {
         message: 'Authentication required',
       });
     }
+    const cacheKey = `groups:${userId}`;
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
+    }
     // Find groups where user is creator or a member
     const groups = await BookingGroup.find({
       $or: [
@@ -83,6 +90,7 @@ exports.getUserGroups = async (req, res) => {
         { 'members.userId': userId }
       ]
     }).select('-__v');
+    await redis.setex(cacheKey, 120, JSON.stringify(groups));
     res.json({
       success: true,
       data: groups,
