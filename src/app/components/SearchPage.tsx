@@ -684,16 +684,22 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
     }
   };
 
-  const createGroupFromLiked = async () => {
+  // State for selected roommates for group creation
+  const [selectedRoommateIds, setSelectedRoommateIds] = useState<string[]>([]);
+
+  const createGroupFromSelected = async () => {
     try {
-      const memberEmails = liked.map((m) => m.email).filter(Boolean);
+      const memberEmails = liked
+        .filter((m) => selectedRoommateIds.includes(m.id))
+        .map((m) => m.email)
+        .filter(Boolean);
       if (memberEmails.length === 0) {
-        setApiNotice('Like at least one roommate before creating a group.');
+        setApiNotice('Select at least one roommate to create a group.');
         setTimeout(() => setApiNotice(''), 3000);
         return;
       }
 
-      await callRoommateApi('/group', {
+      const response = await callRoommateApi('/group', {
         method: 'POST',
         body: JSON.stringify({
           name: `Roommate Group ${new Date().toLocaleDateString()}`,
@@ -704,6 +710,11 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
       await loadRoommateNetworkData();
       setApiNotice('Group created successfully. Members will receive invites.');
       setTimeout(() => setApiNotice(''), 3000);
+
+      // After group creation, navigate to group chat if groupId is returned
+      if (response?.success && response.data?._id) {
+        navigate(`/chat?groupId=${response.data._id}`);
+      }
     } catch (error) {
       setApiNotice((error as Error).message || 'Failed to create group');
       setTimeout(() => setApiNotice(''), 3000);
@@ -1079,29 +1090,41 @@ function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] 
                 <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   {liked.map((roommate) => (
-                    <div key={roommate.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
+                    <label key={roommate.id} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-lg p-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRoommateIds.includes(roommate.id)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedRoommateIds([...selectedRoommateIds, roommate.id]);
+                          } else {
+                            setSelectedRoommateIds(selectedRoommateIds.filter(id => id !== roommate.id));
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
                       <img src={roommate.image} alt={roommate.name} className="w-12 h-12 rounded-full object-cover" />
                       <div className="flex-1">
                         <p className="text-white font-semibold text-sm">{roommate.name}</p>
                         <p className="text-gray-400 text-xs">{roommate.age} | {roommate.university}</p>
                       </div>
-                      <FaCheckCircle className="text-green-400" />
-                    </div>
+                    </label>
                   ))}
                 </div>
                 <p className="text-sm text-gray-300 mb-4">
-                  Ready to create a group? These are your favorite roommates. Start a group and invite them to join!
+                  Select your favorite roommates to invite to a group. Only checked roommates will be invited.
                 </p>
-                <button 
-                  onClick={createGroupFromLiked}
+                <button
+                  onClick={createGroupFromSelected}
                   className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
+                  disabled={selectedRoommateIds.length === 0}
                 >
                   <FaUserFriends size={18} />
-                  Create Group with These Members
+                  Create Group with Selected
                 </button>
               </div>
             </div>
-          ) : (
+          ) : null}
             <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
               <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
               <p className="text-gray-300 font-semibold mb-2">No groups yet</p>
