@@ -222,42 +222,6 @@ const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = 
           <h4 className="text-xs font-bold text-white truncate">{roommate.name}, {roommate.age}</h4>
           <div className="flex items-center gap-1 text-[10px] text-gray-400">
             <FaUserFriends className="text-pink-400" />
-
-                  if (!isCancelled) {
-                    const roomsData = Array.isArray(roomsJson?.data) ? roomsJson.data
-                      : Array.isArray(roomsJson?.rooms) ? roomsJson.rooms
-                      : Array.isArray(roomsJson) ? roomsJson : [];
-
-                    const housesData = Array.isArray(housesJson?.data) ? housesJson.data
-                      : Array.isArray(housesJson?.houses) ? housesJson.houses
-                      : Array.isArray(housesJson) ? housesJson : [];
-
-                    const mappedRooms: Listing[] = roomsData.map((roomItem: any, index: number) => ({
-                      id: index + 1,
-                      title: roomItem.name || 'Room Listing',
-                      images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [],
-                      price: Number(roomItem.price) || 0,
-                      location: roomItem.location || 'Unknown',
-                      distance: 1,
-                      distanceUnit: 'km',
-                      travelTime: 'Near campus',
-                      roomType: roomItem.roomType || 'Single Room',
-                      genderPreference: roomItem.genderPreference || 'Any',
-                      availableFrom: roomItem.availableFrom || '',
-                      billsIncluded: Array.isArray(roomItem.facilities) ? roomItem.facilities.includes('Meals') : false,
-                      verified: true,
-                      badges: [roomItem.occupancy < roomItem.totalSpots ? 'Available' : 'Occupied'],
-                      description: roomItem.description || '',
-                      features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
-                      deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
-                      roommateCount: Number(roomItem.occupancy) || 0,
-                    }));
-
-                    const mappedHouses: Listing[] = housesData.map((house: any, index: number) => ({
-                      id: 100000 + index,
-                      title: house.name || 'Boarding House',
-                      images: Array.isArray(house.images) && house.images.length > 0 ? house.images
-                        : house.image ? [house.image] : [],
                       price: Number(house.monthlyPrice) || 0,
                       location: house.address || 'Unknown',
                       distance: 1.2,
