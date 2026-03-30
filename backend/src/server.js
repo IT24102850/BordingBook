@@ -58,6 +58,15 @@ async function startServer() {
       console.warn('⚠️ Chat routes not loaded');
     }
 
+    // Notification routes
+    try {
+      const notificationRoutes = require('./routes/notificationRoutes');
+      app.use('/api/notifications', notificationRoutes);
+      console.log('✓ Notification routes mounted');
+    } catch (e) {
+      console.warn('⚠️ Notification routes not loaded');
+    }
+
     // Health check route
     app.get('/api/health', (req, res) => {
       res.json({

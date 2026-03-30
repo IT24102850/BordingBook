@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-// Temporary Admin Login (for testing)
-// You can later replace this with a proper controller + bcrypt + JWT
+// ====================== ADMIN LOGIN ======================
 router.post('/login', (req, res) => {
   const { email, password } = req.body;
 
-  console.log('Admin login attempt:', email);
+  console.log('[ADMIN LOGIN ATTEMPT]', { email, hasPassword: !!password });
 
-  // Simple check for now (change this to real authentication later)
+  // Simple admin login for testing
   if (email === 'admin@boardingbook.cc' && password && password.length > 0) {
     return res.json({
       success: true,
@@ -30,15 +29,14 @@ router.post('/login', (req, res) => {
   });
 });
 
-// Get current admin info
+// ====================== GET CURRENT ADMIN ======================
 router.get('/me', (req, res) => {
   res.json({
     success: true,
     data: {
       id: 'admin001',
       name: 'BoardingBook Admin',
-      email: 'admin@boardingbook.cc',
-      lastLogin: new Date()
+      email: 'admin@boardingbook.cc'
     }
   });
 });
