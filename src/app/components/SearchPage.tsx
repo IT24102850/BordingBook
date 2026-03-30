@@ -3702,3 +3702,5 @@ const BookingForm: React.FC<{
     </div>
   );
 }
+
+export default SearchPage;
