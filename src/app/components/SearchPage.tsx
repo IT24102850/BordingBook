@@ -2068,10 +2068,12 @@ export default function SearchPage() {
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
   
   const [priceMax, setPriceMax] = useState<number>(50000);
-  const [dist, setDist] = useState<string>('any');
+  const [priceMin, setPriceMin] = useState<number>(0);
+  const [dist, setDist] = useState<number>(10); // in km
   const [room, setRoom] = useState<string>('any');
   const [avail, setAvail] = useState<string>('all');
   const [facs, setFacs] = useState<string[]>([]);
+  const [ratingMin, setRatingMin] = useState<number>(0);
   const [showFilters, setShowFilters] = useState<boolean>(true);
   const [sortMode, setSortMode] = useState<'discovery' | 'relevance' | 'price-low' | 'price-high' | 'distance'>('discovery');
   const [dbListings, setDbListings] = useState<Listing[]>([]);
@@ -2574,14 +2576,15 @@ export default function SearchPage() {
           !r.location.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
-      if (r.price > priceMax) return false;
-      if (dist !== 'any' && r.distKm > (distMap as any)[dist]) return false;
+      if (r.price > priceMax || r.price < priceMin) return false;
+      if (dist !== null && r.distKm > dist) return false;
       if (room !== 'any' && r.roomType.toLowerCase() !== room.toLowerCase()) return false;
       if (avail === 'available' && !r.available) return false;
       if (avail === 'occupied' && r.available) return false;
       if (facs.length > 0 && !facs.every(f => r.facilities.map((fac: string) => fac.toLowerCase()).includes(f.toLowerCase()))) {
         return false;
       }
+      if (ratingMin > 0 && (r.rating || 0) < ratingMin) return false;
       return true;
     });
   };
@@ -2733,6 +2736,53 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
+        {/* --- Enhanced Filters UI --- */}
+        <div className="mb-6 bg-white/5 rounded-xl p-4 flex flex-wrap gap-4 items-center justify-between border border-white/10">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-200">Price Range (Rs.)</label>
+            <div className="flex gap-2 items-center">
+              <input type="number" min="0" max={priceMax} value={priceMin} onChange={e => { setPriceMin(Number(e.target.value)); setCurrentIndex(0); }} className="w-20 rounded px-2 py-1 text-xs" />
+              <span className="text-cyan-100">to</span>
+              <input type="number" min={priceMin} max="50000" value={priceMax} onChange={e => { setPriceMax(Number(e.target.value)); setCurrentIndex(0); }} className="w-20 rounded px-2 py-1 text-xs" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-200">Distance (km)</label>
+            <input type="range" min="1" max="20" value={dist} onChange={e => { setDist(Number(e.target.value)); setCurrentIndex(0); }} className="w-32" />
+            <span className="text-xs text-cyan-100">Up to {dist} km</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-200">Room Type</label>
+            <select value={room} onChange={e => { setRoom(e.target.value); setCurrentIndex(0); }} className="rounded px-2 py-1 text-xs">
+              <option value="any">Any</option>
+              <option value="Single">Single</option>
+              <option value="Master">Master</option>
+              <option value="Annex">Annex</option>
+              <option value="Sharing">Sharing</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-200">Availability</label>
+            <select value={avail} onChange={e => { setAvail(e.target.value); setCurrentIndex(0); }} className="rounded px-2 py-1 text-xs">
+              <option value="all">All</option>
+              <option value="available">Available</option>
+              <option value="occupied">Occupied</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-200">Facilities</label>
+            <div className="flex flex-wrap gap-1">
+              {['WiFi','AC','Parking','Meals','Laundry','Security','Gym','Kitchen','Balcony'].map(fac => (
+                <button key={fac} onClick={() => { setFacs(facs.includes(fac) ? facs.filter(f => f !== fac) : [...facs, fac]); setCurrentIndex(0); }} className={`px-2 py-1 rounded text-xs border ${facs.includes(fac) ? 'bg-cyan-500/30 border-cyan-400 text-white' : 'bg-white/10 border-white/20 text-cyan-100'}`}>{fac}</button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-200">Min. Rating</label>
+            <input type="range" min="0" max="5" step="0.5" value={ratingMin} onChange={e => { setRatingMin(Number(e.target.value)); setCurrentIndex(0); }} className="w-24" />
+            <span className="text-xs text-cyan-100">{ratingMin}+</span>
+          </div>
+        </div>
         {/* Header */}
         <div className="flex flex-col items-center w-full mb-6">
           <div className="w-full mb-4 md:max-w-5xl md:mx-auto rounded-2xl border border-white/10 bg-[#0f172a]/70 backdrop-blur-xl shadow-2xl px-3 py-3 md:px-5">
@@ -3055,7 +3105,7 @@ export default function SearchPage() {
                   setters={{ setPriceMax, setDist, setRoom, setAvail, setFacs }}
                   onReset={() => {
                     setPriceMax(50000);
-                    setDist('any');
+                    setDist(20); // Reset to max distance
                     setRoom('any');
                     setAvail('all');
                     setFacs([]);
@@ -3189,11 +3239,11 @@ export default function SearchPage() {
                       <h2 className="text-xl font-bold text-white">
                         All Available Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
                       </h2>
-                      {(priceMax < 50000 || dist !== 'any' || room !== 'any' || avail !== 'all' || facs.length > 0) && (
+                      {(priceMax < 50000 || dist < 20 || room !== 'any' || avail !== 'all' || facs.length > 0) && (
                         <button
                           onClick={() => {
                             setPriceMax(50000);
-                            setDist('any');
+                            setDist(20);
                             setRoom('any');
                             setAvail('all');
                             setFacs([]);
