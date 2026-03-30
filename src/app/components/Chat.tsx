@@ -1141,7 +1141,7 @@ export default function Chat() {
         <div className="p-4 border-b border-white/10 flex-shrink-0">
           <div className="mb-3 flex items-center justify-between">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/search')}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors text-xs font-semibold"
             >
               <ArrowLeft size={14} />
