@@ -125,8 +125,8 @@ function normalizeIdValue(value: any): string {
         isCancelled = true;
       };
     }, []);
-  bookingId?: string;
-  roomTitle?: string;
+  // bookingId?: string;
+  // roomTitle?: string;
 }
 
 // Real boarding room images
