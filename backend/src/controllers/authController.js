@@ -420,3 +420,47 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to reset password. Please try again.' });
   }
 };
+
+/**
+ * Get current authenticated user
+ * GET /api/auth/me
+ */
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    console.error('getMe error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch user' });
+  }
+};
+
+/**
+ * Update user profile
+ * PUT /api/auth/profile
+ */
+exports.updateProfile = async (req, res) => {
+  try {
+    const allowedFields = [
+      'fullName', 'mobileNumber', 'age', 'bio', 'profilePicture', 'profilePictures',
+      'minBudget', 'maxBudget', 'distance', 'selectedLocation', 'gender',
+      'academicYear', 'roommatePreference', 'roomType', 'lifestylePrefs',
+      'firstName', 'lastName', 'phoneNumber', 'companyName',
+    ];
+    const updates = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
+    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    console.error('updateProfile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update profile' });
+  }
+};
