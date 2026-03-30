@@ -22,7 +22,8 @@ function normalizeIdValue(value: any): string {
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   if (typeof value === 'object') {
     if (value._id) return String(value._id);
-    if (value.id) return String(value.id);
+
+    // ...existing code...
   }
   return '';
 }
