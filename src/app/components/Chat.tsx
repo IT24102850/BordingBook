@@ -182,6 +182,17 @@ function normalizeId(input: any): string {
 export default function Chat() {
   const navigate = useNavigate();
   const location = useLocation();
+  // Accept sign-in data from Search page via navigation state
+  const signInData = location.state && location.state.signInData ? location.state.signInData : null;
+  // If signInData is present, use it for authentication
+  if (signInData) {
+    if (signInData.token) {
+      localStorage.setItem('bb_access_token', signInData.token);
+    }
+    if (signInData.user) {
+      localStorage.setItem('bb_current_user', JSON.stringify(signInData.user));
+    }
+  }
   const currentUser = useMemo(() => getCurrentUser(), []);
   const token = localStorage.getItem('bb_access_token') || '';
 
