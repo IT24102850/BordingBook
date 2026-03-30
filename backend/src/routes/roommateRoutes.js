@@ -4,14 +4,20 @@ const { body, query } = require('express-validator');
 const { requireAuth } = require('../middleware/auth');
 const validateRequest = require('../middleware/validateRequest');
 
-// Import controllers
+
 const roommateController = require('../controllers/roommateController');
 const requestController = require('../controllers/requestController');
 const groupController = require('../controllers/groupController');
 const roomController = require('../controllers/roomController');
-
-
 const bookingController = require('../controllers/bookingController');
+
+// Redis test route
+const { redis } = require('../lib/redis');
+router.get('/test-cache', async (req, res) => {
+  await redis.set('test', 'connected');
+  const val = await redis.get('test');
+  res.json({ value: val });
+});
 
 
 // ============ ROOMMATE PROFILE ROUTES ============
