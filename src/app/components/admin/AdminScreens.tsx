@@ -744,7 +744,7 @@ export const SupportTickets = () => {
                   {detail.messages.length === 0 && (
                     <p className="text-xs text-slate-500 text-center py-4">{detail.description}</p>
                   )}
-                  {detail.messages.map((m) => (
+                  {detail.messages.map((m: api.TicketMessage) => (
                     <div key={m._id} className={`flex ${m.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-xs px-3.5 py-2.5 rounded-2xl text-sm ${m.sender === 'admin' ? 'bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white rounded-br-sm' : 'bg-[#232b47] text-slate-200 rounded-bl-sm'}`}>
                         <p>{m.content}</p>
