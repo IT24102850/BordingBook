@@ -168,10 +168,42 @@ exports.getPassedProfiles = async (req, res) => {
  * @access Private
  */
 exports.getMutualMatches = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Mutual matches not yet implemented',
-  });
+  try {
+    const userId = req.user.userId;
+    // Get the current user's liked list
+    const user = await User.findById(userId);
+    const likedIds = user.liked || [];
+    if (!likedIds.length) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Find users who:
+    // 1. Are in the likedIds list
+    // 2. Have liked the current user back
+    const mutuals = await User.find({
+      _id: { $in: likedIds },
+      liked: userId,
+      isActive: true
+    }).select('name fullName email gender academicYear profilePicture profilePictures description tags boardingHouse');
+
+    const profiles = mutuals.map(user => ({
+      id: user._id,
+      userId: user._id,
+      name: user.name || user.fullName || '',
+      bio: user.bio || user.description || '',
+      profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
+        ? user.profilePictures
+        : (user.profilePicture ? [user.profilePicture] : []),
+      profilePicture: user.profilePicture || '',
+      gender: user.gender || '',
+      university: user.boardingHouse || user.academicYear || '',
+      email: user.email || '',
+      interests: Array.isArray(user.tags) ? user.tags : [],
+    }));
+    res.json({ success: true, data: profiles });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch mutual matches', error: error.message });
+  }
 };
 
 /**
