@@ -23,108 +23,108 @@ function normalizeIdValue(value: any): string {
   if (typeof value === 'number') return String(value);
   if (typeof value === 'object') {
     if (value._id) return String(value._id);
-    if (value.id) return String(value.id);
-  }
-  return '';
-}
+    useEffect(() => {
+      let isCancelled = false;
 
-function deriveProfileAge(profile: any): number {
-  if (!profile) return 18;
-  const numericAge = Number(profile?.age);
-  if (Number.isFinite(numericAge) && numericAge > 0) {
-    return Math.floor(numericAge);
-  }
+      const loadSearchData = async () => {
+        try {
+          const token = localStorage.getItem('bb_access_token') || '';
 
-  const dobRaw = profile?.dateOfBirth || profile?.dob || profile?.birthDate;
-  if (dobRaw) {
-    const dob = new Date(dobRaw);
-    if (!Number.isNaN(dob.getTime())) {
-      const today = new Date();
-      let years = today.getFullYear() - dob.getFullYear();
-      const monthDelta = today.getMonth() - dob.getMonth();
-      const beforeBirthday = monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate());
-      if (beforeBirthday) years -= 1;
-      if (years > 0) return years;
-    }
-  }
-  return 18;
-}
+          // Fetch real data from backend
+          const [roomsResponse, housesResponse] = await Promise.all([
+            fetch(`${API_BASE_URL}/api/roommates/rooms`),
+            fetch(`${API_BASE_URL}/api/owner/public/houses`),
+          ]);
+          const [roomsJson, housesJson] = await Promise.all([
+            roomsResponse.json(),
+            housesResponse.json(),
+          ]);
 
-// Define types
-interface Roommate {
-  id: number | string;
-  userId?: string;
-  name: string;
-  email?: string;
-  age: number;
-  gender: string;
-  university: string;
-  bio: string;
-  image: string;
-  profilePictures?: string[];
-  interests?: string[];
-  mutualCount?: number;
-  role?: string;
-}
+          if (!isCancelled) {
+            const roomsData = Array.isArray(roomsJson?.data)
+              ? roomsJson.data
+              : (Array.isArray(roomsJson?.rooms) ? roomsJson.rooms : (Array.isArray(roomsJson) ? roomsJson : []));
 
-interface Listing {
-  id: number;
-  title: string;
-  images: string[];
-  price: number;
-  location: string;
-  distance: number;
-  distanceUnit: string;
-  travelTime: string;
-  roomType: string;
-  genderPreference: string;
-  availableFrom: string;
-  billsIncluded: boolean;
-  verified: boolean;
-  badges: string[];
-  description: string;
-  features: string[];
-  deposit: number;
-  roommateCount: number;
-  rating?: number;
-  campus?: string[];
-  fullAddress?: string;
-  vacancy?: string;
-  totalRooms?: number;
-  occupiedRooms?: number;
-}
+            const housesData = Array.isArray(housesJson?.data)
+              ? housesJson.data
+              : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
 
-interface ListingCardProps {
-  listing: Listing;
-  onLike: () => void;
-  onPass: () => void;
-  onViewDetails: (listing: Listing) => void;
-  isAnimating: boolean;
-  direction: 'left' | 'right' | null;
-  viewMode?: 'card' | 'grid' | 'mini';
-}
+            // Only use real database data for listings
+            const mappedRooms: Listing[] = roomsResponse.ok && roomsData.length > 0
+              ? roomsData.map((roomItem: any) => ({
+                  id: normalizeIdValue(roomItem._id || roomItem.id),
+                  title: roomItem.listingTitle || roomItem.roomNumber || 'Room',
+                  location: roomItem.location || roomItem.houseName || 'Malabe',
+                  price: Number(roomItem.price) || 0,
+                  distance: Number(roomItem.distance) || 1,
+                  roomType: roomItem.roomType || 'Single Room',
+                  available: roomItem.occupancy < roomItem.bedCount,
+                  facilities: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
+                  rating: roomItem.rating || 4.0,
+                  reviews: 10,
+                  badges: [roomItem.occupancy < roomItem.bedCount ? 'Available' : 'Occupied'],
+                  description: roomItem.description || '',
+                  features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
+                  deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
+                  roommateCount: Number(roomItem.occupancy) || 0,
+                }))
+              : [];
 
-interface DetailsModalProps {
-  listing: Listing | null;
-  onClose: () => void;
-  onLike: () => void;
-  onBooking?: (listing: Listing) => void;
-}
+            const mappedHouses: Listing[] = housesResponse.ok && housesData.length > 0
+              ? housesData.map((house: any) => ({
+                  id: normalizeIdValue(house._id || house.id),
+                  title: house.name || 'Boarding House',
+                  location: house.address || 'Malabe',
+                  price: Number(house.monthlyPrice) || 0,
+                  distance: Number(house.distance) || 1,
+                  roomType: house.roomType || 'Single Room',
+                  available: house.status === 'active',
+                  facilities: Array.isArray(house.features) ? house.features : [],
+                  rating: house.rating || 4.0,
+                  reviews: house.totalReviews || 0,
+                  badges: [house.status === 'active' ? 'Available' : 'Occupied'],
+                  description: house.description || '',
+                  features: Array.isArray(house.features) ? house.features : [],
+                  deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
+                  roommateCount: Number(house.occupiedRooms) || 0,
+                }))
+              : [];
 
-interface FilterChip {
-  id: string;
-  label: string;
-  icon: ReactNode;
-}
+            setDbListings([...mappedRooms, ...mappedHouses]);
+          }
 
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  actionRequired: boolean;
+          if (!token) return;
+
+          const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const meJson = await meResponse.json();
+          const currentUser = meJson?.data || null;
+
+          if (!isCancelled && currentUser?.email) {
+            setCurrentUserId(String(currentUser._id || currentUser.id || ''));
+            setCurrentUserEmail(currentUser.email);
+            setCurrentUserName(currentUser.fullName || '');
+            if (currentUser.profilePicture) setCurrentUserImage(currentUser.profilePicture);
+          }
+
+          const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
+          if (!isCancelled && resolvedUserId) {
+            await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
+          }
+
+        } catch {
+          setDbListings([]);
+        } finally {
+          if (!isCancelled) setIsListingsLoading(false);
+        }
+      };
+
+      loadSearchData();
+      return () => {
+        isCancelled = true;
+      };
+    }, []);
   bookingId?: string;
   roomTitle?: string;
 }
@@ -222,23 +222,6 @@ const MiniRoommateCard: React.FC<{ roommate: any; type: 'passed' | 'liked' }> = 
           <h4 className="text-xs font-bold text-white truncate">{roommate.name}, {roommate.age}</h4>
           <div className="flex items-center gap-1 text-[10px] text-gray-400">
             <FaUserFriends className="text-pink-400" />
-            // Load rooms + auth on mount only
-            useEffect(() => {
-              let isCancelled = false;
-
-              const loadSearchData = async () => {
-                try {
-                  const token = localStorage.getItem('bb_access_token') || '';
-
-                  // Public data — no auth needed
-                  const [roomsResponse, housesResponse] = await Promise.all([
-                    fetch(`${API_BASE_URL}/api/roommates/rooms`),
-                    fetch(`${API_BASE_URL}/api/owner/public/houses`),
-                  ]);
-                  const [roomsJson, housesJson] = await Promise.all([
-                    roomsResponse.json(),
-                    housesResponse.json(),
-                  ]);
 
                   if (!isCancelled) {
                     const roomsData = Array.isArray(roomsJson?.data) ? roomsJson.data
