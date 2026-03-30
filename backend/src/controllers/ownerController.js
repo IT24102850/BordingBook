@@ -231,13 +231,12 @@ exports.getPendingPaymentSlips = async (req, res) => {
     const { status = 'pending' } = req.query;
     
     // Get all rooms for this owner
-    const rooms = await Room.find({ ownerId: req.user.userId }).populate('houseId');
-    
-    // Get booking groups that are in "ready" or "forming" status (not yet booked/paid)
-    const BookingGroup = require('../models/BookingGroup');
-    const pendingBookings = await BookingGroup.find({ 
-      status: { $in: ['forming', 'ready'] }
-    }).populate('members.userId');
+      // Fetch rooms and pending bookings in parallel
+      const BookingGroup = require('../models/BookingGroup');
+      const [rooms, pendingBookings] = await Promise.all([
+        Room.find({ ownerId: req.user.userId }).populate('houseId'),
+        BookingGroup.find({ status: { $in: ['forming', 'ready'] } }).populate('members.userId')
+      ]);
     
     // Build payment slips from pending bookings
     const slips = [];
@@ -346,8 +345,9 @@ exports.getFinancialOverview = async (req, res) => {
 
     // Calculate collected revenue based on booking status
     // A "booked" booking group means payment has been received
-    const BookingGroup = require('../models/BookingGroup');
-    const bookedGroups = await BookingGroup.find({ status: 'booked' });
+      // Fetch bookedGroups in parallel
+      const BookingGroup = require('../models/BookingGroup');
+      const bookedGroups = await BookingGroup.find({ status: 'booked' });
     
     let totalCollected = 0;
     bookedGroups.forEach(group => {
