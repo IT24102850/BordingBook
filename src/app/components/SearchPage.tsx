@@ -2164,20 +2164,7 @@ const BookingForm: React.FC<{
     </div>
   );
 };
-export default function SearchPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [likedListings, setLikedListings] = useState<Listing[]>([]);
-  const [passedListings, setPassedListings] = useState<Listing[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [showToast, setShowToast] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string>('');
-  const [direction, setDirection] = useState<'left' | 'right' | null>(null);
-  const [isAnimating, setIsAnimating] = useState<boolean>(false);
-  const [showDetails, setShowDetails] = useState<boolean>(false);
-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+// Removed duplicate export default function SearchPage
   const [viewMode, setViewMode] = useState<'card' | 'grid'>('grid');
   const [activeTab, setActiveTab] = useState<'rooms' | 'map' | 'roommate'>('rooms');
   const [showBooking, setShowBooking] = useState<boolean>(false);
