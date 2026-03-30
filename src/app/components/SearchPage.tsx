@@ -2165,7 +2165,6 @@ const BookingForm: React.FC<{
   );
 };
 
-// Main SearchPage Component
 export default function SearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
