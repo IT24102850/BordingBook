@@ -1,3 +1,8 @@
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const navigate = useNavigate();
+  // Temporary stub for filterChips to resolve errors
+  const filterChips: string[] = [];
 // ---- TypeScript type/interface stubs ----
 interface Listing {
   id: string | number;
@@ -19,7 +24,7 @@ interface Listing {
   deposit?: number;
   roommateCount?: number;
   rating?: number;
-}
+// removed stray closing brace
 
 interface Roommate {
   id: string;
@@ -33,6 +38,8 @@ interface Roommate {
   image: string;
   interests: string[];
   mutualCount: number;
+  role: string;
+}
   role: string;
 }
 
@@ -127,8 +134,8 @@ function RoommateFinderPlaceholder(props: any) {
       <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
       <p className="text-cyan-200 text-sm">Roommate Finder Placeholder</p>
     </div>
+
   );
-}
 
 }
 
@@ -383,7 +390,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent" />
           <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-            {listing.badges.map((badge: string) => (
+            {(listing.badges ?? []).map((badge: string) => (
               <span 
                 key={badge} 
                 className={`px-2 py-1 rounded-full text-xs font-bold shadow-lg backdrop-blur-sm ${
@@ -436,7 +443,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
             )}
             <div className="bg-white/10 px-2 py-1 rounded-full text-xs text-gray-300 flex items-center gap-1">
               <FaCalendarAlt className="text-orange-400" />
-              <span>Available: {new Date(listing.availableFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              <span>Available: {listing.availableFrom ? new Date(listing.availableFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}</span>
             </div>
           </div>
           <p className="text-sm text-gray-400 mb-4 line-clamp-2">
@@ -467,7 +474,7 @@ const ListingCard: React.FC<ListingCardProps> = ({
           draggable="false"
         />
         <div className="absolute top-2 left-2 flex gap-1">
-          {listing.badges.slice(0, 2).map((badge: string) => (
+          {(listing.badges ?? []).slice(0, 2).map((badge: string) => (
             <span key={badge} className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-500/90 text-white">
               {badge}
             </span>
@@ -565,12 +572,12 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, o
             <div className="flex items-center gap-2 text-sm">
               <FaCalendarAlt className="text-orange-400" />
               <span className="text-gray-300">Available From:</span>
-              <span className="text-white">{new Date(listing.availableFrom).toLocaleDateString()}</span>
+              <span className="text-white">{listing.availableFrom ? new Date(listing.availableFrom).toLocaleDateString() : 'N/A'}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <FaMoneyBillWave className="text-yellow-400" />
               <span className="text-gray-300">Deposit:</span>
-              <span className="text-white">{formatPrice(listing.deposit)}</span>
+              <span className="text-white">{formatPrice(listing.deposit ?? 0)}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <FaUserFriends className="text-blue-400" />
@@ -587,7 +594,7 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, o
           <div className="mb-4">
             <h5 className="text-sm font-medium text-cyan-300 mb-2">Features</h5>
             <div className="flex flex-wrap gap-2">
-              {listing.features.map((feature: string, idx: number) => (
+              {(listing.features ?? []).map((feature: string, idx: number) => (
                 <span key={idx} className="bg-white/10 px-2 py-1 rounded-full text-xs text-gray-300">
                   {feature}
                 </span>
@@ -999,12 +1006,25 @@ const BookingForm: React.FC<{
     </div>
   );
 };
-// Removed duplicate export default function SearchPage
+
+
+function SearchPage() {
   const [viewMode, setViewMode] = useState<'card' | 'grid'>('grid');
   const [activeTab, setActiveTab] = useState<'rooms' | 'map' | 'roommate'>('rooms');
   const [showBooking, setShowBooking] = useState<boolean>(false);
   const [selectedRoomForBooking, setSelectedRoomForBooking] = useState<Listing | null>(null);
-  
+
+  // Insert missing state variables for search/filter/swipe logic
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [direction, setDirection] = useState<string | null>(null);
+  const [likedListings, setLikedListings] = useState<Listing[]>([]);
+  const [passedListings, setPassedListings] = useState<Listing[]>([]);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
@@ -1015,7 +1035,7 @@ const BookingForm: React.FC<{
   const [notificationPanelPos, setNotificationPanelPos] = useState<{ top: number; left: number }>({ top: 96, left: 16 });
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
-  
+
   const [priceMax, setPriceMax] = useState<number>(50000);
   const [dist, setDist] = useState<string>('any');
   const [room, setRoom] = useState<string>('any');
@@ -2374,7 +2394,7 @@ const BookingForm: React.FC<{
         )}
 
         {/* Details Modal */}
-        {showDetails && (
+        {showDetails && selectedListing && (
           <DetailsModal
             listing={selectedListing}
             onClose={() => setShowDetails(false)}
