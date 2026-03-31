@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'PORT'];
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'PORT'];
 
 // Check for required environment variables
 requiredEnvVars.forEach((envVar) => {
@@ -15,7 +15,7 @@ requiredEnvVars.forEach((envVar) => {
 });
 
 module.exports = {
-  mongoUri: process.env.MONGO_URI,
+  mongoUri: process.env.MONGODB_URI,
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET,
