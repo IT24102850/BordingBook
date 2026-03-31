@@ -11,7 +11,6 @@ import {
 } from 'react-icons/fa';
 import { BiCurrentLocation } from 'react-icons/bi';
 import { RiUserSharedLine } from 'react-icons/ri';
-
 // Mini Card for side panels
 const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
   const formatPrice = (price: number): string => {
@@ -70,22 +69,6 @@ function RoommateFinderPlaceholder(props: any) {
 }
 // ...existing code...
 
-function SearchPage() {
-  // Add missing state for details modal and navigation
-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const navigate = useNavigate();
-  // Proper filterChips definition
-  const filterChips = [
-    { id: 'budget', icon: <FaMoneyBillWave />, label: 'Budget' },
-    { id: 'near', icon: <FaMapMarkerAlt />, label: 'Near' },
-    { id: 'verified', icon: <FaCheckCircle />, label: 'Verified' },
-    { id: 'single', icon: <FaBed />, label: 'Single' },
-    { id: 'shared', icon: <FaUserFriends />, label: 'Shared' },
-    { id: 'bills', icon: <FaBolt />, label: 'Bills' },
-  ];
-  // ...rest of your SearchPage component code...
-}
 // ---- TypeScript type/interface stubs ----
 interface Listing {
   id: string | number;
