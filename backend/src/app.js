@@ -23,9 +23,13 @@ app.use(compression());
 app.use(
   cors({
     origin(origin, callback) {
+      console.log('[CORS] Incoming request origin:', origin);
+      console.log('[CORS] Allowed origins:', env.allowedOrigins);
       if (!origin || env.allowedOrigins.includes(origin)) {
+        console.log('[CORS] Origin allowed:', origin);
         return callback(null, true);
       }
+      console.log('[CORS] Origin NOT allowed:', origin);
       return callback(new Error('CORS not allowed'));
     },
     credentials: true,
