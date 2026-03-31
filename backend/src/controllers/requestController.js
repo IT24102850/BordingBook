@@ -7,7 +7,7 @@
 
 const RoommateRequest = require('../models/RoommateRequest');
 const User = require('../models/User');
-const { redis } = require('../lib/redis');
+
 
 /**
  * @desc Send roommate request to another user
@@ -63,9 +63,7 @@ exports.sendRequest = async (req, res) => {
 
     await request.save();
 
-    // after saving to MongoDB, clear stale cache
-    await redis.del(`inbox:${recipientId}`);
-    await redis.del(`sent:${senderId}`);
+
 
     res.status(201).json({
       success: true,
@@ -92,17 +90,6 @@ exports.getInboxRequests = async (req, res) => {
     const { status } = req.query;
     const cacheKey = status ? `inbox:${recipientId}:status:${status}` : `inbox:${recipientId}`;
 
-    // check cache first
-    try {
-      const cached = await redis.get(cacheKey);
-      console.log('[Redis][get][Inbox]', cacheKey, cached);
-      if (cached) {
-        return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
-      }
-    } catch (redisErr) {
-      console.error('[Redis][get][Inbox][Error]', cacheKey, redisErr);
-    }
-
     const filter = { recipientId };
     if (status) {
       filter.status = status;
@@ -111,14 +98,6 @@ exports.getInboxRequests = async (req, res) => {
     const requests = await RoommateRequest.find(filter)
       .populate('senderId', 'fullName email profilePicture')
       .sort({ createdAt: -1 });
-
-    // save to cache for 60 seconds
-    try {
-      await redis.setex(cacheKey, 60, JSON.stringify(requests));
-      console.log('[Redis][setex][Inbox]', cacheKey);
-    } catch (redisErr) {
-      console.error('[Redis][setex][Inbox][Error]', cacheKey, redisErr);
-    }
 
     res.status(200).json({
       success: true,
@@ -145,16 +124,6 @@ exports.getSentRequests = async (req, res) => {
     const { status } = req.query;
     const cacheKey = status ? `sent:${senderId}:status:${status}` : `sent:${senderId}`;
 
-    try {
-      const cached = await redis.get(cacheKey);
-      console.log('[Redis][get][Sent]', cacheKey, cached);
-      if (cached) {
-        return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
-      }
-    } catch (redisErr) {
-      console.error('[Redis][get][Sent][Error]', cacheKey, redisErr);
-    }
-
     const filter = { senderId };
     if (status) {
       filter.status = status;
@@ -163,13 +132,6 @@ exports.getSentRequests = async (req, res) => {
     const requests = await RoommateRequest.find(filter)
       .populate('recipientId', 'fullName email profilePicture')
       .sort({ createdAt: -1 });
-
-    try {
-      await redis.setex(cacheKey, 60, JSON.stringify(requests));
-      console.log('[Redis][setex][Sent]', cacheKey);
-    } catch (redisErr) {
-      console.error('[Redis][setex][Sent][Error]', cacheKey, redisErr);
-    }
 
     res.status(200).json({
       success: true,
@@ -216,9 +178,7 @@ exports.acceptRequest = async (req, res) => {
     request.respondedAt = new Date();
     await request.save();
 
-    // after saving to MongoDB, clear stale cache
-    await redis.del(`inbox:${userId}`);
-    await redis.del(`sent:${request.senderId}`);
+
 
     res.status(200).json({
       success: true,
@@ -265,9 +225,7 @@ exports.rejectRequest = async (req, res) => {
     request.respondedAt = new Date();
     await request.save();
 
-    // after saving to MongoDB, clear stale cache
-    await redis.del(`inbox:${userId}`);
-    await redis.del(`sent:${request.senderId}`);
+
 
     res.status(200).json({
       success: true,
