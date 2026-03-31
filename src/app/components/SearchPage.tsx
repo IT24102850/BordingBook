@@ -996,6 +996,15 @@ const BookingForm: React.FC<{
 
 
 function SearchPage() {
+    // Filter chips for quick filtering
+    const filterChips = [
+      { id: 'budget', icon: <FaMoneyBillWave />, label: 'Budget' },
+      { id: 'near', icon: <FaMapMarkerAlt />, label: 'Near' },
+      { id: 'verified', icon: <FaCheckCircle />, label: 'Verified' },
+      { id: 'single', icon: <FaBed />, label: 'Single' },
+      { id: 'shared', icon: <FaUserFriends />, label: 'Shared' },
+      { id: 'bills', icon: <FaBolt />, label: 'Bills' },
+    ];
   const [viewMode, setViewMode] = useState<'card' | 'grid'>('grid');
   const [activeTab, setActiveTab] = useState<'rooms' | 'map' | 'roommate'>('rooms');
   const [showBooking, setShowBooking] = useState<boolean>(false);
