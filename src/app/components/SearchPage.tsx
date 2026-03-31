@@ -120,7 +120,7 @@ const roomImages: string[] = [
   'https://images.unsplash.com/photo-1598928636135-d146006ff4be?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
 ];
 
-const filterChips = [
+const filterChipsData = [
   { id: 'budget', icon: <FaMoneyBillWave />, label: 'Budget' },
   { id: 'near', icon: <FaMapMarkerAlt />, label: 'Near' },
   { id: 'verified', icon: <FaCheckCircle />, label: 'Verified' },
@@ -140,333 +140,9 @@ const extractResponseArray = (payload: any): any[] => {
 const getStoredReadNotificationIds = (): Set<string> => new Set();
 const saveReadNotificationIds = (notifications: Notification[]) => {};
 
-// Roommate Finder Component
-function RoommateFinderPlaceholder({ roommateData }: { roommateData: Roommate[] }) {
-  const navigate = useNavigate();
-  const [roommateTab, setRoommateTab] = useState<'browse' | 'requests' | 'inbox' | 'groups'>('browse');
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [liked, setLiked] = useState<any[]>([]);
-  const [passed, setPassed] = useState<any[]>([]);
-  const [mutualMatches, setMutualMatches] = useState<any[]>([]);
-  const [direction, setDirection] = useState<'left' | 'right' | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [showSidePanels, setShowSidePanels] = useState(true);
-  const [sentRequests, setSentRequests] = useState<any[]>([]);
-  const [inboxRequests, setInboxRequests] = useState<any[]>([]);
-  const [groups, setGroups] = useState<any[]>([]);
-  const [apiNotice, setApiNotice] = useState('');
-  const [isLoadingRoommates, setIsLoadingRoommates] = useState(false);
-  const [localRoommateData, setLocalRoommateData] = useState<any[]>([]);
-
-  const studentsOnly = React.useMemo(() => {
-    const data = localRoommateData.length > 0 ? localRoommateData : roommateData;
-    return data.filter((profile: any) => profile.role !== 'owner');
-  }, [localRoommateData, roommateData]);
-
-  const current = studentsOnly[currentIdx];
-
-  const callRoommateApi = useCallback(async (path: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem('bb_access_token') || '';
-    if (!token) throw new Error('Please sign in');
-    const response = await fetch(`${API_BASE_URL}/api/roommates${path}`, {
-      ...options,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
-    });
-    const json = await response.json();
-    if (!response.ok || json?.success === false) throw new Error(json?.message || 'Request failed');
-    return json;
-  }, []);
-
-  const mapProfileToRoommate = useCallback((profile: any) => ({
-    id: normalizeIdValue(profile._id || profile.id),
-    userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-    name: profile.name || profile.fullName || 'Student',
-    email: profile.email || '',
-    age: deriveProfileAge(profile),
-    gender: profile.gender || 'Any',
-    university: profile.boardingHouse || profile.academicYear || 'Student',
-    bio: profile.description || profile.bio || 'Looking for a compatible roommate.',
-    image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-    interests: Array.isArray(profile.tags) ? profile.tags : [],
-    mutualCount: Number(profile.mutualCount) || 0,
-    role: profile.role || '',
-  }), []);
-
-  const loadRoommateProfiles = useCallback(async () => {
-    setIsLoadingRoommates(true);
-    try {
-      const token = localStorage.getItem('bb_access_token') || '';
-      if (!token) { setLocalRoommateData([]); setIsLoadingRoommates(false); return; }
-      const response = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await response.json();
-      if (response.ok && json.success !== false) {
-        const profiles = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
-        setLocalRoommateData(profiles.map(mapProfileToRoommate));
-      } else {
-        setLocalRoommateData([]);
-      }
-    } catch (error) {
-      console.error('Error loading roommate profiles:', error);
-      setLocalRoommateData([]);
-    } finally {
-      setIsLoadingRoommates(false);
-    }
-  }, [mapProfileToRoommate]);
-
-  const loadRoommateNetworkData = useCallback(async () => {
-    try {
-      const [likedRes, sentRes, inboxRes, mutualRes, groupsRes] = await Promise.allSettled([
-        callRoommateApi('/liked'), callRoommateApi('/request/sent'), callRoommateApi('/request/inbox'),
-        callRoommateApi('/mutual'), callRoommateApi('/groups'),
-      ]);
-      if (likedRes.status === 'fulfilled') setLiked((likedRes.value?.data || []).map(mapProfileToRoommate));
-      if (sentRes.status === 'fulfilled') {
-        setSentRequests((sentRes.value?.data || []).map((req: any) => ({
-          id: req._id, message: req.message, status: req.status,
-          from: mapProfileToRoommate({ _id: req.recipientId?._id, userId: req.recipientId?._id, fullName: req.recipientId?.fullName, email: req.recipientId?.email, profilePicture: req.recipientId?.profilePicture }),
-        })));
-      }
-      if (inboxRes.status === 'fulfilled') {
-        setInboxRequests((inboxRes.value?.data || []).map((req: any) => ({
-          id: req._id, message: req.message, status: req.status,
-          from: mapProfileToRoommate({ _id: req.senderId?._id, userId: req.senderId?._id, fullName: req.senderId?.fullName, email: req.senderId?.email, profilePicture: req.senderId?.profilePicture }),
-        })));
-      }
-      if (mutualRes.status === 'fulfilled') setMutualMatches((mutualRes.value?.data || []).map(mapProfileToRoommate));
-      if (groupsRes.status === 'fulfilled') setGroups(groupsRes.value?.data || []);
-    } catch (error) {
-      console.error('Error loading roommate network data:', error);
-    }
-  }, [callRoommateApi, mapProfileToRoommate]);
-
-  useEffect(() => {
-    loadRoommateProfiles();
-    loadRoommateNetworkData();
-  }, [loadRoommateProfiles, loadRoommateNetworkData]);
-
-  const handleLike = () => {
-    if (!current || isAnimating) return;
-    setIsAnimating(true);
-    setDirection('right');
-    setTimeout(() => {
-      setLiked((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-      if (currentIdx < studentsOnly.length - 1) setCurrentIdx(currentIdx + 1);
-      setDirection(null);
-      setIsAnimating(false);
-      void (async () => {
-        try {
-          if (current.id && typeof current.id === 'string' && /^[a-f\d]{24}$/i.test(current.id)) {
-            await callRoommateApi('/swipe', { method: 'POST', body: JSON.stringify({ profileId: current.id, action: 'like' }) });
-          }
-          if (current.userId && typeof current.userId === 'string' && /^[a-f\d]{24}$/i.test(current.userId)) {
-            await callRoommateApi('/request/send', { method: 'POST', body: JSON.stringify({ recipientId: current.userId, message: 'Hi! Want to connect?' }) });
-          }
-          await loadRoommateNetworkData();
-          setApiNotice('Like saved and request sent.');
-          setTimeout(() => setApiNotice(''), 3000);
-        } catch (error) {
-          setApiNotice((error as Error).message || 'Unable to sync');
-          setTimeout(() => setApiNotice(''), 3000);
-        }
-      })();
-    }, 250);
-  };
-
-  const handlePass = () => {
-    if (!current || isAnimating) return;
-    setIsAnimating(true);
-    setDirection('left');
-    setTimeout(() => {
-      setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
-      if (currentIdx < studentsOnly.length - 1) setCurrentIdx(currentIdx + 1);
-      setDirection(null);
-      setIsAnimating(false);
-      void (async () => {
-        try {
-          if (current.id && typeof current.id === 'string' && /^[a-f\d]{24}$/i.test(current.id)) {
-            await callRoommateApi('/swipe', { method: 'POST', body: JSON.stringify({ profileId: current.id, action: 'pass' }) });
-          }
-        } catch (error) { console.error('Error syncing pass:', error); }
-      })();
-    }, 250);
-  };
-
-  const handleUndo = () => {
-    if (currentIdx > 0) {
-      setCurrentIdx(currentIdx - 1);
-      setDirection(null);
-    }
-  };
-
-  const handleRequestResponse = async (requestId: string, accept: boolean) => {
-    try {
-      await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, { method: 'PATCH' });
-      await loadRoommateNetworkData();
-      setApiNotice(accept ? 'Request accepted. Start chatting now!' : 'Request rejected.');
-      setTimeout(() => setApiNotice(''), 3000);
-    } catch (error) {
-      setApiNotice((error as Error).message || 'Failed to update');
-      setTimeout(() => setApiNotice(''), 3000);
-    }
-  };
-
-  const createGroupFromLiked = async () => {
-    try {
-      const memberEmails = liked.map((m) => m.email).filter(Boolean);
-      if (memberEmails.length === 0) {
-        setApiNotice('Like at least one roommate first.');
-        setTimeout(() => setApiNotice(''), 3000);
-        return;
-      }
-      await callRoommateApi('/group', {
-        method: 'POST',
-        body: JSON.stringify({ name: `Roommate Group ${new Date().toLocaleDateString()}`, memberEmails }),
-      });
-      await loadRoommateNetworkData();
-      setApiNotice('Group created successfully!');
-      setTimeout(() => setApiNotice(''), 3000);
-    } catch (error) {
-      setApiNotice((error as Error).message || 'Failed to create group');
-      setTimeout(() => setApiNotice(''), 3000);
-    }
-  };
-
-  if (isLoadingRoommates && studentsOnly.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
-        <p className="text-cyan-200 text-sm">Loading roommate profiles...</p>
-      </div>
-    );
-  }
-
-  if (!isLoadingRoommates && studentsOnly.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 bg-white/5 rounded-xl border border-white/10">
-        <FaUserFriends className="text-4xl text-cyan-400 mx-auto mb-3 opacity-50" />
-        <p className="text-gray-300 font-semibold mb-2">No roommate profiles found</p>
-        <p className="text-sm text-gray-400 mb-4">Complete your profile to start finding roommates</p>
-        <button onClick={() => navigate('/profile')} className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition">
-          Update Your Profile
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
-        {[
-          { id: 'browse', label: `Browse (${studentsOnly.length})` },
-          { id: 'requests', label: `Sent (${sentRequests.length})` },
-          { id: 'inbox', label: `Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})` },
-          { id: 'groups', label: 'Groups' },
-        ].map((tab) => (
-          <button key={tab.id} onClick={() => setRoommateTab(tab.id as any)} className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-semibold ${roommateTab === tab.id ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {roommateTab === 'browse' && (
-        <>
-          {apiNotice && <div className="text-xs text-cyan-200 bg-cyan-500/10 border border-cyan-500/30 rounded-lg px-3 py-2">{apiNotice}</div>}
-          {mutualMatches.length > 0 && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
-              <p className="text-sm text-emerald-200 font-semibold mb-2">Mutual Matches ({mutualMatches.length})</p>
-              <div className="flex flex-wrap gap-2">
-                {mutualMatches.slice(0, 6).map((match) => (
-                  <button key={match.id} onClick={() => navigate(`/chat?recipientId=${match.userId || match.id}`)} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 transition">
-                    <img src={match.image} className="w-6 h-6 rounded-full object-cover" />
-                    <span className="text-xs text-emerald-100">{match.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="text-center py-8">
-            <p className="text-gray-400">Swipe to find roommates</p>
-            <button onClick={() => setShowSidePanels(!showSidePanels)} className="mt-2 text-xs text-cyan-400">Toggle Panels</button>
-          </div>
-        </>
-      )}
-
-      {roommateTab === 'requests' && (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">Requests Sent</h3>
-          {sentRequests.length > 0 ? sentRequests.map((req) => (
-            <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img src={req.from.image} className="w-12 h-12 rounded-full object-cover" />
-                <div><p className="text-white font-semibold">{req.from.name}</p><p className="text-xs text-gray-400">{req.message}</p></div>
-              </div>
-              <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>{req.status.toUpperCase()}</span>
-            </div>
-          )) : <p className="text-gray-400 text-center py-8">No requests sent yet</p>}
-        </div>
-      )}
-
-      {roommateTab === 'inbox' && (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">Requests Received</h3>
-          {inboxRequests.length > 0 ? inboxRequests.map((req) => (
-            <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <img src={req.from.image} className="w-12 h-12 rounded-full object-cover" />
-                  <div><p className="text-white font-semibold">{req.from.name}</p><p className="text-xs text-gray-400">{req.from.university}</p></div>
-                </div>
-                <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>{req.status.toUpperCase()}</span>
-              </div>
-              <p className="text-gray-300 mb-3 text-sm">{req.message}</p>
-              {req.status === 'pending' && (
-                <div className="flex gap-2">
-                  <button onClick={() => handleRequestResponse(req.id, true)} className="flex-1 px-3 py-2 bg-green-600/30 border border-green-600 text-green-300 rounded-lg hover:bg-green-600/50 text-xs font-semibold">Accept</button>
-                  <button onClick={() => handleRequestResponse(req.id, false)} className="flex-1 px-3 py-2 bg-red-600/30 border border-red-600 text-red-300 rounded-lg hover:bg-red-600/50 text-xs font-semibold">Decline</button>
-                </div>
-              )}
-              {req.status === 'accepted' && (
-                <button onClick={() => navigate(`/chat?recipientId=${req.from.userId || req.from.id}`)} className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold">Start Chat</button>
-              )}
-            </div>
-          )) : <p className="text-gray-400 text-center py-8">No requests received yet</p>}
-        </div>
-      )}
-
-      {roommateTab === 'groups' && (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-white">Groups</h3>
-            <button onClick={createGroupFromLiked} disabled={liked.length === 0} className={`px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 ${liked.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:from-purple-600 hover:to-pink-600'}`}><FaPlus size={16} /> Create Group</button>
-          </div>
-          {groups.length > 0 && groups.map((group: any) => (
-            <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between">
-              <div><p className="text-white font-semibold text-sm">{group.name}</p><p className="text-xs text-gray-400">{group.members?.length || 0} members</p></div>
-              <span className="text-xs px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-300">Synced</span>
-            </div>
-          ))}
-          {liked.length > 0 ? (
-            <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
-              <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
-              <button onClick={createGroupFromLiked} className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg transition"><FaUserFriends size={18} /> Create Group with These Members</button>
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
-              <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" />
-              <p className="text-gray-300 font-semibold mb-2">No groups yet</p>
-              <button onClick={() => setRoommateTab('browse')} className="px-4 py-2 bg-white/10 border border-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-semibold">Browse Roommates</button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // Mini Card for side panels
 const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
+  const formatPrice = (price: number): string => `Rs. ${price.toLocaleString()}`;
   return (
     <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-lg overflow-hidden border border-white/10 hover:shadow-cyan-500/10 transition-all mb-2">
       <div className="flex items-center gap-2 p-2">
@@ -482,7 +158,7 @@ const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> 
             <FaMapMarkerAlt className="text-purple-400" />
             <span className="truncate">{listing.location}</span>
           </div>
-          <div className="text-[10px] text-cyan-400 font-bold">Rs. {listing.price.toLocaleString()}</div>
+          <div className="text-[10px] text-cyan-400 font-bold">{formatPrice(listing.price)}</div>
         </div>
       </div>
     </div>
@@ -491,17 +167,29 @@ const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> 
 
 // Ranked Result Card Component
 const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = ({ room, onOpen }) => {
+  const formatPrice = (price: number): string => `Rs. ${price.toLocaleString()}/mo`;
+  const stars = '★'.repeat(Math.floor(room.rating)) + (room.rating % 1 >= 0.5 ? '☆' : '');
   return (
-    <div onClick={() => onOpen(room.id)} className="bg-gradient-to-br from-[#181f36]/80 to-[#232b47]/80 backdrop-blur-sm rounded-xl p-4 mb-3 border border-white/10 hover:border-cyan-400/50 cursor-pointer hover:shadow-lg">
+    <div onClick={() => onOpen(room.id)} className="bg-gradient-to-br from-[#181f36]/80 to-[#232b47]/80 backdrop-blur-sm rounded-xl p-4 mb-3 border border-white/10 hover:border-cyan-400/50 hover:bg-gradient-to-br hover:from-[#181f36] hover:to-[#232b47] transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/20">
       <div className="flex items-start justify-between gap-4 mb-2">
         <div className="flex-1"><h3 className="text-base md:text-lg font-bold text-white mb-1">{room.name}</h3></div>
-        <div className="text-right"><div className="text-lg md:text-xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">Rs. {room.price.toLocaleString()}/mo</div></div>
+        <div className="text-right"><div className="text-lg md:text-xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">{formatPrice(room.price)}</div></div>
       </div>
-      <div className="flex items-center gap-1 text-sm text-gray-300"><FaMapMarkerAlt className="text-pink-400" /> <span>{room.location}</span></div>
-      <div className="flex items-center gap-4 mt-2 text-xs"><FaWalking className="text-cyan-400" /> <span>{room.distKm < 1 ? `${Math.round(room.distKm * 1000)}m` : `${room.distKm}km`} away</span></div>
-      <div className="flex items-center gap-2 mt-2 flex-wrap">
-        <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${room.available ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>{room.available ? 'Available' : 'Occupied'}</span>
-        {room.facilities?.slice(0, 3).map((fac: string, idx: number) => (<span key={idx} className="px-2 py-1 rounded-full text-xs bg-cyan-500/20 text-cyan-300">{fac}</span>))}
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <div className="flex items-center gap-1 text-sm text-gray-300"><FaMapMarkerAlt className="text-pink-400 flex-shrink-0" /><span>{room.location}</span></div>
+      </div>
+      <div className="flex items-center gap-4 mb-3 flex-wrap text-xs md:text-sm">
+        <div className="flex items-center gap-1 text-gray-400"><FaWalking className="text-cyan-400" /><span className="font-semibold">{room.distKm < 1 ? `${Math.round(room.distKm * 1000)}m` : `${room.distKm}km`} away</span></div>
+        <div className="flex items-center gap-1">{stars && <><span className="text-yellow-400">{stars}</span><span className="text-gray-400">{room.rating.toFixed(1)}</span></>}</div>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 border ${room.available ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30'}`}>
+          {room.available ? 'Available' : 'Occupied'}
+        </span>
+        {room.facilities?.slice(0, 3).map((fac: string, idx: number) => (
+          <span key={idx} className="px-2 py-1 rounded-full text-xs bg-cyan-500/20 text-cyan-300 border border-cyan-500/20 flex-shrink-0">{fac}</span>
+        ))}
+        {room.facilities?.length > 3 && <span className="px-2 py-1 rounded-full text-xs bg-white/5 text-gray-400 border border-white/10">+{room.facilities.length - 3} more</span>}
       </div>
     </div>
   );
@@ -577,6 +265,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onLike, onPass, onVi
             <div className="bg-white/10 px-2 py-1 rounded-full text-xs text-gray-300 flex items-center gap-1"><BiCurrentLocation className="text-cyan-400" /><span>{listing.travelTime}</span></div>
             <div className="bg-white/10 px-2 py-1 rounded-full text-xs text-gray-300 flex items-center gap-1"><RiUserSharedLine className="text-purple-400" /><span>{listing.genderPreference}</span></div>
             {listing.billsIncluded && (<div className="bg-green-500/20 px-2 py-1 rounded-full text-xs text-green-400 flex items-center gap-1"><FaBolt /><span>Bills Included</span></div>)}
+            <div className="bg-white/10 px-2 py-1 rounded-full text-xs text-gray-300 flex items-center gap-1"><FaCalendarAlt className="text-orange-400" /><span>Available: {listing.availableFrom ? new Date(listing.availableFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}</span></div>
           </div>
           <p className="text-sm text-gray-400 mb-4 line-clamp-2">{listing.description}</p>
           <button onClick={() => onViewDetails(listing)} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><FaInfoCircle /><span>View details</span></button>
@@ -619,36 +308,65 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, o
   );
 };
 
-// Map View Placeholder
-function MapViewPlaceholder() {
-  return <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner"><span className="mb-2">Map</span>Map View coming soon...</div>;
-}
-
-// Student Payment Portal Content
-function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }) {
-  return <div className="space-y-6"><div className="bg-gradient-to-br from-cyan-900/40 via-purple-900/30 to-indigo-900/40 rounded-2xl p-6 border border-cyan-500/20"><h2 className="text-2xl font-bold text-white">Payment Portal</h2><p className="text-gray-300 mt-2">Booking ID: {bookingId || 'N/A'}</p></div></div>;
-}
-
 // Filters Panel Component
-function FiltersPanel({ filters, setters, onReset }: any) {
+const FiltersPanel: React.FC<{ filters: any; setters: any; onReset: () => void }> = ({ filters, setters, onReset }) => {
   const { priceMax, dist, room, avail, facs } = filters;
   const { setPriceMax, setDist, setRoom, setAvail, setFacs } = setters;
 
+  const facilityOptions = [{ name: 'WiFi', icon: '📶' }, { name: 'Air-Cond', icon: '❄️' }, { name: 'Meals', icon: '🍽️' }, { name: 'Private Bath', icon: '🚿' }, { name: 'Parking', icon: '🅿️' }, { name: 'Laundry', icon: '🧺' }, { name: 'Security', icon: '🛡️' }, { name: 'Gym', icon: '💪' }];
+  const distanceOptions = [{ label: '500m', value: '500m' }, { label: '1km', value: 'walking' }, { label: '2km', value: 'cycling' }, { label: '5km', value: 'bus' }, { label: 'Any', value: 'any' }];
+  const roomTypeOptions = ['All', 'Single', 'Master', 'Sharing', 'Annex'];
+  const availabilityOptions = ['All', 'Available', 'Occupied'];
+
   return (
-    <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl p-4 border border-cyan-500/30">
-      <div className="flex justify-between items-center mb-4"><h3 className="text-white font-bold">Filters</h3><button onClick={onReset} className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs">Reset</button></div>
-      <div className="space-y-4">
-        <div><label className="text-xs text-cyan-300">Max Price: Rs. {priceMax.toLocaleString()}</label><input type="range" min="3000" max="50000" value={priceMax} onChange={(e) => setPriceMax(Number(e.target.value))} className="w-full" /></div>
-        <div><label className="text-xs text-cyan-300">Distance</label><select value={dist} onChange={(e) => setDist(e.target.value)} className="w-full bg-white/10 rounded p-1 text-white"><option value="any">Any</option><option value="walking">&lt;1km</option><option value="cycling">&lt;2km</option><option value="bus">&lt;5km</option></select></div>
-        <div><label className="text-xs text-cyan-300">Room Type</label><select value={room} onChange={(e) => setRoom(e.target.value)} className="w-full bg-white/10 rounded p-1 text-white"><option value="any">Any</option><option value="single">Single</option><option value="sharing">Sharing</option></select></div>
-        <div><label className="text-xs text-cyan-300">Availability</label><select value={avail} onChange={(e) => setAvail(e.target.value)} className="w-full bg-white/10 rounded p-1 text-white"><option value="all">All</option><option value="available">Available</option><option value="occupied">Occupied</option></select></div>
+    <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-cyan-500/30 shadow-2xl shadow-cyan-500/10">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3"><FaFilter className="text-cyan-400 text-lg sm:text-xl flex-shrink-0" /><h3 className="text-lg sm:text-xl font-bold text-white">Real-Time Filters</h3></div>
+        <button onClick={onReset} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg text-xs sm:text-sm font-medium hover:shadow-lg transition-all flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"><FaTimes className="text-xs sm:text-sm" /><span>Reset All</span></button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="lg:col-span-1 md:col-span-2">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Price Range (Rs./Month)</label>
+          <div className="space-y-2">
+            <input type="range" min="3000" max="50000" step="500" value={priceMax} onChange={(e) => setPriceMax(Number(e.target.value))} className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-cyan-500" />
+            <div className="flex justify-between text-xs text-gray-400"><span className="hidden sm:inline">Rs. 3,000</span><span className="sm:hidden text-[10px]">3k</span><span className="text-cyan-400 font-bold text-center text-xs sm:text-sm">Rs. {priceMax.toLocaleString()}</span><span className="hidden sm:inline">Rs. 50,000</span><span className="sm:hidden text-[10px]">50k</span></div>
+          </div>
+        </div>
+        <div className="md:col-span-2 lg:col-span-2">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Max Distance from Campus</label>
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">{distanceOptions.map((option) => (<button key={option.value} onClick={() => setDist(option.value)} className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${dist === option.value ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50' : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/10'}`}>{option.label}</button>))}</div>
+        </div>
+        <div className="md:col-span-2 lg:col-span-2">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Room Type</label>
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">{roomTypeOptions.map((type) => (<button key={type} onClick={() => setRoom(type.toLowerCase())} className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${(type === 'All' && room === 'any') || room === type.toLowerCase() ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/50' : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/10'}`}>{type}</button>))}</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="md:col-span-1 lg:col-span-1">
+          <label className="text-xs sm:text-sm text-cyan-300 mb-2 sm:mb-3 block font-semibold">Availability</label>
+          <div className="flex gap-1.5 sm:gap-2">{availabilityOptions.map((status) => (<button key={status} onClick={() => setAvail(status === 'All' ? 'all' : status.toLowerCase())} className={`flex-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${(status === 'All' && avail === 'all') || avail === status.toLowerCase() ? 'bg-green-500 text-white shadow-lg shadow-green-500/50' : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/10'}`}>{status}</button>))}</div>
+        </div>
+      </div>
+      <div><label className="text-xs sm:text-sm text-cyan-300 mb-3 sm:mb-4 block font-semibold">Facilities</label>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-2 sm:gap-3">
+          {facilityOptions.map((facility) => (<button key={facility.name} onClick={() => { if (facs.includes(facility.name)) { setFacs(facs.filter((f: string) => f !== facility.name)); } else { setFacs([...facs, facility.name]); } }} className={`flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl transition-all border-2 ${facs.includes(facility.name) ? 'border-cyan-500 bg-cyan-500/20 shadow-lg shadow-cyan-500/30' : 'border-white/20 bg-white/5 hover:bg-white/10'}`}>
+            <span className="text-lg sm:text-2xl">{facility.icon}</span>
+            <span className={`text-[10px] sm:text-xs font-medium text-center leading-tight ${facs.includes(facility.name) ? 'text-cyan-300' : 'text-gray-400'}`}>{facility.name}</span>
+            <div className={`w-5 sm:w-6 h-2.5 sm:h-3 rounded-full transition-all mt-0.5 sm:mt-1 ${facs.includes(facility.name) ? 'bg-gradient-to-r from-cyan-500 to-blue-500' : 'bg-gray-600'}`} />
+          </button>))}
+        </div>
       </div>
     </div>
   );
-}
+};
+
+// Student Payment Portal Content
+const StudentPaymentPortalContent = ({ bookingId }: { bookingId: string | null }) => (
+  <div className="space-y-6"><div className="bg-gradient-to-br from-cyan-900/40 via-purple-900/30 to-indigo-900/40 rounded-2xl p-6 border border-cyan-500/20"><h2 className="text-2xl font-bold text-white">Payment Portal</h2><p className="text-gray-300 mt-2">Booking ID: {bookingId || 'N/A'}</p></div></div>
+);
 
 // Booking Form Component
-function BookingForm({ listing, onClose, onSubmit, currentUserName = '', currentUserEmail = '', currentUserImage = '' }: any) {
+const BookingForm: React.FC<{ listing: Listing | null; onClose: () => void; onSubmit: (data: any) => void; currentUserName?: string; currentUserEmail?: string; currentUserImage?: string }> = ({ listing, onClose, onSubmit, currentUserName = '' }) => {
   const [studentName, setStudentName] = useState(currentUserName);
   const [contactNumber, setContactNumber] = useState('');
   const [moveInDate, setMoveInDate] = useState('');
@@ -672,7 +390,282 @@ function BookingForm({ listing, onClose, onSubmit, currentUserName = '', current
       </div>
     </div>
   );
-}
+};
+
+// Map View Placeholder
+const MapViewPlaceholder = () => (
+  <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner">
+    <span className="mb-2">Map</span>Map View coming soon...
+  </div>
+);
+
+// Roommate Finder Component
+const RoommateFinderPlaceholder = ({ roommateData }: { roommateData: Roommate[] }) => {
+  const navigate = useNavigate();
+  const [roommateTab, setRoommateTab] = useState<'browse' | 'requests' | 'inbox' | 'groups'>('browse');
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [liked, setLiked] = useState<any[]>([]);
+  const [passed, setPassed] = useState<any[]>([]);
+  const [mutualMatches, setMutualMatches] = useState<any[]>([]);
+  const [direction, setDirection] = useState<'left' | 'right' | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [showSidePanels, setShowSidePanels] = useState(true);
+  const [sentRequests, setSentRequests] = useState<any[]>([]);
+  const [inboxRequests, setInboxRequests] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [apiNotice, setApiNotice] = useState('');
+  const [isLoadingRoommates, setIsLoadingRoommates] = useState(false);
+  const [localRoommateData, setLocalRoommateData] = useState<any[]>([]);
+
+  const studentsOnly = React.useMemo(() => {
+    const data = localRoommateData.length > 0 ? localRoommateData : roommateData;
+    return data.filter((profile: any) => profile.role !== 'owner');
+  }, [localRoommateData, roommateData]);
+
+  const current = studentsOnly[currentIdx];
+
+  const callRoommateApi = useCallback(async (path: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('bb_access_token') || '';
+    if (!token) throw new Error('Please sign in');
+    const response = await fetch(`${API_BASE_URL}/api/roommates${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
+    });
+    const json = await response.json();
+    if (!response.ok || json?.success === false) throw new Error(json?.message || 'Request failed');
+    return json;
+  }, []);
+
+  const mapProfileToRoommate = useCallback((profile: any) => ({
+    id: normalizeIdValue(profile._id || profile.id),
+    userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+    name: profile.name || profile.fullName || 'Student',
+    email: profile.email || '',
+    age: deriveProfileAge(profile),
+    gender: profile.gender || 'Any',
+    university: profile.boardingHouse || profile.academicYear || 'Student',
+    bio: profile.description || profile.bio || 'Looking for a compatible roommate.',
+    image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+    interests: Array.isArray(profile.tags) ? profile.tags : [],
+    mutualCount: Number(profile.mutualCount) || 0,
+    role: profile.role || '',
+  }), []);
+
+  const loadRoommateProfiles = useCallback(async () => {
+    setIsLoadingRoommates(true);
+    try {
+      const token = localStorage.getItem('bb_access_token') || '';
+      if (!token) { setLocalRoommateData([]); setIsLoadingRoommates(false); return; }
+      const response = await fetch(`${API_BASE_URL}/api/roommates/browse`, { headers: { Authorization: `Bearer ${token}` } });
+      const json = await response.json();
+      if (response.ok && json.success !== false) {
+        const profiles = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+        setLocalRoommateData(profiles.map(mapProfileToRoommate));
+      } else { setLocalRoommateData([]); }
+    } catch (error) { console.error('Error loading roommate profiles:', error); setLocalRoommateData([]); }
+    finally { setIsLoadingRoommates(false); }
+  }, [mapProfileToRoommate]);
+
+  const loadRoommateNetworkData = useCallback(async () => {
+    try {
+      const [likedRes, sentRes, inboxRes, mutualRes, groupsRes] = await Promise.allSettled([
+        callRoommateApi('/liked'), callRoommateApi('/request/sent'), callRoommateApi('/request/inbox'),
+        callRoommateApi('/mutual'), callRoommateApi('/groups'),
+      ]);
+      if (likedRes.status === 'fulfilled') setLiked((likedRes.value?.data || []).map(mapProfileToRoommate));
+      if (sentRes.status === 'fulfilled') {
+        setSentRequests((sentRes.value?.data || []).map((req: any) => ({
+          id: req._id, message: req.message, status: req.status,
+          from: mapProfileToRoommate({ _id: req.recipientId?._id, userId: req.recipientId?._id, fullName: req.recipientId?.fullName, email: req.recipientId?.email, profilePicture: req.recipientId?.profilePicture }),
+        })));
+      }
+      if (inboxRes.status === 'fulfilled') {
+        setInboxRequests((inboxRes.value?.data || []).map((req: any) => ({
+          id: req._id, message: req.message, status: req.status,
+          from: mapProfileToRoommate({ _id: req.senderId?._id, userId: req.senderId?._id, fullName: req.senderId?.fullName, email: req.senderId?.email, profilePicture: req.senderId?.profilePicture }),
+        })));
+      }
+      if (mutualRes.status === 'fulfilled') setMutualMatches((mutualRes.value?.data || []).map(mapProfileToRoommate));
+      if (groupsRes.status === 'fulfilled') setGroups(groupsRes.value?.data || []);
+    } catch (error) { console.error('Error loading roommate network data:', error); }
+  }, [callRoommateApi, mapProfileToRoommate]);
+
+  useEffect(() => { loadRoommateProfiles(); loadRoommateNetworkData(); }, [loadRoommateProfiles, loadRoommateNetworkData]);
+
+  const handleLike = () => {
+    if (!current || isAnimating) return;
+    setIsAnimating(true);
+    setDirection('right');
+    setTimeout(() => {
+      setLiked((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
+      if (currentIdx < studentsOnly.length - 1) setCurrentIdx(currentIdx + 1);
+      setDirection(null);
+      setIsAnimating(false);
+      void (async () => {
+        try {
+          if (current.id && typeof current.id === 'string' && /^[a-f\d]{24}$/i.test(current.id)) {
+            await callRoommateApi('/swipe', { method: 'POST', body: JSON.stringify({ profileId: current.id, action: 'like' }) });
+          }
+          if (current.userId && typeof current.userId === 'string' && /^[a-f\d]{24}$/i.test(current.userId)) {
+            await callRoommateApi('/request/send', { method: 'POST', body: JSON.stringify({ recipientId: current.userId, message: 'Hi! Want to connect?' }) });
+          }
+          await loadRoommateNetworkData();
+          setApiNotice('Like saved and request sent.');
+          setTimeout(() => setApiNotice(''), 3000);
+        } catch (error) {
+          setApiNotice((error as Error).message || 'Unable to sync');
+          setTimeout(() => setApiNotice(''), 3000);
+        }
+      })();
+    }, 250);
+  };
+
+  const handlePass = () => {
+    if (!current || isAnimating) return;
+    setIsAnimating(true);
+    setDirection('left');
+    setTimeout(() => {
+      setPassed((prev) => (prev.some((r) => r.id === current.id) ? prev : [...prev, current]));
+      if (currentIdx < studentsOnly.length - 1) setCurrentIdx(currentIdx + 1);
+      setDirection(null);
+      setIsAnimating(false);
+      void (async () => {
+        try {
+          if (current.id && typeof current.id === 'string' && /^[a-f\d]{24}$/i.test(current.id)) {
+            await callRoommateApi('/swipe', { method: 'POST', body: JSON.stringify({ profileId: current.id, action: 'pass' }) });
+          }
+        } catch (error) { console.error('Error syncing pass:', error); }
+      })();
+    }, 250);
+  };
+
+  const handleUndo = () => { if (currentIdx > 0) { setCurrentIdx(currentIdx - 1); setDirection(null); } };
+  const handleRequestResponse = async (requestId: string, accept: boolean) => {
+    try {
+      await callRoommateApi(`/request/${requestId}/${accept ? 'accept' : 'reject'}`, { method: 'PATCH' });
+      await loadRoommateNetworkData();
+      setApiNotice(accept ? 'Request accepted. Start chatting now!' : 'Request rejected.');
+      setTimeout(() => setApiNotice(''), 3000);
+    } catch (error) {
+      setApiNotice((error as Error).message || 'Failed to update');
+      setTimeout(() => setApiNotice(''), 3000);
+    }
+  };
+  const createGroupFromLiked = async () => {
+    try {
+      const memberEmails = liked.map((m) => m.email).filter(Boolean);
+      if (memberEmails.length === 0) { setApiNotice('Like at least one roommate first.'); setTimeout(() => setApiNotice(''), 3000); return; }
+      await callRoommateApi('/group', { method: 'POST', body: JSON.stringify({ name: `Roommate Group ${new Date().toLocaleDateString()}`, memberEmails }) });
+      await loadRoommateNetworkData();
+      setApiNotice('Group created successfully!');
+      setTimeout(() => setApiNotice(''), 3000);
+    } catch (error) {
+      setApiNotice((error as Error).message || 'Failed to create group');
+      setTimeout(() => setApiNotice(''), 3000);
+    }
+  };
+
+  if (isLoadingRoommates && studentsOnly.length === 0) {
+    return <div className="flex flex-col items-center justify-center py-12"><div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" /><p className="text-cyan-200 text-sm">Loading roommate profiles...</p></div>;
+  }
+  if (!isLoadingRoommates && studentsOnly.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 bg-white/5 rounded-xl border border-white/10">
+        <FaUserFriends className="text-4xl text-cyan-400 mx-auto mb-3 opacity-50" />
+        <p className="text-gray-300 font-semibold mb-2">No roommate profiles found</p>
+        <button onClick={() => navigate('/profile')} className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold">Update Your Profile</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
+        {[
+          { id: 'browse', label: `Browse (${studentsOnly.length})` },
+          { id: 'requests', label: `Sent (${sentRequests.length})` },
+          { id: 'inbox', label: `Inbox (${inboxRequests.filter((r) => r.status === 'pending').length})` },
+          { id: 'groups', label: 'Groups' },
+        ].map((tab) => (
+          <button key={tab.id} onClick={() => setRoommateTab(tab.id as any)} className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-semibold ${roommateTab === tab.id ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {roommateTab === 'browse' && (
+        <>
+          {apiNotice && <div className="text-xs text-cyan-200 bg-cyan-500/10 border border-cyan-500/30 rounded-lg px-3 py-2">{apiNotice}</div>}
+          {mutualMatches.length > 0 && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
+              <p className="text-sm text-emerald-200 font-semibold mb-2">Mutual Matches ({mutualMatches.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {mutualMatches.slice(0, 6).map((match) => (
+                  <button key={match.id} onClick={() => navigate(`/chat?recipientId=${match.userId || match.id}`)} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 transition">
+                    <img src={match.image} className="w-6 h-6 rounded-full object-cover" /><span className="text-xs text-emerald-100">{match.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="text-center py-8"><p className="text-gray-400">Swipe to find roommates</p><button onClick={() => setShowSidePanels(!showSidePanels)} className="mt-2 text-xs text-cyan-400">Toggle Panels</button></div>
+        </>
+      )}
+
+      {roommateTab === 'requests' && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-4">Requests Sent</h3>
+          {sentRequests.length > 0 ? sentRequests.map((req) => (
+            <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3"><img src={req.from.image} className="w-12 h-12 rounded-full object-cover" /><div><p className="text-white font-semibold">{req.from.name}</p><p className="text-xs text-gray-400">{req.message}</p></div></div>
+              <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>{req.status.toUpperCase()}</span>
+            </div>
+          )) : <p className="text-gray-400 text-center py-8">No requests sent yet</p>}
+        </div>
+      )}
+
+      {roommateTab === 'inbox' && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-4">Requests Received</h3>
+          {inboxRequests.length > 0 ? inboxRequests.map((req) => (
+            <div key={req.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3"><img src={req.from.image} className="w-12 h-12 rounded-full object-cover" /><div><p className="text-white font-semibold">{req.from.name}</p><p className="text-xs text-gray-400">{req.from.university}</p></div></div>
+                <span className={`text-xs px-3 py-1 rounded-full ${req.status === 'pending' ? 'bg-yellow-900/50 text-yellow-200' : req.status === 'accepted' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>{req.status.toUpperCase()}</span>
+              </div>
+              <p className="text-gray-300 mb-3 text-sm">{req.message}</p>
+              {req.status === 'pending' && (
+                <div className="flex gap-2"><button onClick={() => handleRequestResponse(req.id, true)} className="flex-1 px-3 py-2 bg-green-600/30 border border-green-600 text-green-300 rounded-lg hover:bg-green-600/50 text-xs font-semibold">Accept</button><button onClick={() => handleRequestResponse(req.id, false)} className="flex-1 px-3 py-2 bg-red-600/30 border border-red-600 text-red-300 rounded-lg hover:bg-red-600/50 text-xs font-semibold">Decline</button></div>
+              )}
+              {req.status === 'accepted' && (
+                <button onClick={() => navigate(`/chat?recipientId=${req.from.userId || req.from.id}`)} className="w-full px-3 py-2 bg-cyan-600/30 border border-cyan-600 text-cyan-300 rounded-lg hover:bg-cyan-600/50 text-xs font-semibold">Start Chat</button>
+              )}
+            </div>
+          )) : <p className="text-gray-400 text-center py-8">No requests received yet</p>}
+        </div>
+      )}
+
+      {roommateTab === 'groups' && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-6"><h3 className="text-lg font-bold text-white">Groups</h3><button onClick={createGroupFromLiked} disabled={liked.length === 0} className={`px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-semibold flex items-center gap-2 ${liked.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:from-purple-600 hover:to-pink-600'}`}><FaPlus size={16} /> Create Group</button></div>
+          {groups.length > 0 && groups.map((group: any) => (
+            <div key={group._id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between"><div><p className="text-white font-semibold text-sm">{group.name}</p><p className="text-xs text-gray-400">{group.members?.length || 0} members</p></div><span className="text-xs px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-300">Synced</span></div>
+          ))}
+          {liked.length > 0 ? (
+            <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg p-6 border border-cyan-500/30">
+              <h4 className="text-white font-semibold mb-4">Your Liked Roommates ({liked.length})</h4>
+              <button onClick={createGroupFromLiked} className="w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg transition"><FaUserFriends size={18} /> Create Group with These Members</button>
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-white/5 rounded-lg border border-white/10">
+              <FaUserFriends className="text-4xl text-pink-400 mx-auto mb-3 opacity-50" /><p className="text-gray-300 font-semibold mb-2">No groups yet</p><button onClick={() => setRoommateTab('browse')} className="px-4 py-2 bg-white/10 border border-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-semibold">Browse Roommates</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Main SearchPage Component
 export default function SearchPage() {
@@ -744,7 +737,6 @@ export default function SearchPage() {
         fetch(`${API_BASE_URL}/api/roommates/request/sent`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE_URL}/api/roommates/groups`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-      // Simplified notification handling
       setNotifications([]);
     } catch { setNotifications([]); }
   }, []);
@@ -949,16 +941,13 @@ export default function SearchPage() {
 
   const handleLike = () => {
     if (!currentListing || isAnimating) return;
-    setIsAnimating(true);
-    setDirection('right');
+    setIsAnimating(true); setDirection('right');
     setTimeout(() => {
       setLikedListings([...likedListings, currentListing]);
-      setToastMessage('Added to favorites!');
-      setShowToast(true);
+      setToastMessage('Added to favorites!'); setShowToast(true);
       setTimeout(() => {
         if (currentIndex < rankedListings.length - 1) setCurrentIndex(currentIndex + 1);
-        setDirection(null);
-        setIsAnimating(false);
+        setDirection(null); setIsAnimating(false);
         setTimeout(() => setShowToast(false), 2000);
       }, 300);
     }, 150);
@@ -966,16 +955,13 @@ export default function SearchPage() {
 
   const handlePass = () => {
     if (!currentListing || isAnimating) return;
-    setIsAnimating(true);
-    setDirection('left');
+    setIsAnimating(true); setDirection('left');
     setTimeout(() => {
       setPassedListings([...passedListings, currentListing]);
-      setToastMessage('Not interested');
-      setShowToast(true);
+      setToastMessage('Not interested'); setShowToast(true);
       setTimeout(() => {
         if (currentIndex < rankedListings.length - 1) setCurrentIndex(currentIndex + 1);
-        setDirection(null);
-        setIsAnimating(false);
+        setDirection(null); setIsAnimating(false);
         setTimeout(() => setShowToast(false), 2000);
       }, 300);
     }, 150);
@@ -988,8 +974,7 @@ export default function SearchPage() {
       if (lastPassed && lastPassed.id === rankedListings[currentIndex - 1]?.id) setPassedListings(passedListings.slice(0, -1));
       else if (lastLiked && lastLiked.id === rankedListings[currentIndex - 1]?.id) setLikedListings(likedListings.slice(0, -1));
       setCurrentIndex(currentIndex - 1);
-      setToastMessage('Action undone');
-      setShowToast(true);
+      setToastMessage('Action undone'); setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
     }
   };
@@ -999,16 +984,8 @@ export default function SearchPage() {
     setCurrentIndex(0);
   };
 
-  const handleViewDetails = (listing: Listing) => {
-    setSelectedListing(listing);
-    setShowDetails(true);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('bb_access_token');
-    localStorage.removeItem('bb_current_user');
-    navigate('/signin');
-  };
+  const handleViewDetails = (listing: Listing) => { setSelectedListing(listing); setShowDetails(true); };
+  const handleLogout = () => { localStorage.removeItem('bb_access_token'); localStorage.removeItem('bb_current_user'); navigate('/signin'); };
 
   if (isListingsLoading) {
     return (
@@ -1074,7 +1051,7 @@ export default function SearchPage() {
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
               <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-white"><FaFilter /> {showFilters ? 'Hide' : 'Show'} Filters</button>
-              {filterChips.map(chip => (<button key={chip.id} onClick={() => toggleFilter(chip.id)} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs ${selectedFilters.includes(chip.id) ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300'}`}>{chip.icon}{chip.label}</button>))}
+              {filterChipsData.map(chip => (<button key={chip.id} onClick={() => toggleFilter(chip.id)} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs ${selectedFilters.includes(chip.id) ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300'}`}>{chip.icon}{chip.label}</button>))}
             </div>
             <div className="mt-3 flex justify-between"><span className="text-xs text-gray-400">Sort by</span><select value={sortMode} onChange={(e) => setSortMode(e.target.value as any)} className="bg-white/10 rounded-lg px-3 py-2 text-sm text-white"><option value="discovery">Discovery</option><option value="price-low">Price: Low to High</option><option value="price-high">Price: High to Low</option><option value="distance">Nearest First</option></select></div>
             {showFilters && <FiltersPanel filters={{ priceMax, dist, room, avail, facs }} setters={{ setPriceMax, setDist, setRoom, setAvail, setFacs }} onReset={() => { setPriceMax(50000); setDist('any'); setRoom('any'); setAvail('all'); setFacs([]); }} />}
@@ -1099,7 +1076,7 @@ export default function SearchPage() {
                 </>
               )}
             </div>
-            <div className="md:hidden">{/* Mobile view similar structure */}<p className="text-center text-gray-400">Mobile view - Swipe or browse</p></div>
+            <div className="md:hidden"><p className="text-center text-gray-400">Mobile view - Swipe or browse</p></div>
           </>
         ) : activeTab === 'map' ? <MapViewPlaceholder /> : <RoommateFinderPlaceholder roommateData={effectiveRoommates} />}
 
