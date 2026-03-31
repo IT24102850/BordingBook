@@ -1,3 +1,107 @@
+import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import {
+  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
+  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
+  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
+  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
+  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
+  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
+} from 'react-icons/fa';
+import { MdOutlineVerified } from 'react-icons/md';
+import { RiUserSharedLine } from 'react-icons/ri';
+import { BiCurrentLocation } from 'react-icons/bi';
+
+// ---- TypeScript type/interface stubs ----
+interface Listing {
+  id: string | number;
+  title: string;
+  images: string[];
+  price: number;
+  location: string;
+  distance: number;
+  distanceUnit?: string;
+  travelTime?: string;
+  roomType: string;
+  genderPreference?: string;
+  availableFrom?: string;
+  billsIncluded?: boolean;
+  verified?: boolean;
+  badges?: string[];
+  description?: string;
+  features?: string[];
+  deposit?: number;
+  roommateCount?: number;
+  rating?: number;
+}
+
+interface Roommate {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  age: number;
+  gender: string;
+  university: string;
+  bio: string;
+  image: string;
+  interests: string[];
+  mutualCount: number;
+  role: string;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionRequired?: boolean;
+  bookingId?: string;
+}
+
+interface ListingCardProps {
+  listing: Listing;
+  onLike: () => void;
+  onPass: () => void;
+  onViewDetails: (listing: Listing) => void;
+  isAnimating: boolean;
+  direction: string | null;
+  viewMode?: 'card' | 'grid';
+}
+
+interface DetailsModalProps {
+  listing: Listing;
+  onClose: () => void;
+  onLike: () => void;
+  onBooking: (listing: Listing) => void;
+}
+
+// ---- Utility stubs ----
+function getTravelIcon(distance: number) {
+  return <FaWalking />;
+}
+
+function extractResponseArray(json: any): any[] {
+  if (Array.isArray(json?.data)) return json.data;
+  if (Array.isArray(json)) return json;
+  return [];
+}
+
+function saveReadNotificationIds(notifications: Notification[]) {}
+function getStoredReadNotificationIds(): Set<string> { return new Set(); }
+
+const roomImages = [
+  'https://randomuser.me/api/portraits/lego/1.jpg',
+  'https://randomuser.me/api/portraits/lego/2.jpg',
+  'https://randomuser.me/api/portraits/lego/3.jpg',
+];
+
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
+
+function SearchPage() {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const navigate = useNavigate();
@@ -10,6 +114,7 @@
     { id: 'shared', icon: <FaUserFriends />, label: 'Shared' },
     { id: 'bills', icon: <FaBolt />, label: 'Bills' },
   ];
+  // ...existing code...
 // ---- TypeScript type/interface stubs ----
 interface Listing {
   id: string | number;
