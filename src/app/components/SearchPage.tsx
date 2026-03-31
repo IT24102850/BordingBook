@@ -996,6 +996,9 @@ const BookingForm: React.FC<{
 
 
 function SearchPage() {
+      // State for details modal
+      const [showDetails, setShowDetails] = useState(false);
+      const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
     // Filter chips for quick filtering
     const filterChips = [
       { id: 'budget', icon: <FaMoneyBillWave />, label: 'Budget' },
