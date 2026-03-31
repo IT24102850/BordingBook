@@ -1,8 +1,15 @@
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const navigate = useNavigate();
-  // Temporary stub for filterChips to resolve errors
-  const filterChips: string[] = [];
+  // Proper filterChips definition
+  const filterChips = [
+    { id: 'budget', icon: <FaMoneyBillWave />, label: 'Budget' },
+    { id: 'near', icon: <FaMapMarkerAlt />, label: 'Near' },
+    { id: 'verified', icon: <FaCheckCircle />, label: 'Verified' },
+    { id: 'single', icon: <FaBed />, label: 'Single' },
+    { id: 'shared', icon: <FaUserFriends />, label: 'Shared' },
+    { id: 'bills', icon: <FaBolt />, label: 'Bills' },
+  ];
 // ---- TypeScript type/interface stubs ----
 interface Listing {
   id: string | number;
@@ -24,7 +31,7 @@ interface Listing {
   deposit?: number;
   roommateCount?: number;
   rating?: number;
-// removed stray closing brace
+}
 
 interface Roommate {
   id: string;
@@ -38,8 +45,6 @@ interface Roommate {
   image: string;
   interests: string[];
   mutualCount: number;
-  role: string;
-}
   role: string;
 }
 
