@@ -183,19 +183,7 @@ const roomImages = [
 ];
 
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
-import React, { useState, useEffect, useRef, ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import {
-  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
-  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
-  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
-  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
-  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
-  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
-} from 'react-icons/fa';
-import { BiCurrentLocation } from 'react-icons/bi';
-import { RiUserSharedLine } from 'react-icons/ri';
+
 
 
 // Ranked Result Card Component
