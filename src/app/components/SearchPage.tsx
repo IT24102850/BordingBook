@@ -68,6 +68,9 @@ function RoommateFinderPlaceholder(props: any) {
     </div>
   );
 }
+// ...existing code...
+
+function SearchPage() {
   // Add missing state for details modal and navigation
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -81,6 +84,8 @@ function RoommateFinderPlaceholder(props: any) {
     { id: 'shared', icon: <FaUserFriends />, label: 'Shared' },
     { id: 'bills', icon: <FaBolt />, label: 'Bills' },
   ];
+  // ...rest of your SearchPage component code...
+}
 // ---- TypeScript type/interface stubs ----
 interface Listing {
   id: string | number;
