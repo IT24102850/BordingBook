@@ -102,18 +102,22 @@ const roomImages = [
 const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
 
 function SearchPage() {
-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const navigate = useNavigate();
-  // Proper filterChips definition
-  const filterChips = [
-    { id: 'budget', icon: <FaMoneyBillWave />, label: 'Budget' },
-    { id: 'near', icon: <FaMapMarkerAlt />, label: 'Near' },
-    { id: 'verified', icon: <FaCheckCircle />, label: 'Verified' },
-    { id: 'single', icon: <FaBed />, label: 'Single' },
-    { id: 'shared', icon: <FaUserFriends />, label: 'Shared' },
-    { id: 'bills', icon: <FaBolt />, label: 'Bills' },
-  ];
+import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import {
+  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
+  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
+  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
+  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
+  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
+  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
+} from 'react-icons/fa';
+import { MdOutlineVerified } from 'react-icons/md';
+import { RiUserSharedLine } from 'react-icons/ri';
+import { BiCurrentLocation } from 'react-icons/bi';
+
+// ...existing code...
   // ...existing code...
 // ---- TypeScript type/interface stubs ----
 interface Listing {
