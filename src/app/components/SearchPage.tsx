@@ -192,14 +192,70 @@ const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> 
   );
 };
 
+
+// RoommateFinderPlaceholder component
+function RoommateFinderPlaceholder(props: any) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
+      <p className="text-cyan-200 text-sm">Roommate Finder Placeholder</p>
+    </div>
+  );
+}
+
+// Placeholder for Map View
+function MapViewPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner">
+      <span className="mb-2">Map</span>
+      Map View coming soon...
+    </div>
+  );
+}
+
+// Mini Card for side panels
+const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
+  const formatPrice = (price: number): string => {
+    return `Rs. ${price.toLocaleString()}`;
+  };
+  return (
+    <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-lg overflow-hidden border border-white/10 hover:shadow-cyan-500/10 transition-all mb-2">
+      <div className="flex items-center gap-2 p-2">
+        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+          <img 
+            src={listing.images[0]} 
+            alt={listing.title}
+            className="w-full h-full object-cover"
+          />
+          <div className={`absolute inset-0 ${type === 'passed' ? 'bg-red-500/20' : 'bg-green-500/20'} flex items-center justify-center`}>
+            {type === 'passed' ? (
+              <FaRegTimesCircle className="text-red-400 text-xs" />
+            ) : (
+              <FaHeart className="text-green-400 text-xs" />
+            )}
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-xs font-bold text-white truncate">{listing.title}</h4>
+          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+            <FaMapMarkerAlt className="text-purple-400" />
+            <span className="truncate">{listing.location}</span>
+          </div>
+          <div className="text-[10px] text-cyan-400 font-bold">
+            {formatPrice(listing.price)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Ranked Result Card Component
 const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = ({ room, onOpen }) => {
   const formatPrice = (price: number): string => {
     return `Rs. ${price.toLocaleString()}/mo`;
   };
-
   const stars = '★'.repeat(Math.floor(room.rating)) + (room.rating % 1 >= 0.5 ? '☆' : '');
-
   return (
     <div
       onClick={() => onOpen(room.id)}
@@ -270,76 +326,16 @@ const ListingCard: React.FC<ListingCardProps> = ({
   onPass, 
   onViewDetails, 
   isAnimating, 
-  direction,
-  viewMode = 'card'
+  direction, 
+  viewMode 
 }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const startX = useRef<number>(0);
-  const currentX = useRef<number>(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartX, setDragStartX] = useState(0);
+  // ...existing code...
+};
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (viewMode !== 'card') return;
-    startX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (viewMode !== 'card' || !cardRef.current || isAnimating) return;
-    currentX.current = e.touches[0].clientX;
-    const diff = currentX.current - startX.current;
-    
-    if (Math.abs(diff) > 20) {
-      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.02}deg)`;
-      cardRef.current.style.opacity = `${1 - Math.abs(diff) / 500}`;
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (viewMode !== 'card' || !cardRef.current || isAnimating) return;
-    
-    const diff = currentX.current - startX.current;
-    cardRef.current.style.transform = '';
-    cardRef.current.style.opacity = '';
-    
-    if (diff > 100) {
-      onLike();
-    } else if (diff < -100) {
-      onPass();
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (viewMode !== 'card' || isAnimating) return;
-    setIsDragging(true);
-    setDragStartX(e.clientX);
-    if (cardRef.current) {
-      cardRef.current.style.transition = 'none';
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !cardRef.current || isAnimating || viewMode !== 'card') return;
-    
-    const diff = e.clientX - dragStartX;
-    
-    if (Math.abs(diff) > 20) {
-      cardRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.02}deg)`;
-      cardRef.current.style.opacity = `${1 - Math.abs(diff) / 500}`;
-    }
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDragging || !cardRef.current || isAnimating || viewMode !== 'card') {
-      setIsDragging(false);
-      return;
-    }
-    
-    const diff = e.clientX - dragStartX;
-    cardRef.current.style.transition = '';
-    cardRef.current.style.transform = '';
-    cardRef.current.style.opacity = '';
-    
+// Details Modal Component
+const DetailsModal: React.FC<DetailsModalProps> = ({ listing, onClose, onLike, onBooking }) => {
+  // ...existing code...
+};
     if (diff > 100) {
       onLike();
     } else if (diff < -100) {
