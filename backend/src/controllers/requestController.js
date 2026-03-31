@@ -93,9 +93,14 @@ exports.getInboxRequests = async (req, res) => {
     const cacheKey = status ? `inbox:${recipientId}:status:${status}` : `inbox:${recipientId}`;
 
     // check cache first
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
+    try {
+      const cached = await redis.get(cacheKey);
+      console.log('[Redis][get][Inbox]', cacheKey, cached);
+      if (cached) {
+        return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
+      }
+    } catch (redisErr) {
+      console.error('[Redis][get][Inbox][Error]', cacheKey, redisErr);
     }
 
     const filter = { recipientId };
@@ -108,7 +113,12 @@ exports.getInboxRequests = async (req, res) => {
       .sort({ createdAt: -1 });
 
     // save to cache for 60 seconds
-    await redis.setex(cacheKey, 60, JSON.stringify(requests));
+    try {
+      await redis.setex(cacheKey, 60, JSON.stringify(requests));
+      console.log('[Redis][setex][Inbox]', cacheKey);
+    } catch (redisErr) {
+      console.error('[Redis][setex][Inbox][Error]', cacheKey, redisErr);
+    }
 
     res.status(200).json({
       success: true,
@@ -135,9 +145,14 @@ exports.getSentRequests = async (req, res) => {
     const { status } = req.query;
     const cacheKey = status ? `sent:${senderId}:status:${status}` : `sent:${senderId}`;
 
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
+    try {
+      const cached = await redis.get(cacheKey);
+      console.log('[Redis][get][Sent]', cacheKey, cached);
+      if (cached) {
+        return res.json({ success: true, data: JSON.parse(cached), fromCache: true });
+      }
+    } catch (redisErr) {
+      console.error('[Redis][get][Sent][Error]', cacheKey, redisErr);
     }
 
     const filter = { senderId };
@@ -149,7 +164,12 @@ exports.getSentRequests = async (req, res) => {
       .populate('recipientId', 'fullName email profilePicture')
       .sort({ createdAt: -1 });
 
-    await redis.setex(cacheKey, 60, JSON.stringify(requests));
+    try {
+      await redis.setex(cacheKey, 60, JSON.stringify(requests));
+      console.log('[Redis][setex][Sent]', cacheKey);
+    } catch (redisErr) {
+      console.error('[Redis][setex][Sent][Error]', cacheKey, redisErr);
+    }
 
     res.status(200).json({
       success: true,
