@@ -996,6 +996,8 @@ const BookingForm: React.FC<{
 
 
 function SearchPage() {
+        // React Router navigation
+        const navigate = useNavigate();
       // State for details modal
       const [showDetails, setShowDetails] = useState(false);
       const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
