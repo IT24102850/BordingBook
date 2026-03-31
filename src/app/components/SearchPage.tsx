@@ -9,266 +9,14 @@ import {
   FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
   FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
 } from 'react-icons/fa';
-import { MdOutlineVerified } from 'react-icons/md';
-import { RiUserSharedLine } from 'react-icons/ri';
 import { BiCurrentLocation } from 'react-icons/bi';
-
-// ---- TypeScript type/interface stubs ----
-interface Listing {
-  id: string | number;
-  title: string;
-  images: string[];
-  price: number;
-  location: string;
-  distance: number;
-  distanceUnit?: string;
-  travelTime?: string;
-  roomType: string;
-  genderPreference?: string;
-  availableFrom?: string;
-  billsIncluded?: boolean;
-  verified?: boolean;
-  badges?: string[];
-  description?: string;
-  features?: string[];
-  deposit?: number;
-  roommateCount?: number;
-  rating?: number;
-}
-
-interface Roommate {
-  id: string;
-  userId: string;
-  name: string;
-  email: string;
-  age: number;
-  gender: string;
-  university: string;
-  bio: string;
-  image: string;
-  interests: string[];
-  mutualCount: number;
-  role: string;
-}
-
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  actionRequired?: boolean;
-  bookingId?: string;
-}
-
-interface ListingCardProps {
-  listing: Listing;
-  onLike: () => void;
-  onPass: () => void;
-  onViewDetails: (listing: Listing) => void;
-  isAnimating: boolean;
-  direction: string | null;
-  viewMode?: 'card' | 'grid';
-}
-
-interface DetailsModalProps {
-  listing: Listing;
-  onClose: () => void;
-  onLike: () => void;
-  onBooking: (listing: Listing) => void;
-}
-
-// ---- Utility stubs ----
-function getTravelIcon(distance: number) {
-  return <FaWalking />;
-}
-
-function extractResponseArray(json: any): any[] {
-  if (Array.isArray(json?.data)) return json.data;
-  if (Array.isArray(json)) return json;
-  return [];
-}
-
-function saveReadNotificationIds(notifications: Notification[]) {}
-function getStoredReadNotificationIds(): Set<string> { return new Set(); }
-
-const roomImages = [
-  'https://randomuser.me/api/portraits/lego/1.jpg',
-  'https://randomuser.me/api/portraits/lego/2.jpg',
-  'https://randomuser.me/api/portraits/lego/3.jpg',
-];
-
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
-
-function SearchPage() {
-import React, { useState, useEffect, useRef, ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import {
-  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
-  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
-  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
-  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
-  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
-  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
-} from 'react-icons/fa';
-import { MdOutlineVerified } from 'react-icons/md';
 import { RiUserSharedLine } from 'react-icons/ri';
-import { BiCurrentLocation } from 'react-icons/bi';
-
-// ...existing code...
-  // ...existing code...
-// ---- TypeScript type/interface stubs ----
-interface Listing {
-  id: string | number;
-  title: string;
-  images: string[];
-  price: number;
-  location: string;
-  distance: number;
-  distanceUnit?: string;
-  travelTime?: string;
-  roomType: string;
-  genderPreference?: string;
-  availableFrom?: string;
-  billsIncluded?: boolean;
-  verified?: boolean;
-  badges?: string[];
-  description?: string;
-  features?: string[];
-  deposit?: number;
-  roommateCount?: number;
-  rating?: number;
-}
-
-interface Roommate {
-  id: string;
-  userId: string;
-  name: string;
-  email: string;
-  age: number;
-  gender: string;
-  university: string;
-  bio: string;
-  image: string;
-  interests: string[];
-  mutualCount: number;
-  role: string;
-}
-
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  actionRequired?: boolean;
-  bookingId?: string;
-}
-
-interface ListingCardProps {
-  listing: Listing;
-  onLike: () => void;
-  onPass: () => void;
-  onViewDetails: (listing: Listing) => void;
-  isAnimating: boolean;
-  direction: string | null;
-  viewMode?: 'card' | 'grid';
-}
-
-interface DetailsModalProps {
-  listing: Listing;
-  onClose: () => void;
-  onLike: () => void;
-  onBooking: (listing: Listing) => void;
-}
-
-// ---- Utility stubs ----
-function getTravelIcon(distance: number) {
-  return <FaWalking />;
-}
-
-function extractResponseArray(json: any): any[] {
-  if (Array.isArray(json?.data)) return json.data;
-  if (Array.isArray(json)) return json;
-  return [];
-}
-
-function saveReadNotificationIds(notifications: Notification[]) {}
-function getStoredReadNotificationIds(): Set<string> { return new Set(); }
-
-const roomImages = [
-  'https://randomuser.me/api/portraits/lego/1.jpg',
-  'https://randomuser.me/api/portraits/lego/2.jpg',
-  'https://randomuser.me/api/portraits/lego/3.jpg',
-];
-import React, { useState, useEffect, useRef, ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import {
-  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
-  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
-  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
-  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
-  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
-  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
-} from 'react-icons/fa';
-import { MdOutlineVerified } from 'react-icons/md';
-import { RiUserSharedLine } from 'react-icons/ri';
-import { BiCurrentLocation } from 'react-icons/bi';
-
-
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
-
-// Utility to normalize ID values (handles string, number, object with _id/id)
-function normalizeIdValue(value: any): string {
-  if (!value) return '';
-  if (typeof value === 'string' || typeof value === 'number') return String(value);
-  if (typeof value === 'object') {
-    if (value._id) return String(value._id);
-    if (value.id) return String(value.id);
-  }
-  return '';
-}
-
-// Utility to derive age from a profile object
-function deriveProfileAge(profile: any): number {
-  // TODO: Implement age calculation if needed
-  return 0;
-}
-
-// RoommateFinderPlaceholder component (moved logic inside function)
-function RoommateFinderPlaceholder(props: any) {
-  // TODO: Implement the full logic for RoommateFinderPlaceholder here, using the props and hooks as needed.
-  // This is a placeholder to ensure the file is syntactically valid and compiles.
-  return (
-    <div className="flex flex-col items-center justify-center py-12">
-      <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
-      <p className="text-cyan-200 text-sm">Roommate Finder Placeholder</p>
-    </div>
-
-  );
-
-}
-
-// Placeholder for Map View
-function MapViewPlaceholder() {
-  return (
-    <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner">
-      <span className="mb-2">Map</span>
-      Map View coming soon...
-    </div>
-  );
-}
 
 // Mini Card for side panels
 const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
   const formatPrice = (price: number): string => {
     return `Rs. ${price.toLocaleString()}`;
   };
-
   return (
     <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-lg overflow-hidden border border-white/10 hover:shadow-cyan-500/10 transition-all mb-2">
       <div className="flex items-center gap-2 p-2">
@@ -300,6 +48,155 @@ const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> 
     </div>
   );
 };
+
+// Placeholder for Map View
+function MapViewPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner">
+      <span className="mb-2">Map</span>
+      Map View coming soon...
+    </div>
+  );
+}
+
+// RoommateFinderPlaceholder stub
+function RoommateFinderPlaceholder(props: any) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
+      <p className="text-cyan-200 text-sm">Roommate Finder Placeholder</p>
+    </div>
+  );
+}
+  // Add missing state for details modal and navigation
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const navigate = useNavigate();
+  // Proper filterChips definition
+  const filterChips = [
+    { id: 'budget', icon: <FaMoneyBillWave />, label: 'Budget' },
+    { id: 'near', icon: <FaMapMarkerAlt />, label: 'Near' },
+    { id: 'verified', icon: <FaCheckCircle />, label: 'Verified' },
+    { id: 'single', icon: <FaBed />, label: 'Single' },
+    { id: 'shared', icon: <FaUserFriends />, label: 'Shared' },
+    { id: 'bills', icon: <FaBolt />, label: 'Bills' },
+  ];
+// ---- TypeScript type/interface stubs ----
+interface Listing {
+  id: string | number;
+  title: string;
+  images: string[];
+  price: number;
+  location: string;
+  distance: number;
+  distanceUnit?: string;
+  travelTime?: string;
+  roomType: string;
+  genderPreference?: string;
+  availableFrom?: string;
+  billsIncluded?: boolean;
+  verified?: boolean;
+  badges?: string[];
+  description?: string;
+  features?: string[];
+  deposit?: number;
+  roommateCount?: number;
+  rating?: number;
+}
+
+interface Roommate {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  age: number;
+  gender: string;
+  university: string;
+  bio: string;
+  image: string;
+  interests: string[];
+  mutualCount: number;
+  role: string;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionRequired?: boolean;
+  bookingId?: string;
+}
+
+interface ListingCardProps {
+  listing: Listing;
+  onLike: () => void;
+  onPass: () => void;
+  onViewDetails: (listing: Listing) => void;
+  isAnimating: boolean;
+  direction: string | null;
+  viewMode?: 'card' | 'grid';
+}
+
+interface DetailsModalProps {
+  listing: Listing;
+  onClose: () => void;
+  onLike: () => void;
+  onBooking: (listing: Listing) => void;
+}
+
+// ---- Utility functions ----
+function getTravelIcon(distance: number) {
+  return <FaWalking />;
+}
+
+function extractResponseArray(json: any): any[] {
+  if (Array.isArray(json?.data)) return json.data;
+  if (Array.isArray(json)) return json;
+  return [];
+}
+
+function saveReadNotificationIds(notifications: Notification[]) {}
+function getStoredReadNotificationIds(): Set<string> { return new Set(); }
+
+function normalizeIdValue(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (typeof value === 'object') {
+    if (value._id) return String(value._id);
+    if (value.id) return String(value.id);
+  }
+  return '';
+}
+
+function deriveProfileAge(profile: any): number {
+  // TODO: Implement age calculation if needed
+  return 0;
+}
+
+const roomImages = [
+  'https://randomuser.me/api/portraits/lego/1.jpg',
+  'https://randomuser.me/api/portraits/lego/2.jpg',
+  'https://randomuser.me/api/portraits/lego/3.jpg',
+];
+
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
+import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import {
+  FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
+  FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
+  FaUndo, FaFilter, FaSearch, FaTimes, FaUserFriends, FaCalendarAlt,
+  FaMoneyBillWave, FaShare, FaArrowLeft, FaThLarge, FaList,
+  FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
+  FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
+} from 'react-icons/fa';
+import { BiCurrentLocation } from 'react-icons/bi';
+import { RiUserSharedLine } from 'react-icons/ri';
+
 
 // Ranked Result Card Component
 const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = ({ room, onOpen }) => {
