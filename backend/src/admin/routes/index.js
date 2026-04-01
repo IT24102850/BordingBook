@@ -26,6 +26,7 @@ router.get('/users', userController.getAllUsers);
 router.get('/users/:id', userController.getUserById);
 router.patch('/users/:id/ban', userController.banUser);
 router.patch('/users/:id/unban', userController.unbanUser);
+router.delete('/users/:id', userController.deleteUser);
 router.get('/users/:id/activity', userController.getUserActivity);
 
 // ── KYC management ────────────────────────────────────────────

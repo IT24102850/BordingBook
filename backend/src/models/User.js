@@ -44,13 +44,13 @@ const userSchema = new mongoose.Schema(
         return this.role === 'owner';
       },
     },
-    companyName: {
+    address: {
       type: String,
       default: '',
     },
-    propertyCount: {
-      type: Number,
-      default: 0,
+    occupation: {
+      type: String,
+      default: '',
     },
     
     // Email verification fields

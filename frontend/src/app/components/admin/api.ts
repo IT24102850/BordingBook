@@ -58,8 +58,9 @@ export const getUsers = (params: { role?: string; search?: string; page?: number
   );
 };
 
-export const banUser   = (id: string) => req(`${BASE}/users/${id}/ban`,   { method: 'PATCH', headers: authHeaders() });
-export const unbanUser = (id: string) => req(`${BASE}/users/${id}/unban`, { method: 'PATCH', headers: authHeaders() });
+export const banUser    = (id: string) => req(`${BASE}/users/${id}/ban`,   { method: 'PATCH',  headers: authHeaders() });
+export const unbanUser  = (id: string) => req(`${BASE}/users/${id}/unban`, { method: 'PATCH',  headers: authHeaders() });
+export const deleteUser = (id: string) => req(`${BASE}/users/${id}`,       { method: 'DELETE', headers: authHeaders() });
 export const getUserActivity = (id: string) =>
   req<{ success: boolean; data: { lastLogin: string | null; loginHistory: { loginAt: string }[] } }>(
     `${BASE}/users/${id}/activity`, { headers: authHeaders() }
@@ -102,6 +103,13 @@ export const unflagReview = (id: string) =>
   req(`${BASE}/reviews/${id}/unflag`, { method: 'PATCH', headers: authHeaders() });
 export const deleteReview = (id: string) =>
   req(`${BASE}/reviews/${id}`,        { method: 'DELETE', headers: authHeaders() });
+
+export const changeAdminPassword = (currentPassword: string, newPassword: string) =>
+  req<{ success: boolean; message: string }>(`${BASE}/password`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 export interface User {
@@ -149,11 +157,13 @@ export interface Review {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-export const displayName = (u: { fullName?: string; firstName?: string; lastName?: string; email: string }) =>
-  u.fullName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email.split('@')[0];
+export const displayName = (u: { fullName?: string; firstName?: string; lastName?: string; email: string } | null | undefined) => {
+  if (!u) return 'Deleted User';
+  return u.fullName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email.split('@')[0];
+};
 
 export const initials = (name: string) =>
-  name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?';
 
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

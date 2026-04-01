@@ -174,20 +174,18 @@ export default function AdminLayout() {
 
         {/* ── Mobile header ───────────────────────────────────────── */}
         <header className="lg:hidden fixed top-0 w-full bg-[var(--bb-card)] border-b border-[var(--bb-border-md)] px-4 py-3 z-50 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2">
+          <a href="/" className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
             <Building2 size={20} className="text-[#a5b4fc]" />
             <span className="text-base font-bold tracking-tight">BoardingBook</span>
             <span className="text-[10px] font-semibold text-slate-400 bg-[var(--bb-elevated)] px-2 py-0.5 rounded-full">Admin</span>
-          </div>
+          </a>
           <div className="flex items-center gap-1.5">
             <button
               onClick={toggleTheme}
               className="p-1.5 rounded-lg hover:bg-[var(--bb-elevated)] transition-colors"
               title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
             >
-              {isLight
-                ? <Moon size={17} className="text-slate-500" />
-                : <Sun  size={17} className="text-slate-300" />}
+              <Sun size={17} className={isLight ? 'text-amber-400' : 'text-slate-500'} />
             </button>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -215,7 +213,7 @@ export default function AdminLayout() {
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
           {/* Logo */}
-          <div className="px-5 py-5 border-b border-[var(--bb-border)] hidden lg:flex items-center gap-2.5">
+          <a href="/" className="px-5 py-5 border-b border-[var(--bb-border)] hidden lg:flex items-center gap-2.5 no-underline hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-gradient-to-br from-[#818cf8] to-[#22d3ee] rounded-lg flex items-center justify-center shadow-[0_0_14px_rgba(129,140,248,0.45)]">
               <Building2 size={16} className="keep-white" />
             </div>
@@ -223,7 +221,7 @@ export default function AdminLayout() {
               <p className="text-sm font-bold leading-none">BoardingBook</p>
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">Admin Panel</p>
             </div>
-          </div>
+          </a>
 
           <div className="h-14 lg:hidden" />
 
@@ -255,13 +253,13 @@ export default function AdminLayout() {
               </div>
             </div>
 
-            {/* Theme toggle */}
+            {/* Theme toggle — label always reads "Light mode"; toggle ON = light, OFF = dark */}
             <div className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--bb-elevated)] cursor-pointer select-none" onClick={toggleTheme}>
               <div className="flex items-center gap-2 text-sm font-medium text-slate-400">
-                {isLight ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-indigo-300" />}
-                <span>{isLight ? 'Light mode' : 'Dark mode'}</span>
+                <Sun size={15} className={isLight ? 'text-amber-400' : 'text-slate-500'} />
+                <span>Light mode</span>
               </div>
-              {/* Toggle pill */}
+              {/* Toggle pill: OFF (left) = dark, ON (right) = light */}
               <div className={`relative w-10 h-5 rounded-full transition-colors duration-300 flex-shrink-0 ${isLight ? 'bg-indigo-500' : 'bg-slate-600'}`}>
                 <span className={`bb-knob absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md ${isLight ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>

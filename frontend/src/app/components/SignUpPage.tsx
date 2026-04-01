@@ -77,8 +77,9 @@ export default function SignUpPage() {
   // Owner-specific fields
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [propertyCount, setPropertyCount] = useState('');
+  const [ownerNic, setOwnerNic] = useState('');
+  const [ownerAddress, setOwnerAddress] = useState('');
+  const [ownerOccupation, setOwnerOccupation] = useState('');
 
   // Student-specific fields
   const [firstName, setFirstName] = useState('');
@@ -108,6 +109,8 @@ export default function SignUpPage() {
     confirm: false,
     fullName: false,
     phoneNumber: false,
+    ownerNic: false,
+    ownerAddress: false,
     firstName: false,
     lastName: false,
     birthday: false,
@@ -163,7 +166,16 @@ export default function SignUpPage() {
 
   const validateFirstName = (v: string) => !v.trim() ? 'First name is required' : '';
   const validateLastName = (v: string) => !v.trim() ? 'Last name is required' : '';
-  const validateBirthday = (v: string) => !v ? 'Birthday is required' : '';
+  const validateBirthday = (v: string) => {
+    if (!v) return 'Birthday is required';
+    const dob = new Date(v);
+    const today = new Date();
+    const age = today.getFullYear() - dob.getFullYear() -
+      (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+    if (age < 16) return 'You must be at least 16 years old';
+    if (age > 100) return 'Please enter a valid date of birth';
+    return '';
+  };
   const validateAcademicYear = (v: string) => !v ? 'Academic year is required' : '';
   const validateNic = (v: string) => {
     if (!v) return 'NIC is required';
@@ -204,6 +216,18 @@ export default function SignUpPage() {
     return '';
   };
 
+  const validateOwnerNic = (v: string) => {
+    if (!v) return 'NIC is required';
+    if (!/^(\d{9}[vVxX]|\d{12})$/.test(v)) return 'Invalid NIC (e.g. 123456789V or 200012345678)';
+    return '';
+  };
+
+  const validateOwnerAddress = (v: string) => {
+    if (!v.trim()) return 'Address is required';
+    if (v.trim().length < 8) return 'Please enter a full address';
+    return '';
+  };
+
   // Derive the full student email
   const studentEmail = role === 'student' ? `${studentIdPrefix}@my.sliit.lk` : email;
   const effectiveEmail = role === 'student' ? studentEmail : email;
@@ -214,6 +238,8 @@ export default function SignUpPage() {
   const confirmError = touchedFields.confirm ? validateConfirm(confirm) : '';
   const fullNameError = role === 'owner' && touchedFields.fullName ? validateFullName(fullName) : '';
   const phoneNumberError = role === 'owner' && touchedFields.phoneNumber ? validatePhoneNumber(phoneNumber) : '';
+  const ownerNicError = role === 'owner' && touchedFields.ownerNic ? validateOwnerNic(ownerNic) : '';
+  const ownerAddressError = role === 'owner' && touchedFields.ownerAddress ? validateOwnerAddress(ownerAddress) : '';
   const firstNameError = role === 'student' && touchedFields.firstName ? validateFirstName(firstName) : '';
   const lastNameError = role === 'student' && touchedFields.lastName ? validateLastName(lastName) : '';
   const birthdayError = role === 'student' && touchedFields.birthday ? validateBirthday(birthday) : '';
@@ -226,12 +252,14 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    setTouchedFields({ 
-      email: true, 
-      password: true, 
+    setTouchedFields({
+      email: true,
+      password: true,
       confirm: true,
       fullName: role === 'owner',
       phoneNumber: role === 'owner',
+      ownerNic: role === 'owner',
+      ownerAddress: role === 'owner',
       firstName: role === 'student',
       lastName: role === 'student',
       birthday: role === 'student',
@@ -245,11 +273,13 @@ export default function SignUpPage() {
     const confirmValidation = validateConfirm(confirm);
     const fullNameValidation = role === 'owner' ? validateFullName(fullName) : '';
     const phoneNumberValidation = role === 'owner' ? validatePhoneNumber(phoneNumber) : '';
+    const ownerNicValidation = role === 'owner' ? validateOwnerNic(ownerNic) : '';
+    const ownerAddressValidation = role === 'owner' ? validateOwnerAddress(ownerAddress) : '';
     const studentFieldsValidation = role === 'student'
       ? (validateFirstName(firstName) || validateLastName(lastName) || validateBirthday(birthday) || validateAcademicYear(academicYear) || validateNic(nic))
       : '';
-    
-    if (emailValidation || passwordValidation || confirmValidation || fullNameValidation || phoneNumberValidation || studentFieldsValidation) {
+
+    if (emailValidation || passwordValidation || confirmValidation || fullNameValidation || phoneNumberValidation || ownerNicValidation || ownerAddressValidation || studentFieldsValidation) {
       setError('Please fix the errors below');
       return;
     }
@@ -268,8 +298,9 @@ export default function SignUpPage() {
       if (role === 'owner') {
         payload.fullName = fullName;
         payload.phoneNumber = phoneNumber;
-        payload.companyName = companyName;
-        payload.propertyCount = Number(propertyCount) || 0;
+        payload.nic = ownerNic;
+        payload.address = ownerAddress;
+        if (ownerOccupation) payload.occupation = ownerOccupation;
       }
 
       if (role === 'student') {
@@ -363,24 +394,97 @@ export default function SignUpPage() {
   const isRedmiNote13 = windowWidth >= 360 && windowWidth <= 400;
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-gradient-to-br from-[#0a0f1e] via-[#0f1425] to-[#0a0f1e] overflow-hidden">
-      {/* Animated background - optimized for mobile */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] md:w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[80px] md:blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] md:w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[80px] md:blur-[120px] animate-pulse animation-delay-2000" />
+    <div style={{ minHeight:'100vh', background:'#0f1629', fontFamily:'Inter,system-ui,sans-serif', position:'relative', overflowX:'hidden' }}>
+      <style>{`
+        @keyframes su-float-a { 0%,100%{transform:translateY(0) scale(1);} 50%{transform:translateY(-26px) scale(1.03);} }
+        @keyframes su-float-b { 0%,100%{transform:translateY(0) scale(1);} 50%{transform:translateY(-16px) scale(1.05);} }
+        @keyframes su-ring    { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+        @keyframes su-fade-up { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+        @keyframes su-shake   { 0%,100%{transform:translateX(0);} 20%,60%{transform:translateX(-3px);} 40%,80%{transform:translateX(3px);} }
+        @keyframes fadeSlideUp { from{opacity:0;transform:translateY(16px);} to{opacity:1;transform:translateY(0);} }
+        @keyframes scaleIn     { from{opacity:0;transform:scale(.5);} to{opacity:1;transform:scale(1);} }
+        @keyframes slideDown   { from{opacity:0;transform:translateY(-5px);} to{opacity:1;transform:translateY(0);} }
+
+        .su-orb-a { animation: su-float-a 9s ease-in-out infinite; }
+        .su-orb-b { animation: su-float-b 7s ease-in-out infinite 1.5s; }
+        .su-ring  { animation: su-ring    18s linear infinite; }
+        .su-form  { animation: su-fade-up 0.5s cubic-bezier(.22,.68,0,1.2) both; }
+        .su-shake { animation: su-shake 0.45s ease-in-out; }
+        .animate-slideDown { animation: slideDown 0.3s ease-out; }
+        .animate-shake     { animation: su-shake 0.5s ease-in-out; }
+        .animate-float     { animation: su-float-a 6s ease-in-out infinite; }
+
+        .su-back {
+          display:inline-flex; align-items:center; gap:6px;
+          padding:7px 14px; border-radius:99px;
+          background:rgba(255,255,255,.05); border:1px solid rgba(129,140,248,.18);
+          color:rgba(165,180,252,.8); font-size:13px; font-weight:500;
+          cursor:pointer; transition:all .2s; text-decoration:none; outline:none;
+        }
+        .su-back:hover { background:rgba(129,140,248,.1); border-color:rgba(129,140,248,.4); color:#a5b4fc; }
+
+        /* keep existing field styles intact */
+        .animation-delay-2000 { animation-delay:2s; }
+        @media(max-width:400px){ input,button{ min-height:44px; } }
+      `}</style>
+
+      {/* Background orbs + grid */}
+      <div style={{ position:'fixed', inset:0, pointerEvents:'none', overflow:'hidden', zIndex:0 }}>
+        <div className="su-orb-a" style={{ position:'absolute', top:'-8%', left:'-6%', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle,rgba(99,102,241,.16) 0%,transparent 70%)' }} />
+        <div className="su-orb-b" style={{ position:'absolute', bottom:'-10%', right:'-5%', width:460, height:460, borderRadius:'50%', background:'radial-gradient(circle,rgba(34,211,238,.12) 0%,transparent 70%)' }} />
+        <div style={{ position:'absolute', inset:0, backgroundImage:'linear-gradient(rgba(129,140,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(129,140,248,.03) 1px,transparent 1px)', backgroundSize:'48px 48px' }} />
       </div>
 
-      {/* Back Button - Mobile optimized */}
-      <button
-        onClick={handleBack}
-        className="absolute top-3 left-3 md:top-6 md:left-6 z-20 flex items-center gap-1 md:gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white/5 backdrop-blur-xl rounded-full text-cyan-300 hover:text-cyan-200 border border-white/10 hover:border-cyan-400/50 transition-all group"
-      >
-        <ArrowLeft size={isRedmiNote13 ? 16 : 18} className="group-hover:-translate-x-1 transition-transform" />
-        <span className="text-xs md:text-sm font-medium">Back</span>
-      </button>
+      {/* Back button */}
+      <div style={{ position:'absolute', top:18, left:18, zIndex:30 }}>
+        <button onClick={handleBack} className="su-back">
+          <ArrowLeft size={15} />Back
+        </button>
+      </div>
 
-      {/* Left Section */}
-      <div className="w-full md:w-1/2 flex flex-col justify-start md:justify-center items-center px-3 md:px-4 py-12 md:py-0 relative min-h-screen md:min-h-0">
+      {/* Main layout */}
+      <div style={{ display:'flex', minHeight:'100vh', position:'relative', zIndex:1 }}>
+
+      {/* Left branding panel — desktop only */}
+      <div style={{ flex:1, flexDirection:'column', justifyContent:'center', padding:'60px 56px', position:'relative', display:'none' }} className="su-left-panel">
+        <style>{`@media(min-width:1024px){.su-left-panel{display:flex!important;}}`}</style>
+        <div className="su-ring" style={{ position:'absolute', top:'8%', right:'-80px', width:330, height:330, border:'1px solid rgba(129,140,248,.1)', borderRadius:'50%', borderTopColor:'rgba(129,140,248,.35)' }} />
+        <a href="/" style={{ display:'flex', alignItems:'center', gap:12, marginBottom:44, textDecoration:'none' }}>
+          <div style={{ width:44, height:44, borderRadius:14, background:'linear-gradient(135deg,#818cf8,#22d3ee)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 22px rgba(129,140,248,.5)' }}>
+            <UserCheck size={22} color="#fff" />
+          </div>
+          <div>
+            <p style={{ color:'#fff', fontWeight:800, fontSize:18, letterSpacing:'-0.02em', lineHeight:1 }}>BoardingBook</p>
+            <p style={{ color:'rgba(148,163,184,.65)', fontSize:11, marginTop:2 }}>SLIIT Student Platform</p>
+          </div>
+        </a>
+        <h2 style={{ fontSize:34, fontWeight:800, color:'#fff', lineHeight:1.2, letterSpacing:'-0.03em', marginBottom:14 }}>
+          Join thousands of<br/>
+          <span style={{ background:'linear-gradient(135deg,#818cf8,#22d3ee)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>SLIIT students</span>
+        </h2>
+        <p style={{ color:'rgba(148,163,184,.6)', fontSize:15, lineHeight:1.65, marginBottom:40, maxWidth:340 }}>
+          Create your account in minutes and start finding your perfect boarding place near campus.
+        </p>
+        {[
+          { bg:'rgba(129,140,248,.1)', icon:<Home size={15} color="#818cf8" />, label:'Find Rooms Near SLIIT', sub:'Hundreds of verified listings' },
+          { bg:'rgba(34,211,238,.1)',  icon:<UserCheck size={15} color="#22d3ee" />, label:'Roommate Matching', sub:'Find compatible housemates' },
+          { bg:'rgba(167,139,250,.1)',icon:<ShieldCheck size={15} color="#a78bfa" />, label:'Verified & Safe', sub:'KYC-checked owners only' },
+        ].map(f => (
+          <div key={f.label} style={{ display:'flex', alignItems:'center', gap:12, padding:'9px 0' }}>
+            <div style={{ width:34, height:34, borderRadius:10, background:f.bg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{f.icon}</div>
+            <div>
+              <p style={{ color:'#e2e8f0', fontSize:13, fontWeight:600, lineHeight:1 }}>{f.label}</p>
+              <p style={{ color:'rgba(148,163,184,.5)', fontSize:11.5, marginTop:3 }}>{f.sub}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Right form panel */}
+      <div style={{ width:'100%', maxWidth:520, margin:'0 auto', display:'flex', flexDirection:'column', justifyContent:'center', padding:'70px 24px 32px', position:'relative' }} className="su-right-panel">
+        <style>{`@media(min-width:1024px){.su-right-panel{width:520px!important;margin:0!important;borderLeft:'1px solid rgba(129,140,248,.07)';background:rgba(15,22,41,.55);backdropFilter:blur(20px);}}`}</style>
+
+      <div className="su-form" style={{ width:'100%', maxWidth:420, margin:'0 auto' }}>
         <div className="w-full max-w-md mx-auto mt-8 md:mt-0">
           {/* Progress Steps - Mobile optimized */}
           <div className="flex items-center justify-between mb-6 md:mb-8 px-1">
@@ -417,24 +521,24 @@ export default function SignUpPage() {
             ))}
           </div>
 
-          {/* Main Card - Mobile optimized */}
-          <div className="relative group">
-            {/* Glow effect - reduced on mobile */}
-            <div className="absolute -inset-0.5 md:-inset-1 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-2xl md:rounded-3xl blur-md md:blur-xl opacity-10 md:opacity-20 group-hover:opacity-20 md:group-hover:opacity-30 transition-opacity" />
-            
-            <div className="relative bg-gradient-to-br from-[#181f36]/95 via-[#1e253f]/95 to-[#131a30]/95 backdrop-blur-xl rounded-xl md:rounded-2xl shadow-2xl p-4 md:p-8 border border-white/10">
+          {/* Main Card */}
+          <div className="relative">
+            <div style={{ background:'rgba(22,30,55,0.85)', backdropFilter:'blur(20px)', border:'1px solid rgba(129,140,248,0.14)', borderRadius:20, padding:'24px 20px', boxShadow:'0 24px 64px rgba(0,0,0,0.4)' }}>
               
-              {/* Header - Mobile optimized */}
-              <div className="flex flex-col items-center mb-4 md:mb-6">
-                <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center mb-2 md:mb-3">
-                  <UserCheck className="text-cyan-400" size={isRedmiNote13 ? 20 : 24} />
-                </div>
-                <span className="text-lg md:text-2xl font-bold bg-gradient-to-r from-cyan-300 via-purple-300 to-indigo-300 bg-clip-text text-transparent">
-                  BoardingBook
-                </span>
-                <span className="text-[9px] md:text-[11px] text-cyan-200/60 mt-0.5 md:mt-1 tracking-wider uppercase">
-                  SLIIT Student Platform
-                </span>
+              {/* Mobile logo — hidden on desktop where left panel shows */}
+              <div className="flex flex-col items-center mb-4 md:mb-5 su-card-logo">
+                <style>{`@media(min-width:1024px){.su-card-logo{display:none;}}`}</style>
+                <a href="/" style={{ textDecoration:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                  <div style={{ width:42, height:42, borderRadius:14, background:'linear-gradient(135deg,#818cf8,#22d3ee)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:10, boxShadow:'0 0 22px rgba(129,140,248,.4)' }}>
+                    <UserCheck size={20} color="#fff" />
+                  </div>
+                  <span style={{ fontSize:18, fontWeight:800, background:'linear-gradient(135deg,#a5b4fc,#22d3ee)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+                    BoardingBook
+                  </span>
+                  <span style={{ fontSize:10, color:'rgba(165,180,252,.5)', marginTop:2, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+                    SLIIT Student Platform
+                  </span>
+                </a>
               </div>
 
               {/* ── Owner Step 2: Animated Success ── */}
@@ -538,14 +642,8 @@ export default function SignUpPage() {
                 </div>
               ) : (
                 <>
-              <h2 className="text-lg md:text-2xl font-bold text-center mb-1">
-                <span className="bg-gradient-to-r from-cyan-200 to-purple-200 bg-clip-text text-transparent">
-                  Create account
-                </span>
-              </h2>
-              <p className="text-center text-xs md:text-sm text-cyan-200/50 mb-4 md:mb-6">
-                Join thousands finding their perfect housing
-              </p>
+              <h2 style={{ textAlign:'center', fontSize:20, fontWeight:800, color:'#fff', letterSpacing:'-0.02em', marginBottom:4 }}>Create your account</h2>
+              <p style={{ textAlign:'center', fontSize:13, color:'rgba(148,163,184,.55)', marginBottom:16 }}>Join thousands finding their perfect housing</p>
 
               {/* Role Toggle - Mobile optimized */}
               <div className="relative bg-white/5 p-0.5 md:p-1 rounded-xl md:rounded-2xl mb-4 md:mb-6 border border-white/10">
@@ -636,22 +734,31 @@ export default function SignUpPage() {
                     <div className="grid grid-cols-2 gap-2 md:gap-3">
                       {/* Birthday */}
                       <div className="relative">
-                        <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium z-10 bg-[#1e253f] ${
+                        <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium z-10 bg-[#1e253f] transition-colors ${
                           birthdayError ? 'text-red-400' : focusedField === 'birthday' ? 'text-cyan-400' : 'text-gray-400'
-                        }`}>Birthday</label>
+                        }`}>Date of Birth</label>
                         <div className="relative">
-                          <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)}
+                          <input
+                            type="date"
+                            value={birthday}
+                            onChange={e => { setBirthday(e.target.value); setTouchedFields(p => ({ ...p, birthday: true })); }}
                             onFocus={() => setFocusedField('birthday')}
                             onBlur={() => { setFocusedField(null); setTouchedFields(p => ({ ...p, birthday: true })); }}
-                            max={new Date().toISOString().split('T')[0]}
-                            className={`w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all ${
-                              birthdayError ? 'border-red-400 bg-red-400/5' :
-                              birthday ? 'border-green-400 bg-green-400/5' :
-                              focusedField === 'birthday' ? 'border-cyan-400 bg-cyan-400/5' : 'border-white/10 bg-white/5'
-                            } text-white focus:outline-none [color-scheme:dark]`} />
-                          <Calendar className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 ${ focusedField === 'birthday' ? 'text-cyan-400' : 'text-gray-400'}`} size={isRedmiNote13 ? 12 : 14} />
+                            min={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 100); return d.toISOString().split('T')[0]; })()}
+                            max={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 16); return d.toISOString().split('T')[0]; })()}
+                            className={`w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-xs md:text-sm transition-all [color-scheme:dark] focus:outline-none ${
+                              birthdayError ? 'border-red-400 bg-red-400/5 text-red-300' :
+                              birthday && !birthdayError ? 'border-green-400 bg-green-400/5 text-white' :
+                              focusedField === 'birthday' ? 'border-cyan-400 bg-cyan-400/5 text-white' :
+                              'border-white/10 bg-white/5 text-white'
+                            }`}
+                          />
+                          <Calendar className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 transition-colors ${focusedField === 'birthday' ? 'text-cyan-400' : birthdayError ? 'text-red-400' : 'text-gray-400'}`} size={isRedmiNote13 ? 12 : 14} />
                         </div>
-                        {birthdayError && <p className="text-red-400 text-[9px] mt-1 ml-1 flex items-center gap-1"><AlertCircle size={9} />{birthdayError}</p>}
+                        {birthdayError
+                          ? <p className="text-red-400 text-[9px] mt-1 ml-1 flex items-center gap-1"><AlertCircle size={9} />{birthdayError}</p>
+                          : <p className="text-gray-500 text-[9px] mt-1 ml-1">Must be 16 or older</p>
+                        }
                       </div>
                       {/* Academic Year */}
                       <div className="relative">
@@ -827,38 +934,121 @@ export default function SignUpPage() {
                       )}
                     </div>
 
-                    {/* Company & Properties */}
-                    <div className="grid grid-cols-2 gap-2 md:gap-3">
+                    {/* NIC */}
+                    <div className="relative">
+                      <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium transition-all z-10 bg-[#1e253f] ${
+                        ownerNicError && touchedFields.ownerNic
+                          ? 'text-red-400'
+                          : focusedField === 'ownerNic'
+                          ? 'text-purple-400'
+                          : 'text-gray-400'
+                      }`}>
+                        NIC Number
+                      </label>
                       <div className="relative">
-                        <label className="absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] text-gray-400 bg-[#1e253f] z-10">
-                          Company
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={companyName}
-                            onChange={e => setCompanyName(e.target.value)}
-                            className="w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 border-white/10 bg-white/5 text-white text-sm md:text-base focus:border-purple-400 focus:outline-none transition-all"
-                            placeholder="Your Co."
-                          />
-                          <Briefcase className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-gray-400" size={isRedmiNote13 ? 12 : 14} />
-                        </div>
+                        <input
+                          type="text"
+                          value={ownerNic}
+                          onChange={e => setOwnerNic(e.target.value.trim())}
+                          onFocus={() => setFocusedField('ownerNic')}
+                          onBlur={() => { setFocusedField(null); setTouchedFields(prev => ({ ...prev, ownerNic: true })); }}
+                          className={`w-full pl-8 md:pl-10 pr-8 md:pr-10 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all ${
+                            ownerNicError && touchedFields.ownerNic
+                              ? 'border-red-400 bg-red-400/5'
+                              : ownerNic && !ownerNicError
+                              ? 'border-green-400 bg-green-400/5'
+                              : focusedField === 'ownerNic'
+                              ? 'border-purple-400 bg-purple-400/5'
+                              : 'border-white/10 bg-white/5'
+                          } text-white placeholder-transparent focus:outline-none`}
+                          placeholder="200012345678"
+                        />
+                        <CreditCard className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 transition-colors ${
+                          focusedField === 'ownerNic' ? 'text-purple-400' : 'text-gray-400'
+                        }`} size={isRedmiNote13 ? 14 : 16} />
+                        {ownerNic && !ownerNicError && touchedFields.ownerNic && (
+                          <CheckCircle className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-green-400" size={isRedmiNote13 ? 14 : 16} />
+                        )}
                       </div>
+                      {ownerNicError && touchedFields.ownerNic ? (
+                        <p className="text-red-400 text-[9px] md:text-xs mt-1 ml-1 flex items-center gap-1"><AlertCircle size={10} />{ownerNicError}</p>
+                      ) : (
+                        <p className="text-[8px] md:text-[10px] text-gray-500 mt-1 ml-1">Old format: 123456789V · New: 200012345678</p>
+                      )}
+                    </div>
+
+                    {/* Address */}
+                    <div className="relative">
+                      <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium transition-all z-10 bg-[#1e253f] ${
+                        ownerAddressError && touchedFields.ownerAddress
+                          ? 'text-red-400'
+                          : focusedField === 'ownerAddress'
+                          ? 'text-purple-400'
+                          : 'text-gray-400'
+                      }`}>
+                        Residential Address
+                      </label>
                       <div className="relative">
-                        <label className="absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] text-gray-400 bg-[#1e253f] z-10">
-                          Properties
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={propertyCount}
-                            onChange={e => setPropertyCount(e.target.value)}
-                            className="w-full pl-7 md:pl-9 pr-2 py-2 md:py-3 rounded-lg md:rounded-xl border-2 border-white/10 bg-white/5 text-white text-sm md:text-base focus:border-purple-400 focus:outline-none transition-all"
-                            placeholder="5"
-                            min="0"
-                          />
-                          <Home className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 text-gray-400" size={isRedmiNote13 ? 12 : 14} />
-                        </div>
+                        <input
+                          type="text"
+                          value={ownerAddress}
+                          onChange={e => setOwnerAddress(e.target.value)}
+                          onFocus={() => setFocusedField('ownerAddress')}
+                          onBlur={() => { setFocusedField(null); setTouchedFields(prev => ({ ...prev, ownerAddress: true })); }}
+                          className={`w-full pl-8 md:pl-10 pr-8 md:pr-10 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all ${
+                            ownerAddressError && touchedFields.ownerAddress
+                              ? 'border-red-400 bg-red-400/5'
+                              : ownerAddress && !ownerAddressError
+                              ? 'border-green-400 bg-green-400/5'
+                              : focusedField === 'ownerAddress'
+                              ? 'border-purple-400 bg-purple-400/5'
+                              : 'border-white/10 bg-white/5'
+                          } text-white placeholder-transparent focus:outline-none`}
+                          placeholder="123 Main St, Colombo"
+                        />
+                        <Home className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 transition-colors ${
+                          focusedField === 'ownerAddress' ? 'text-purple-400' : 'text-gray-400'
+                        }`} size={isRedmiNote13 ? 14 : 16} />
+                        {ownerAddress && !ownerAddressError && touchedFields.ownerAddress && (
+                          <CheckCircle className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-green-400" size={isRedmiNote13 ? 14 : 16} />
+                        )}
+                      </div>
+                      {ownerAddressError && touchedFields.ownerAddress && (
+                        <p className="text-red-400 text-[9px] md:text-xs mt-1 ml-1 flex items-center gap-1"><AlertCircle size={10} />{ownerAddressError}</p>
+                      )}
+                    </div>
+
+                    {/* Occupation */}
+                    <div className="relative">
+                      <label className={`absolute -top-1.5 md:-top-2 left-2 md:left-3 px-1 text-[8px] md:text-[10px] font-medium transition-all z-10 bg-[#1e253f] ${
+                        focusedField === 'ownerOccupation' ? 'text-purple-400' : 'text-gray-400'
+                      }`}>
+                        Occupation <span className="text-gray-600">(optional)</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={ownerOccupation}
+                          onChange={e => setOwnerOccupation(e.target.value)}
+                          onFocus={() => setFocusedField('ownerOccupation')}
+                          onBlur={() => setFocusedField(null)}
+                          className={`w-full pl-8 md:pl-10 pr-4 py-2 md:py-3 rounded-lg md:rounded-xl border-2 text-sm md:text-base transition-all appearance-none bg-[#0f1629] ${
+                            focusedField === 'ownerOccupation'
+                              ? 'border-purple-400'
+                              : ownerOccupation
+                              ? 'border-green-400'
+                              : 'border-white/10'
+                          } ${ownerOccupation ? 'text-white' : 'text-gray-500'} focus:outline-none`}
+                        >
+                          <option value="">Select occupation</option>
+                          <option value="Property Owner">Property Owner</option>
+                          <option value="Landlord">Landlord / Property Manager</option>
+                          <option value="Real Estate Agent">Real Estate Agent</option>
+                          <option value="Developer">Developer / Builder</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <Briefcase className={`absolute left-2 md:left-3 top-1/2 -translate-y-1/2 transition-colors ${
+                          focusedField === 'ownerOccupation' ? 'text-purple-400' : 'text-gray-400'
+                        }`} size={isRedmiNote13 ? 14 : 16} />
                       </div>
                     </div>
                   </div>
@@ -1086,52 +1276,38 @@ export default function SignUpPage() {
                   </div>
                 )}
 
-                {/* Submit Button - Mobile optimized */}
-                <button 
-                  type="submit" 
+                {/* Submit Button */}
+                <button
+                  type="submit"
                   disabled={isLoading}
-                  className="relative w-full group overflow-hidden mt-2 md:mt-4"
+                  style={{ width:'100%', marginTop:8, padding:'13px', borderRadius:13, border:'none', background:'linear-gradient(135deg,#818cf8 0%,#6366f1 40%,#22d3ee 100%)', color:'#fff', fontSize:15, fontWeight:700, cursor:isLoading?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow:'0 4px 24px rgba(99,102,241,.35)', opacity:isLoading?0.65:1, transition:'opacity .2s,transform .15s', position:'relative', overflow:'hidden' }}
+                  onMouseEnter={e => { if (!isLoading) { e.currentTarget.style.opacity='0.92'; e.currentTarget.style.transform='translateY(-1px)'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity=isLoading?'0.65':'1'; e.currentTarget.style.transform='translateY(0)'; }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 rounded-lg md:rounded-xl opacity-100 group-hover:opacity-90 transition-opacity" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                  
-                  <div className="relative flex items-center justify-center gap-1 md:gap-2 py-2.5 md:py-3.5 px-3 md:px-4">
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="animate-spin" size={isRedmiNote13 ? 16 : 18} />
-                        <span className="font-semibold text-sm md:text-base">Creating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-semibold text-sm md:text-base">Create Account</span>
-                        <Sparkles size={isRedmiNote13 ? 14 : 16} className="group-hover:rotate-12 transition-transform" />
-                      </>
-                    )}
-                  </div>
+                  <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg,rgba(255,255,255,.15) 0%,transparent 60%)', pointerEvents:'none' }} />
+                  {isLoading
+                    ? <><Loader2 size={16} className="animate-spin" />Creating account…</>
+                    : <><Sparkles size={15} />Create Account</>}
                 </button>
               </form>
 
-              <div className="mt-4 md:mt-6 space-y-3">
-                {/* Sign In Link */}
-                <div className="text-center">
-                  <span className="text-[10px] md:text-xs text-gray-400">
-                    Already have an account?{' '}
-                    <a href="/signin" className="text-cyan-400 hover:text-purple-400 font-medium transition-colors">
-                      Sign in
-                    </a>
-                  </span>
-                </div>
-
-                {/* Terms Links */}
-                <div className="flex justify-center gap-3 md:gap-4 pt-1 md:pt-2">
-                  <a href="/terms" className="text-[8px] md:text-[9px] text-gray-500 hover:text-cyan-400 transition-colors flex items-center gap-1">
-                    <FileText size={8} />
-                    Terms
+              <div style={{ marginTop:18, textAlign:'center' }}>
+                <p style={{ color:'rgba(148,163,184,.5)', fontSize:13, marginBottom:12 }}>
+                  Already have an account?{' '}
+                  <a href="/signin" style={{ color:'#818cf8', fontWeight:600, textDecoration:'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.color='#a5b4fc')} onMouseLeave={e => (e.currentTarget.style.color='#818cf8')}>
+                    Sign in
                   </a>
-                  <span className="text-gray-600 text-[8px] md:text-[9px]">•</span>
-                  <a href="/privacy" className="text-[8px] md:text-[9px] text-gray-500 hover:text-purple-400 transition-colors flex items-center gap-1">
-                    <Shield size={8} />
-                    Privacy
+                </p>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14 }}>
+                  <a href="/terms" style={{ fontSize:11, color:'rgba(148,163,184,.35)', textDecoration:'none', display:'flex', alignItems:'center', gap:4 }}
+                    onMouseEnter={e => (e.currentTarget.style.color='rgba(165,180,252,.6)')} onMouseLeave={e => (e.currentTarget.style.color='rgba(148,163,184,.35)')}>
+                    <FileText size={10} />Terms
+                  </a>
+                  <span style={{ color:'rgba(148,163,184,.2)', fontSize:11 }}>·</span>
+                  <a href="/privacy" style={{ fontSize:11, color:'rgba(148,163,184,.35)', textDecoration:'none', display:'flex', alignItems:'center', gap:4 }}
+                    onMouseEnter={e => (e.currentTarget.style.color='rgba(165,180,252,.6)')} onMouseLeave={e => (e.currentTarget.style.color='rgba(148,163,184,.35)')}>
+                    <Shield size={10} />Privacy
                   </a>
                 </div>
               </div>
@@ -1142,60 +1318,13 @@ export default function SignUpPage() {
         </div>
       </div>
 
-      {/* Right Panel - Professional Image */}
-      <div className="hidden md:flex w-1/2 min-h-screen items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-purple-500/5 to-indigo-500/5" />
-        <ProfessionalVisual />
-      </div>
+      {/* close su-right-panel + main layout */}
+      </div>{/* su-right-panel */}
+      </div>{/* main layout flex */}
 
-      {/* Mobile Visual - Optimized for Redmi Note 13 */}
-      <div className="md:hidden w-full px-3 pb-4">
-        <div className="relative h-24 overflow-hidden rounded-xl">
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-indigo-500/10" />
-          <img 
-            src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-            alt="Modern student housing"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <div className="absolute bottom-2 left-2 right-2">
-            <h3 className="text-white text-xs font-bold">Find Your Perfect Roommate</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* Global Animations */}
       <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.5); }
-          to   { opacity: 1; transform: scale(1); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-5px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-          20%, 40%, 60%, 80% { transform: translateX(2px); }
-        }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animate-slideDown {
-          animation: slideDown 0.3s ease-out;
-        }
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
-        }
+        @keyframes ping { 0%{transform:scale(1);opacity:.6;} 75%,100%{transform:scale(2);opacity:0;} }
+        .animate-ping { animation: ping 1.5s cubic-bezier(0,0,.2,1) infinite; }
         .animation-delay-2000 {
           animation-delay: 2s;
         }

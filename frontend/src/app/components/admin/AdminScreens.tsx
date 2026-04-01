@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Building2, CheckSquare, ShieldCheck, Star, Search,
-  TrendingUp, AlertCircle, X, Check, Clock, Eye, Ban, RotateCcw,
+  TrendingUp, AlertCircle, X, Check, Clock, Eye, EyeOff, Ban, RotateCcw,
   Flag, Trash2, Send, Filter, ChevronDown, LifeBuoy, MessageSquare, Loader2,
   Settings, Lock, KeyRound
 } from 'lucide-react';
@@ -17,11 +17,13 @@ import * as api from './api';
 // ─────────────────────────────────────────────
 export const AdminLogin = () => {
   const navigate = useNavigate();
-  // DEV ONLY — remove before production
   const [email, setEmail] = useState('admin@boardingbook.com');
   const [password, setPassword] = useState('Admin@1234');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passFocused, setPassFocused] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,45 +43,220 @@ export const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#181f36] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#818cf8] to-[#22d3ee] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(129,140,248,0.4)]">
-            <Building2 size={24} className="keep-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">BoardingBook</h1>
-          <p className="text-sm text-slate-400 mt-1">Admin Portal</p>
-        </div>
+    <div style={{ minHeight: '100vh', background: '#0f1629', display: 'flex', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}>
+      <style>{`
+        @keyframes float-slow  { 0%,100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-30px) scale(1.04); } }
+        @keyframes float-med   { 0%,100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-18px) scale(1.06); } }
+        @keyframes drift       { 0%,100% { transform: translate(0,0); } 33% { transform: translate(18px,-12px); } 66% { transform: translate(-10px,14px); } }
+        @keyframes spin-slow   { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fade-up-in  { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes shimmer     { 0%,100% { opacity:.5; } 50% { opacity:1; } }
+        @keyframes pulse-glow  { 0%,100% { box-shadow: 0 0 0 0 rgba(129,140,248,0.4); } 50% { box-shadow: 0 0 0 10px rgba(129,140,248,0); } }
 
-        <form onSubmit={handleLogin} className="bg-[var(--bb-card)] rounded-2xl shadow-sm border border-[var(--bb-border)] p-7 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email address</label>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              placeholder="admin@boardingbook.com"
-              className="w-full px-3.5 py-2.5 border border-[var(--bb-border-md)] bg-[var(--bb-elevated)] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
-            />
+        .al-orb1 { animation: float-slow 9s ease-in-out infinite; }
+        .al-orb2 { animation: float-med  7s ease-in-out infinite 1s; }
+        .al-orb3 { animation: drift      11s ease-in-out infinite 2s; }
+        .al-ring { animation: spin-slow  18s linear infinite; }
+        .al-form { animation: fade-up-in 0.55s cubic-bezier(.22,.68,0,1.2) both; }
+        .al-badge { animation: shimmer   3s ease-in-out infinite; }
+
+        .al-input {
+          width: 100%;
+          background: rgba(255,255,255,0.04);
+          border: 1.5px solid rgba(129,140,248,0.18);
+          border-radius: 14px;
+          padding: 13px 44px 13px 44px;
+          font-size: 14px;
+          color: #fff;
+          outline: none;
+          transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+          box-sizing: border-box;
+        }
+        .al-input::placeholder { color: rgba(148,163,184,0.5); }
+        .al-input:focus {
+          border-color: rgba(129,140,248,0.7);
+          background: rgba(129,140,248,0.06);
+          box-shadow: 0 0 0 4px rgba(129,140,248,0.10);
+        }
+        .al-input.has-value { border-color: rgba(34,211,238,0.4); }
+        .al-btn {
+          width: 100%;
+          padding: 14px;
+          border-radius: 14px;
+          border: none;
+          background: linear-gradient(135deg, #818cf8 0%, #6366f1 40%, #22d3ee 100%);
+          color: #fff;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          letter-spacing: 0.01em;
+          box-shadow: 0 4px 24px rgba(99,102,241,0.35);
+          position: relative; overflow: hidden;
+        }
+        .al-btn:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 8px 32px rgba(99,102,241,0.45); }
+        .al-btn:active:not(:disabled) { transform: translateY(0); }
+        .al-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .al-btn::after {
+          content: '';
+          position: absolute; inset: 0;
+          background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+          pointer-events: none;
+        }
+        .al-feature { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+        .al-feature-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      `}</style>
+
+      {/* ── Animated background orbs ─────────────────────────────── */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        <div className="al-orb1" style={{ position: 'absolute', top: '-10%', left: '-8%', width: 520, height: 520, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)' }} />
+        <div className="al-orb2" style={{ position: 'absolute', bottom: '-12%', right: '-6%', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle, rgba(34,211,238,0.14) 0%, transparent 70%)' }} />
+        <div className="al-orb3" style={{ position: 'absolute', top: '40%', left: '50%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(129,140,248,0.08) 0%, transparent 70%)' }} />
+        {/* Subtle grid */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(129,140,248,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(129,140,248,0.04) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+      </div>
+
+      {/* ── Left panel — branding ─────────────────────────────────── */}
+      <div style={{ flex: 1, display: 'none', flexDirection: 'column', justifyContent: 'center', padding: '60px 64px', position: 'relative' }} className="lg-flex">
+        <style>{`.lg-flex { display: none; } @media(min-width:1024px){ .lg-flex { display:flex !important; } }`}</style>
+
+        {/* Rotating ring decoration */}
+        <div className="al-ring" style={{ position: 'absolute', top: '12%', right: '-80px', width: 320, height: 320, border: '1px solid rgba(129,140,248,0.12)', borderRadius: '50%', borderTopColor: 'rgba(129,140,248,0.4)' }} />
+        <div style={{ position: 'absolute', top: '18%', right: '-44px', width: 220, height: 220, border: '1px solid rgba(34,211,238,0.08)', borderRadius: '50%', borderRightColor: 'rgba(34,211,238,0.3)' }} className="al-ring" />
+
+        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48, textDecoration: 'none', opacity: 1, transition: 'opacity .2s' }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')} onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#818cf8,#22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 24px rgba(129,140,248,0.5)' }}>
+            <Building2 size={22} color="#fff" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
-            <input
-              type="password" value={password} onChange={e => setPassword(e.target.value)} required
-              placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 border border-[var(--bb-border-md)] bg-[var(--bb-elevated)] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors placeholder:text-slate-500"
-            />
+            <p style={{ color: '#fff', fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1 }}>BoardingBook</p>
+            <p style={{ color: 'rgba(148,163,184,0.7)', fontSize: 11, marginTop: 2, fontWeight: 500 }}>Administration Suite</p>
           </div>
-          {error && (
-            <div className="flex items-center gap-2 text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg">
-              <AlertCircle size={14} />{error}
+        </a>
+
+        <h2 style={{ fontSize: 38, fontWeight: 800, color: '#fff', lineHeight: 1.15, letterSpacing: '-0.03em', marginBottom: 16 }}>
+          Manage your<br />
+          <span style={{ background: 'linear-gradient(135deg,#818cf8,#22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>boarding platform</span>
+        </h2>
+        <p style={{ color: 'rgba(148,163,184,0.65)', fontSize: 15, lineHeight: 1.65, marginBottom: 48, maxWidth: 380 }}>
+          Full control over users, KYC verification, support tickets, and platform reviews — all in one place.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {[
+            { icon: <Users size={16} color="#818cf8" />, bg: 'rgba(129,140,248,0.12)', label: 'User & KYC Management', sub: 'Ban, verify, and monitor all accounts' },
+            { icon: <ShieldCheck size={16} color="#22d3ee" />, bg: 'rgba(34,211,238,0.1)', label: 'Security Controls', sub: 'JWT-protected admin access' },
+            { icon: <LifeBuoy size={16} color="#a78bfa" />, bg: 'rgba(167,139,250,0.1)', label: 'Support & Feedback', sub: 'Respond to tickets and reviews' },
+          ].map(f => (
+            <div key={f.label} className="al-feature">
+              <div className="al-feature-icon" style={{ background: f.bg }}>{f.icon}</div>
+              <div>
+                <p style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>{f.label}</p>
+                <p style={{ color: 'rgba(148,163,184,0.55)', fontSize: 11.5, marginTop: 3 }}>{f.sub}</p>
+              </div>
             </div>
-          )}
-          <button
-            type="submit" disabled={loading}
-            className="w-full bg-gradient-to-r from-[#818cf8] to-[#22d3ee] text-white py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 mt-2 flex items-center justify-center gap-2"
-          >
-            {loading ? <><Loader2 size={15} className="animate-spin" />Signing in…</> : 'Sign in'}
-          </button>
-        </form>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Right panel — login form ──────────────────────────────── */}
+      <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', position: 'relative', zIndex: 10 }} className="login-panel">
+        <style>{`@media(min-width:1024px){ .login-panel { width:480px !important; margin:0 !important; border-left:1px solid rgba(129,140,248,0.07); background:rgba(15,22,41,0.6); backdrop-filter:blur(24px); } }`}</style>
+
+        <div className="al-form" style={{ width: '100%', maxWidth: 380 }}>
+
+          {/* Mobile logo */}
+          <div style={{ textAlign: 'center', marginBottom: 36 }} className="mobile-logo">
+            <style>{`@media(min-width:1024px){ .mobile-logo { display:none; } }`}</style>
+            <a href="/" style={{ textDecoration: 'none', display: 'inline-block' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg,#818cf8,#22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', boxShadow: '0 0 28px rgba(129,140,248,0.45)', animation: 'pulse-glow 3s ease-in-out infinite' }}>
+                <Building2 size={26} color="#fff" />
+              </div>
+              <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>BoardingBook</h1>
+              <p style={{ color: 'rgba(148,163,184,0.6)', fontSize: 13, marginTop: 4 }}>Administration Suite</p>
+            </a>
+          </div>
+
+          {/* Card heading */}
+          <div style={{ marginBottom: 28 }}>
+            <div className="al-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.2)', borderRadius: 99, padding: '5px 12px', marginBottom: 16 }}>
+              <Lock size={11} color="#818cf8" />
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#a5b4fc', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Secure Admin Access</span>
+            </div>
+            <h2 style={{ color: '#fff', fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.2, margin: 0 }}>Welcome back</h2>
+            <p style={{ color: 'rgba(148,163,184,0.6)', fontSize: 13.5, marginTop: 6 }}>Sign in to your admin portal</p>
+          </div>
+
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Email */}
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(203,213,225,0.9)', marginBottom: 8, letterSpacing: '0.01em' }}>Email address</label>
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', transition: 'color 0.2s', color: emailFocused ? '#818cf8' : 'rgba(148,163,184,0.5)' }}>
+                  <Users size={15} />
+                </div>
+                <input
+                  type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                  placeholder="admin@boardingbook.com"
+                  className={`al-input${email ? ' has-value' : ''}`}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
+                  style={{ paddingLeft: 44, paddingRight: 14 }}
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(203,213,225,0.9)', marginBottom: 8, letterSpacing: '0.01em' }}>Password</label>
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', transition: 'color 0.2s', color: passFocused ? '#818cf8' : 'rgba(148,163,184,0.5)' }}>
+                  <Lock size={15} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
+                  placeholder="••••••••"
+                  className={`al-input${password ? ' has-value' : ''}`}
+                  onFocus={() => setPassFocused(true)}
+                  onBlur={() => setPassFocused(false)}
+                  style={{ paddingRight: 44 }}
+                />
+                <button type="button" onClick={() => setShowPassword(p => !p)}
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(148,163,184,0.5)', padding: 0, display: 'flex', transition: 'color 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#cbd5e1')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(148,163,184,0.5)')}>
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px' }}>
+                <AlertCircle size={14} color="#f87171" style={{ flexShrink: 0 }} />
+                <span style={{ color: '#f87171', fontSize: 13 }}>{error}</span>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button type="submit" disabled={loading} className="al-btn" style={{ marginTop: 4 }}>
+              {loading
+                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Signing in…</>
+                : <><KeyRound size={16} />Sign in to Dashboard</>}
+            </button>
+          </form>
+
+          {/* Footer note */}
+          <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+            <ShieldCheck size={13} color="rgba(129,140,248,0.5)" />
+            <span style={{ fontSize: 11.5, color: 'rgba(148,163,184,0.4)', textAlign: 'center' }}>
+              Protected access · BoardingBook Admin v1.0
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -337,6 +514,20 @@ export const UserManagement = () => {
     }
   };
 
+  const removeUser = async (user: api.User) => {
+    if (!window.confirm(`Delete ${api.displayName(user)} permanently? This cannot be undone.`)) return;
+    setActionLoading(user._id);
+    try {
+      await api.deleteUser(user._id);
+      setUsers(prev => prev.filter(u => u._id !== user._id));
+      setSelected(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const students = users.filter(u => u.role === 'student');
   const owners   = users.filter(u => u.role === 'owner');
   const detailUser = users.find(u => u._id === selected);
@@ -390,6 +581,14 @@ export const UserManagement = () => {
             title={u.isBanned ? 'Unban' : 'Ban'}
           >
             {actionLoading === u._id ? <Loader2 size={13} className="animate-spin" /> : u.isBanned ? <RotateCcw size={13} /> : <Ban size={13} />}
+          </button>
+          <button
+            onClick={() => removeUser(u)}
+            disabled={actionLoading === u._id}
+            className="p-1.5 rounded-lg transition-colors hover:bg-red-900/20 text-slate-400 hover:text-red-400"
+            title="Delete account"
+          >
+            <Trash2 size={13} />
           </button>
         </div>
       </div>
@@ -536,6 +735,14 @@ export const UserManagement = () => {
             >
               {actionLoading === detailUser._id ? <Loader2 size={14} className="animate-spin" /> : null}
               {detailUser.isBanned ? 'Unban this user' : 'Ban this user'}
+            </button>
+            <button
+              onClick={() => removeUser(detailUser)}
+              disabled={actionLoading === detailUser._id}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 bg-red-950/40 text-red-500 hover:bg-red-950/70 border border-red-900/30 mt-1"
+            >
+              <Trash2 size={14} />
+              Delete account permanently
             </button>
           </div>
         </div>
@@ -833,7 +1040,7 @@ export const SupportTickets = () => {
                 <div className="px-5 py-4 border-b border-[var(--bb-border)] flex items-start justify-between">
                   <div>
                     <p className="font-semibold text-white">{detail.subject}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{api.displayName(detail.userId)} · {detail.userId.email}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{api.displayName(detail.userId)} · {detail.userId?.email ?? '—'}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {detail.status !== 'resolved' && detail.status !== 'closed' && (
@@ -1000,7 +1207,7 @@ export const FeedbackManagement = () => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-semibold text-white">{name}</p>
                         <span className="text-xs text-slate-400">·</span>
-                        <p className="text-xs text-slate-400">{fb.userId.email}</p>
+                        <p className="text-xs text-slate-400">{fb.userId?.email ?? '—'}</p>
                         {fb.isFlagged && <span className="text-[10px] font-bold bg-red-900/30 text-red-400 px-2 py-0.5 rounded-full">Flagged</span>}
                         {!fb.isVisible && <span className="text-[10px] font-bold bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full">Hidden</span>}
                       </div>
@@ -1055,16 +1262,7 @@ export const AdminSettings = () => {
     if (next !== confirm) { setError('New passwords do not match'); return; }
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5001/api/admin/password', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-        },
-        body: JSON.stringify({ currentPassword: current, newPassword: next }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message);
+      await api.changeAdminPassword(current, next);
       setSuccess('Password updated successfully.');
       setCurrent(''); setNext(''); setConfirm('');
     } catch (err: any) {

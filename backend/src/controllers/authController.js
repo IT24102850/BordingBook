@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
  */
 exports.signup = async (req, res) => {
   try {
-    const { email, password, role, fullName, phoneNumber, companyName, propertyCount,
+    const { email, password, role, fullName, phoneNumber, nic: ownerNic, address, occupation,
             firstName, lastName, studentId, nic, birthday, academicYear } = req.body;
 
     // Validate required fields
@@ -43,6 +43,12 @@ exports.signup = async (req, res) => {
           message: 'Full name and phone number are required for property owners',
         });
       }
+      if (!ownerNic) {
+        return res.status(400).json({ success: false, message: 'NIC is required for property owners' });
+      }
+      if (!address) {
+        return res.status(400).json({ success: false, message: 'Address is required for property owners' });
+      }
     }
 
     // Check if user already exists
@@ -68,8 +74,9 @@ exports.signup = async (req, res) => {
     if (isOwner) {
       userData.fullName = fullName;
       userData.phoneNumber = phoneNumber;
-      userData.companyName = companyName || '';
-      userData.propertyCount = propertyCount || 0;
+      userData.nic = ownerNic || '';
+      userData.address = address || '';
+      userData.occupation = occupation || '';
     }
 
     // Add student-specific fields
@@ -448,7 +455,7 @@ exports.updateProfile = async (req, res) => {
       'fullName', 'mobileNumber', 'age', 'bio', 'profilePicture', 'profilePictures',
       'minBudget', 'maxBudget', 'distance', 'selectedLocation', 'gender',
       'academicYear', 'roommatePreference', 'roomType', 'lifestylePrefs',
-      'firstName', 'lastName', 'phoneNumber', 'companyName',
+      'firstName', 'lastName', 'phoneNumber', 'address', 'occupation',
     ];
     const updates = {};
     for (const field of allowedFields) {

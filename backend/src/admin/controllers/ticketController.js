@@ -14,7 +14,7 @@ exports.getAllTickets = async (req, res) => {
     const skip = (Number(page) - 1) * Number(limit);
     const [tickets, total] = await Promise.all([
       SupportTicket.find(filter)
-        .populate('userId', 'email firstName lastName fullName role')
+        .populate({ path: 'userId', select: 'email firstName lastName fullName role', options: { strictPopulate: false } })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit)),
