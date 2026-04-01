@@ -5,6 +5,7 @@
 
 // Only one require for RoommateRequest should exist at the top of the file:
 
+const mongoose = require('mongoose');
 const RoommateRequest = require('../models/RoommateRequest');
 const User = require('../models/User');
 
@@ -88,7 +89,15 @@ exports.getInboxRequests = async (req, res) => {
   try {
     const recipientId = req.user.userId;
     const { status } = req.query;
-    const filter = { recipientId };
+    const normalizedRecipientId = mongoose.Types.ObjectId.isValid(recipientId)
+      ? new mongoose.Types.ObjectId(recipientId)
+      : null;
+
+    if (!normalizedRecipientId) {
+      return res.status(400).json({ success: false, message: 'Invalid recipient id' });
+    }
+
+    const filter = { recipientId: normalizedRecipientId };
     if (status) {
       filter.status = status;
     }
@@ -96,7 +105,8 @@ exports.getInboxRequests = async (req, res) => {
     const requests = await RoommateRequest.find(filter)
       .select('senderId recipientId message status createdAt respondedAt')
       .sort({ createdAt: -1 })
-      .limit(100)
+      .limit(50)
+      .hint({ recipientId: 1, createdAt: -1 })
       .lean()
       .maxTimeMS(8000);
 
@@ -110,7 +120,7 @@ exports.getInboxRequests = async (req, res) => {
 
     const senders = senderIds.length
       ? await User.find({ _id: { $in: senderIds } })
-          .select('fullName name email profilePicture')
+          .select('fullName name email')
           .lean()
           .maxTimeMS(8000)
       : [];
@@ -127,7 +137,7 @@ exports.getInboxRequests = async (req, res) => {
               fullName: sender.fullName || sender.name || '',
               name: sender.name || sender.fullName || '',
               email: sender.email || '',
-              profilePicture: sender.profilePicture || '',
+              profilePicture: '',
             }
           : item.senderId,
       };
@@ -156,7 +166,15 @@ exports.getSentRequests = async (req, res) => {
   try {
     const senderId = req.user.userId;
     const { status } = req.query;
-    const filter = { senderId };
+    const normalizedSenderId = mongoose.Types.ObjectId.isValid(senderId)
+      ? new mongoose.Types.ObjectId(senderId)
+      : null;
+
+    if (!normalizedSenderId) {
+      return res.status(400).json({ success: false, message: 'Invalid sender id' });
+    }
+
+    const filter = { senderId: normalizedSenderId };
     if (status) {
       filter.status = status;
     }
@@ -164,7 +182,8 @@ exports.getSentRequests = async (req, res) => {
     const requests = await RoommateRequest.find(filter)
       .select('senderId recipientId message status createdAt respondedAt')
       .sort({ createdAt: -1 })
-      .limit(100)
+      .limit(50)
+      .hint({ senderId: 1, createdAt: -1 })
       .lean()
       .maxTimeMS(8000);
 
@@ -178,7 +197,7 @@ exports.getSentRequests = async (req, res) => {
 
     const recipients = recipientIds.length
       ? await User.find({ _id: { $in: recipientIds } })
-          .select('fullName name email profilePicture')
+          .select('fullName name email')
           .lean()
           .maxTimeMS(8000)
       : [];
@@ -195,7 +214,7 @@ exports.getSentRequests = async (req, res) => {
               fullName: recipient.fullName || recipient.name || '',
               name: recipient.name || recipient.fullName || '',
               email: recipient.email || '',
-              profilePicture: recipient.profilePicture || '',
+              profilePicture: '',
             }
           : item.recipientId,
       };
