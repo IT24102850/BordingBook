@@ -7,24 +7,17 @@ const RoommateProfile = require('../models/RoommateProfile');
 
 exports.browseProfiles = async (req, res) => {
   try {
-    console.time('roommates.browse.total');
     const userId = req.user && req.user.userId;
-    console.log('[roommates.browse] start', { userId });
-    const baseQuery = { role: 'student' };
-    console.time('roommates.browse.query');
-    const users = await User.find(baseQuery)
-      .select('name fullName email role gender academicYear profilePicture tags boardingHouse age dateOfBirth dob birthDate isActive')
+
+    // Use _id index for speed, then filter role in memory.
+    const users = await User.find({})
+      .select('name fullName email role gender academicYear profilePicture tags boardingHouse age dateOfBirth dob birthDate bio description')
       .sort({ _id: -1 })
-      .limit(400)
+      .limit(220)
       .lean()
-      .maxTimeMS(30000)
+      .maxTimeMS(15000)
       .exec();
-    console.timeEnd('roommates.browse.query');
-    const filteredUsers = users
-      .filter((u) => u && String(u._id) !== String(userId))
-      .slice(0, 80);
-    console.log('[roommates.browse] users', filteredUsers.length);
-    const profileMap = new Map();
+
     const deriveAge = (user) => {
       if (user.age && user.age > 0) return user.age;
       const dobRaw = user.dateOfBirth || user.dob || user.birthDate;
@@ -41,34 +34,33 @@ exports.browseProfiles = async (req, res) => {
       }
       return 0;
     };
-    const profiles = filteredUsers.map(user => {
-      const roommateProfile = profileMap.get(String(user._id));
-      return {
-      id: user._id,
-      userId: user._id,
-      name: user.name || user.fullName || '',
-      bio: user.bio || user.description || '',
-      profilePicture: user.profilePicture || '',
-      gender: user.gender || '',
-      university: user.boardingHouse || user.academicYear || '',
-      email: user.email || '',
-      interests: Array.isArray(user.tags) ? user.tags : [],
-      age: deriveAge(user),
-      role: user.role || 'student',
-      dateOfBirth: user.dateOfBirth || user.dob || user.birthDate || '',
-      budget: null,
-      preferences: '',
-      roomType: '',
-      boardingScenario: 'none',
-      taggedRoomId: null,
-      taggedRoomVacancy: null,
-    }});
-    console.log('[roommates.browse] response profiles', profiles.length);
-    console.timeEnd('roommates.browse.total');
+
+    const profiles = users
+      .filter((u) => u && String(u._id) !== String(userId) && String(u.role || '').toLowerCase() === 'student')
+      .slice(0, 80)
+      .map((user) => ({
+        id: user._id,
+        userId: user._id,
+        name: user.name || user.fullName || '',
+        bio: user.bio || user.description || '',
+        profilePicture: user.profilePicture || '',
+        gender: user.gender || '',
+        university: user.boardingHouse || user.academicYear || '',
+        email: user.email || '',
+        interests: Array.isArray(user.tags) ? user.tags : [],
+        age: deriveAge(user),
+        role: user.role || 'student',
+        dateOfBirth: user.dateOfBirth || user.dob || user.birthDate || '',
+        budget: null,
+        preferences: '',
+        roomType: '',
+        boardingScenario: 'none',
+        taggedRoomId: null,
+        taggedRoomVacancy: null,
+      }));
+
     res.json({ success: true, data: profiles });
   } catch (error) {
-    console.log('[roommates.browse] error', error && error.message);
-    console.timeEnd('roommates.browse.total');
     res.status(500).json({ success: false, message: 'Failed to fetch roommate profiles', error: error.message });
   }
 };
@@ -183,30 +175,37 @@ exports.swipeProfile = async (req, res) => {
 exports.getLikedProfiles = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const user = await User.findById(userId);
-    const likedIds = user.liked || [];
-    const users = await User.find({
-      _id: { $in: likedIds },
-      isActive: true,
-      role: { $nin: ['owner', 'Owner', 'landlord', 'Landlord', 'admin', 'Admin'] },
-    })
-      .select('name fullName email role gender academicYear profilePicture profilePictures description bio tags boardingHouse age');
-    const profiles = users.map(user => ({
-      id: user._id,
-      userId: user._id,
-      name: user.name || user.fullName || '',
-      bio: user.bio || user.description || '',
-      profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
-        ? user.profilePictures
-        : (user.profilePicture ? [user.profilePicture] : []),
-      profilePicture: user.profilePicture || '',
-      gender: user.gender || '',
-      university: user.boardingHouse || user.academicYear || '',
-      email: user.email || '',
-      interests: Array.isArray(user.tags) ? user.tags : [],
-      role: user.role || 'student',
-      age: user.age || 0,
-    }));
+    const user = await User.findById(userId).select('liked').lean().maxTimeMS(10000);
+    const likedIds = Array.isArray(user?.liked) ? user.liked.slice(0, 120) : [];
+
+    if (!likedIds.length) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const users = await User.find({ _id: { $in: likedIds } })
+      .select('name fullName email role gender academicYear profilePicture profilePictures description bio tags boardingHouse age')
+      .lean()
+      .maxTimeMS(12000);
+
+    const profiles = users
+      .filter((u) => String(u?.role || '').toLowerCase() === 'student')
+      .map((user) => ({
+        id: user._id,
+        userId: user._id,
+        name: user.name || user.fullName || '',
+        bio: user.bio || user.description || '',
+        profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
+          ? user.profilePictures
+          : (user.profilePicture ? [user.profilePicture] : []),
+        profilePicture: user.profilePicture || '',
+        gender: user.gender || '',
+        university: user.boardingHouse || user.academicYear || '',
+        email: user.email || '',
+        interests: Array.isArray(user.tags) ? user.tags : [],
+        role: user.role || 'student',
+        age: user.age || 0,
+      }));
+
     res.json({ success: true, data: profiles });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch liked profiles', error: error.message });

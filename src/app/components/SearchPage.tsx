@@ -347,7 +347,8 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
   useEffect(() => {
     if (activeSection !== 'browse') return;
-    void loadLikedProfiles();
+    // Avoid heavy initial /liked fetch slowing down first swipe render.
+    // Favorites are updated optimistically on like and can be refreshed when needed.
   }, [activeSection]);
 
   const handleSendRequest = (roommate: Roommate) => {
@@ -691,7 +692,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
   const renderRequestCard = (item: any, mode: 'sent' | 'inbox') => {
     const person = mode === 'sent' ? item?.recipientId : item?.senderId;
-    const personId = String(person?._id || person?.id || '');
+    const personId = normalizeIdValue(person?._id || person?.id || person?.userId || person);
     const personName = person?.fullName || person?.name || person?.email || (mode === 'sent' ? 'Recipient' : 'Sender');
     const personEmail = person?.email || '';
     const createdAt = item?.createdAt ? new Date(item.createdAt).toLocaleString() : '';
@@ -2495,9 +2496,22 @@ function SearchPage() {
             });
           }
 
+          // Instant fallback: show last successful roommate list while fresh data loads.
+          const cachedRoommatesRaw = localStorage.getItem('bb_roommates_cache');
+          if (cachedRoommatesRaw && !isCancelled) {
+            try {
+              const cachedRoommates = JSON.parse(cachedRoommatesRaw);
+              if (Array.isArray(cachedRoommates) && cachedRoommates.length > 0) {
+                setDbRoommates(cachedRoommates);
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
           const roommateResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/browse`, {
             headers: { Authorization: `Bearer ${token}` },
-          }, 70000);
+          }, 12000);
 
           if (!isCancelled && roommateResult.ok) {
             const roommateData = Array.isArray(roommateResult.json?.data)
@@ -2508,28 +2522,28 @@ function SearchPage() {
                   ? roommateResult.json
                   : [];
 
-            setDbRoommates(
-              roommateData
-                .map((profile: any) => ({
-                  id: normalizeIdValue(profile._id || profile.id),
-                  userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-                  name: profile.name || 'Student',
-                  email: profile.email || '',
-                  age: deriveProfileAge(profile),
-                  gender: profile.gender || 'Any',
-                  university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-                  bio: profile.bio || profile.description || profile.about || profile.profileBio || 'No bio provided yet.',
-                  image: profile.image || profile.profilePicture || (Array.isArray(profile.profilePictures) ? profile.profilePictures[0] : '') || 'https://randomuser.me/api/portraits/lego/1.jpg',
-                  interests: Array.isArray(profile.tags) ? profile.tags : Array.isArray(profile.interests) ? profile.interests : [],
-                  mutualCount: Number(profile.mutualCount) || 0,
-                  role: profile.role || 'student',
-                }))
-            );
+            const mappedRoommates = roommateData
+              .map((profile: any) => ({
+                id: normalizeIdValue(profile._id || profile.id),
+                userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+                name: profile.name || 'Student',
+                email: profile.email || '',
+                age: deriveProfileAge(profile),
+                gender: profile.gender || 'Any',
+                university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+                bio: profile.bio || profile.description || profile.about || profile.profileBio || 'No bio provided yet.',
+                image: profile.image || profile.profilePicture || (Array.isArray(profile.profilePictures) ? profile.profilePictures[0] : '') || 'https://randomuser.me/api/portraits/lego/1.jpg',
+                interests: Array.isArray(profile.tags) ? profile.tags : Array.isArray(profile.interests) ? profile.interests : [],
+                mutualCount: Number(profile.mutualCount) || 0,
+                role: profile.role || 'student',
+              }));
+
+            setDbRoommates(mappedRoommates);
+            localStorage.setItem('bb_roommates_cache', JSON.stringify(mappedRoommates));
           }
         }
       } catch {
         setDbListings([]);
-        setDbRoommates([]);
       } finally {
         window.clearTimeout(loadingTimeoutId);
         if (!isCancelled) {

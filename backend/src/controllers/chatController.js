@@ -219,14 +219,15 @@ exports.getOrCreateDirectConversation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'recipientId is required' });
     }
 
-    // Convert to ObjectId if it's a valid string ID
-    let recipientObjectId = recipientId;
-    if (!mongoose.Types.ObjectId.isValid(recipientId)) {
+    // Normalize recipient id to ObjectId-safe string
+    const normalizedRecipientId = String(recipientId);
+    let recipientObjectId = normalizedRecipientId;
+    if (!mongoose.Types.ObjectId.isValid(normalizedRecipientId)) {
       console.log('[Chat] Invalid recipientId format:', recipientId);
       return res.status(400).json({ success: false, message: 'Valid recipientId is required' });
     }
 
-    if (String(recipientId) === String(currentUserId)) {
+    if (String(normalizedRecipientId) === String(currentUserId)) {
       return res.status(400).json({ success: false, message: 'Cannot create direct chat with yourself' });
     }
 
@@ -238,7 +239,7 @@ exports.getOrCreateDirectConversation = async (req, res) => {
 
     console.log('[Chat] Found recipient:', recipient.fullName);
 
-    const key = directKeyFromUsers(currentUserId, recipientId);
+    const key = directKeyFromUsers(currentUserId, normalizedRecipientId);
     console.log('[Chat] Direct key:', key);
 
     let conversation = await ChatConversation.findOne({ directKey: key })
@@ -247,18 +248,35 @@ exports.getOrCreateDirectConversation = async (req, res) => {
 
     if (!conversation) {
       console.log('[Chat] Creating new conversation');
-      conversation = await ChatConversation.create({
-        type: 'direct',
-        directKey: key,
-        participants: [{ user: currentUserId }, { user: recipientObjectId }],
-      });
+      try {
+        conversation = await ChatConversation.create({
+          type: 'direct',
+          directKey: key,
+          participants: [{ user: currentUserId }, { user: recipientObjectId }],
+        });
+      } catch (createError) {
+        // Handle duplicate-key race: another request may have created the same direct conversation.
+        if (createError && createError.code === 11000) {
+          conversation = await ChatConversation.findOne({ directKey: key })
+            .populate('participants.user', 'fullName email profilePicture role')
+            .populate('lastMessage.sender', 'fullName email profilePicture role');
+        } else {
+          throw createError;
+        }
+      }
 
-      conversation = await ChatConversation.findById(conversation._id)
-        .populate('participants.user', 'fullName email profilePicture role')
-        .populate('lastMessage.sender', 'fullName email profilePicture role');
+      if (conversation && conversation._id) {
+        conversation = await ChatConversation.findById(conversation._id)
+          .populate('participants.user', 'fullName email profilePicture role')
+          .populate('lastMessage.sender', 'fullName email profilePicture role');
+      }
       console.log('[Chat] Conversation created:', conversation._id);
     } else {
       console.log('[Chat] Using existing conversation:', conversation._id);
+    }
+
+    if (!conversation) {
+      return res.status(500).json({ success: false, message: 'Unable to create or load direct conversation' });
     }
 
     const mapped = await mapConversation(conversation, currentUserId);
