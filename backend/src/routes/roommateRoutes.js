@@ -108,7 +108,12 @@ router.patch(
 router.post(
   '/group',
   requireAuth,
-  [body('name').isLength({ min: 5, max: 100 })],
+  [
+    body('memberEmails').isArray({ min: 1 }),
+    body('scenario').optional().isIn(['join-existing', 'new-place']),
+    body('roomId').optional().isMongoId(),
+    body('name').optional().isLength({ min: 3, max: 100 }),
+  ],
   validateRequest,
   groupController.createGroup
 );

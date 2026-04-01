@@ -46,6 +46,7 @@ const authRoutes = require('./routes/authRoutes');
 const roommateRoutes = require('./routes/roommateRoutes');
 const ownerRoutes = require('./routes/ownerRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const paymentRoutes = require('./payment/routes/paymentRoutes');
 
 // Use routes
@@ -53,6 +54,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/roommates', roommateRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/payment', paymentRoutes);
 
 // Health check endpoint

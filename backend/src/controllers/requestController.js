@@ -96,8 +96,12 @@ exports.getInboxRequests = async (req, res) => {
     }
 
     const requests = await RoommateRequest.find(filter)
-      .populate('senderId', 'fullName email profilePicture')
-      .sort({ createdAt: -1 });
+      .select('senderId recipientId message status createdAt respondedAt')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .populate({ path: 'senderId', select: 'fullName name email profilePicture' })
+      .lean()
+      .maxTimeMS(12000);
 
     res.status(200).json({
       success: true,
@@ -130,8 +134,12 @@ exports.getSentRequests = async (req, res) => {
     }
 
     const requests = await RoommateRequest.find(filter)
-      .populate('recipientId', 'fullName email profilePicture')
-      .sort({ createdAt: -1 });
+      .select('senderId recipientId message status createdAt respondedAt')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .populate({ path: 'recipientId', select: 'fullName name email profilePicture' })
+      .lean()
+      .maxTimeMS(12000);
 
     res.status(200).json({
       success: true,

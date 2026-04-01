@@ -49,7 +49,7 @@ const chatConversationSchema = new mongoose.Schema(
     },
     directKey: {
       type: String,
-      default: null,
+      default: undefined,
       unique: true,
       sparse: true,
       index: true,
@@ -57,7 +57,7 @@ const chatConversationSchema = new mongoose.Schema(
     groupRef: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'BookingGroup',
-      default: null,
+      default: undefined,
       unique: true,
       sparse: true,
     },

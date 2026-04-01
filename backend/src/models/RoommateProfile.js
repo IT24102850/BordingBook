@@ -64,6 +64,21 @@ const roommateProfileSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  boardingScenario: {
+    type: String,
+    enum: ['join-existing', 'new-place', 'none'],
+    default: 'none',
+  },
+  taggedRoomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room',
+    default: null,
+  },
+  taggedRoomVacancy: {
+    type: Number,
+    default: null,
+    min: 0,
+  },
   lookingFor: {
     type: String,
     default: 'Shared Room',

@@ -8,15 +8,26 @@ const { connectDatabase } = require('./config/database');
 const { setupChatSocket } = require('./socket/chatSocket');
 
 let server;
+let keepAliveInterval; // ✅ track it so we can clear on shutdown
 
 async function startServer() {
   try {
     await connectDatabase();
     console.log('✓ Database connected successfully');
 
+    // ====================== KEEP ATLAS ALIVE ======================
+    // Pings Atlas every 5 min so M0 free tier never goes cold
+    keepAliveInterval = setInterval(async () => {
+      try {
+        await mongoose.connection.db.admin().ping();
+        console.log('✓ Atlas keep-alive ping sent');
+      } catch (err) {
+        console.warn('⚠️ Keep-alive ping failed:', err.message);
+      }
+    }, 5 * 60 * 1000); // every 5 minutes
+
     // ====================== ROUTE MOUNTING ======================
 
-    // Admin Routes (Correct filename)
     try {
       const adminRoutes = require('./routes/adminRoutes');
       app.use('/api/admin', adminRoutes);
@@ -25,7 +36,6 @@ async function startServer() {
       console.error('✗ Failed to load adminRoutes:', err.message);
     }
 
-    // Other routes
     try {
       const authRoutes = require('./routes/authRoutes');
       app.use('/api/auth', authRoutes);
@@ -58,7 +68,6 @@ async function startServer() {
       console.warn('⚠️ Chat routes not loaded');
     }
 
-    // Notification routes
     try {
       const notificationRoutes = require('./routes/notificationRoutes');
       app.use('/api/notifications', notificationRoutes);
@@ -72,7 +81,8 @@ async function startServer() {
       res.json({
         success: true,
         message: 'Server is running',
-        environment: env.nodeEnv || 'production'
+        environment: env.nodeEnv || 'production',
+        dbStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' // ✅ useful to see db status
       });
     });
 
@@ -102,6 +112,7 @@ async function startServer() {
       console.log(`✓ Server running on port ${env.port}`);
       console.log(`✓ Environment: ${env.nodeEnv}`);
       console.log(`✓ Health check: /api/health`);
+      console.log(`✓ Atlas keep-alive: every 5 minutes`);
     });
 
   } catch (error) {
@@ -113,6 +124,7 @@ async function startServer() {
 // Graceful shutdown
 function shutdown(signal) {
   console.log(`${signal} received. Shutting down...`);
+  clearInterval(keepAliveInterval); // ✅ stop ping on shutdown
   if (server) {
     server.close(async () => {
       await mongoose.connection.close(false);

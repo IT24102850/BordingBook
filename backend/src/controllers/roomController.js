@@ -122,27 +122,7 @@ exports.getAllRooms = async (req, res) => {
       filter.rating = { $gte: parseFloat(minRating) };
     }
 
-    // Vacancy filter using aggregation if needed
-    let pipeline = [
-      {
-        $addFields: {
-          vacancy: { $subtract: ['$totalSpots', '$occupancy'] },
-        },
-      },
-    ];
-
-    if (minVacancy) {
-      pipeline.push({
-        $match: {
-          ...filter,
-          vacancy: { $gte: parseInt(minVacancy) },
-        },
-      });
-    } else {
-      pipeline.push({ $match: filter });
-    }
-
-    // Sort pipeline
+    // Sort selection
     let sortStage = { createdAt: -1 };
     if (sort === 'price') {
       sortStage = { price: 1 };
@@ -152,16 +132,6 @@ exports.getAllRooms = async (req, res) => {
       sortStage = { rating: -1 };
     } else if (sort === 'distance') {
       sortStage = { distKm: 1 };
-    }
-
-    pipeline.push({ $sort: sortStage });
-
-    // Execute aggregation
-    let rooms = await Room.aggregate(pipeline);
-
-    // Fallback if no rooms found
-    if (!Array.isArray(rooms) || rooms.length === 0) {
-      rooms = getFallbackRooms();
     }
 
     if (location) {
@@ -178,23 +148,34 @@ exports.getAllRooms = async (req, res) => {
     }
 
     if (minVacancy) {
-      // Using aggregation for vacancy filter
+      // Only use aggregation when vacancy math is requested.
       const roomsWithVacancy = await Room.aggregate([
+        { $match: filter },
         {
           $addFields: {
             vacancy: { $subtract: ['$totalSpots', '$occupancy'] },
           },
         },
+        { $match: { vacancy: { $gte: parseInt(minVacancy) } } },
         {
-          $match: {
-            ...filter,
-            vacancy: { $gte: parseInt(minVacancy) },
+          $project: {
+            name: 1,
+            location: 1,
+            price: 1,
+            totalSpots: 1,
+            occupancy: 1,
+            facilities: 1,
+            roomType: 1,
+            genderPreference: 1,
+            availableFrom: 1,
+            deposit: 1,
+            description: 1,
+            createdAt: 1,
           },
         },
-        {
-          $sort: sort === 'price' ? { price: 1 } : { createdAt: -1 },
-        },
-      ]);
+        { $sort: sortStage },
+        { $limit: 200 },
+      ]).option({ maxTimeMS: 6000 });
 
       return res.status(200).json({
         success: true,
@@ -202,6 +183,13 @@ exports.getAllRooms = async (req, res) => {
         data: roomsWithVacancy,
       });
     }
+
+    const rooms = await Room.find(filter)
+      .select('name location price totalSpots occupancy facilities roomType genderPreference availableFrom deposit description createdAt')
+      .sort(sortStage)
+      .limit(200)
+      .lean()
+      .maxTimeMS(6000);
 
     res.status(200).json({
       success: true,

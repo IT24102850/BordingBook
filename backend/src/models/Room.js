@@ -157,6 +157,10 @@ roomSchema.index({ campus: 1 });
 roomSchema.index({ rating: -1 });
 roomSchema.index({ price: 1 });
 
+// Additional indexes for performance
+roomSchema.index({ ownerId: 1, isActive: 1 });
+roomSchema.index({ status: 1 });
+
 // Virtual for vacancy
 roomSchema.virtual('vacancy').get(function () {
   return this.totalSpots - this.occupancy;
