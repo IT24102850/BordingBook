@@ -59,7 +59,7 @@ function MapViewPlaceholder() {
 }
 
 // Roommate Finder Placeholder Component
-const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings: Listing[]; currentUserId: string; onToast: (msg: string) => void }> = ({ roommateData, dbListings, currentUserId, onToast }) => {
+const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings: Listing[]; currentUserId: string; isRoommatesLoading: boolean; onToast: (msg: string) => void }> = ({ roommateData, dbListings, currentUserId, isRoommatesLoading, onToast }) => {
   const navigate = useNavigate();
   const [selectedRoommate, setSelectedRoommate] = useState<Roommate | null>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -319,14 +319,44 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
         if (cancelled) return;
 
         if (activeSection === 'inbox') {
+          const cachedInboxRaw = localStorage.getItem('bb_inbox_cache');
+          if (cachedInboxRaw && !cancelled) {
+            try {
+              const cachedInbox = JSON.parse(cachedInboxRaw);
+              if (Array.isArray(cachedInbox) && cachedInbox.length > 0) {
+                setInboxItems(cachedInbox);
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
           const inbox = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/inbox`, 12000);
-          if (!cancelled) setInboxItems(inbox);
+          if (!cancelled) {
+            setInboxItems(inbox);
+            localStorage.setItem('bb_inbox_cache', JSON.stringify(inbox));
+          }
         } else if (activeSection === 'sent') {
           const sent = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
           if (!cancelled) setSentItems(sent);
         } else if (activeSection === 'groups') {
-          const groups = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/groups`, 15000);
-          if (!cancelled) setGroupItems(groups);
+          const cachedGroupsRaw = localStorage.getItem('bb_groups_cache');
+          if (cachedGroupsRaw && !cancelled) {
+            try {
+              const cachedGroups = JSON.parse(cachedGroupsRaw);
+              if (Array.isArray(cachedGroups) && cachedGroups.length > 0) {
+                setGroupItems(cachedGroups);
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
+          const groups = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/groups`, 12000);
+          if (!cancelled) {
+            setGroupItems(groups);
+            localStorage.setItem('bb_groups_cache', JSON.stringify(groups));
+          }
         }
       } catch {
         if (!cancelled) {
@@ -415,6 +445,8 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     setInboxItems(inbox);
     setSentItems(sent);
     setGroupItems(groups);
+    localStorage.setItem('bb_inbox_cache', JSON.stringify(inbox));
+    localStorage.setItem('bb_groups_cache', JSON.stringify(groups));
   };
 
   const handleRequestDecision = async (requestId: string, decision: 'accept' | 'reject') => {
@@ -459,6 +491,25 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     } catch {
       onToast('Network error while responding to group invite');
     }
+  };
+
+  const handleStartGroupChat = async (group: any) => {
+    const groupId = String(group?._id || group?.id || '');
+    if (!groupId) {
+      onToast('Invalid group');
+      return;
+    }
+
+    const acceptedCount = Array.isArray(group?.members)
+      ? group.members.filter((member: any) => member?.status === 'accepted').length
+      : 0;
+
+    if (acceptedCount < 2) {
+      onToast('Group chat requires at least 2 accepted members');
+      return;
+    }
+
+    navigate('/chat', { state: { groupId } });
   };
 
   const toggleGroupMember = (memberId: string) => {
@@ -547,6 +598,16 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   );
 
   const renderBrowseTab = () => {
+    if (isRoommatesLoading && !roommateData.length) {
+      return (
+        <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
+          <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Loading Students</h3>
+          <p className="text-gray-400 text-sm">Finding available roommates near SLIIT...</p>
+        </div>
+      );
+    }
+
     if (!roommateData.length) {
       return (
         <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
@@ -836,6 +897,16 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
       {groupItems.length ? groupItems.map((group: any) => (
         <div key={group._id || group.id} className="bg-white/5 rounded-xl border border-white/10 p-4">
+          {(() => {
+            const members = Array.isArray(group?.members) ? group.members : [];
+            const acceptedCount = members.filter((member: any) => member?.status === 'accepted').length;
+            const isCurrentUserAccepted = members.some((member: any) => {
+              const memberId = String(member?.userId?._id || member?.userId || '');
+              return member?.status === 'accepted' && memberId === String(currentUserId);
+            });
+
+            return (
+              <>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-white text-sm font-semibold">{group.name || 'Booking Group'}</p>
@@ -859,6 +930,23 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
               ))}
             </div>
           ) : null}
+
+          {isCurrentUserAccepted ? (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-gray-300">
+                Accepted members: <span className="text-cyan-200 font-semibold">{acceptedCount}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => handleStartGroupChat(group)}
+                disabled={acceptedCount < 2}
+                className="px-3 py-1.5 rounded text-[11px] font-semibold bg-cyan-500/20 border border-cyan-400/30 text-cyan-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Start Group Chat
+              </button>
+            </div>
+          ) : null}
+
           {Array.isArray(group.members) && group.members.some((member: any) => {
             const memberId = String(member?.userId?._id || member?.userId || '');
             return member?.status === 'pending' && memberId === String(currentUserId);
@@ -892,6 +980,9 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
                 ))}
             </div>
           ) : null}
+                      </>
+                    );
+                  })()}
         </div>
       )) : <p className="text-sm text-gray-400">No groups found.</p>}
     </div>
@@ -2026,6 +2117,7 @@ function SearchPage() {
   const [dbListings, setDbListings] = useState<Listing[]>([]);
   const [dbRoommates, setDbRoommates] = useState<Roommate[]>([]);
   const [isListingsLoading, setIsListingsLoading] = useState<boolean>(true);
+  const [isRoommatesLoading, setIsRoommatesLoading] = useState<boolean>(true);
   const [isListingsTimedOut, setIsListingsTimedOut] = useState<boolean>(false);
   const [listingsError, setListingsError] = useState<string>('');
   const [listingsLoadKey, setListingsLoadKey] = useState(0);
@@ -2496,6 +2588,9 @@ function SearchPage() {
             });
           }
 
+          // Start loading roommates
+          if (!isCancelled) setIsRoommatesLoading(true);
+
           // Instant fallback: show last successful roommate list while fresh data loads.
           const cachedRoommatesRaw = localStorage.getItem('bb_roommates_cache');
           if (cachedRoommatesRaw && !isCancelled) {
@@ -2503,6 +2598,8 @@ function SearchPage() {
               const cachedRoommates = JSON.parse(cachedRoommatesRaw);
               if (Array.isArray(cachedRoommates) && cachedRoommates.length > 0) {
                 setDbRoommates(cachedRoommates);
+                // Cache available, so loading is not needed anymore
+                if (!isCancelled) setIsRoommatesLoading(false);
               }
             } catch {
               // Ignore invalid cache payloads.
@@ -2511,7 +2608,7 @@ function SearchPage() {
 
           const roommateResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/browse`, {
             headers: { Authorization: `Bearer ${token}` },
-          }, 12000);
+          }, 50000);
 
           if (!isCancelled && roommateResult.ok) {
             const roommateData = Array.isArray(roommateResult.json?.data)
@@ -2540,6 +2637,10 @@ function SearchPage() {
 
             setDbRoommates(mappedRoommates);
             localStorage.setItem('bb_roommates_cache', JSON.stringify(mappedRoommates));
+            if (!isCancelled) setIsRoommatesLoading(false);
+          } else if (!isCancelled) {
+            // Fetch failed or timed out, stop loading indicator
+            setIsRoommatesLoading(false);
           }
         }
       } catch {
@@ -3489,6 +3590,7 @@ function SearchPage() {
             roommateData={effectiveRoommates}
             dbListings={dbListings}
             currentUserId={currentUserId}
+            isRoommatesLoading={isRoommatesLoading}
             onToast={(msg) => {
               setToastMessage(msg);
               setShowToast(true);

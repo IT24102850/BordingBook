@@ -88,8 +88,6 @@ exports.getInboxRequests = async (req, res) => {
   try {
     const recipientId = req.user.userId;
     const { status } = req.query;
-    const cacheKey = status ? `inbox:${recipientId}:status:${status}` : `inbox:${recipientId}`;
-
     const filter = { recipientId };
     if (status) {
       filter.status = status;
@@ -99,14 +97,46 @@ exports.getInboxRequests = async (req, res) => {
       .select('senderId recipientId message status createdAt respondedAt')
       .sort({ createdAt: -1 })
       .limit(100)
-      .populate({ path: 'senderId', select: 'fullName name email profilePicture' })
       .lean()
-      .maxTimeMS(12000);
+      .maxTimeMS(8000);
+
+    const senderIds = Array.from(
+      new Set(
+        requests
+          .map((item) => String(item?.senderId || ''))
+          .filter(Boolean)
+      )
+    );
+
+    const senders = senderIds.length
+      ? await User.find({ _id: { $in: senderIds } })
+          .select('fullName name email profilePicture')
+          .lean()
+          .maxTimeMS(8000)
+      : [];
+
+    const senderMap = new Map(senders.map((user) => [String(user._id), user]));
+    const data = requests.map((item) => {
+      const senderId = String(item?.senderId || '');
+      const sender = senderMap.get(senderId);
+      return {
+        ...item,
+        senderId: sender
+          ? {
+              _id: sender._id,
+              fullName: sender.fullName || sender.name || '',
+              name: sender.name || sender.fullName || '',
+              email: sender.email || '',
+              profilePicture: sender.profilePicture || '',
+            }
+          : item.senderId,
+      };
+    });
 
     res.status(200).json({
       success: true,
-      count: requests.length,
-      data: requests,
+      count: data.length,
+      data,
     });
   } catch (error) {
     res.status(500).json({
@@ -126,8 +156,6 @@ exports.getSentRequests = async (req, res) => {
   try {
     const senderId = req.user.userId;
     const { status } = req.query;
-    const cacheKey = status ? `sent:${senderId}:status:${status}` : `sent:${senderId}`;
-
     const filter = { senderId };
     if (status) {
       filter.status = status;
@@ -137,14 +165,46 @@ exports.getSentRequests = async (req, res) => {
       .select('senderId recipientId message status createdAt respondedAt')
       .sort({ createdAt: -1 })
       .limit(100)
-      .populate({ path: 'recipientId', select: 'fullName name email profilePicture' })
       .lean()
-      .maxTimeMS(12000);
+      .maxTimeMS(8000);
+
+    const recipientIds = Array.from(
+      new Set(
+        requests
+          .map((item) => String(item?.recipientId || ''))
+          .filter(Boolean)
+      )
+    );
+
+    const recipients = recipientIds.length
+      ? await User.find({ _id: { $in: recipientIds } })
+          .select('fullName name email profilePicture')
+          .lean()
+          .maxTimeMS(8000)
+      : [];
+
+    const recipientMap = new Map(recipients.map((user) => [String(user._id), user]));
+    const data = requests.map((item) => {
+      const recipientId = String(item?.recipientId || '');
+      const recipient = recipientMap.get(recipientId);
+      return {
+        ...item,
+        recipientId: recipient
+          ? {
+              _id: recipient._id,
+              fullName: recipient.fullName || recipient.name || '',
+              name: recipient.name || recipient.fullName || '',
+              email: recipient.email || '',
+              profilePicture: recipient.profilePicture || '',
+            }
+          : item.recipientId,
+      };
+    });
 
     res.status(200).json({
       success: true,
-      count: requests.length,
-      data: requests,
+      count: data.length,
+      data,
     });
   } catch (error) {
     res.status(500).json({

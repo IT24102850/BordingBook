@@ -249,6 +249,7 @@ export default function Chat() {
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const lastRecipientBootstrapRef = useRef('');
+  const lastGroupBootstrapRef = useRef('');
   const selectedConversationIdRef = useRef('');
   const activeCallRef = useRef<ActiveCall | null>(null);
 
@@ -550,10 +551,53 @@ export default function Chat() {
   }, [token, currentUser, fetchConversations]);
 
   // Open chat from route state (when coming from search page)
-  const ensureDirectConversationFromRouteState = useCallback(async () => {
+  const ensureConversationFromRouteState = useCallback(async () => {
     if (!token || !currentUser) return;
 
     const state = (location.state || {}) as any;
+    const conversationId = normalizeId(
+      state?.conversationId ||
+      new URLSearchParams(location.search).get('conversationId')
+    );
+
+    if (conversationId) {
+      setSelectedConversationId(conversationId);
+      selectedConversationIdRef.current = conversationId;
+      await fetchConversations(conversationId);
+      setSidebarTab('chats');
+      navigate(location.pathname, { replace: true, state: {} });
+      return;
+    }
+
+    const groupId = normalizeId(
+      state?.groupId ||
+      new URLSearchParams(location.search).get('groupId')
+    );
+
+    if (groupId) {
+      if (lastGroupBootstrapRef.current === groupId) return;
+      setInitializingChat(true);
+      lastGroupBootstrapRef.current = groupId;
+      try {
+        const data = await apiFetch<ChatConversation>('/conversations/group', token, {
+          method: 'POST',
+          body: JSON.stringify({ groupId }),
+        });
+
+        setSelectedConversationId(data.id);
+        selectedConversationIdRef.current = data.id;
+        await fetchConversations(data.id);
+        setSidebarTab('chats');
+        navigate(location.pathname, { replace: true, state: {} });
+      } catch (createError) {
+        console.error('[Chat] Error opening group conversation:', createError);
+        setError((createError as Error).message || 'Unable to open group conversation.');
+      } finally {
+        setInitializingChat(false);
+      }
+      return;
+    }
+
     let recipientId = normalizeId(
       state?.recipientId ||
       state?.selectedRoommate?.userId ||
@@ -897,11 +941,11 @@ export default function Chat() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!initializingChat) {
-        ensureDirectConversationFromRouteState();
+        ensureConversationFromRouteState();
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [ensureDirectConversationFromRouteState, initializingChat]);
+  }, [ensureConversationFromRouteState, initializingChat]);
 
   useEffect(() => {
     if (!showNewChatModal) return;
