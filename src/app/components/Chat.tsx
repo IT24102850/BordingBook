@@ -934,8 +934,12 @@ export default function Chat() {
   // Initial data loading
   useEffect(() => {
     fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (sidebarTab !== 'roommates') return;
     fetchAcceptedRoommates();
-  }, [fetchConversations, fetchAcceptedRoommates]);
+  }, [fetchAcceptedRoommates, sidebarTab]);
 
   // Handle route state for opening chat from roommate
   useEffect(() => {
@@ -1178,10 +1182,10 @@ export default function Chat() {
         <div className="text-center">
           <p className="text-gray-200 mb-3">Sign in is required to use chat.</p>
           <button
-            onClick={() => navigate('/signin')}
+            onClick={() => navigate('/find')}
             className="px-4 py-2 rounded-lg bg-cyan-500 text-black font-semibold"
           >
-            Go to Sign In
+            Go to Search
           </button>
         </div>
       </div>
@@ -1196,7 +1200,7 @@ export default function Chat() {
         <div className="p-4 border-b border-white/10 flex-shrink-0">
           <div className="mb-3 flex items-center justify-between">
             <button
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/find')}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors text-xs font-semibold"
             >
               <ArrowLeft size={14} />
@@ -1318,7 +1322,7 @@ export default function Chat() {
                   <p>No accepted roommates yet.</p>
                   <p className="text-xs mt-1">When you accept a roommate request, they'll appear here.</p>
                   <button
-                    onClick={() => navigate('/search')}
+                    onClick={() => navigate('/find')}
                     className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
                   >
                     Find Roommates
@@ -1405,7 +1409,7 @@ export default function Chat() {
                       ? 'Online' 
                       : targetParticipant?.lastSeen 
                         ? `Last seen ${formatTime(targetParticipant.lastSeen)}`
-                        : 'Offline'}
+                        : 'Online'}
                 </p>
               </div>
             </div>

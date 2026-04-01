@@ -753,6 +753,7 @@ function ProfileSetup() {
   const [distance, setDistance] = useState(3);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [gender, setGender] = useState('');
+  const [age, setAge] = useState('');
   const [year, setYear] = useState('');
   const [roommate, setRoommate] = useState('');
   const [roomType, setRoomType] = useState<string>('');
@@ -773,6 +774,7 @@ function ProfileSetup() {
     maxBudget && 
     distance && 
     gender && 
+    Number(age) > 0 &&
     year && 
     roommate
   );
@@ -788,6 +790,12 @@ function ProfileSetup() {
       const currentUser = JSON.parse(currentRaw);
       if (typeof currentUser?.fullName === 'string') {
         setFullName(currentUser.fullName);
+      }
+      if (currentUser?.age !== undefined && currentUser?.age !== null) {
+        const parsedAge = Number(currentUser.age);
+        if (Number.isFinite(parsedAge) && parsedAge > 0) {
+          setAge(String(parsedAge));
+        }
       }
     } catch {
       // Ignore parse errors for local cache
@@ -870,7 +878,7 @@ function ProfileSetup() {
       case 3:
         return Boolean(minBudget && maxBudget && distance);
       case 4:
-        return Boolean(gender && year);
+        return Boolean(gender && year && Number(age) >= 16 && Number(age) <= 60);
       case 5:
         return Boolean(roommate);
       default:
@@ -910,6 +918,7 @@ function ProfileSetup() {
           distance,
           selectedLocation: selectedLocation || '',
           gender,
+          age: Number(age) || 0,
           academicYear: year,
           roommatePreference: roommate,
           roomType,
@@ -1302,6 +1311,22 @@ function ProfileSetup() {
                             <option key={g} value={g}>{g}</option>
                           ))}
                         </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-cyan-200 mb-1">
+                          <FaUser className="inline mr-1 text-orange-400 text-sm" />
+                          Age
+                        </label>
+                        <input
+                          type="number"
+                          min={16}
+                          max={60}
+                          className="w-full rounded-lg border border-cyan-500/30 bg-[#0a1124] text-cyan-100 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                          value={age}
+                          onChange={e => setAge(e.target.value)}
+                          placeholder="Enter your age"
+                          required
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-cyan-200 mb-1">

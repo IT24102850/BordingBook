@@ -88,6 +88,13 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
   const getAuthToken = () => localStorage.getItem('bb_access_token') || '';
 
+  const DEFAULT_PROFILE_IMAGE = 'https://randomuser.me/api/portraits/lego/1.jpg';
+
+  const resolveProfileImage = (profile: any) => {
+    const raw = profile?.image || profile?.profilePicture || (Array.isArray(profile?.profilePictures) ? profile.profilePictures[0] : '');
+    return typeof raw === 'string' && raw.trim().length > 0 ? raw : DEFAULT_PROFILE_IMAGE;
+  };
+
   const mapProfile = (profile: any): Roommate => ({
     id: normalizeIdValue(profile._id || profile.id),
     userId: normalizeIdValue(profile.userId || profile._id || profile.id),
@@ -97,7 +104,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     gender: profile.gender || 'Any',
     university: profile.university || profile.boardingHouse || profile.academicYear || 'SLIIT',
     bio: profile.bio || profile.description || profile.about || profile.profileBio || 'No bio provided yet.',
-    image: profile.image || profile.profilePicture || (Array.isArray(profile.profilePictures) ? profile.profilePictures[0] : '') || 'https://randomuser.me/api/portraits/lego/1.jpg',
+    image: resolveProfileImage(profile),
     interests: Array.isArray(profile.interests) ? profile.interests : Array.isArray(profile.tags) ? profile.tags : [],
     mutualCount: Number(profile.mutualCount) || 0,
     role: profile.role || 'student',
@@ -588,7 +595,15 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
   const MiniProfileCard: React.FC<{ item: Roommate; type: 'passed' | 'liked' }> = ({ item, type }) => (
     <div className="bg-[#111b38] rounded-lg border border-white/10 p-2 flex items-center gap-2">
-      <img src={item.image} alt={item.name} className="w-10 h-10 rounded-full object-cover" />
+      <img
+        src={resolveProfileImage(item)}
+        alt={item.name}
+        className="w-10 h-10 rounded-full object-cover"
+        onError={(event) => {
+          const target = event.currentTarget;
+          if (target.src !== DEFAULT_PROFILE_IMAGE) target.src = DEFAULT_PROFILE_IMAGE;
+        }}
+      />
       <div className="min-w-0 flex-1">
         <p className="text-xs text-white font-semibold truncate">{item.name}</p>
         <p className="text-[10px] text-gray-400 truncate">{item.university}</p>
@@ -1230,8 +1245,26 @@ function normalizeIdValue(value: any): string {
 }
 
 function deriveProfileAge(profile: any): number {
-  // TODO: Implement age calculation if needed
-  return 0;
+  if (!profile) return 0;
+
+  const directAge = Number(profile.age);
+  if (Number.isFinite(directAge) && directAge > 0) {
+    return Math.floor(directAge);
+  }
+
+  const dobRaw = profile.dateOfBirth || profile.dob || profile.birthDate;
+  if (!dobRaw) return 0;
+
+  const dob = new Date(dobRaw);
+  if (Number.isNaN(dob.getTime())) return 0;
+
+  const today = new Date();
+  let years = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  const beforeBirthday = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate());
+  if (beforeBirthday) years -= 1;
+
+  return years > 0 ? years : 0;
 }
 
 const roomImages = [
