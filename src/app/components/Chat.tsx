@@ -1210,7 +1210,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden pt-[env(safe-area-inset-top)]">
       {/* Sidebar */}
       <div className={`w-full lg:w-96 border-r border-white/10 h-full overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'} flex-col`}>
         {/* Sidebar Header with Tabs */}
@@ -1399,7 +1399,7 @@ export default function Chat() {
       {selectedConversation && (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Chat Header */}
-          <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5 sticky top-0 z-10">
+          <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5 sticky top-[env(safe-area-inset-top)] z-10">
             <div className="flex items-center gap-3 min-w-0">
               <button 
                 onClick={() => setSelectedConversationId('')} 
