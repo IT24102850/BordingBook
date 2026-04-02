@@ -314,7 +314,10 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
           cache: 'no-store',
         });
         const json = await response.json().catch(() => ({}));
-        return response.ok ? extractResponseArray(json) : [];
+        return {
+          ok: response.ok,
+          data: response.ok ? extractResponseArray(json) : [],
+        };
       } finally {
         window.clearTimeout(timeoutId);
       }
@@ -338,14 +341,14 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
             }
           }
 
-          const inbox = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/inbox`, 12000);
-          if (!cancelled) {
-            setInboxItems(inbox);
-            localStorage.setItem('bb_inbox_cache', JSON.stringify(inbox));
+          const inboxResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/inbox`, 12000);
+          if (!cancelled && inboxResult.ok) {
+            setInboxItems(inboxResult.data);
+            localStorage.setItem('bb_inbox_cache', JSON.stringify(inboxResult.data));
           }
         } else if (activeSection === 'sent') {
-          const sent = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
-          if (!cancelled) setSentItems(sent);
+          const sentResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
+          if (!cancelled && sentResult.ok) setSentItems(sentResult.data);
         } else if (activeSection === 'groups') {
           const cachedGroupsRaw = localStorage.getItem('bb_groups_cache');
           if (cachedGroupsRaw && !cancelled) {
@@ -359,15 +362,14 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
             }
           }
 
-          const groups = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/groups`, 12000);
-          if (!cancelled) {
-            setGroupItems(groups);
-            localStorage.setItem('bb_groups_cache', JSON.stringify(groups));
+          const groupsResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/groups`, 12000);
+          if (!cancelled && groupsResult.ok) {
+            setGroupItems(groupsResult.data);
+            localStorage.setItem('bb_groups_cache', JSON.stringify(groupsResult.data));
           }
         }
       } catch {
         if (!cancelled) {
-          if (activeSection === 'inbox') setInboxItems([]);
           if (activeSection === 'sent') setSentItems([]);
           if (activeSection === 'groups') setGroupItems([]);
         }
