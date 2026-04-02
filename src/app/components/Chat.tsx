@@ -116,7 +116,7 @@ function getCurrentUser(): ChatUser | null {
 }
 
 async function apiFetch<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}/api/chat${path}`, {
+  const response = await fetch(`${API_BASE_URL}/api/chats${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -434,7 +434,7 @@ export default function Chat() {
         setMessages(dedupeMessages(data || []));
         
         // Mark messages as read
-        await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/read`, {
+        await fetch(`${API_BASE_URL}/api/chats/conversations/${conversationId}/read`, {
           method: 'PATCH',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -468,7 +468,7 @@ export default function Chat() {
     formData.append('type', type);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/upload`, {
+      const response = await fetch(`${API_BASE_URL}/api/chats/upload`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

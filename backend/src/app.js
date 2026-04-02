@@ -63,7 +63,7 @@ const paymentRoutes = require('./payment/routes/paymentRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api/roommates', roommateRoutes);
 app.use('/api/owner', ownerRoutes);
-app.use('/api/chat', chatRoutes);
+app.use('/api/chats', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payment', paymentRoutes);
 

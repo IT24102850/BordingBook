@@ -62,7 +62,7 @@ async function startServer() {
 
     try {
       const chatRoutes = require('./routes/chatRoutes');
-      app.use('/api/chat', chatRoutes);
+      app.use('/api/chats', chatRoutes);
       console.log('✓ Chat routes mounted');
     } catch (e) {
       console.warn('⚠️ Chat routes not loaded');
