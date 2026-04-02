@@ -87,6 +87,16 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   const currentProfile = roommateData[browseIndex];
 
   const getAuthToken = () => localStorage.getItem('bb_access_token') || '';
+  const inboxCacheKey = currentUserId ? `bb_inbox_cache_${currentUserId}` : 'bb_inbox_cache';
+
+  const sortRequestsNewestFirst = (items: any[]) => {
+    if (!Array.isArray(items)) return [];
+    return [...items].sort((a, b) => {
+      const aTime = new Date(a?.createdAt || 0).getTime();
+      const bTime = new Date(b?.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+  };
 
   const DEFAULT_PROFILE_IMAGE = 'https://randomuser.me/api/portraits/lego/1.jpg';
 
@@ -329,12 +339,12 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
         if (cancelled) return;
 
         if (activeSection === 'inbox') {
-          const cachedInboxRaw = localStorage.getItem('bb_inbox_cache');
+          const cachedInboxRaw = localStorage.getItem(inboxCacheKey);
           if (cachedInboxRaw && !cancelled) {
             try {
               const cachedInbox = JSON.parse(cachedInboxRaw);
               if (Array.isArray(cachedInbox) && cachedInbox.length > 0) {
-                setInboxItems(cachedInbox);
+                setInboxItems(sortRequestsNewestFirst(cachedInbox));
               }
             } catch {
               // Ignore invalid cache payloads.
@@ -343,8 +353,9 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
           const inboxResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/inbox`, 12000);
           if (!cancelled && inboxResult.ok) {
-            setInboxItems(inboxResult.data);
-            localStorage.setItem('bb_inbox_cache', JSON.stringify(inboxResult.data));
+            const freshInbox = sortRequestsNewestFirst(inboxResult.data);
+            setInboxItems(freshInbox);
+            localStorage.setItem(inboxCacheKey, JSON.stringify(freshInbox));
           }
         } else if (activeSection === 'sent') {
           const sentResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
@@ -383,6 +394,55 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
       cancelled = true;
     };
   }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== 'inbox') return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    let cancelled = false;
+
+    const refreshInboxFromDatabase = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/roommates/request/inbox`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled) return;
+
+        const latestInbox = sortRequestsNewestFirst(extractResponseArray(json));
+        setInboxItems(latestInbox);
+        localStorage.setItem(inboxCacheKey, JSON.stringify(latestInbox));
+      } catch {
+        // Keep current inbox UI state when background refresh fails.
+      }
+    };
+
+    const onWindowFocus = () => {
+      void refreshInboxFromDatabase();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshInboxFromDatabase();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void refreshInboxFromDatabase();
+    }, 15000);
+
+    window.addEventListener('focus', onWindowFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onWindowFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [activeSection, inboxCacheKey]);
 
   useEffect(() => {
     if (activeSection !== 'browse') return;
@@ -461,10 +521,11 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
       load(`${API_BASE_URL}/api/roommates/request/sent`),
       load(`${API_BASE_URL}/api/roommates/groups`),
     ]);
-    setInboxItems(inbox);
+    const sortedInbox = sortRequestsNewestFirst(inbox);
+    setInboxItems(sortedInbox);
     setSentItems(sent);
     setGroupItems(groups);
-    localStorage.setItem('bb_inbox_cache', JSON.stringify(inbox));
+    localStorage.setItem(inboxCacheKey, JSON.stringify(sortedInbox));
     localStorage.setItem('bb_groups_cache', JSON.stringify(groups));
   };
 
