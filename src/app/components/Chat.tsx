@@ -1210,7 +1210,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden">
       {/* Sidebar */}
       <div className={`w-full lg:w-96 border-r border-white/10 h-full overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'} flex-col`}>
         {/* Sidebar Header with Tabs */}
@@ -1505,7 +1505,7 @@ export default function Chat() {
           )}
 
           {/* Messages Area */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-28 sm:pb-4 space-y-4">
             {loadingMessages && (
               <div className="text-xs text-gray-400 flex items-center gap-2 justify-center py-8">
                 <Loader2 size={14} className="animate-spin" /> Loading messages...
@@ -1609,7 +1609,7 @@ export default function Chat() {
           </div>
 
           {/* Message Input Area */}
-          <div className="border-t border-white/10 p-4 bg-white/5">
+          <div className="border-t border-white/10 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/5 sticky bottom-0 z-20">
             {replyToMessage && (
               <div className="mb-2 p-2 bg-cyan-500/10 rounded-lg flex items-center justify-between">
                 <div className="flex-1">
