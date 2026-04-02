@@ -11,7 +11,7 @@ import {
 } from 'react-icons/fa';
 import { BiCurrentLocation } from 'react-icons/bi';
 import { RiUserSharedLine } from 'react-icons/ri';
-import { createStudentBookingRequest } from '../api/bookingAgreementApi';
+import { createStudentBookingRequest, signAgreement } from '../api/bookingAgreementApi';
 // Mini Card for side panels
 const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
   const formatPrice = (price: number): string => {
@@ -68,6 +68,115 @@ function RoommateFinderPlaceholder(props: any) {
     </div>
   );
 }
+
+interface AgreementSigningModalProps {
+  agreementId: string;
+  onClose: () => void;
+  onSign: (action: 'sign' | 'reject') => Promise<void>;
+  isSigning: boolean;
+}
+
+function AgreementSigningModal({ agreementId, onClose, onSign, isSigning }: AgreementSigningModalProps) {
+  const [agreed, setAgreed] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSign = async () => {
+    if (!agreed) {
+      setError('Please tick the box to confirm you agree to the terms');
+      return;
+    }
+    await onSign('sign');
+  };
+
+  const handleReject = async () => {
+    await onSign('reject');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[10000]">
+      <div className="bg-gradient-to-br from-[#0f172e] to-[#1a1f3a] rounded-lg border border-white/20 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 flex items-center justify-between p-6 border-b border-white/10 bg-gradient-to-r from-[#0f172e] to-[#1a1f3a]">
+          <h2 className="text-2xl font-bold text-white">Agreement To Sign</h2>
+          <button onClick={onClose} disabled={isSigning} className="text-gray-400 hover:text-white disabled:opacity-50">
+            ✕
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="mb-6 pb-6 border-b border-white/10">
+            <h3 className="text-xl font-semibold text-cyan-300 mb-4">BOARDING HOUSE RENTAL AGREEMENT</h3>
+            <div className="space-y-3 text-sm text-gray-300">
+              <p>
+                <span className="text-gray-400">Agreement ID:</span>{' '}
+                <span className="font-mono text-cyan-300">AGR-{agreementId.slice(-8).toUpperCase()}</span>
+              </p>
+              <p>
+                <span className="text-gray-400">Move-in Date:</span> {new Date().toLocaleDateString()}
+              </p>
+              <p>
+                <span className="text-gray-400">Duration:</span> 6 months
+              </p>
+              <p>
+                <span className="text-gray-400">Monthly Rent:</span> <span className="font-semibold">Rs. 18,000</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h4 className="font-semibold text-white mb-3">TERMS AND CONDITIONS</h4>
+            <div className="bg-white/5 rounded p-4 text-sm text-gray-300 space-y-2 max-h-64 overflow-y-auto">
+              <p>1. Monthly rent must be paid on or before the 5th of each month.</p>
+              <p>2. Deposit will be refunded at checkout after deductions for damages.</p>
+              <p>3. Quiet hours are from 10:00 PM to 6:00 AM.</p>
+              <p>4. Property damage caused by tenant is tenant's responsibility.</p>
+              <p>5. 30 days written notice is required for early termination.</p>
+              <p className="text-xs text-gray-500 mt-4">Additional terms and conditions as per the rental agreement provided by the property owner.</p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="mb-6 flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded p-3">
+              <FaInfoCircle className="text-red-400" size={16} />
+              <span className="text-xs text-red-300">{error}</span>
+            </div>
+          )}
+
+          <div className="mb-6">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-1 w-4 h-4"
+              />
+              <span className="text-sm text-gray-300">
+                I agree to the{' '}
+                <a href="#" className="text-cyan-400 hover:underline">Terms and Conditions</a>
+              </span>
+            </label>
+          </div>
+
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={handleSign}
+              disabled={!agreed || isSigning}
+              className="flex-1 min-w-[150px] px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-600 to-cyan-700 text-white font-semibold hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+            >
+              {isSigning ? 'Signing...' : 'Accept Agreement'}
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={isSigning}
+              className="flex-1 min-w-[150px] px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 // ...existing code...
 
 // ---- TypeScript type/interface stubs ----
@@ -120,6 +229,7 @@ interface Notification {
   read: boolean;
   actionRequired?: boolean;
   bookingId?: string;
+  agreementId?: string;
 }
 
 interface ListingCardProps {
@@ -1130,7 +1240,9 @@ function SearchPage() {
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [showPaymentPortal, setShowPaymentPortal] = useState<boolean>(false);
   const [showCheckinForm, setShowCheckinForm] = useState<boolean>(false);
+  const [showAgreementModal, setShowAgreementModal] = useState<boolean>(false);
   const [selectedNotificationBooking, setSelectedNotificationBooking] = useState<string | null>(null);
+  const [selectedAgreementId, setSelectedAgreementId] = useState<string | null>(null);
   const [checkinDate, setCheckinDate] = useState<string>('');
   const [notificationPanelPos, setNotificationPanelPos] = useState<{ top: number; left: number }>({ top: 96, left: 16 });
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -1182,6 +1294,10 @@ function SearchPage() {
     } else if (notif.type === 'receipt_generated' || notif.type === 'payment_verified') {
       setSelectedNotificationBooking(notif.bookingId || null);
       setShowPaymentPortal(true);
+      setShowNotifications(false);
+    } else if (notif.type === 'agreement_pending' || notif.type === 'agreement_reminder') {
+      setSelectedAgreementId((notif as any).agreementId || notif.bookingId || null);
+      setShowAgreementModal(true);
       setShowNotifications(false);
     } else if (
       notif.type === 'roommate_request_received' ||
@@ -1345,6 +1461,7 @@ function SearchPage() {
           read: Boolean(item?.read),
           actionRequired: ['agreement_pending', 'agreement_reminder'].includes(String(item?.type || '')),
           bookingId: String(item?.data?.bookingRequestId || ''),
+          agreementId: String(item?.data?.agreementId || ''),
         }));
 
         const allNotifications = [...systemNotifications, ...inboxNotifications, ...sentNotifications, ...groupNotifications].sort(
@@ -2645,6 +2762,32 @@ function SearchPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Agreement Signing Modal */}
+        {showAgreementModal && selectedAgreementId && (
+          <AgreementSigningModal
+            agreementId={selectedAgreementId}
+            onClose={() => {
+              setShowAgreementModal(false);
+              setSelectedAgreementId(null);
+            }}
+            onSign={async (action) => {
+              try {
+                setIsNotificationsLoading(true);
+                await signAgreement(selectedAgreementId, action);
+                setShowAgreementModal(false);
+                setSelectedAgreementId(null);
+                const token = localStorage.getItem('bb_access_token') || '';
+                if (token && currentUserId) {
+                  await fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: true });
+                }
+              } finally {
+                setIsNotificationsLoading(false);
+              }
+            }}
+            isSigning={false}
+          />
         )}
 
         {/* Toast Notification */}
