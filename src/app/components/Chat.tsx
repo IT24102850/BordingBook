@@ -168,6 +168,23 @@ function appendMessageIfMissing(existing: ChatMessage[], incoming: ChatMessage):
   return [...existing, incoming];
 }
 
+function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
+  const seen = new Set<string>();
+  const normalized: ChatMessage[] = [];
+
+  for (const message of messages) {
+    const messageId = String(message?.id || '');
+    if (!messageId || seen.has(messageId)) {
+      continue;
+    }
+
+    seen.add(messageId);
+    normalized.push(message);
+  }
+
+  return normalized;
+}
+
 function normalizeId(input: any): string {
   if (!input) return '';
   if (typeof input === 'string') return input;
@@ -414,7 +431,7 @@ export default function Chat() {
       try {
         setLoadingMessages(true);
         const data = await apiFetch<ChatMessage[]>(`/conversations/${conversationId}/messages`, token);
-        setMessages(data || []);
+        setMessages(dedupeMessages(data || []));
         
         // Mark messages as read
         await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/read`, {
@@ -817,7 +834,7 @@ export default function Chat() {
       
       setMessages((prev) => {
         const filtered = prev.filter((m) => m.id !== tempId);
-        return [...filtered, response];
+        return dedupeMessages([...filtered, response]);
       });
       
       setConversations((prev) =>
@@ -846,7 +863,7 @@ export default function Chat() {
           if (ack?.ok && ack?.data) {
             setMessages((prev) => {
               const filtered = prev.filter((m) => m.id !== tempId);
-              return [...filtered, { ...ack.data, mine: true }];
+              return dedupeMessages([...filtered, { ...ack.data, mine: true }]);
             });
           } else {
             try {

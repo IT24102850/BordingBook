@@ -68,6 +68,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   const [inboxItems, setInboxItems] = useState<any[]>([]);
   const [sentItems, setSentItems] = useState<any[]>([]);
   const [groupItems, setGroupItems] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [isTabLoading, setIsTabLoading] = useState(false);
   const [tabErrorMessage, setTabErrorMessage] = useState('');
   const [groupScenario, setGroupScenario] = useState<'join-existing' | 'new-place'>('new-place');
@@ -369,6 +370,12 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
               setTabErrorMessage(inboxResult.message);
             }
           }
+
+          // Fetch conversations/chats
+          const conversationsResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/chats/conversations`, 12000);
+          if (!cancelled && conversationsResult.ok) {
+            setConversations(conversationsResult.data);
+          }
         } else if (activeSection === 'sent') {
           const sentResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
           if (!cancelled && sentResult.ok) setSentItems(sentResult.data);
@@ -429,6 +436,20 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
         const latestInbox = sortRequestsNewestFirst(extractResponseArray(json));
         setInboxItems(latestInbox);
         localStorage.setItem(inboxCacheKey, JSON.stringify(latestInbox));
+
+        // Also fetch conversations
+        try {
+          const convResponse = await fetch(`${API_BASE_URL}/api/chats/conversations`, {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+          });
+          const convJson = await convResponse.json().catch(() => ({}));
+          if (convResponse.ok && !cancelled) {
+            setConversations(extractResponseArray(convJson));
+          }
+        } catch {
+          // Keep current conversations on fetch failure
+        }
       } catch {
         // Keep current inbox UI state when background refresh fails.
       }
@@ -914,6 +935,50 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     );
   };
 
+  const renderConversationCard = (conversation: any) => {
+    const title = conversation?.name || 'Conversation';
+    const avatar = conversation?.avatar || '';
+    const lastMessage = conversation?.lastMessage?.text || 'No messages yet';
+    const updatedAt = conversation?.updatedAt ? new Date(conversation.updatedAt).toLocaleString() : '';
+    const unreadCount = conversation?.unreadCount || 0;
+    const conversationId = conversation?.id || conversation?._id || '';
+
+    return (
+      <div key={conversationId} className="bg-white/5 rounded-xl border border-white/10 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {avatar && (
+              <img
+                src={avatar}
+                alt={title}
+                className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-sm font-semibold truncate">{title}</p>
+              <p className="text-xs text-gray-300 truncate">{lastMessage}</p>
+            </div>
+          </div>
+          {unreadCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-pink-500/20 border border-pink-400/30 text-pink-200 flex-shrink-0">
+              {unreadCount} new
+            </span>
+          )}
+        </div>
+        {updatedAt && <p className="text-[11px] text-gray-500 mt-2">{updatedAt}</p>}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => navigate('/chat', { state: { conversationId } })}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-xs w-full"
+          >
+            Open Chat
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderGroups = () => (
     <div className="space-y-4">
       <div className="bg-white/5 rounded-xl border border-white/10 p-4 space-y-3">
@@ -1147,7 +1212,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
           onClick={() => setActiveSection('inbox')}
           className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'inbox' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
         >
-          Inbox ({inboxItems.length})
+          Inbox ({inboxItems.length + conversations.length})
         </button>
         <button
           onClick={() => setActiveSection('groups')}
@@ -1183,7 +1248,24 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
           ) : activeSection === 'sent' ? (
             sentItems.length ? sentItems.map((item) => renderRequestCard(item, 'sent')) : <p className="text-sm text-gray-400">No sent requests found in database.</p>
           ) : activeSection === 'inbox' ? (
-            inboxItems.length ? inboxItems.map((item) => renderRequestCard(item, 'inbox')) : <p className="text-sm text-gray-400">No inbox requests found in database.</p>
+            inboxItems.length || conversations.length ? (
+              <div className="space-y-3">
+                {/* Roommate Requests Section */}
+                {inboxItems.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-300 mb-2 px-1">Roommate Requests ({inboxItems.length})</h3>
+                    {inboxItems.map((item) => renderRequestCard(item, 'inbox'))}
+                  </div>
+                )}
+                {/* Chat Conversations Section */}
+                {conversations.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-300 mb-2 px-1">Chats ({conversations.length})</h3>
+                    {conversations.map((conv) => renderConversationCard(conv))}
+                  </div>
+                )}
+              </div>
+            ) : <p className="text-sm text-gray-400">No inbox requests or messages found in database.</p>
           ) : (
             renderGroups()
           )}
