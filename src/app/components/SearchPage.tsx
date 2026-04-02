@@ -69,6 +69,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   const [sentItems, setSentItems] = useState<any[]>([]);
   const [groupItems, setGroupItems] = useState<any[]>([]);
   const [isTabLoading, setIsTabLoading] = useState(false);
+  const [tabErrorMessage, setTabErrorMessage] = useState('');
   const [groupScenario, setGroupScenario] = useState<'join-existing' | 'new-place'>('new-place');
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
@@ -326,7 +327,9 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
         const json = await response.json().catch(() => ({}));
         return {
           ok: response.ok,
+          status: response.status,
           data: response.ok ? extractResponseArray(json) : [],
+          message: typeof json?.message === 'string' ? json.message : '',
         };
       } finally {
         window.clearTimeout(timeoutId);
@@ -335,6 +338,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
     const loadTabData = async () => {
       setIsTabLoading(true);
+      setTabErrorMessage('');
       try {
         if (cancelled) return;
 
@@ -356,6 +360,14 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
             const freshInbox = sortRequestsNewestFirst(inboxResult.data);
             setInboxItems(freshInbox);
             localStorage.setItem(inboxCacheKey, JSON.stringify(freshInbox));
+          } else if (!cancelled && !inboxResult.ok) {
+            if (inboxResult.status === 401 || inboxResult.status === 403) {
+              setTabErrorMessage('Inbox could not refresh because your session expired. Please sign in again.');
+            } else if (inboxResult.status >= 500) {
+              setTabErrorMessage('Inbox service is temporarily unavailable. Showing the latest available data.');
+            } else if (inboxResult.message) {
+              setTabErrorMessage(inboxResult.message);
+            }
           }
         } else if (activeSection === 'sent') {
           const sentResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
@@ -381,6 +393,9 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
         }
       } catch {
         if (!cancelled) {
+          if (activeSection === 'inbox') {
+            setTabErrorMessage('Could not refresh inbox right now. Showing the latest available data.');
+          }
           if (activeSection === 'sent') setSentItems([]);
           if (activeSection === 'groups') setGroupItems([]);
         }
@@ -1146,6 +1161,20 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
       {activeSection !== 'browse' && (
         <div className="space-y-3">
+          {activeSection === 'inbox' && tabErrorMessage ? (
+            <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {tabErrorMessage}
+              {(tabErrorMessage.toLowerCase().includes('sign in') || tabErrorMessage.toLowerCase().includes('session')) ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/signin')}
+                  className="ml-3 underline text-amber-100"
+                >
+                  Go to sign in
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {isTabLoading ? (
             <div className="text-center py-10 text-gray-400">
               <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-3" />
