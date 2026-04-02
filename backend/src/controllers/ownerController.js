@@ -1,6 +1,25 @@
 const BoardingHouse = require('../models/BoardingHouse');
 const Room = require('../models/Room');
 
+// Simple in-memory cache for public houses (5-minute TTL)
+let housesCache = null;
+let housesCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCachedHouses = () => {
+  if (housesCache && Date.now() - housesCacheTime < CACHE_TTL) {
+    console.log('[OwnerController] 📦 Returning cached houses');
+    return housesCache;
+  }
+  return null;
+};
+
+const setCachedHouses = (houses) => {
+  housesCache = houses;
+  housesCacheTime = Date.now();
+  console.log('[OwnerController] 💾 Houses cached for 5 minutes');
+};
+
 function ensureOwnerRole(req, res) {
   if (!['owner', 'admin'].includes(req.user.role)) {
     res.status(403).json({ success: false, message: 'Only owners can manage boarding data' });
@@ -22,9 +41,44 @@ exports.getHouses = async (req, res) => {
 
 exports.getPublicHouses = async (req, res) => {
   try {
-    const houses = await BoardingHouse.find({ status: 'active' }).sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, data: houses });
+    // Check cache first
+    const cached = getCachedHouses();
+    if (cached) {
+      return res.status(200).json({ success: true, data: cached, fromCache: true });
+    }
+
+    const houses = await BoardingHouse.find({ status: 'active' })
+      .select('name address monthlyPrice roomType genderPreference availableFrom deposit occupiedRooms description features status image images createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const slimHouses = houses.map((house) => {
+      const imageCandidates = Array.isArray(house.images)
+        ? house.images
+        : house.image
+        ? [house.image]
+        : [];
+
+      // Keep payload small: avoid sending large base64 arrays to listing page.
+      const safeImages = imageCandidates
+        .filter((img) => typeof img === 'string' && img.trim().length > 0 && !img.startsWith('data:'))
+        .slice(0, 3);
+
+      return {
+        ...house,
+        images: safeImages,
+        image: safeImages[0] || '',
+      };
+    });
+
+    // Cache the result
+    setCachedHouses(slimHouses);
+
+    return res.status(200).json({ success: true, data: slimHouses });
   } catch (error) {
+    if (error?.name === 'MongoServerError' || error?.name === 'MongooseError') {
+      return res.status(200).json({ success: true, data: [], warning: 'Public houses query timed out' });
+    }
     return res.status(500).json({ success: false, message: 'Failed to fetch houses', error: error.message });
   }
 };

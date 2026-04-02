@@ -153,6 +153,8 @@ const roomSchema = new mongoose.Schema({
 
 // Create geospatial index for coordinates
 roomSchema.index({ coordinates: '2dsphere' });
+roomSchema.index({ isActive: 1 });
+roomSchema.index({ isActive: 1, createdAt: -1 });
 roomSchema.index({ campus: 1 });
 roomSchema.index({ rating: -1 });
 roomSchema.index({ price: 1 });

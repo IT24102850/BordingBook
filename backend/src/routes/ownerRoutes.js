@@ -63,6 +63,17 @@ router.get('/payment-history', requireAuth, ownerController.getPaymentHistory);
 
 // Booking requests and digital agreements
 router.get('/booking-requests', requireAuth, bookingController.getOwnerBookingRequests);
+router.get('/agreement-templates', requireAuth, bookingController.getOwnerAgreementTemplates);
+router.post(
+  '/agreement-templates',
+  requireAuth,
+  [
+    body('title').isLength({ min: 3, max: 200 }).withMessage('title must be 3-200 characters'),
+    body('content').isLength({ min: 20, max: 20000 }).withMessage('content must be 20-20000 characters'),
+  ],
+  validateRequest,
+  bookingController.createOwnerAgreementTemplate
+);
 router.patch(
   '/booking-requests/:requestId/status',
   requireAuth,
@@ -86,5 +97,18 @@ router.post(
   validateRequest,
   bookingController.createAgreementForRequest
 );
+router.post(
+  '/agreements/send-from-template',
+  requireAuth,
+  [
+    body('bookingRequestId').isMongoId().withMessage('bookingRequestId is required'),
+    body('templateVersionId').isMongoId().withMessage('templateVersionId is required'),
+    body('expirationDays').optional().isInt({ min: 1, max: 365 }).withMessage('expirationDays must be 1-365'),
+  ],
+  validateRequest,
+  bookingController.sendAgreementFromTemplate
+);
+router.get('/agreements/signed', requireAuth, bookingController.getOwnerSignedAgreements);
+router.get('/agreements/:agreementId/download', requireAuth, bookingController.downloadAgreement);
 
 module.exports = router;

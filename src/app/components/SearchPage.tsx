@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fa';
 import { BiCurrentLocation } from 'react-icons/bi';
 import { RiUserSharedLine } from 'react-icons/ri';
+import { createStudentBookingRequest } from '../api/bookingAgreementApi';
 // Mini Card for side panels
 const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
   const formatPrice = (price: number): string => {
@@ -72,6 +73,9 @@ function RoommateFinderPlaceholder(props: any) {
 // ---- TypeScript type/interface stubs ----
 interface Listing {
   id: string | number;
+  backendRoomId?: string;
+  backendHouseId?: string;
+  listingKind?: 'room' | 'house';
   title: string;
   images: string[];
   price: number;
@@ -808,66 +812,155 @@ function StudentPaymentPortalContent({ bookingId }: { bookingId: string | null }
 // Booking Form Component (advanced version)
 const BookingForm: React.FC<{
   listing: Listing | null;
+  availableRooms: Listing[];
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => Promise<void>;
   currentUserName?: string;
   currentUserEmail?: string;
+  currentUserPhone?: string;
   currentUserImage?: string;
-}> = ({ listing, onClose, onSubmit, currentUserName = '', currentUserEmail = '', currentUserImage = '' }) => {
+}> = ({ listing, availableRooms, onClose, onSubmit, currentUserName = '', currentUserEmail = '', currentUserPhone = '', currentUserImage = '' }) => {
   const [bookingType, setBookingType] = useState<'INDIVIDUAL' | 'GROUP'>('INDIVIDUAL');
   const [studentName, setStudentName] = useState(currentUserName);
   const [groupName, setGroupName] = useState('');
-  const [contactNumber, setContactNumber] = useState('');
+  const [selectedRoomId, setSelectedRoomId] = useState(String(listing?.backendRoomId || ''));
+  const [contactNumber, setContactNumber] = useState(currentUserPhone);
   const [moveInDate, setMoveInDate] = useState('');
   const [durationMonths, setDurationMonths] = useState('');
   const [specialNotes, setSpecialNotes] = useState('');
   const [formError, setFormError] = useState('');
+  const [formErrorTick, setFormErrorTick] = useState(0);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const showFormError = (message: string) => {
+    setFormError(message);
+    setFormErrorTick((prev) => prev + 1);
+  };
+
+  useEffect(() => {
+    if (!studentName && currentUserName) {
+      setStudentName(currentUserName);
+    }
+  }, [currentUserName, studentName]);
+
+  useEffect(() => {
+    if (!contactNumber && currentUserPhone) {
+      setContactNumber(currentUserPhone);
+    }
+  }, [currentUserPhone, contactNumber]);
+
+  useEffect(() => {
+    const preferredRoomId = String(listing?.backendRoomId || '').trim();
+    if (preferredRoomId) {
+      setSelectedRoomId(preferredRoomId);
+      return;
+    }
+
+    const firstAvailableRoomId = String(availableRooms[0]?.backendRoomId || '').trim();
+    setSelectedRoomId(firstAvailableRoomId);
+  }, [listing, availableRooms]);
 
   const listingTitle = listing?.title || 'N/A';
-  const listingId = listing?.id || 'N/A';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     setSuccessMessage('');
-    if (
-      (bookingType === 'INDIVIDUAL' && !studentName) ||
-      (bookingType === 'GROUP' && !groupName) ||
-      !contactNumber ||
-      !moveInDate ||
-      !durationMonths
-    ) {
-      setFormError('Please fill all required fields.');
+
+    const normalizedName = studentName.trim();
+    const normalizedGroupName = groupName.trim();
+    const normalizedContact = contactNumber.replace(/\D/g, '');
+    const normalizedDuration = Number(durationMonths);
+    const resolvedRoomId = String(selectedRoomId || '').trim();
+
+    if (!normalizedName || !normalizedContact || !moveInDate || !durationMonths || (bookingType === 'GROUP' && !normalizedGroupName)) {
+      showFormError('Please fill all required fields except Special Notes.');
       return;
     }
-    onSubmit({
-      bookingType,
-      studentName,
-      groupName,
-      contactNumber,
-      moveInDate,
-      durationMonths,
-      specialNotes,
-      listingId,
-      listingTitle,
-    });
-    setSuccessMessage('Booking request submitted!');
-    onClose();
+
+    if (!/^\d{10}$/.test(normalizedContact)) {
+      showFormError('Contact number must contain exactly 10 digits.');
+      return;
+    }
+
+    if (!Number.isInteger(normalizedDuration) || normalizedDuration < 1) {
+      showFormError('Duration must be at least 1 month.');
+      return;
+    }
+
+    const isValidRoomId = /^[a-f\d]{24}$/i.test(resolvedRoomId);
+    if (!isValidRoomId) {
+      showFormError('Please select a valid room before submitting.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await onSubmit({
+        bookingType: bookingType === 'GROUP' ? 'group' : 'individual',
+        roomId: resolvedRoomId,
+        studentName: normalizedName,
+        groupName: normalizedGroupName,
+        contactNumber: normalizedContact,
+        moveInDate,
+        durationMonths: normalizedDuration,
+        specialNotes: specialNotes.trim(),
+        listingTitle,
+      });
+      setSuccessMessage('Booking request submitted!');
+      onClose();
+    } catch (error) {
+      showFormError((error as Error).message || 'Failed to submit booking request.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start md:items-center justify-center p-4 pt-8 md:pt-4 overflow-y-auto animate-fade-in">
+      <div className="w-full max-w-lg max-h-[calc(100vh-2rem)] md:max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl md:text-3xl font-extrabold mb-2 text-center bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent">Booking Form</h2>
         <p className="text-center text-gray-300 mb-8">Submit your room booking request</p>
 
         <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 mb-6">
           <h3 className="text-lg font-semibold mb-1">Selected Room</h3>
-          <p className="text-sm text-gray-300">{listingTitle} • ID: {listingId}</p>
+          <p className="text-sm text-gray-300">{listingTitle}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 space-y-4">
+          {listing?.listingKind === 'house' && (
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Choose Room *</label>
+              <select
+                value={selectedRoomId}
+                onChange={(e) => setSelectedRoomId(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              >
+                {availableRooms.length === 0 ? (
+                  <option value="">No rooms available for booking</option>
+                ) : (
+                  availableRooms.map((roomOption) => (
+                    <option
+                      key={String(roomOption.backendRoomId || roomOption.id)}
+                      value={String(roomOption.backendRoomId || '')}
+                      className="text-black"
+                    >
+                      {roomOption.title} - Rs. {Number(roomOption.price || 0).toLocaleString()}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          )}
+
+          {listing?.listingKind === 'room' && (
+            <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+              <p className="text-xs text-gray-400">Selected room</p>
+              <p className="text-sm text-white font-medium">{listingTitle}</p>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
             <button
               type="button"
@@ -970,7 +1063,12 @@ const BookingForm: React.FC<{
             </div>
           )}
 
-          {formError && <p className="text-red-400 text-sm text-center">{formError}</p>}
+          {formError && (
+            <div key={formErrorTick} className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg p-2 md:p-3 animate-shake">
+              <FaInfoCircle className="text-red-400 flex-shrink-0" size={16} />
+              <span className="text-red-400 text-xs md:text-sm">{formError}</span>
+            </div>
+          )}
           {successMessage && <p className="text-green-400 text-sm text-center">{successMessage}</p>}
 
           <div className="flex justify-end gap-2">
@@ -983,9 +1081,10 @@ const BookingForm: React.FC<{
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
             >
-              Submit Booking Request
+              {isSubmitting ? 'Submitting...' : 'Submit Booking Request'}
             </button>
           </div>
         </form>
@@ -1050,6 +1149,7 @@ function SearchPage() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState('Guest');
   const [currentUserName, setCurrentUserName] = useState('');
+  const [currentUserPhone, setCurrentUserPhone] = useState('');
   const [currentUserImage, setCurrentUserImage] = useState('');
   const [popupNotification, setPopupNotification] = useState<Notification | null>(null);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
@@ -1108,7 +1208,18 @@ function SearchPage() {
       }
 
       try {
-        const [inboxResponse, sentResponse, groupsResponse] = await Promise.all([
+        const parseJsonSafely = async (response: Response) => {
+          if (response.status === 304) return null;
+          const raw = await response.text();
+          if (!raw) return null;
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return null;
+          }
+        };
+
+        const [inboxResponse, sentResponse, groupsResponse, systemNotificationsResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/api/roommates/request/inbox`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
@@ -1118,12 +1229,16 @@ function SearchPage() {
           fetch(`${API_BASE_URL}/api/roommates/groups`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch(`${API_BASE_URL}/api/notifications`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
-        const [inboxJson, sentJson, groupsJson] = await Promise.all([
-          inboxResponse.json(),
-          sentResponse.json(),
-          groupsResponse.json(),
+        const [inboxJson, sentJson, groupsJson, systemNotificationsJson] = await Promise.all([
+          parseJsonSafely(inboxResponse),
+          parseJsonSafely(sentResponse),
+          parseJsonSafely(groupsResponse),
+          parseJsonSafely(systemNotificationsResponse),
         ]);
 
         const inboxItems = inboxResponse.ok ? extractResponseArray(inboxJson) : [];
@@ -1217,14 +1332,29 @@ function SearchPage() {
           return mapped;
         });
 
-        const allNotifications = [...inboxNotifications, ...sentNotifications, ...groupNotifications].sort(
+        const systemNotificationItems = systemNotificationsResponse.ok
+          ? extractResponseArray(systemNotificationsJson)
+          : [];
+
+        const systemNotifications: Notification[] = systemNotificationItems.map((item: any) => ({
+          id: `system-${String(item?._id || Math.random().toString(36).slice(2))}`,
+          type: String(item?.type || 'system'),
+          title: String(item?.title || 'Notification'),
+          message: String(item?.message || ''),
+          timestamp: item?.createdAt || new Date().toISOString(),
+          read: Boolean(item?.read),
+          actionRequired: ['agreement_pending', 'agreement_reminder'].includes(String(item?.type || '')),
+          bookingId: String(item?.data?.bookingRequestId || ''),
+        }));
+
+        const allNotifications = [...systemNotifications, ...inboxNotifications, ...sentNotifications, ...groupNotifications].sort(
           (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
 
         const readIds = getStoredReadNotificationIds();
         const hydrated = allNotifications.map((notification) => ({
           ...notification,
-          read: readIds.has(notification.id),
+          read: notification.read || readIds.has(notification.id),
         }));
 
         if (!suppressPopup && seenNotificationIdsRef.current.size > 0) {
@@ -1330,25 +1460,53 @@ function SearchPage() {
     let isCancelled = false;
 
     const loadSearchData = async () => {
-      try {
-        const token = localStorage.getItem('bb_access_token') || '';
+      const token = localStorage.getItem('bb_access_token') || '';
 
-        const roomsResponse = await fetch(`${API_BASE_URL}/api/roommates/rooms`);
-        const housesResponse = await fetch(`${API_BASE_URL}/api/owner/public/houses`);
-        const [roomsJson, housesJson] = await Promise.all([roomsResponse.json(), housesResponse.json()]);
+      console.log('[SearchPage] 📍 Component mounted, loading listings');
 
-        if (!isCancelled) {
+      // Render shell immediately; listings stream in when endpoints return.
+      if (!isCancelled) {
+        console.log('[SearchPage] 🏃 Setting isListingsLoading to false immediately');
+        setIsListingsLoading(false);
+      }
+
+      // Rooms fetch with 30-second timeout to prevent long hangs.
+      void (async () => {
+        try {
+          console.log('[SearchPage] 🔄 Starting rooms fetch...');
+          const startTime = performance.now();
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            console.log('[SearchPage] ⏱️ Rooms fetch timeout (5 min), aborting request');
+            controller.abort();
+          }, 300000); // 5 minutes
+          
+          const roomsResponse = await fetch(`${API_BASE_URL}/api/roommates/rooms`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          const fetchTime = performance.now() - startTime;
+          console.log(`[SearchPage] ✅ Rooms fetch completed in ${fetchTime.toFixed(2)}ms, status: ${roomsResponse.status}`);
+          
+          const roomsJson = await roomsResponse.json();
+          console.log('[SearchPage] 📦 Rooms response parsed:', roomsJson);
+
+          if (isCancelled) {
+            console.log('[SearchPage] ⏸️ Rooms: Component cancelled, discarding data');
+            return;
+          }
+
           const roomsData = Array.isArray(roomsJson?.data)
             ? roomsJson.data
             : (Array.isArray(roomsJson?.rooms) ? roomsJson.rooms : (Array.isArray(roomsJson) ? roomsJson : []));
 
-          const housesData = Array.isArray(housesJson?.data)
-            ? housesJson.data
-            : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
+          console.log('[SearchPage] 🛏️ Extracted rooms data:', roomsData.length, 'items');
 
           const mappedRooms: Listing[] = roomsResponse.ok && roomsData.length > 0
             ? roomsData.map((roomItem: any, index: number) => ({
-                id: index + 1,
+                id: String(roomItem._id || roomItem.id || `room-${index + 1}`),
+                backendRoomId: String(roomItem._id || roomItem.id || ''),
+                backendHouseId: String(roomItem.houseId || roomItem.house?._id || roomItem.house?.id || ''),
+                listingKind: 'room',
                 title: roomItem.name || 'Room Listing',
                 images: Array.isArray(roomItem.images) && roomItem.images.length > 0 ? roomItem.images : [roomImages[index % roomImages.length]],
                 price: Number(roomItem.price) || 0,
@@ -1369,9 +1527,60 @@ function SearchPage() {
               }))
             : [];
 
+          setDbListings((prev) => {
+            console.log('[SearchPage] 🔄 Updating listings with rooms. Current state:', prev.length, 'items');
+            const housesOnly = prev.filter((item) => item.listingKind === 'house');
+            const newListings = [...mappedRooms, ...housesOnly];
+            console.log('[SearchPage] ✅ After rooms update:', newListings.length, 'items (rooms:', mappedRooms.length, ', houses:', housesOnly.length, ')');
+            return newListings;
+          });
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            console.warn('[SearchPage] ⏱️ Rooms fetch timed out (5 min timeout)');
+          } else {
+            console.error('[SearchPage] ❌ Rooms fetch error:', err);
+          }
+          // Keep existing listings if rooms endpoint fails.
+        }
+      })();
+
+      // Houses fetch in background with 30-second timeout.
+      void (async () => {
+        try {
+          console.log('[SearchPage] 🔄 Starting houses fetch...');
+          const startTime = performance.now();
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            console.log('[SearchPage] ⏱️ Houses fetch timeout (5 min), aborting request');
+            controller.abort();
+          }, 300000); // 5 minutes
+          
+          const housesResponse = await fetch(`${API_BASE_URL}/api/owner/public/houses`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          const fetchTime = performance.now() - startTime;
+          console.log(`[SearchPage] ✅ Houses fetch completed in ${fetchTime.toFixed(2)}ms, status: ${housesResponse.status}`);
+          
+          const housesJson = await housesResponse.json();
+          console.log('[SearchPage] 📦 Houses response parsed:', housesJson);
+
+          if (isCancelled) {
+            console.log('[SearchPage] ⏸️ Houses: Component cancelled, discarding data');
+            return;
+          }
+
+          const housesData = Array.isArray(housesJson?.data)
+            ? housesJson.data
+            : (Array.isArray(housesJson?.houses) ? housesJson.houses : (Array.isArray(housesJson) ? housesJson : []));
+
+          console.log('[SearchPage] 🏠 Extracted houses data:', housesData.length, 'items');
+
           const mappedHouses: Listing[] = housesResponse.ok && housesData.length > 0
             ? housesData.map((house: any, index: number) => ({
                 id: 100000 + index,
+                backendRoomId: '',
+                backendHouseId: String(house._id || house.id || ''),
+                listingKind: 'house',
                 title: house.name || 'Boarding House',
                 images: Array.isArray(house.images) && house.images.length > 0
                   ? house.images
@@ -1394,67 +1603,82 @@ function SearchPage() {
               }))
             : [];
 
-          setDbListings([...mappedRooms, ...mappedHouses]);
+          setDbListings((prev) => {
+            console.log('[SearchPage] 🔄 Updating listings with houses. Current state:', prev.length, 'items');
+            const roomsOnly = prev.filter((item) => item.listingKind !== 'house');
+            const newListings = [...roomsOnly, ...mappedHouses];
+            console.log('[SearchPage] ✅ After houses update:', newListings.length, 'items (rooms:', roomsOnly.length, ', houses:', mappedHouses.length, ')');
+            return newListings;
+          });
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            console.warn('[SearchPage] ⏱️ Houses fetch timed out (5 min timeout)');
+          } else {
+            console.error('[SearchPage] ❌ Houses fetch error:', err);
+          }
+          // Houses are optional for initial UX responsiveness.
         }
+      })();
 
-        if (!token) return;
+      // Non-critical path: load profile, notifications, and roommate recommendations in background.
+      if (!token) return;
 
-        const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const meJson = await meResponse.json();
-        const currentUser = meJson?.data || null;
+      void (async () => {
+        try {
+          const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const meJson = await meResponse.json();
+          const currentUser = meJson?.data || null;
 
-        if (!isCancelled && currentUser?.email) {
-          setCurrentUserId(String(currentUser._id || currentUser.id || ''));
-          setCurrentUserEmail(currentUser.email);
-          setCurrentUserName(currentUser.fullName || '');
-          if (currentUser.profilePicture) {
-            setCurrentUserImage(currentUser.profilePicture);
+          if (!isCancelled && currentUser?.email) {
+            setCurrentUserId(String(currentUser._id || currentUser.id || ''));
+            setCurrentUserEmail(currentUser.email);
+            setCurrentUserName(currentUser.fullName || '');
+            setCurrentUserPhone(String(currentUser.phoneNumber || currentUser.mobileNumber || ''));
+            if (currentUser.profilePicture) {
+              setCurrentUserImage(currentUser.profilePicture);
+            }
+          }
+
+          const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
+          if (!isCancelled) {
+            await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
+          }
+
+          const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const roommateJson = await roommateResponse.json();
+
+          if (!isCancelled && roommateResponse.ok) {
+            const roommateData = Array.isArray(roommateJson?.data)
+              ? roommateJson.data
+              : (Array.isArray(roommateJson?.profiles) ? roommateJson.profiles : (Array.isArray(roommateJson) ? roommateJson : []));
+
+            const mappedRoommates: Roommate[] = roommateData.map((profile: any) => ({
+              id: normalizeIdValue(profile._id || profile.id),
+              userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+              name: profile.name || 'Student',
+              email: profile.email || '',
+              age: deriveProfileAge(profile),
+              gender: profile.gender || 'Any',
+              university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+              bio: profile.description || 'Looking for a compatible roommate.',
+              image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+              interests: Array.isArray(profile.tags) ? profile.tags : [],
+              mutualCount: 0,
+              role: profile.role || '',
+            }));
+
+            setDbRoommates(mappedRoommates);
+          }
+        } catch {
+          if (!isCancelled) {
+            setDbRoommates([]);
           }
         }
-        const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
-        if (!isCancelled) {
-          await fetchLatestNotifications(token, resolvedUserId, { withLoader: true, suppressPopup: true });
-        }
-
-        const roommateResponse = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const roommateJson = await roommateResponse.json();
-
-        if (!isCancelled && roommateResponse.ok) {
-          const roommateData = Array.isArray(roommateJson?.data)
-            ? roommateJson.data
-            : (Array.isArray(roommateJson?.profiles) ? roommateJson.profiles : (Array.isArray(roommateJson) ? roommateJson : []));
-
-          const mappedRoommates: Roommate[] = roommateData.map((profile: any) => ({
-            id: normalizeIdValue(profile._id || profile.id),
-            userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-            name: profile.name || 'Student',
-            email: profile.email || '',
-            age: deriveProfileAge(profile),
-            gender: profile.gender || 'Any',
-            university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-            bio: profile.description || 'Looking for a compatible roommate.',
-            image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-            interests: Array.isArray(profile.tags) ? profile.tags : [],
-            mutualCount: 0,
-            role: profile.role || '',
-          }));
-
-          setDbRoommates(mappedRoommates);
-        } else {
-          setDbRoommates([]);
-        }
-      } catch {
-        setDbListings([]);
-        setDbRoommates([]);
-      } finally {
-        if (!isCancelled) {
-          setIsListingsLoading(false);
-        }
-      }
+      })();
     };
 
     loadSearchData();
@@ -1464,6 +1688,20 @@ function SearchPage() {
   }, []);
 
   const effectiveListings = dbListings;
+  const availableRoomsForBooking = React.useMemo(() => {
+    if (!selectedRoomForBooking) return [];
+
+    if (selectedRoomForBooking.listingKind === 'room') {
+      return [selectedRoomForBooking];
+    }
+
+    const selectedHouseId = String(selectedRoomForBooking.backendHouseId || '').trim();
+    if (!selectedHouseId) return [];
+
+    return dbListings.filter(
+      (listing) => listing.listingKind === 'room' && String(listing.backendHouseId || '').trim() === selectedHouseId
+    );
+  }, [selectedRoomForBooking, dbListings]);
   const effectiveRoommates = dbRoommates;
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -1519,6 +1757,16 @@ function SearchPage() {
 
   const roomDataset: any[] = dbListings.map((listing, index) => ({
     id: listing.id || index + 1,
+    backendRoomId: listing.backendRoomId || '',
+    backendHouseId: listing.backendHouseId || '',
+    listingKind: listing.listingKind || 'room',
+    images: Array.isArray(listing.images) ? listing.images : [],
+    genderPreference: listing.genderPreference || 'Any',
+    availableFrom: listing.availableFrom || '',
+    billsIncluded: Boolean(listing.billsIncluded),
+    verified: Boolean(listing.verified),
+    badges: Array.isArray(listing.badges) ? listing.badges : [],
+    roommateCount: Number(listing.roommateCount) || 0,
     name: listing.title,
     location: listing.location,
     campus: listing.location,
@@ -1702,6 +1950,13 @@ function SearchPage() {
       </div>
     );
   }
+
+  // Debug logging at render time
+  console.log('[SearchPage] 🎨 RENDERING: dbListings:', dbListings.length, 'items', 'rankedListings:', rankedListings.length, 'rankedRooms:', rankedRooms.length);
+  console.log('[SearchPage] 📊 dbListings breakdown:', {
+    rooms: dbListings.filter(item => item.listingKind === 'room').length,
+    houses: dbListings.filter(item => item.listingKind === 'house').length
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
@@ -2183,24 +2438,27 @@ function SearchPage() {
                               const r = roomDataset.find((rm: any) => rm.id === id);
                               if (!r) return;
                               const listing: Listing = {
-                                id: r.id,
+                                id: r.backendRoomId || r.backendHouseId || r.id,
+                                backendRoomId: r.backendRoomId || '',
+                                backendHouseId: r.backendHouseId || '',
+                                listingKind: r.listingKind || 'room',
                                 title: r.name,
-                                images: [r.img],
+                                images: Array.isArray(r.images) && r.images.length > 0 ? r.images : ['https://randomuser.me/api/portraits/lego/1.jpg'],
                                 price: r.price,
                                 location: r.location,
                                 distance: r.distKm,
                                 distanceUnit: 'km',
                                 travelTime: r.distKm < 1 ? `${Math.round(r.distKm * 1000)}m walk` : `${r.distKm}km from ${r.campus}`,
                                 roomType: r.roomType,
-                                genderPreference: 'Any',
-                                availableFrom: new Date().toISOString(),
-                                billsIncluded: r.facilities.includes('Meals'),
-                                verified: true,
-                                badges: r.available ? ['Available'] : ['Occupied'],
+                                genderPreference: r.genderPreference || 'Any',
+                                availableFrom: r.availableFrom || new Date().toISOString(),
+                                billsIncluded: Boolean(r.billsIncluded) || r.facilities.includes('Meals'),
+                                verified: Boolean(r.verified),
+                                badges: Array.isArray(r.badges) && r.badges.length > 0 ? r.badges : (r.available ? ['Available'] : ['Occupied']),
                                 description: r.desc,
                                 features: r.facilities,
                                 deposit: r.price * 2,
-                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0,
+                                roommateCount: r.roommateCount || (r.roomType.toLowerCase().includes('sharing') ? 2 : 0),
                               };
                               handleViewDetails(listing);
                             }}
@@ -2313,24 +2571,27 @@ function SearchPage() {
                               const r = roomDataset.find((rm: any) => rm.id === id);
                               if (!r) return;
                               const listing: Listing = {
-                                id: r.id,
+                                id: r.backendRoomId || r.backendHouseId || r.id,
+                                backendRoomId: r.backendRoomId || '',
+                                backendHouseId: r.backendHouseId || '',
+                                listingKind: r.listingKind || 'room',
                                 title: r.name,
-                                images: [r.img],
+                                images: Array.isArray(r.images) && r.images.length > 0 ? r.images : ['https://randomuser.me/api/portraits/lego/1.jpg'],
                                 price: r.price,
                                 location: r.location,
                                 distance: r.distKm,
                                 distanceUnit: 'km',
                                 travelTime: r.distKm < 1 ? `${Math.round(r.distKm * 1000)}m walk` : `${r.distKm}km from ${r.campus}`,
                                 roomType: r.roomType,
-                                genderPreference: 'Any',
-                                availableFrom: new Date().toISOString(),
-                                billsIncluded: r.facilities.includes('Meals'),
-                                verified: true,
-                                badges: r.available ? ['Available'] : ['Occupied'],
+                                genderPreference: r.genderPreference || 'Any',
+                                availableFrom: r.availableFrom || new Date().toISOString(),
+                                billsIncluded: Boolean(r.billsIncluded) || r.facilities.includes('Meals'),
+                                verified: Boolean(r.verified),
+                                badges: Array.isArray(r.badges) && r.badges.length > 0 ? r.badges : (r.available ? ['Available'] : ['Occupied']),
                                 description: r.desc,
                                 features: r.facilities,
                                 deposit: r.price * 2,
-                                roommateCount: r.roomType.toLowerCase().includes('sharing') ? 2 : 0,
+                                roommateCount: r.roommateCount || (r.roomType.toLowerCase().includes('sharing') ? 2 : 0),
                               };
                               handleViewDetails(listing);
                             }}
@@ -2411,11 +2672,23 @@ function SearchPage() {
         {showBooking && (
           <BookingForm
             listing={selectedRoomForBooking}
+            availableRooms={availableRoomsForBooking}
             onClose={() => setShowBooking(false)}
             currentUserName={currentUserName}
             currentUserEmail={currentUserEmail}
+            currentUserPhone={currentUserPhone}
             currentUserImage={currentUserImage}
-            onSubmit={(data) => {
+            onSubmit={async (data) => {
+              await createStudentBookingRequest({
+                roomId: data.roomId,
+                bookingType: data.bookingType,
+                groupName: data.bookingType === 'group' ? data.groupName : undefined,
+                groupSize: data.bookingType === 'group' ? 1 : undefined,
+                contactNumber: data.contactNumber,
+                moveInDate: data.moveInDate,
+                durationMonths: data.durationMonths,
+                message: `Contact: ${data.contactNumber}${data.specialNotes ? ` | Notes: ${data.specialNotes}` : ''}`,
+              });
               setToastMessage(`Booking request submitted for ${selectedRoomForBooking?.title}!`);
               setShowToast(true);
               setTimeout(() => setShowToast(false), 3000);
@@ -2545,8 +2818,14 @@ function SearchPage() {
         .animate-swipe-right { animation: swipe-right 0.3s ease-out forwards; }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fade-in-up { 0% { opacity: 0; transform: translate(-50%, 20px); } 100% { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+          20%, 40%, 60%, 80% { transform: translateX(2px); }
+        }
         .animate-fade-in { animation: fade-in 0.3s ease-out; }
         .animate-fade-in-up { animation: fade-in-up 0.3s ease-out; }
+        .animate-shake { animation: shake 0.5s ease-in-out; }
         .perspective-1000 { perspective: 1000px; }
         .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

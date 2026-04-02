@@ -374,11 +374,15 @@ router.post(
   '/booking-request',
   requireAuth,
   [
-    body('roomId').isMongoId().withMessage('roomId is required'),
+    body('roomId').isMongoId().withMessage('roomId must be a valid id'),
+    body('houseId').optional().isMongoId().withMessage('houseId must be a valid id'),
     body('bookingType').optional().isIn(['individual', 'group']),
+    body('groupName').optional().isString().trim().isLength({ min: 1, max: 100 }),
     body('groupSize').optional().isInt({ min: 1, max: 20 }),
+    body('contactNumber').matches(/^\d{10}$/).withMessage('contactNumber must contain exactly 10 digits'),
     body('moveInDate').isISO8601().withMessage('moveInDate must be a valid date'),
     body('durationMonths').optional().isInt({ min: 1, max: 36 }),
+    body('message').optional().isLength({ max: 1000 }),
   ],
   validateRequest,
   bookingController.createBookingRequest

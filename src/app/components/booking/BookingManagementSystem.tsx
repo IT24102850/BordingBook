@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   CheckCircle, XCircle, Clock, User, Home, Calendar, 
   Phone, Mail, FileText, AlertCircle, ArrowRight,
-  Download, Upload, Eye, MessageSquare
+  Download, Upload, Eye, MessageSquare, Loader
 } from 'lucide-react';
+import {
+  getOwnerBookingRequests,
+  updateOwnerBookingRequestStatus,
+  getOwnerAgreementTemplates,
+  sendAgreementFromTemplate,
+  type BookingRequestDto,
+  type AgreementTemplateDto,
+} from '../../api/bookingAgreementApi';
 
 // Types
 interface BookingRequest {
   id: string;
+  sourceId: string;
   studentName: string;
   contact: string;
   email: string;
@@ -26,96 +35,126 @@ interface BookingRequest {
   receiptUrl?: string;
 }
 
-// Mock booking requests data
-const initialBookingRequests: BookingRequest[] = [
-  {
-    id: 'BK001',
-    studentName: 'Kasun Perera',
-    contact: '+94 77 123 4567',
-    email: 'kasun@email.com',
-    roomTitle: 'Modern Boarding House near SLIIT',
-    roomPrice: 18000,
-    moveInDate: '2026-04-01',
-    duration: 6,
-    bookingType: 'individual',
-    notes: 'Need AC room, quiet environment for studies',
-    status: 'pending',
-    submittedDate: '2026-03-01'
-  },
-  {
-    id: 'BK002',
-    studentName: 'Nimal Fernando',
-    contact: '+94 77 234 5678',
-    email: 'nimal@email.com',
-    roomTitle: 'Cozy Room with Balcony',
-    roomPrice: 15000,
-    moveInDate: '2026-03-20',
-    duration: 12,
-    bookingType: 'individual',
-    notes: 'Looking for long-term stay',
-    status: 'approved',
-    submittedDate: '2026-02-25',
-    paymentStatus: 'not_uploaded'
-  },
-  {
-    id: 'BK003',
-    studentName: 'SLIIT Friends',
-    contact: '+94 77 345 6789',
-    email: 'group@email.com',
-    roomTitle: 'Student Shared House',
-    roomPrice: 12000,
-    moveInDate: '2026-04-15',
-    duration: 6,
-    bookingType: 'group',
-    groupName: 'SLIIT Friends',
-    notes: 'Group of 3 students from same university',
-    status: 'approved',
-    submittedDate: '2026-02-28',
-    paymentStatus: 'uploaded',
-    paymentSlipUrl: '/payment-slips/BK003.pdf'
-  },
-  {
-    id: 'BK004',
-    studentName: 'Amaya Silva',
-    contact: '+94 77 456 7890',
-    email: 'amaya@email.com',
-    roomTitle: 'Luxury Studio Apartment',
-    roomPrice: 25000,
-    moveInDate: '2026-03-25',
-    duration: 12,
-    bookingType: 'individual',
-    status: 'rejected',
-    submittedDate: '2026-02-20'
-  },
-  {
-    id: 'BK005',
-    studentName: 'Tharindu Jayasinghe',
-    contact: '+94 77 567 8901',
-    email: 'tharindu@email.com',
-    roomTitle: 'Modern Boarding House near SLIIT',
-    roomPrice: 18000,
-    moveInDate: '2026-04-10',
-    duration: 6,
-    bookingType: 'individual',
-    notes: 'Prefer ground floor room',
-    status: 'approved',
-    submittedDate: '2026-03-02',
-    paymentStatus: 'verified',
-    receiptUrl: '/receipts/BK005.pdf'
-  }
-];
+function extractContactFromMessage(message?: string): string {
+  if (!message) return '';
+  const match = message.match(/Contact:\s*([^|]+)/i);
+  return match ? match[1].trim() : '';
+}
+
+function extractNotesFromMessage(message?: string): string {
+  if (!message) return '';
+  const match = message.match(/Notes:\s*(.*)$/i);
+  if (match) return match[1].trim();
+  if (message.startsWith('Contact:')) return '';
+  return message;
+}
+
+function toUiBooking(request: BookingRequestDto, index: number): BookingRequest {
+  const contact = request.contactNumber || extractContactFromMessage(request.message);
+  return {
+    id: `BK${String(index + 1).padStart(3, '0')}`,
+    sourceId: request._id,
+    studentName: request.studentId?.fullName || request.studentId?.email || 'Student',
+    contact: contact || 'N/A',
+    email: request.studentId?.email || 'N/A',
+    roomTitle:
+      request.roomId?.name || request.roomId?.roomNumber || request.houseId?.name || 'Boarding Request',
+    roomPrice: Number(request.roomId?.price || request.houseId?.monthlyPrice || 0),
+    moveInDate: request.moveInDate,
+    duration: Number(request.durationMonths || 0),
+    bookingType: request.bookingType,
+    groupName: request.groupName || '',
+    notes: extractNotesFromMessage(request.message),
+    status: request.status,
+    submittedDate: request.createdAt,
+  };
+}
 
 export default function BookingManagementSystem() {
   const navigate = useNavigate();
-  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>(initialBookingRequests);
+  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
+  const [agreementTemplates, setAgreementTemplates] = useState<AgreementTemplateDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sendingAgreement, setSendingAgreement] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [selectedBooking, setSelectedBooking] = useState<BookingRequest | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [selectedTemplateVersionByBooking, setSelectedTemplateVersionByBooking] = useState<Record<string, string>>({});
+
+  const loadBookingRequests = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const [pending, approved, rejected] = await Promise.all([
+        getOwnerBookingRequests('pending'),
+        getOwnerBookingRequests('approved'),
+        getOwnerBookingRequests('rejected'),
+      ]);
+      const merged = [...pending, ...approved, ...rejected].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setBookingRequests(merged.map(toUiBooking));
+    } catch (err) {
+      setError((err as Error).message || 'Failed to load booking requests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAgreementTemplates = async () => {
+    try {
+      const templates = await getOwnerAgreementTemplates();
+      setAgreementTemplates(templates);
+    } catch (err) {
+      console.error('Failed to load agreement templates:', err);
+    }
+  };
+
+  const handleSendAgreement = async (booking: BookingRequest) => {
+    const selectedVersionKey = selectedTemplateVersionByBooking[booking.id];
+    if (!selectedVersionKey) {
+      setError('Please select a template version');
+      return;
+    }
+
+    // Parse the selected template version ID (format: "templateId-versionIndex")
+    const [templateId, versionIndexStr] = selectedVersionKey.split('-');
+    const versionIndex = parseInt(versionIndexStr, 10);
+
+    const template = agreementTemplates.find(t => t._id === templateId);
+    if (!template || !template.versions[versionIndex]) {
+      setError('Selected template version not found');
+      return;
+    }
+
+    setSendingAgreement(prev => ({ ...prev, [booking.id]: true }));
+    try {
+      await sendAgreementFromTemplate({
+        bookingRequestId: booking.sourceId,
+        templateVersionId: template._id,
+        expirationDays: 7,
+      });
+      setError('');
+      setSelectedTemplateVersionByBooking(prev => ({ ...prev, [booking.id]: '' }));
+      await loadBookingRequests();
+    } catch (err) {
+      setError((err as Error).message || 'Failed to send agreement');
+    } finally {
+      setSendingAgreement(prev => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
+  useEffect(() => {
+    void loadBookingRequests();
+    void loadAgreementTemplates();
+  }, []);
 
   // Filter bookings
-  const filteredBookings = bookingRequests.filter(booking => 
-    filterStatus === 'all' || booking.status === filterStatus
+  const filteredBookings = useMemo(
+    () => bookingRequests.filter((booking) => filterStatus === 'all' || booking.status === filterStatus),
+    [bookingRequests, filterStatus]
   );
 
   // Count statistics
@@ -127,26 +166,28 @@ export default function BookingManagementSystem() {
   };
 
   // Handle approval
-  const handleApprove = (bookingId: string) => {
-    setBookingRequests(prev =>
-      prev.map(booking =>
-        booking.id === bookingId
-          ? { ...booking, status: 'approved', paymentStatus: 'not_uploaded' }
-          : booking
-      )
-    );
+  const handleApprove = async (booking: BookingRequest) => {
+    try {
+      await updateOwnerBookingRequestStatus(booking.sourceId, { status: 'approved' });
+      await loadBookingRequests();
+    } catch (err) {
+      setError((err as Error).message || 'Failed to approve booking');
+    }
     setSelectedBooking(null);
   };
 
   // Handle rejection
-  const handleReject = (bookingId: string) => {
-    setBookingRequests(prev =>
-      prev.map(booking =>
-        booking.id === bookingId
-          ? { ...booking, status: 'rejected' }
-          : booking
-      )
-    );
+  const handleReject = async (booking: BookingRequest) => {
+    try {
+      const reason = rejectReason.trim() || 'Rejected by owner';
+      await updateOwnerBookingRequestStatus(booking.sourceId, {
+        status: 'rejected',
+        rejectionReason: reason,
+      });
+      await loadBookingRequests();
+    } catch (err) {
+      setError((err as Error).message || 'Failed to reject booking');
+    }
     setShowRejectModal(false);
     setRejectReason('');
     setSelectedBooking(null);
@@ -199,6 +240,12 @@ export default function BookingManagementSystem() {
             Booking Management System
           </h1>
           <p className="text-gray-400">Review and manage incoming booking requests</p>
+          {error && (
+            <div className="mt-3 flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+              <AlertCircle size={16} className="text-red-400" />
+              <span className="text-sm text-red-300">{error}</span>
+            </div>
+          )}
         </div>
 
         {/* Statistics Cards */}
@@ -255,7 +302,12 @@ export default function BookingManagementSystem() {
 
         {/* Booking Requests List */}
         <div className="space-y-4">
-          {filteredBookings.length === 0 ? (
+          {loading ? (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
+              <Clock size={48} className="text-gray-500 mx-auto mb-4 animate-pulse" />
+              <p className="text-gray-400">Loading booking requests...</p>
+            </div>
+          ) : filteredBookings.length === 0 ? (
             <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
               <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
               <p className="text-gray-400">No booking requests found</p>
@@ -351,12 +403,63 @@ export default function BookingManagementSystem() {
                 {/* Payment Status Badge */}
                 {getPaymentBadge(booking)}
 
+                {booking.status === 'approved' && (
+                  <div className="mt-4 rounded-lg border border-white/10 bg-white/5">
+                    <div className="px-4 py-2 border-b border-white/10">
+                      <p className="text-xs font-semibold text-gray-300">Send Agreement</p>
+                    </div>
+                    <div className="p-4 flex flex-col gap-3">
+                      <select
+                        value={selectedTemplateVersionByBooking[booking.id] || ''}
+                        onChange={(e) => {
+                          setSelectedTemplateVersionByBooking((prev) => ({
+                            ...prev,
+                            [booking.id]: e.target.value,
+                          }));
+                        }}
+                        className="px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-sm text-white"
+                      >
+                        <option value="" className="text-black">Select a template...</option>
+                        {agreementTemplates.map((template) =>
+                          template.versions.map((version, index) => (
+                            <option
+                              key={`${template._id}-${index}`}
+                              value={`${template._id}-${index}`}
+                              className="text-black"
+                            >
+                              {template.title} - v{version.version} {index === template.versions.length - 1 ? '(Active)' : ''}
+                            </option>
+                          ))
+                        )}
+                      </select>
+
+                      <button
+                        onClick={() => handleSendAgreement(booking)}
+                        disabled={!selectedTemplateVersionByBooking[booking.id] || sendingAgreement[booking.id]}
+                        className="px-5 py-2 rounded-lg bg-cyan-900/50 border border-cyan-700/40 text-cyan-300 text-sm font-semibold hover:bg-cyan-900/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                      >
+                        {sendingAgreement[booking.id] ? (
+                          <>
+                            <Loader size={16} className="animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Mail size={16} />
+                            Send Agreement
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex gap-2 mt-4 flex-wrap">
                   {booking.status === 'pending' && (
                     <>
                       <button
-                        onClick={() => handleApprove(booking.id)}
+                        onClick={() => handleApprove(booking)}
                         className="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
                       >
                         <CheckCircle size={16} />
@@ -441,7 +544,7 @@ export default function BookingManagementSystem() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleReject(selectedBooking.id)}
+                  onClick={() => handleReject(selectedBooking)}
                   className="flex-1 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
                 >
                   Confirm Rejection

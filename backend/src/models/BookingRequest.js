@@ -17,7 +17,14 @@ const bookingRequestSchema = new mongoose.Schema(
     roomId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Room',
-      required: true,
+      required: false,
+      default: null,
+      index: true,
+    },
+    houseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BoardingHouse',
+      default: null,
       index: true,
     },
     bookingType: {
@@ -44,6 +51,11 @@ const bookingRequestSchema = new mongoose.Schema(
     moveInDate: {
       type: Date,
       required: true,
+    },
+    contactNumber: {
+      type: String,
+      default: '',
+      trim: true,
     },
     durationMonths: {
       type: Number,

@@ -13,7 +13,13 @@ import {
   ChevronUp, ChevronDown
 } from 'lucide-react';
 import BookingManagementSystem from './booking/BookingManagementSystem';
+import OwnerSignedAgreementsTab from './OwnerSignedAgreementsTab';
 import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
+import {
+  createOwnerAgreementTemplate,
+  getOwnerAgreementTemplates,
+  type AgreementTemplateDto,
+} from '../api/bookingAgreementApi';
 
 // ============================================
 // TYPES
@@ -855,7 +861,8 @@ export default function OwnerDashboard() {
     const [agreementTitle, setAgreementTitle] = useState('');
     const [agreementContent, setAgreementContent] = useState('');
     const [agreementError, setAgreementError] = useState('');
-    const [agreementTemplates, setAgreementTemplates] = useState<Array<{id: string, title: string, content: string, version: number, updatedAt: string}>>([]);
+    const [agreementTemplates, setAgreementTemplates] = useState<Array<{id: string, templateId: string, title: string, content: string, version: number, updatedAt: string}>>([]);
+    const [expandedTemplateIds, setExpandedTemplateIds] = useState<Set<string>>(new Set());
 
     // Quill editor formats
     const agreementEditorFormats = [
@@ -867,8 +874,48 @@ export default function OwnerDashboard() {
       setAgreementContent(content);
     };
 
+    const mapTemplatesToVersionList = (templates: AgreementTemplateDto[]) => {
+      return templates
+        .flatMap((template) =>
+          (template.versions || []).map((versionItem) => ({
+            id: `${template._id}-v${versionItem.version}`,
+            templateId: template._id,
+            title: versionItem.title,
+            content: versionItem.content,
+            version: versionItem.version,
+            updatedAt: versionItem.createdAt,
+          }))
+        )
+        .sort((a, b) => {
+          const timeDiff = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          if (timeDiff !== 0) return timeDiff;
+          return b.version - a.version;
+        });
+    };
+
+    const loadAgreementTemplates = async () => {
+      try {
+        const templates = await getOwnerAgreementTemplates();
+        setAgreementTemplates(mapTemplatesToVersionList(templates));
+      } catch (error) {
+        console.error('Failed to load agreement templates:', error);
+      }
+    };
+
+    const toggleTemplateExpansion = (templateId: string) => {
+      setExpandedTemplateIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(templateId)) {
+          next.delete(templateId);
+        } else {
+          next.add(templateId);
+        }
+        return next;
+      });
+    };
+
     // Handle create template
-    const handleCreateAgreementTemplate = () => {
+    const handleCreateAgreementTemplate = async () => {
       if (!agreementTitle.trim()) {
         setAgreementError('Template title is required.');
         return;
@@ -878,16 +925,17 @@ export default function OwnerDashboard() {
         return;
       }
       setAgreementError('');
-      const newTemplate = {
-        id: Date.now().toString(),
-        title: agreementTitle.trim(),
-        content: agreementContent,
-        version: agreementTemplates.length + 1,
-        updatedAt: new Date().toISOString(),
-      };
-      setAgreementTemplates(prev => [...prev, newTemplate]);
-      setAgreementTitle('');
-      setAgreementContent('');
+      try {
+        await createOwnerAgreementTemplate({
+          title: agreementTitle.trim(),
+          content: agreementContent,
+        });
+        await loadAgreementTemplates();
+        setAgreementTitle('');
+        setAgreementContent('');
+      } catch (error) {
+        setAgreementError((error as Error).message || 'Failed to save agreement template.');
+      }
     };
   const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>([]);
@@ -979,10 +1027,20 @@ export default function OwnerDashboard() {
     try {
       const rawUser = localStorage.getItem('bb_current_user');
       if (!rawUser) {
+        navigate('/signin');
         return;
       }
 
       const parsedUser = JSON.parse(rawUser) as Partial<OwnerProfile>;
+      const role = parsedUser.role as OwnerProfile['role'] | undefined;
+      if (role && !['owner', 'admin'].includes(role)) {
+        localStorage.removeItem('bb_access_token');
+        localStorage.removeItem('bb_current_user');
+        alert('This account is not an owner account. Please sign in as an owner.');
+        navigate('/signin');
+        return;
+      }
+
       setOwnerProfile((prev) => ({
         ...prev,
         id: parsedUser.id || prev.id,
@@ -996,8 +1054,9 @@ export default function OwnerDashboard() {
       }));
     } catch (error) {
       console.error('Failed to load owner profile:', error);
+      navigate('/signin');
     }
-  }, []);
+  }, [navigate]);
 
   // Redmi Note 13 specific (360-400px width)
   const isRedmiNote13 = windowWidth >= 360 && windowWidth <= 400;
@@ -1071,19 +1130,36 @@ export default function OwnerDashboard() {
       }
 
       try {
-        const [houseData, roomData] = await Promise.all([
+        const [housesResult, roomsResult] = await Promise.allSettled([
           ownerDashboardApi.getHouses(),
           ownerDashboardApi.getRooms(),
         ]);
 
-        setHouses(houseData.map(mapHouseDtoToUi));
-        setRooms(roomData.map(mapRoomDtoToUi));
+        if (housesResult.status === 'fulfilled') {
+          setHouses(housesResult.value.map(mapHouseDtoToUi));
+        } else {
+          console.error('Failed to load owner houses:', housesResult.reason);
+          setHouses([]);
+        }
+
+        if (roomsResult.status === 'fulfilled') {
+          setRooms(roomsResult.value.map(mapRoomDtoToUi));
+        } else {
+          console.error('Failed to load owner rooms:', roomsResult.reason);
+          setRooms([]);
+        }
       } catch (error) {
         console.error('Failed to load owner dashboard data:', error);
       }
     };
 
     loadOwnerData();
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('bb_access_token');
+    if (!token) return;
+    loadAgreementTemplates();
   }, []);
 
   // ============================================
@@ -2174,7 +2250,9 @@ export default function OwnerDashboard() {
                 <div className="space-y-3">
                   {[...agreementTemplates]
                     .sort((a, b) => b.version - a.version)
-                    .map(template => (
+                    .map(template => {
+                      const isExpanded = expandedTemplateIds.has(template.id);
+                      return (
                       <div key={template.id} className="bg-white/5 rounded-lg p-3 border border-white/10">
                         <div className="flex items-center justify-between mb-2">
                           <div>
@@ -2182,88 +2260,25 @@ export default function OwnerDashboard() {
                             <p className="text-[10px] text-gray-400">Updated: {new Date(template.updatedAt).toLocaleString()}</p>
                           </div>
                         </div>
-                        <div className="text-xs text-gray-300 line-clamp-2" dangerouslySetInnerHTML={{ __html: template.content }} />
+                        <div
+                          className={`text-xs text-gray-300 ${isExpanded ? '' : 'line-clamp-2'}`}
+                          dangerouslySetInnerHTML={{ __html: template.content }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleTemplateExpansion(template.id)}
+                          className="mt-2 text-[11px] text-cyan-300 hover:text-cyan-200 transition-colors"
+                        >
+                          {isExpanded ? 'See less' : 'See more'}
+                        </button>
                       </div>
-                    ))}
+                    )})}
                 </div>
               </div>
 
-              {/* Signed Agreements Tab - Mobile (now main content for Agreements tab) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-white">Signed Agreements</h2>
-                  <span className="text-[9px] text-gray-400">{filteredAgreementInstances.length} records</span>
-                </div>
-
-                <div className="space-y-2">
-                  {sortedFilteredAgreementInstances.map(agreement => (
-                    <div key={agreement.id} className="bg-white/5 rounded-xl p-3 border border-white/10">
-                      <button
-                        type="button"
-                        onClick={() => toggleGroupAgreementExpansion(agreement)}
-                        className={`w-full text-left ${agreement.bookingType === 'GROUP' ? 'cursor-pointer' : 'cursor-default'}`}
-                      >
-                        <div className="flex items-center justify-between mb-1.5 gap-2">
-                          <p className="text-xs font-semibold text-white truncate">{formatAgreementId(agreement.id)}</p>
-                          <span className={`text-[8px] px-2 py-0.5 rounded-full whitespace-nowrap ${getAgreementStatusClass(agreement)}`}>
-                            {getAgreementStatusLabel(agreement)}
-                          </span>
-                        </div>
-                        <div className="mb-1.5">
-                          <span className={`text-[8px] px-2 py-0.5 rounded-full ${getAgreementTypeClass(agreement.bookingType)}`}>
-                            {getAgreementTypeLabel(agreement.bookingType)}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-white">{agreement.room}</p>
-                        <p className="text-[9px] text-gray-300" title={getAgreementStudentsTooltip(agreement)}>
-                          Students: {getAgreementStudentSummary(agreement)}
-                          {agreement.bookingType === 'GROUP' && (
-                            <span className="inline-flex align-middle ml-1">
-                              {expandedGroupAgreementId === agreement.id ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-[9px] text-gray-400">Duration: {getAgreementDurationLabel(agreement.duration)}</p>
-                      </button>
-
-                      {agreement.bookingType === 'GROUP' && expandedGroupAgreementId === agreement.id && (
-                        <div className="mt-2 space-y-1.5 rounded-lg border border-white/10 bg-[#0f172a]/40 p-2">
-                          {agreement.tenants.map((tenant) => (
-                            <div key={`${agreement.id}-mobile-${tenant.studentId}-${tenant.name}`} className="rounded-md border border-white/10 bg-white/5 px-2 py-1.5">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-[10px] text-white font-medium truncate">{tenant.name}</p>
-                                <span className={`text-[8px] px-2 py-0.5 rounded-full ${getTenantSignatureStatusClass(tenant)}`}>
-                                  {getTenantSignatureStatusLabel(tenant)}
-                                </span>
-                              </div>
-                              {getTenantMetaLine(tenant) && (
-                                <p className="text-[8px] text-gray-400 truncate">{getTenantMetaLine(tenant)}</p>
-                              )}
-                              <p className="text-[8px] text-gray-400">{tenant.signedDate ? `Signed on ${new Date(tenant.signedDate).toLocaleDateString()}` : 'Awaiting sign'}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {canOwnerDownloadAgreement(agreement) ? (
-                        <button
-                          onClick={() => handleDownloadAgreementPdf(agreement)}
-                          className="mt-2 text-[10px] text-cyan-300 active:text-cyan-200 inline-flex items-center gap-1 min-h-[36px]"
-                        >
-                          <Download size={11} /> PDF
-                        </button>
-                      ) : (
-                        <p className="mt-2 inline-flex items-center px-2 py-1 rounded-md bg-white/5 border border-white/10 text-[9px] text-gray-400">After signing</p>
-                      )}
-                    </div>
-                  ))}
-
-                  {filteredAgreementInstances.length === 0 && (
-                    <div className="bg-white/5 rounded-xl p-4 border border-white/10 text-center text-xs text-gray-400">
-                      No signed agreement records yet.
-                    </div>
-                  )}
-                </div>
+              {/* Signed Agreements Tab - Using new component */}
+              <div className="mt-6">
+                <OwnerSignedAgreementsTab />
               </div>
             </div>
           )}

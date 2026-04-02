@@ -1,5 +1,23 @@
 const Room = require('../models/Room');
 
+// Simple in-memory cache for public rooms (5-minute TTL)
+let roomsCache = null;
+let roomsCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCachedRooms = () => {
+  if (roomsCache && Date.now() - roomsCacheTime < CACHE_TTL) {
+    console.log('[RoomController] 📦 Returning cached rooms');
+    return roomsCache;
+  }
+  return null;
+};
+
+const setCachedRooms = (rooms) => {
+  roomsCache = rooms;
+  roomsCacheTime = Date.now();
+  console.log('[RoomController] 💾 Rooms cached for 5 minutes');
+};
 
 const fallbackRoomImages = [
   'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=80',
@@ -79,6 +97,20 @@ exports.getAllRooms = async (req, res) => {
       sort,
     } = req.query;
 
+    // If no filters applied, check cache first
+    const noFilters = !search && !maxPrice && !minPrice && !roomType && !campus && !facilities && !minRating && !minVacancy && !location && !sort;
+    if (noFilters) {
+      const cached = getCachedRooms();
+      if (cached) {
+        return res.status(200).json({
+          success: true,
+          count: cached.length,
+          data: cached,
+          fromCache: true,
+        });
+      }
+    }
+
     const filter = { isActive: true };
 
 
@@ -122,27 +154,7 @@ exports.getAllRooms = async (req, res) => {
       filter.rating = { $gte: parseFloat(minRating) };
     }
 
-    // Vacancy filter using aggregation if needed
-    let pipeline = [
-      {
-        $addFields: {
-          vacancy: { $subtract: ['$totalSpots', '$occupancy'] },
-        },
-      },
-    ];
-
-    if (minVacancy) {
-      pipeline.push({
-        $match: {
-          ...filter,
-          vacancy: { $gte: parseInt(minVacancy) },
-        },
-      });
-    } else {
-      pipeline.push({ $match: filter });
-    }
-
-    // Sort pipeline
+    // Sort
     let sortStage = { createdAt: -1 };
     if (sort === 'price') {
       sortStage = { price: 1 };
@@ -154,53 +166,42 @@ exports.getAllRooms = async (req, res) => {
       sortStage = { distKm: 1 };
     }
 
-    pipeline.push({ $sort: sortStage });
+    // Use lean projection to avoid heavy payload on search page.
+    let rooms = await Room.find(filter)
+      .select('name location price totalSpots occupancy facilities images roomType genderPreference availableFrom deposit description campus rating distKm verified badges createdAt')
+      .sort(sortStage)
+      .lean();
 
-    // Execute aggregation
-    let rooms = await Room.aggregate(pipeline);
+    // Compute vacancy in app layer for responsiveness with small datasets.
+    rooms = rooms.map((room) => ({
+      ...room,
+      vacancy: Number(room.totalSpots || 0) - Number(room.occupancy || 0),
+    }));
+
+    if (minVacancy) {
+      const minVacancyInt = parseInt(minVacancy, 10);
+      rooms = rooms.filter((room) => Number(room.vacancy || 0) >= minVacancyInt);
+    }
+
+    rooms = rooms.map((room) => {
+      const imageCandidates = Array.isArray(room.images) ? room.images : [];
+      const safeImages = imageCandidates
+        .filter((img) => typeof img === 'string' && img.trim().length > 0 && !img.startsWith('data:'))
+        .slice(0, 3);
+      return {
+        ...room,
+        images: safeImages,
+      };
+    });
 
     // Fallback if no rooms found
     if (!Array.isArray(rooms) || rooms.length === 0) {
       rooms = getFallbackRooms();
     }
 
-    if (location) {
-      filter.location = { $regex: location, $options: 'i' };
-    }
-
-    if (minPrice) {
-      filter.price = { $gte: parseInt(minPrice) };
-    }
-
-    if (maxPrice) {
-      if (!filter.price) filter.price = {};
-      filter.price.$lte = parseInt(maxPrice);
-    }
-
-    if (minVacancy) {
-      // Using aggregation for vacancy filter
-      const roomsWithVacancy = await Room.aggregate([
-        {
-          $addFields: {
-            vacancy: { $subtract: ['$totalSpots', '$occupancy'] },
-          },
-        },
-        {
-          $match: {
-            ...filter,
-            vacancy: { $gte: parseInt(minVacancy) },
-          },
-        },
-        {
-          $sort: sort === 'price' ? { price: 1 } : { createdAt: -1 },
-        },
-      ]);
-
-      return res.status(200).json({
-        success: true,
-        count: roomsWithVacancy.length,
-        data: roomsWithVacancy,
-      });
+    // Cache the result if no filters
+    if (noFilters) {
+      setCachedRooms(rooms);
     }
 
     res.status(200).json({
@@ -209,6 +210,14 @@ exports.getAllRooms = async (req, res) => {
       data: rooms,
     });
   } catch (error) {
+    if (error?.name === 'MongoServerError' || error?.name === 'MongooseError') {
+      return res.status(200).json({
+        success: true,
+        count: getFallbackRooms().length,
+        data: getFallbackRooms(),
+        warning: 'Rooms query timed out, serving fallback data',
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Error fetching rooms',

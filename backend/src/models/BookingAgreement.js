@@ -64,19 +64,46 @@ const bookingAgreementSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['sent', 'accepted', 'rejected'],
-      default: 'sent',
+      enum: ['pending', 'signed', 'expired', 'partially_signed', 'rejected'],
+      default: 'pending',
       index: true,
     },
     sentAt: {
       type: Date,
       default: Date.now,
     },
-    acceptedAt: {
+    signedAt: {
       type: Date,
       default: null,
     },
     rejectedAt: {
+      type: Date,
+      default: null,
+    },
+    expirationDate: {
+      type: Date,
+      required: true,
+    },
+    groupMemberSignatures: [
+      {
+        memberId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        memberName: String,
+        memberEmail: String,
+        status: {
+          type: String,
+          enum: ['pending', 'signed', 'rejected'],
+          default: 'pending',
+        },
+        signedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+    ],
+    acknowledgedAt: {
       type: Date,
       default: null,
     },
