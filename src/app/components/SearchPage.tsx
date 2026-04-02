@@ -134,7 +134,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     const token = getAuthToken();
     if (!token) return;
 
-    const recipientId = profile.userId || profile.id;
+    const recipientId = resolveValidRecipientId(profile);
     if (!recipientId) return;
 
     try {
@@ -389,6 +389,10 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   }, [activeSection]);
 
   const handleSendRequest = (roommate: Roommate) => {
+    if (!resolveValidRecipientId(roommate)) {
+      onToast('This profile cannot receive roommate requests because it does not have a valid account id. Please refresh and try again.');
+      return;
+    }
     setSelectedRoommate(roommate);
     setShowRequestModal(true);
   };
@@ -398,6 +402,12 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     const token = getAuthToken();
     if (!token) {
       onToast('Please sign in to send roommate requests');
+      return;
+    }
+
+    const recipientId = resolveValidRecipientId(selectedRoommate);
+    if (!recipientId) {
+      onToast('This roommate profile is missing a valid account id. Refresh the list and try again.');
       return;
     }
 
@@ -414,7 +424,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          recipientId: selectedRoommate.userId || selectedRoommate.id,
+          recipientId,
           message: messageToSend,
         }),
       });
@@ -1242,6 +1252,16 @@ function normalizeIdValue(value: any): string {
     if (value.id) return String(value.id);
   }
   return '';
+}
+
+function isMongoObjectId(value: unknown): boolean {
+  return typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
+}
+
+function resolveValidRecipientId(roommate: Roommate | null | undefined): string {
+  if (!roommate) return '';
+  const candidateIds = [roommate.userId, roommate.id].map((value) => String(value || '').trim());
+  return candidateIds.find((value) => isMongoObjectId(value)) || '';
 }
 
 function deriveProfileAge(profile: any): number {
