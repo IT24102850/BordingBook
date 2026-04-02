@@ -1609,7 +1609,7 @@ export default function Chat() {
           </div>
 
           {/* Message Input Area */}
-          <div className="border-t border-white/10 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/5 sticky bottom-0 z-20">
+          <div className="border-t border-white/10 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/5 sticky bottom-16 sm:bottom-0 z-20">
             {replyToMessage && (
               <div className="mb-2 p-2 bg-cyan-500/10 rounded-lg flex items-center justify-between">
                 <div className="flex-1">
