@@ -9,13 +9,23 @@ const env = require('./config/env');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
+const isDevelopment = env.nodeEnv !== 'production';
 
 // Security middleware setup
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: isDevelopment ? 5000 : 300,
   standardHeaders: true,
   legacyHeaders: false,
+  // Avoid throttling local development traffic while preserving production protection.
+  skip: (req) => {
+    if (!isDevelopment) return false;
+    const origin = String(req.headers.origin || '');
+    const host = String(req.headers.host || '');
+    const localhostOrigin = origin.includes('localhost') || origin.includes('127.0.0.1');
+    const localhostHost = host.includes('localhost') || host.includes('127.0.0.1');
+    return localhostOrigin || localhostHost;
+  },
 });
 
 app.use(helmet());
@@ -53,7 +63,7 @@ const paymentRoutes = require('./payment/routes/paymentRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api/roommates', roommateRoutes);
 app.use('/api/owner', ownerRoutes);
-app.use('/api/chat', chatRoutes);
+app.use('/api/chats', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payment', paymentRoutes);
 

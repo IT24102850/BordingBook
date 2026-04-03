@@ -116,7 +116,7 @@ function getCurrentUser(): ChatUser | null {
 }
 
 async function apiFetch<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}/api/chat${path}`, {
+  const response = await fetch(`${API_BASE_URL}/api/chats${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -166,6 +166,23 @@ function appendMessageIfMissing(existing: ChatMessage[], incoming: ChatMessage):
     return existing;
   }
   return [...existing, incoming];
+}
+
+function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
+  const seen = new Set<string>();
+  const normalized: ChatMessage[] = [];
+
+  for (const message of messages) {
+    const messageId = String(message?.id || '');
+    if (!messageId || seen.has(messageId)) {
+      continue;
+    }
+
+    seen.add(messageId);
+    normalized.push(message);
+  }
+
+  return normalized;
 }
 
 function normalizeId(input: any): string {
@@ -249,6 +266,7 @@ export default function Chat() {
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const lastRecipientBootstrapRef = useRef('');
+  const lastGroupBootstrapRef = useRef('');
   const selectedConversationIdRef = useRef('');
   const activeCallRef = useRef<ActiveCall | null>(null);
 
@@ -413,10 +431,10 @@ export default function Chat() {
       try {
         setLoadingMessages(true);
         const data = await apiFetch<ChatMessage[]>(`/conversations/${conversationId}/messages`, token);
-        setMessages(data || []);
+        setMessages(dedupeMessages(data || []));
         
         // Mark messages as read
-        await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/read`, {
+        await fetch(`${API_BASE_URL}/api/chats/conversations/${conversationId}/read`, {
           method: 'PATCH',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -450,7 +468,7 @@ export default function Chat() {
     formData.append('type', type);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/upload`, {
+      const response = await fetch(`${API_BASE_URL}/api/chats/upload`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -550,10 +568,53 @@ export default function Chat() {
   }, [token, currentUser, fetchConversations]);
 
   // Open chat from route state (when coming from search page)
-  const ensureDirectConversationFromRouteState = useCallback(async () => {
+  const ensureConversationFromRouteState = useCallback(async () => {
     if (!token || !currentUser) return;
 
     const state = (location.state || {}) as any;
+    const conversationId = normalizeId(
+      state?.conversationId ||
+      new URLSearchParams(location.search).get('conversationId')
+    );
+
+    if (conversationId) {
+      setSelectedConversationId(conversationId);
+      selectedConversationIdRef.current = conversationId;
+      await fetchConversations(conversationId);
+      setSidebarTab('chats');
+      navigate(location.pathname, { replace: true, state: {} });
+      return;
+    }
+
+    const groupId = normalizeId(
+      state?.groupId ||
+      new URLSearchParams(location.search).get('groupId')
+    );
+
+    if (groupId) {
+      if (lastGroupBootstrapRef.current === groupId) return;
+      setInitializingChat(true);
+      lastGroupBootstrapRef.current = groupId;
+      try {
+        const data = await apiFetch<ChatConversation>('/conversations/group', token, {
+          method: 'POST',
+          body: JSON.stringify({ groupId }),
+        });
+
+        setSelectedConversationId(data.id);
+        selectedConversationIdRef.current = data.id;
+        await fetchConversations(data.id);
+        setSidebarTab('chats');
+        navigate(location.pathname, { replace: true, state: {} });
+      } catch (createError) {
+        console.error('[Chat] Error opening group conversation:', createError);
+        setError((createError as Error).message || 'Unable to open group conversation.');
+      } finally {
+        setInitializingChat(false);
+      }
+      return;
+    }
+
     let recipientId = normalizeId(
       state?.recipientId ||
       state?.selectedRoommate?.userId ||
@@ -773,7 +834,7 @@ export default function Chat() {
       
       setMessages((prev) => {
         const filtered = prev.filter((m) => m.id !== tempId);
-        return [...filtered, response];
+        return dedupeMessages([...filtered, response]);
       });
       
       setConversations((prev) =>
@@ -802,7 +863,7 @@ export default function Chat() {
           if (ack?.ok && ack?.data) {
             setMessages((prev) => {
               const filtered = prev.filter((m) => m.id !== tempId);
-              return [...filtered, { ...ack.data, mine: true }];
+              return dedupeMessages([...filtered, { ...ack.data, mine: true }]);
             });
           } else {
             try {
@@ -890,18 +951,22 @@ export default function Chat() {
   // Initial data loading
   useEffect(() => {
     fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (sidebarTab !== 'roommates') return;
     fetchAcceptedRoommates();
-  }, [fetchConversations, fetchAcceptedRoommates]);
+  }, [fetchAcceptedRoommates, sidebarTab]);
 
   // Handle route state for opening chat from roommate
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!initializingChat) {
-        ensureDirectConversationFromRouteState();
+        ensureConversationFromRouteState();
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [ensureDirectConversationFromRouteState, initializingChat]);
+  }, [ensureConversationFromRouteState, initializingChat]);
 
   useEffect(() => {
     if (!showNewChatModal) return;
@@ -1134,10 +1199,10 @@ export default function Chat() {
         <div className="text-center">
           <p className="text-gray-200 mb-3">Sign in is required to use chat.</p>
           <button
-            onClick={() => navigate('/signin')}
+            onClick={() => navigate('/find')}
             className="px-4 py-2 rounded-lg bg-cyan-500 text-black font-semibold"
           >
-            Go to Sign In
+            Go to Search
           </button>
         </div>
       </div>
@@ -1145,14 +1210,14 @@ export default function Chat() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden pt-[env(safe-area-inset-top)]">
       {/* Sidebar */}
       <div className={`w-full lg:w-96 border-r border-white/10 h-full overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'} flex-col`}>
         {/* Sidebar Header with Tabs */}
         <div className="p-4 border-b border-white/10 flex-shrink-0">
           <div className="mb-3 flex items-center justify-between">
             <button
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/find')}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors text-xs font-semibold"
             >
               <ArrowLeft size={14} />
@@ -1274,7 +1339,7 @@ export default function Chat() {
                   <p>No accepted roommates yet.</p>
                   <p className="text-xs mt-1">When you accept a roommate request, they'll appear here.</p>
                   <button
-                    onClick={() => navigate('/search')}
+                    onClick={() => navigate('/find')}
                     className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
                   >
                     Find Roommates
@@ -1334,7 +1399,7 @@ export default function Chat() {
       {selectedConversation && (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Chat Header */}
-          <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5 sticky top-0 z-10">
+          <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5 sticky top-[env(safe-area-inset-top)] z-10">
             <div className="flex items-center gap-3 min-w-0">
               <button 
                 onClick={() => setSelectedConversationId('')} 
@@ -1361,7 +1426,7 @@ export default function Chat() {
                       ? 'Online' 
                       : targetParticipant?.lastSeen 
                         ? `Last seen ${formatTime(targetParticipant.lastSeen)}`
-                        : 'Offline'}
+                        : 'Online'}
                 </p>
               </div>
             </div>
@@ -1440,7 +1505,7 @@ export default function Chat() {
           )}
 
           {/* Messages Area */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-28 sm:pb-4 space-y-4">
             {loadingMessages && (
               <div className="text-xs text-gray-400 flex items-center gap-2 justify-center py-8">
                 <Loader2 size={14} className="animate-spin" /> Loading messages...
@@ -1544,7 +1609,7 @@ export default function Chat() {
           </div>
 
           {/* Message Input Area */}
-          <div className="border-t border-white/10 p-4 bg-white/5">
+          <div className="border-t border-white/10 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/5 sticky bottom-16 sm:bottom-0 z-20">
             {replyToMessage && (
               <div className="mb-2 p-2 bg-cyan-500/10 rounded-lg flex items-center justify-between">
                 <div className="flex-1">

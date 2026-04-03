@@ -112,20 +112,40 @@ exports.getUserGroups = async (req, res) => {
         message: 'Authentication required',
       });
     }
-    // Find groups where user is creator or a member
-    const groups = await BookingGroup.find({
-      $or: [
-        { creatorId: userId },
-        { 'members.userId': userId }
-      ]
-    })
-      .select('name creatorId members scenario roomId currentBoardingHouseTag plannedBoardingHouseTag status createdAt updatedAt')
-      .populate({ path: 'members.userId', select: 'fullName name email profilePicture' })
-      .populate({ path: 'roomId', select: 'name location totalSpots occupancy' })
-      .sort({ updatedAt: -1 })
-      .limit(50)
-      .lean()
-      .maxTimeMS(15000);
+    const objectUserId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : null;
+
+    if (!objectUserId) {
+      return res.status(400).json({ success: false, message: 'Invalid user id' });
+    }
+
+    // Use two index-friendly queries instead of one $or query, then merge and sort.
+    const baseSelect = 'name creatorId members scenario roomId currentBoardingHouseTag plannedBoardingHouseTag status createdAt updatedAt';
+    const [creatorGroups, memberGroups] = await Promise.all([
+      BookingGroup.find({ creatorId: objectUserId })
+        .select(baseSelect)
+        .sort({ updatedAt: -1 })
+        .limit(50)
+        .lean()
+        .maxTimeMS(8000),
+      BookingGroup.find({ 'members.userId': objectUserId })
+        .select(baseSelect)
+        .sort({ updatedAt: -1 })
+        .limit(50)
+        .lean()
+        .maxTimeMS(8000),
+    ]);
+
+    const merged = new Map();
+    [...creatorGroups, ...memberGroups].forEach((group) => {
+      merged.set(String(group._id), group);
+    });
+
+    const groups = Array.from(merged.values())
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 50);
+
     res.json({
       success: true,
       data: groups,

@@ -59,7 +59,7 @@ function MapViewPlaceholder() {
 }
 
 // Roommate Finder Placeholder Component
-const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings: Listing[]; currentUserId: string; onToast: (msg: string) => void }> = ({ roommateData, dbListings, currentUserId, onToast }) => {
+const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings: Listing[]; currentUserId: string; isRoommatesLoading: boolean; onToast: (msg: string) => void }> = ({ roommateData, dbListings, currentUserId, isRoommatesLoading, onToast }) => {
   const navigate = useNavigate();
   const [selectedRoommate, setSelectedRoommate] = useState<Roommate | null>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -68,7 +68,9 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   const [inboxItems, setInboxItems] = useState<any[]>([]);
   const [sentItems, setSentItems] = useState<any[]>([]);
   const [groupItems, setGroupItems] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [isTabLoading, setIsTabLoading] = useState(false);
+  const [tabErrorMessage, setTabErrorMessage] = useState('');
   const [groupScenario, setGroupScenario] = useState<'join-existing' | 'new-place'>('new-place');
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
@@ -87,6 +89,23 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   const currentProfile = roommateData[browseIndex];
 
   const getAuthToken = () => localStorage.getItem('bb_access_token') || '';
+  const inboxCacheKey = currentUserId ? `bb_inbox_cache_${currentUserId}` : 'bb_inbox_cache';
+
+  const sortRequestsNewestFirst = (items: any[]) => {
+    if (!Array.isArray(items)) return [];
+    return [...items].sort((a, b) => {
+      const aTime = new Date(a?.createdAt || 0).getTime();
+      const bTime = new Date(b?.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+  };
+
+  const DEFAULT_PROFILE_IMAGE = 'https://randomuser.me/api/portraits/lego/1.jpg';
+
+  const resolveProfileImage = (profile: any) => {
+    const raw = profile?.image || profile?.profilePicture || (Array.isArray(profile?.profilePictures) ? profile.profilePictures[0] : '');
+    return typeof raw === 'string' && raw.trim().length > 0 ? raw : DEFAULT_PROFILE_IMAGE;
+  };
 
   const mapProfile = (profile: any): Roommate => ({
     id: normalizeIdValue(profile._id || profile.id),
@@ -97,7 +116,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     gender: profile.gender || 'Any',
     university: profile.university || profile.boardingHouse || profile.academicYear || 'SLIIT',
     bio: profile.bio || profile.description || profile.about || profile.profileBio || 'No bio provided yet.',
-    image: profile.image || profile.profilePicture || (Array.isArray(profile.profilePictures) ? profile.profilePictures[0] : '') || 'https://randomuser.me/api/portraits/lego/1.jpg',
+    image: resolveProfileImage(profile),
     interests: Array.isArray(profile.interests) ? profile.interests : Array.isArray(profile.tags) ? profile.tags : [],
     mutualCount: Number(profile.mutualCount) || 0,
     role: profile.role || 'student',
@@ -127,7 +146,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     const token = getAuthToken();
     if (!token) return;
 
-    const recipientId = profile.userId || profile.id;
+    const recipientId = resolveValidRecipientId(profile);
     if (!recipientId) return;
 
     try {
@@ -307,7 +326,12 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
           cache: 'no-store',
         });
         const json = await response.json().catch(() => ({}));
-        return response.ok ? extractResponseArray(json) : [];
+        return {
+          ok: response.ok,
+          status: response.status,
+          data: response.ok ? extractResponseArray(json) : [],
+          message: typeof json?.message === 'string' ? json.message : '',
+        };
       } finally {
         window.clearTimeout(timeoutId);
       }
@@ -315,22 +339,70 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
     const loadTabData = async () => {
       setIsTabLoading(true);
+      setTabErrorMessage('');
       try {
         if (cancelled) return;
 
         if (activeSection === 'inbox') {
-          const inbox = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/inbox`, 12000);
-          if (!cancelled) setInboxItems(inbox);
+          const cachedInboxRaw = localStorage.getItem(inboxCacheKey);
+          if (cachedInboxRaw && !cancelled) {
+            try {
+              const cachedInbox = JSON.parse(cachedInboxRaw);
+              if (Array.isArray(cachedInbox) && cachedInbox.length > 0) {
+                setInboxItems(sortRequestsNewestFirst(cachedInbox));
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
+          const inboxResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/inbox`, 12000);
+          if (!cancelled && inboxResult.ok) {
+            const freshInbox = sortRequestsNewestFirst(inboxResult.data);
+            setInboxItems(freshInbox);
+            localStorage.setItem(inboxCacheKey, JSON.stringify(freshInbox));
+          } else if (!cancelled && !inboxResult.ok) {
+            if (inboxResult.status === 401 || inboxResult.status === 403) {
+              setTabErrorMessage('Inbox could not refresh because your session expired. Please sign in again.');
+            } else if (inboxResult.status >= 500) {
+              setTabErrorMessage('Inbox service is temporarily unavailable. Showing the latest available data.');
+            } else if (inboxResult.message) {
+              setTabErrorMessage(inboxResult.message);
+            }
+          }
+
+          // Fetch conversations/chats
+          const conversationsResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/chats/conversations`, 12000);
+          if (!cancelled && conversationsResult.ok) {
+            setConversations(conversationsResult.data);
+          }
         } else if (activeSection === 'sent') {
-          const sent = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
-          if (!cancelled) setSentItems(sent);
+          const sentResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
+          if (!cancelled && sentResult.ok) setSentItems(sentResult.data);
         } else if (activeSection === 'groups') {
-          const groups = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/groups`, 15000);
-          if (!cancelled) setGroupItems(groups);
+          const cachedGroupsRaw = localStorage.getItem('bb_groups_cache');
+          if (cachedGroupsRaw && !cancelled) {
+            try {
+              const cachedGroups = JSON.parse(cachedGroupsRaw);
+              if (Array.isArray(cachedGroups) && cachedGroups.length > 0) {
+                setGroupItems(cachedGroups);
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
+          const groupsResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/groups`, 12000);
+          if (!cancelled && groupsResult.ok) {
+            setGroupItems(groupsResult.data);
+            localStorage.setItem('bb_groups_cache', JSON.stringify(groupsResult.data));
+          }
         }
       } catch {
         if (!cancelled) {
-          if (activeSection === 'inbox') setInboxItems([]);
+          if (activeSection === 'inbox') {
+            setTabErrorMessage('Could not refresh inbox right now. Showing the latest available data.');
+          }
           if (activeSection === 'sent') setSentItems([]);
           if (activeSection === 'groups') setGroupItems([]);
         }
@@ -346,12 +418,79 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   }, [activeSection]);
 
   useEffect(() => {
+    if (activeSection !== 'inbox') return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    let cancelled = false;
+
+    const refreshInboxFromDatabase = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/roommates/request/inbox`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled) return;
+
+        const latestInbox = sortRequestsNewestFirst(extractResponseArray(json));
+        setInboxItems(latestInbox);
+        localStorage.setItem(inboxCacheKey, JSON.stringify(latestInbox));
+
+        // Also fetch conversations
+        try {
+          const convResponse = await fetch(`${API_BASE_URL}/api/chats/conversations`, {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+          });
+          const convJson = await convResponse.json().catch(() => ({}));
+          if (convResponse.ok && !cancelled) {
+            setConversations(extractResponseArray(convJson));
+          }
+        } catch {
+          // Keep current conversations on fetch failure
+        }
+      } catch {
+        // Keep current inbox UI state when background refresh fails.
+      }
+    };
+
+    const onWindowFocus = () => {
+      void refreshInboxFromDatabase();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshInboxFromDatabase();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void refreshInboxFromDatabase();
+    }, 15000);
+
+    window.addEventListener('focus', onWindowFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onWindowFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [activeSection, inboxCacheKey]);
+
+  useEffect(() => {
     if (activeSection !== 'browse') return;
     // Avoid heavy initial /liked fetch slowing down first swipe render.
     // Favorites are updated optimistically on like and can be refreshed when needed.
   }, [activeSection]);
 
   const handleSendRequest = (roommate: Roommate) => {
+    if (!resolveValidRecipientId(roommate)) {
+      onToast('This profile cannot receive roommate requests because it does not have a valid account id. Please refresh and try again.');
+      return;
+    }
     setSelectedRoommate(roommate);
     setShowRequestModal(true);
   };
@@ -361,6 +500,12 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     const token = getAuthToken();
     if (!token) {
       onToast('Please sign in to send roommate requests');
+      return;
+    }
+
+    const recipientId = resolveValidRecipientId(selectedRoommate);
+    if (!recipientId) {
+      onToast('This roommate profile is missing a valid account id. Refresh the list and try again.');
       return;
     }
 
@@ -377,7 +522,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          recipientId: selectedRoommate.userId || selectedRoommate.id,
+          recipientId,
           message: messageToSend,
         }),
       });
@@ -412,9 +557,12 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
       load(`${API_BASE_URL}/api/roommates/request/sent`),
       load(`${API_BASE_URL}/api/roommates/groups`),
     ]);
-    setInboxItems(inbox);
+    const sortedInbox = sortRequestsNewestFirst(inbox);
+    setInboxItems(sortedInbox);
     setSentItems(sent);
     setGroupItems(groups);
+    localStorage.setItem(inboxCacheKey, JSON.stringify(sortedInbox));
+    localStorage.setItem('bb_groups_cache', JSON.stringify(groups));
   };
 
   const handleRequestDecision = async (requestId: string, decision: 'accept' | 'reject') => {
@@ -459,6 +607,25 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     } catch {
       onToast('Network error while responding to group invite');
     }
+  };
+
+  const handleStartGroupChat = async (group: any) => {
+    const groupId = String(group?._id || group?.id || '');
+    if (!groupId) {
+      onToast('Invalid group');
+      return;
+    }
+
+    const acceptedCount = Array.isArray(group?.members)
+      ? group.members.filter((member: any) => member?.status === 'accepted').length
+      : 0;
+
+    if (acceptedCount < 2) {
+      onToast('Group chat requires at least 2 accepted members');
+      return;
+    }
+
+    navigate('/chat', { state: { groupId } });
   };
 
   const toggleGroupMember = (memberId: string) => {
@@ -537,7 +704,15 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
   const MiniProfileCard: React.FC<{ item: Roommate; type: 'passed' | 'liked' }> = ({ item, type }) => (
     <div className="bg-[#111b38] rounded-lg border border-white/10 p-2 flex items-center gap-2">
-      <img src={item.image} alt={item.name} className="w-10 h-10 rounded-full object-cover" />
+      <img
+        src={resolveProfileImage(item)}
+        alt={item.name}
+        className="w-10 h-10 rounded-full object-cover"
+        onError={(event) => {
+          const target = event.currentTarget;
+          if (target.src !== DEFAULT_PROFILE_IMAGE) target.src = DEFAULT_PROFILE_IMAGE;
+        }}
+      />
       <div className="min-w-0 flex-1">
         <p className="text-xs text-white font-semibold truncate">{item.name}</p>
         <p className="text-[10px] text-gray-400 truncate">{item.university}</p>
@@ -547,6 +722,16 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
   );
 
   const renderBrowseTab = () => {
+    if (isRoommatesLoading && !roommateData.length) {
+      return (
+        <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
+          <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Loading Students</h3>
+          <p className="text-gray-400 text-sm">Finding available roommates near SLIIT...</p>
+        </div>
+      );
+    }
+
     if (!roommateData.length) {
       return (
         <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
@@ -750,6 +935,50 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
     );
   };
 
+  const renderConversationCard = (conversation: any) => {
+    const title = conversation?.name || 'Conversation';
+    const avatar = conversation?.avatar || '';
+    const lastMessage = conversation?.lastMessage?.text || 'No messages yet';
+    const updatedAt = conversation?.updatedAt ? new Date(conversation.updatedAt).toLocaleString() : '';
+    const unreadCount = conversation?.unreadCount || 0;
+    const conversationId = conversation?.id || conversation?._id || '';
+
+    return (
+      <div key={conversationId} className="bg-white/5 rounded-xl border border-white/10 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {avatar && (
+              <img
+                src={avatar}
+                alt={title}
+                className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-sm font-semibold truncate">{title}</p>
+              <p className="text-xs text-gray-300 truncate">{lastMessage}</p>
+            </div>
+          </div>
+          {unreadCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-pink-500/20 border border-pink-400/30 text-pink-200 flex-shrink-0">
+              {unreadCount} new
+            </span>
+          )}
+        </div>
+        {updatedAt && <p className="text-[11px] text-gray-500 mt-2">{updatedAt}</p>}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => navigate('/chat', { state: { conversationId } })}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-xs w-full"
+          >
+            Open Chat
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderGroups = () => (
     <div className="space-y-4">
       <div className="bg-white/5 rounded-xl border border-white/10 p-4 space-y-3">
@@ -836,6 +1065,16 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
       {groupItems.length ? groupItems.map((group: any) => (
         <div key={group._id || group.id} className="bg-white/5 rounded-xl border border-white/10 p-4">
+          {(() => {
+            const members = Array.isArray(group?.members) ? group.members : [];
+            const acceptedCount = members.filter((member: any) => member?.status === 'accepted').length;
+            const isCurrentUserAccepted = members.some((member: any) => {
+              const memberId = String(member?.userId?._id || member?.userId || '');
+              return member?.status === 'accepted' && memberId === String(currentUserId);
+            });
+
+            return (
+              <>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-white text-sm font-semibold">{group.name || 'Booking Group'}</p>
@@ -859,6 +1098,23 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
               ))}
             </div>
           ) : null}
+
+          {isCurrentUserAccepted ? (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-gray-300">
+                Accepted members: <span className="text-cyan-200 font-semibold">{acceptedCount}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => handleStartGroupChat(group)}
+                disabled={acceptedCount < 2}
+                className="px-3 py-1.5 rounded text-[11px] font-semibold bg-cyan-500/20 border border-cyan-400/30 text-cyan-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Start Group Chat
+              </button>
+            </div>
+          ) : null}
+
           {Array.isArray(group.members) && group.members.some((member: any) => {
             const memberId = String(member?.userId?._id || member?.userId || '');
             return member?.status === 'pending' && memberId === String(currentUserId);
@@ -892,6 +1148,9 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
                 ))}
             </div>
           ) : null}
+                      </>
+                    );
+                  })()}
         </div>
       )) : <p className="text-sm text-gray-400">No groups found.</p>}
     </div>
@@ -953,7 +1212,7 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
           onClick={() => setActiveSection('inbox')}
           className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'inbox' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
         >
-          Inbox ({inboxItems.length})
+          Inbox ({inboxItems.length + conversations.length})
         </button>
         <button
           onClick={() => setActiveSection('groups')}
@@ -967,6 +1226,20 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
       {activeSection !== 'browse' && (
         <div className="space-y-3">
+          {activeSection === 'inbox' && tabErrorMessage ? (
+            <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {tabErrorMessage}
+              {(tabErrorMessage.toLowerCase().includes('sign in') || tabErrorMessage.toLowerCase().includes('session')) ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/signin')}
+                  className="ml-3 underline text-amber-100"
+                >
+                  Go to sign in
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {isTabLoading ? (
             <div className="text-center py-10 text-gray-400">
               <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-3" />
@@ -975,7 +1248,24 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
           ) : activeSection === 'sent' ? (
             sentItems.length ? sentItems.map((item) => renderRequestCard(item, 'sent')) : <p className="text-sm text-gray-400">No sent requests found in database.</p>
           ) : activeSection === 'inbox' ? (
-            inboxItems.length ? inboxItems.map((item) => renderRequestCard(item, 'inbox')) : <p className="text-sm text-gray-400">No inbox requests found in database.</p>
+            inboxItems.length || conversations.length ? (
+              <div className="space-y-3">
+                {/* Roommate Requests Section */}
+                {inboxItems.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-300 mb-2 px-1">Roommate Requests ({inboxItems.length})</h3>
+                    {inboxItems.map((item) => renderRequestCard(item, 'inbox'))}
+                  </div>
+                )}
+                {/* Chat Conversations Section */}
+                {conversations.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-300 mb-2 px-1">Chats ({conversations.length})</h3>
+                    {conversations.map((conv) => renderConversationCard(conv))}
+                  </div>
+                )}
+              </div>
+            ) : <p className="text-sm text-gray-400">No inbox requests or messages found in database.</p>
           ) : (
             renderGroups()
           )}
@@ -1138,9 +1428,37 @@ function normalizeIdValue(value: any): string {
   return '';
 }
 
+function isMongoObjectId(value: unknown): boolean {
+  return typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
+}
+
+function resolveValidRecipientId(roommate: Roommate | null | undefined): string {
+  if (!roommate) return '';
+  const candidateIds = [roommate.userId, roommate.id].map((value) => String(value || '').trim());
+  return candidateIds.find((value) => isMongoObjectId(value)) || '';
+}
+
 function deriveProfileAge(profile: any): number {
-  // TODO: Implement age calculation if needed
-  return 0;
+  if (!profile) return 0;
+
+  const directAge = Number(profile.age);
+  if (Number.isFinite(directAge) && directAge > 0) {
+    return Math.floor(directAge);
+  }
+
+  const dobRaw = profile.dateOfBirth || profile.dob || profile.birthDate;
+  if (!dobRaw) return 0;
+
+  const dob = new Date(dobRaw);
+  if (Number.isNaN(dob.getTime())) return 0;
+
+  const today = new Date();
+  let years = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  const beforeBirthday = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate());
+  if (beforeBirthday) years -= 1;
+
+  return years > 0 ? years : 0;
 }
 
 const roomImages = [
@@ -2026,6 +2344,7 @@ function SearchPage() {
   const [dbListings, setDbListings] = useState<Listing[]>([]);
   const [dbRoommates, setDbRoommates] = useState<Roommate[]>([]);
   const [isListingsLoading, setIsListingsLoading] = useState<boolean>(true);
+  const [isRoommatesLoading, setIsRoommatesLoading] = useState<boolean>(true);
   const [isListingsTimedOut, setIsListingsTimedOut] = useState<boolean>(false);
   const [listingsError, setListingsError] = useState<string>('');
   const [listingsLoadKey, setListingsLoadKey] = useState(0);
@@ -2496,6 +2815,9 @@ function SearchPage() {
             });
           }
 
+          // Start loading roommates
+          if (!isCancelled) setIsRoommatesLoading(true);
+
           // Instant fallback: show last successful roommate list while fresh data loads.
           const cachedRoommatesRaw = localStorage.getItem('bb_roommates_cache');
           if (cachedRoommatesRaw && !isCancelled) {
@@ -2503,6 +2825,8 @@ function SearchPage() {
               const cachedRoommates = JSON.parse(cachedRoommatesRaw);
               if (Array.isArray(cachedRoommates) && cachedRoommates.length > 0) {
                 setDbRoommates(cachedRoommates);
+                // Cache available, so loading is not needed anymore
+                if (!isCancelled) setIsRoommatesLoading(false);
               }
             } catch {
               // Ignore invalid cache payloads.
@@ -2511,7 +2835,7 @@ function SearchPage() {
 
           const roommateResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/browse`, {
             headers: { Authorization: `Bearer ${token}` },
-          }, 12000);
+          }, 50000);
 
           if (!isCancelled && roommateResult.ok) {
             const roommateData = Array.isArray(roommateResult.json?.data)
@@ -2540,6 +2864,10 @@ function SearchPage() {
 
             setDbRoommates(mappedRoommates);
             localStorage.setItem('bb_roommates_cache', JSON.stringify(mappedRoommates));
+            if (!isCancelled) setIsRoommatesLoading(false);
+          } else if (!isCancelled) {
+            // Fetch failed or timed out, stop loading indicator
+            setIsRoommatesLoading(false);
           }
         }
       } catch {
@@ -3489,6 +3817,7 @@ function SearchPage() {
             roommateData={effectiveRoommates}
             dbListings={dbListings}
             currentUserId={currentUserId}
+            isRoommatesLoading={isRoommatesLoading}
             onToast={(msg) => {
               setToastMessage(msg);
               setShowToast(true);

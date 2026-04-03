@@ -2,6 +2,7 @@
  * @route GET /api/roommates/browse
  * @access Private
  */
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const RoommateProfile = require('../models/RoommateProfile');
 
@@ -9,11 +10,19 @@ exports.browseProfiles = async (req, res) => {
   try {
     const userId = req.user && req.user.userId;
 
-    // Use _id index for speed, then filter role in memory.
-    const users = await User.find({})
+    const currentUserObjectId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : null;
+
+    const browseFilter = { role: 'student' };
+    if (currentUserObjectId) {
+      browseFilter._id = { $ne: currentUserObjectId };
+    }
+
+    const users = await User.find(browseFilter)
       .select('name fullName email role gender academicYear profilePicture tags boardingHouse age dateOfBirth dob birthDate bio description')
-      .sort({ _id: -1 })
-      .limit(220)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(500)
       .lean()
       .maxTimeMS(15000)
       .exec();
@@ -36,8 +45,7 @@ exports.browseProfiles = async (req, res) => {
     };
 
     const profiles = users
-      .filter((u) => u && String(u._id) !== String(userId) && String(u.role || '').toLowerCase() === 'student')
-      .slice(0, 80)
+      .filter(Boolean)
       .map((user) => ({
         id: user._id,
         userId: user._id,
