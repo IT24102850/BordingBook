@@ -60,6 +60,8 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const paymentRoutes = require('./payment/routes/paymentRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const kycRoutes = require('./routes/kycRoutes');
+const ticketRoutes = require('./routes/ticketRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 // Use routes
 app.use('/api/auth', authRoutes);
@@ -70,6 +72,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/kyc', kycRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
