@@ -23,39 +23,34 @@ const userSchema = new mongoose.Schema(
       default: 'student',
     },
     
-    // Owner and Student fields
+    // Student-specific fields
+    firstName: { type: String, default: '' },
+    lastName:  { type: String, default: '' },
+    studentId: { type: String, default: '' },
+    nic:       { type: String, default: '' },
+    birthday:  { type: String, default: '' },
+    academicYear: { type: String, default: '' },
+
+    // Owner-specific fields
     fullName: {
       type: String,
       required: function() {
         return this.role === 'owner';
       },
-      default: '',
-      trim: true,
     },
     phoneNumber: {
       type: String,
       required: function() {
         return this.role === 'owner';
       },
-      default: '',
-      trim: true,
     },
-    mobileNumber: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    age: {
-      type: Number,
-      default: 0,
-    },
-    companyName: {
+    address: {
       type: String,
       default: '',
     },
-    propertyCount: {
-      type: Number,
-      default: 0,
+    occupation: {
+      type: String,
+      default: '',
     },
     
     // Email verification fields
@@ -72,6 +67,53 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
     
+    // Admin-managed fields
+    isBanned: {
+      type: Boolean,
+      default: false,
+    },
+
+    // KYC fields (owner only)
+    kycStatus: {
+      type: String,
+      enum: ['not_submitted', 'pending', 'approved', 'rejected'],
+      default: 'not_submitted',
+    },
+    kycDocuments: {
+      nicFront: { type: String, default: '' },
+      nicBack:  { type: String, default: '' },
+      selfie:   { type: String, default: '' },
+    },
+    kycSubmittedAt: {
+      type: Date,
+      default: null,
+    },
+    kycRejectionReason: {
+      type: String,
+      default: '',
+    },
+
+    // Activity tracking
+    lastLogin: {
+      type: Date,
+      default: null,
+    },
+    loginHistory: {
+      type: [{ loginAt: { type: Date }, _id: false }],
+      default: [],
+      select: false,
+    },
+
+    // Password reset fields
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetTokenExpiry: {
+      type: Date,
+      select: false,
+    },
+
     // Optional profile fields
     profilePicture: {
       type: String,
@@ -81,65 +123,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    minBudget: {
-      type: Number,
-      default: 0,
-    },
-    maxBudget: {
-      type: Number,
-      default: 0,
-    },
-    distance: {
-      type: Number,
-      default: 0,
-    },
-    selectedLocation: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    gender: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    academicYear: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    roommatePreference: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    roomType: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    lifestylePrefs: {
-      type: [String],
-      default: [],
-    },
-    profilePictures: {
-      type: [String],
-      default: [],
-    },
-    profileCompleted: {
-      type: Boolean,
-      default: false,
-    },
-    liked: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: [],
-    }],
-    passed: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: [],
-    }],
   },
   {
     timestamps: true, // Adds createdAt and updatedAt fields
@@ -169,6 +152,22 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   }
 };
 
+// Method to generate password reset token
+userSchema.methods.generatePasswordResetToken = function () {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(32).toString('hex');
+
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  // Token expires in 1 hour
+  this.passwordResetTokenExpiry = Date.now() + 60 * 60 * 1000;
+
+  return token;
+};
+
 // Method to generate verification token
 userSchema.methods.generateVerificationToken = function () {
   const crypto = require('crypto');
@@ -184,6 +183,15 @@ userSchema.methods.generateVerificationToken = function () {
   
   return token;
 };
+
+// TTL index: auto-delete unverified students 24h after signup.
+// MongoDB removes the document when verificationTokenExpiry is reached.
+// Verified users are safe — we clear verificationTokenExpiry on email confirmation,
+// so the index has nothing to act on for them.
+userSchema.index(
+  { verificationTokenExpiry: 1 },
+  { expireAfterSeconds: 0, partialFilterExpression: { isVerified: false } }
+);
 
 const User = mongoose.model('User', userSchema);
 
