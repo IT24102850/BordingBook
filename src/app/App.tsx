@@ -65,6 +65,7 @@ const RoommateFinderPage = lazy(() => import('./components/RoommateFinderPage'))
 const RoommateFinderEnhanced = lazy(() => import('./components/RoommateFinderEnhanced'));
 const ChatbotSection = lazy(() => import('./components/ChatbotSection'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
+const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
 
 const BookingManagementSystem = lazy(() => import('./components/booking/BookingManagementSystem'));
 const StudentBookingDashboard = lazy(() => import('./components/booking/StudentBookingDashboard'));
@@ -148,6 +149,10 @@ export default function App() {
         <Route path="/chat" element={<Chat />} />
         <Route path="/owner-approval" element={<OwnerApprovalPage />} />
         <Route path="/chatbot" element={<ChatbotSection standalone={true} />} />
+
+        {/* Role-based dashboard routes */}
+        <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+        <Route path="/student/dashboard" element={<StudentDashboard />} />
 
         {/* Catch-all: Redirect unknown routes to /signin */}
         <Route path="*" element={<Navigate to="/signin" replace />} />
