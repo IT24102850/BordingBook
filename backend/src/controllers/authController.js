@@ -1,26 +1,7 @@
 const User = require('../models/User');
-const emailService = require('../services/emailService');
+const { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } = require('../services/emailService');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const env = require('../config/env');
-
-function isStudentEmail(email) {
-  return email.endsWith('@sliit.lk') || email.endsWith('@my.sliit.lk');
-}
-
-function validatePasswordByRole(password, role) {
-  if (role === 'student') {
-    const hasNumber = /\d/.test(password);
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    if (password.length < 8 || !hasNumber || !hasUppercase || !hasSymbol) {
-      return 'Student password must be at least 8 characters and include uppercase, number, and symbol';
-    }
-  }
-
-  return null;
-}
 
 /**
  * Sign up a new user
@@ -28,109 +9,130 @@ function validatePasswordByRole(password, role) {
  */
 exports.signup = async (req, res) => {
   try {
-    const { email, password, role = 'student', fullName, phoneNumber, companyName, propertyCount } = req.body;
-    const normalizedEmail = email.toLowerCase().trim();
-    const normalizedFullName = typeof fullName === 'string' ? fullName.trim() : '';
-    const normalizedPhoneNumber = typeof phoneNumber === 'string' ? phoneNumber.trim() : '';
+    const { email, password, role, fullName, phoneNumber, nic: ownerNic, address, occupation,
+            firstName, lastName, studentId, nic, birthday, academicYear } = req.body;
 
-    const rolePasswordError = validatePasswordByRole(password, role);
-    if (rolePasswordError) {
-      return res.status(400).json({ success: false, message: rolePasswordError });
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required',
+      });
     }
 
+    // Validate email format based on role
     if (role === 'student') {
-      if (!isStudentEmail(normalizedEmail)) {
+      if (!email.endsWith('@sliit.lk') && !email.endsWith('@my.sliit.lk')) {
         return res.status(400).json({
           success: false,
           message: 'Students must use @sliit.lk or @my.sliit.lk email',
         });
       }
     } else if (role === 'owner') {
-      if (isStudentEmail(normalizedEmail)) {
+      if (email.endsWith('@sliit.lk') || email.endsWith('@my.sliit.lk')) {
         return res.status(400).json({
           success: false,
           message: 'Property owners must use a business or personal email',
         });
       }
-
-      if (!normalizedFullName || !normalizedPhoneNumber) {
+      
+      // Validate owner-specific required fields
+      if (!fullName || !phoneNumber) {
         return res.status(400).json({
           success: false,
           message: 'Full name and phone number are required for property owners',
         });
       }
+      if (!ownerNic) {
+        return res.status(400).json({ success: false, message: 'NIC is required for property owners' });
+      }
+      if (!address) {
+        return res.status(400).json({ success: false, message: 'Address is required for property owners' });
+      }
     }
 
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      if (!existingUser.isVerified) {
-        return res.status(409).json({
-          success: false,
-          message: 'An account with this email already exists. Please verify your email.',
-          needsVerification: true,
-        });
-      }
-
       return res.status(409).json({
         success: false,
         message: 'An account with this email already exists',
       });
     }
 
+    // Owners are auto-verified; students must confirm email
+    const isOwner = role === 'owner';
+
     const userData = {
-      email: normalizedEmail,
+      email,
       password,
-      role,
-      isVerified: false,
+      role: role || 'student',
+      isVerified: isOwner,
     };
 
-    if (role === 'owner') {
-      userData.fullName = normalizedFullName;
-      userData.phoneNumber = normalizedPhoneNumber;
-      userData.companyName = (companyName || '').trim();
-      userData.propertyCount = Number(propertyCount) || 0;
+    // Add owner-specific fields
+    if (isOwner) {
+      userData.fullName = fullName;
+      userData.phoneNumber = phoneNumber;
+      userData.nic = ownerNic || '';
+      userData.address = address || '';
+      userData.occupation = occupation || '';
+    }
+
+    // Add student-specific fields
+    if (role === 'student') {
+      userData.firstName = firstName || '';
+      userData.lastName = lastName || '';
+      userData.studentId = studentId || '';
+      userData.nic = nic || '';
+      userData.birthday = birthday || '';
+      userData.academicYear = academicYear || '';
     }
 
     const user = new User(userData);
-    const verificationToken = user.generateVerificationToken();
 
+    if (!isOwner) {
+      // Students: generate email verification token and send
+      const verificationToken = user.generateVerificationToken();
+      await user.save();
+      try {
+        await sendVerificationEmail(email, verificationToken);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+      }
+      return res.status(201).json({
+        success: true,
+        message: 'Account created. Please verify your email.',
+        data: { userId: user._id, email: user.email, role: user.role, isVerified: false },
+      });
+    }
+
+    // Owners: save and return a JWT so they can immediately upload KYC
     await user.save();
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
-    // Return response immediately with verification link (non-blocking email send)
-    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
-    
     res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please verify your email.',
+      message: 'Account created successfully.',
       data: {
         userId: user._id,
         email: user.email,
         role: user.role,
-        isVerified: user.isVerified,
-        verificationUrl: verificationUrl,
-        verificationToken: verificationToken, // For development/testing
+        isVerified: true,
+        token,
+        user: { id: user._id, email: user.email, role: user.role, fullName: user.fullName },
       },
     });
-
-    // Send email in the background (non-blocking)
-    setImmediate(async () => {
-      try {
-        const emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
-        if (emailResult.success) {
-          console.log(`Verification email sent to ${normalizedEmail}`);
-        } else {
-          console.warn(`Email not sent to ${normalizedEmail}: ${emailResult.reason}`);
-          console.warn(`Fallback: User can verify via: ${verificationUrl}`);
-        }
-      } catch (emailError) {
-        console.error('Background email send error:', emailError.message);
-      }
-    });
   } catch (error) {
-    console.error('Signup error:', error.message);
-    return res.status(500).json({
+    console.error('Signup error:', error);
+    res.status(500).json({
       success: false,
-      message: error.name === 'ValidationError' ? 'Please fill all required fields correctly' : 'Failed to create account',
+      message: 'Failed to create account',
+      error: error.message,
     });
   }
 };
@@ -141,7 +143,7 @@ exports.signup = async (req, res) => {
  */
 exports.verifyEmail = async (req, res) => {
   try {
-    const token = req.query.token || req.params.token;
+    const { token } = req.query;
 
     if (!token) {
       return res.status(400).json({
@@ -150,11 +152,16 @@ exports.verifyEmail = async (req, res) => {
       });
     }
 
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    // Hash the token to match stored hash
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
 
+    // Find user with matching token and check expiry
     const user = await User.findOne({
       verificationToken: hashedToken,
-      verificationTokenExpiry: { $gt: Date.now() },
+      verificationTokenExpiry: { $gt: Date.now() }, // Token not expired
     });
 
     if (!user) {
@@ -164,6 +171,7 @@ exports.verifyEmail = async (req, res) => {
       });
     }
 
+    // Check if already verified
     if (user.isVerified) {
       return res.status(400).json({
         success: false,
@@ -171,24 +179,24 @@ exports.verifyEmail = async (req, res) => {
       });
     }
 
+    // Update user as verified
     user.isVerified = true;
     user.verificationToken = undefined;
     user.verificationTokenExpiry = undefined;
     await user.save();
 
-    // Send welcome email in background so verification response is never blocked by SMTP.
-    setImmediate(async () => {
-      try {
-        await emailService.sendWelcomeEmail(
-          user.email,
-          user.role === 'owner' ? user.fullName : user.email.split('@')[0]
-        );
-      } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError.message);
-      }
-    });
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(
+        user.email,
+        user.role === 'owner' ? user.fullName : user.email.split('@')[0]
+      );
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Continue even if welcome email fails
+    }
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: 'Email verified successfully. You can now sign in.',
       data: {
@@ -197,10 +205,11 @@ exports.verifyEmail = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Email verification error:', error.message);
-    return res.status(500).json({
+    console.error('Email verification error:', error);
+    res.status(500).json({
       success: false,
       message: 'Failed to verify email',
+      error: error.message,
     });
   }
 };
@@ -212,9 +221,15 @@ exports.verifyEmail = async (req, res) => {
 exports.resendVerification = async (req, res) => {
   try {
     const { email } = req.body;
-    const normalizedEmail = email.toLowerCase().trim();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required',
+      });
+    }
+
+    const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(404).json({
@@ -230,41 +245,23 @@ exports.resendVerification = async (req, res) => {
       });
     }
 
+    // Generate new verification token
     const verificationToken = user.generateVerificationToken();
     await user.save();
 
-    // Return response immediately with verification link (non-blocking email send)
-    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
-    
+    // Send verification email
+    await sendVerificationEmail(email, verificationToken);
+
     res.status(200).json({
       success: true,
-      message: 'Verification link ready. Check your email or use the link below.',
-      data: {
-        email: user.email,
-        verificationUrl: verificationUrl,
-        verificationToken: verificationToken, // For development/testing
-      },
-    });
-
-    // Send email in the background (non-blocking)
-    setImmediate(async () => {
-      try {
-        const emailResult = await emailService.sendVerificationEmail(normalizedEmail, verificationToken);
-        if (emailResult.success) {
-          console.log(`Resend email sent to ${normalizedEmail}`);
-        } else {
-          console.warn(`Email not sent to ${normalizedEmail}: ${emailResult.reason}`);
-          console.warn(`Fallback: User can verify via: ${verificationUrl}`);
-        }
-      } catch (emailError) {
-        console.error('Background resend email error:', emailError.message);
-      }
+      message: 'Verification email sent successfully',
     });
   } catch (error) {
-    console.error('Resend verification error:', error.message);
-    return res.status(500).json({
+    console.error('Resend verification error:', error);
+    res.status(500).json({
       success: false,
       message: 'Failed to resend verification email',
+      error: error.message,
     });
   }
 };
@@ -276,9 +273,17 @@ exports.resendVerification = async (req, res) => {
 exports.signin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const normalizedEmail = email.toLowerCase().trim();
 
-    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required',
+      });
+    }
+
+    // Find user and include password field
+    const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
       return res.status(401).json({
@@ -287,6 +292,7 @@ exports.signin = async (req, res) => {
       });
     }
 
+    // Check if email is verified
     if (!user.isVerified) {
       return res.status(403).json({
         success: false,
@@ -295,6 +301,7 @@ exports.signin = async (req, res) => {
       });
     }
 
+    // Check password
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
@@ -304,17 +311,25 @@ exports.signin = async (req, res) => {
       });
     }
 
+    // Record login activity (keep last 20)
+    const now = new Date();
+    await User.findByIdAndUpdate(user._id, {
+      lastLogin: now,
+      $push: { loginHistory: { $each: [{ loginAt: now }], $slice: -20 } },
+    });
+
+    // Generate JWT token
     const token = jwt.sign(
       {
         userId: user._id,
         email: user.email,
-        role: user.role,
+        role: user.role
       },
-      env.jwtSecret,
-      { expiresIn: env.jwtExpiresIn }
+      process.env.JWT_SECRET || 'your-secret-key-change-this',
+      { expiresIn: '7d' }
     );
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: 'Signed in successfully',
       data: {
@@ -324,192 +339,135 @@ exports.signin = async (req, res) => {
           email: user.email,
           role: user.role,
           fullName: user.fullName,
-          profilePicture: user.profilePicture,
-          bio: user.bio,
-          phoneNumber: user.phoneNumber,
-          companyName: user.companyName,
-          propertyCount: user.propertyCount,
-          minBudget: user.minBudget,
-          maxBudget: user.maxBudget,
-          distance: user.distance,
-          selectedLocation: user.selectedLocation,
-          gender: user.gender,
-          academicYear: user.academicYear,
-          roommatePreference: user.roommatePreference,
-          roomType: user.roomType,
-          lifestylePrefs: user.lifestylePrefs,
-          profileCompleted: user.profileCompleted,
           isVerified: user.isVerified,
         },
       },
     });
   } catch (error) {
-    console.error('Signin error:', error.message);
-    return res.status(500).json({
+    console.error('Signin error:', error);
+    res.status(500).json({
       success: false,
       message: 'Failed to sign in',
+      error: error.message,
     });
   }
 };
 
-exports.getMe = async (req, res) => {
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ */
+exports.forgotPassword = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-verificationToken -verificationTokenExpiry');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
-    return res.status(200).json({
-      success: true,
-      data: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        fullName: user.fullName,
-        mobileNumber: user.mobileNumber,
-        age: user.age,
-        profilePicture: user.profilePicture,
-        profilePictures: user.profilePictures,
-        bio: user.bio,
-        phoneNumber: user.phoneNumber,
-        companyName: user.companyName,
-        propertyCount: user.propertyCount,
-        minBudget: user.minBudget,
-        maxBudget: user.maxBudget,
-        distance: user.distance,
-        selectedLocation: user.selectedLocation,
-        gender: user.gender,
-        academicYear: user.academicYear,
-        roommatePreference: user.roommatePreference,
-        roomType: user.roomType,
-        lifestylePrefs: user.lifestylePrefs,
-        profileCompleted: user.profileCompleted,
-        isVerified: user.isVerified,
-      },
-    });
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.status(200).json({ success: true, message: 'If an account exists, a reset email has been sent.' });
+    }
+
+    const resetToken = user.generatePasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      await sendPasswordResetEmail(user.email, resetToken);
+    } catch (emailErr) {
+      user.passwordResetToken = undefined;
+      user.passwordResetTokenExpiry = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({ success: false, message: 'Failed to send reset email. Please try again.' });
+    }
+
+    res.status(200).json({ success: true, message: 'If an account exists, a reset email has been sent.' });
   } catch (error) {
-    console.error('Get profile error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to fetch user profile',
-    });
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
   }
 };
 
-exports.updateProfile = async (req, res) => {
+/**
+ * Reset password with token
+ * POST /api/auth/reset-password
+ */
+exports.resetPassword = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ success: false, message: 'Token and new password are required' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetTokenExpiry: { $gt: Date.now() },
+    }).select('+password +passwordResetToken +passwordResetTokenExpiry');
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
+      return res.status(400).json({ success: false, message: 'Reset link is invalid or has expired' });
     }
 
-    const {
-      fullName,
-      mobileNumber,
-      age,
-      profilePicture,
-      profilePictures,
-      bio,
-      minBudget,
-      maxBudget,
-      distance,
-      selectedLocation,
-      gender,
-      academicYear,
-      roommatePreference,
-      roomType,
-      lifestylePrefs,
-    } = req.body;
-
-    // Update fullName for both students and owners
-    if (typeof fullName === 'string') user.fullName = fullName.trim();
-    
-    // Update mobileNumber
-    if (typeof mobileNumber === 'string') user.mobileNumber = mobileNumber.trim();
-    
-    // Update age
-    if (age !== undefined) user.age = Number(age) || 0;
-    
-    // Update profile picture
-    if (typeof profilePicture === 'string') user.profilePicture = profilePicture.trim();
-    
-    // Update profile pictures gallery
-    if (Array.isArray(profilePictures)) {
-      user.profilePictures = profilePictures
-        .filter((item) => typeof item === 'string')
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
-    
-    if (typeof bio === 'string') user.bio = bio.trim();
-    if (minBudget !== undefined) user.minBudget = Number(minBudget) || 0;
-    if (maxBudget !== undefined) user.maxBudget = Number(maxBudget) || 0;
-    if (distance !== undefined) user.distance = Number(distance) || 0;
-    if (typeof selectedLocation === 'string') user.selectedLocation = selectedLocation.trim();
-    if (typeof gender === 'string') user.gender = gender.trim();
-    if (typeof academicYear === 'string') user.academicYear = academicYear.trim();
-    if (typeof roommatePreference === 'string') user.roommatePreference = roommatePreference.trim();
-    if (typeof roomType === 'string') user.roomType = roomType.trim();
-    if (Array.isArray(lifestylePrefs)) {
-      user.lifestylePrefs = lifestylePrefs
-        .filter((item) => typeof item === 'string')
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
-
-    if (user.role === 'student') {
-      const hasRequiredProfileFields =
-        Boolean(user.bio) &&
-        user.minBudget > 0 &&
-        user.maxBudget > 0 &&
-        user.distance > 0 &&
-        Boolean(user.gender) &&
-        Boolean(user.academicYear) &&
-        Boolean(user.roommatePreference);
-
-      user.profileCompleted = hasRequiredProfileFields;
-    }
-
+    user.password = password;
+    user.passwordResetToken = undefined;
+    user.passwordResetTokenExpiry = undefined;
+    user.isVerified = true;
     await user.save();
 
-    return res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        fullName: user.fullName,
-        mobileNumber: user.mobileNumber,
-        age: user.age,
-        profileCompleted: user.profileCompleted,
-        profilePicture: user.profilePicture,
-        profilePictures: user.profilePictures,
-        bio: user.bio,
-        minBudget: user.minBudget,
-        maxBudget: user.maxBudget,
-        distance: user.distance,
-        selectedLocation: user.selectedLocation,
-        gender: user.gender,
-        academicYear: user.academicYear,
-        roommatePreference: user.roommatePreference,
-        roomType: user.roomType,
-        lifestylePrefs: user.lifestylePrefs,
-      },
-    });
+    res.status(200).json({ success: true, message: 'Password reset successfully. You can now sign in.' });
   } catch (error) {
-    console.error('Update profile error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to update profile',
-    });
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password. Please try again.' });
+  }
+};
+
+/**
+ * Get current authenticated user
+ * GET /api/auth/me
+ */
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    console.error('getMe error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch user' });
+  }
+};
+
+/**
+ * Update user profile
+ * PUT /api/auth/profile
+ */
+exports.updateProfile = async (req, res) => {
+  try {
+    const allowedFields = [
+      'fullName', 'mobileNumber', 'age', 'bio', 'profilePicture', 'profilePictures',
+      'minBudget', 'maxBudget', 'distance', 'selectedLocation', 'gender',
+      'academicYear', 'roommatePreference', 'roomType', 'lifestylePrefs',
+      'firstName', 'lastName', 'phoneNumber', 'address', 'occupation',
+    ];
+    const updates = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
+    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    console.error('updateProfile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update profile' });
   }
 };
