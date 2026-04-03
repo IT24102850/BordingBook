@@ -50,6 +50,9 @@ const SupportTickets = lazy(() =>
 const FeedbackManagement = lazy(() =>
   import('./components/admin/AdminScreens').then((m) => ({ default: m.FeedbackManagement }))
 );
+const AdminSettings = lazy(() =>
+  import('./components/admin/AdminScreens').then((m) => ({ default: m.AdminSettings }))
+);
 
 const BoardingManagement = lazy(() => import('./components/boarding/BoardingManagement'));
 const SearchDiscovery = lazy(() => import('./components/boarding/SearchDiscovery'));
@@ -118,6 +121,7 @@ export default function App() {
           <Route path="kyc" element={<KYCVerification />} />
           <Route path="tickets" element={<SupportTickets />} />
           <Route path="feedback" element={<FeedbackManagement />} />
+          <Route path="settings" element={<AdminSettings />} />
         </Route>
 
         {/* Boarding Booking Management System Core Functions */}

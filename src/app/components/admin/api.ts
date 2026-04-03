@@ -90,6 +90,11 @@ export const getStats = () =>
     `${BASE}/stats`
   );
 
+export const getSignupChart = (days: number) =>
+  req<{ success: boolean; data: { date: string; students: number; owners: number }[] }>(
+    `${BASE}/signup-chart?days=${days}`
+  );
+
 export const getTicketStats = () =>
   req<{ success: boolean; data: { open: number; in_progress: number; resolved: number; closed: number } }>(
     `${BASE}/tickets/stats`
