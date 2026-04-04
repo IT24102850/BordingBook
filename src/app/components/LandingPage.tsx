@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Typewriter } from './ui/Typewriter';
-import { AuthDropdown } from './AuthDropdown';
-import { BoardingSlideshow } from './ui/BoardingSlideshow';
-import { Menu, X, Home, Search, Users, Building, Settings, User, LogIn, LogOut, Shield, CheckCircle, MapPin, Zap, CreditCard, Users as UsersIcon, FileText, Briefcase } from 'lucide-react';
+import { HeroSection } from './HeroSection';
+import { ListingsSection } from './ListingsSection';
+import { Menu, X, Home, Search, Users, Building, Settings, LogIn, LogOut, Zap, CreditCard, Users as UsersIcon, FileText, Briefcase } from 'lucide-react';
+import { BiBot, BiUser } from 'react-icons/bi';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -52,14 +52,13 @@ export default function LandingPage() {
         @media (max-width: 768px) {
           /* Navbar */
           .navbar {
-            height: 64px !important;
-            min-height: 64px !important;
-            padding: 0 20px !important;
-            background: #232b47 !important;
-            border-bottom: 2px solid rgba(129, 140, 248, 0.2) !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
+            height: 60px !important;
+            min-height: 60px !important;
+            padding: 0 !important;
+            background: rgba(10,17,36,0.55) !important;
+            backdrop-filter: saturate(180%) blur(28px) !important;
+            -webkit-backdrop-filter: saturate(180%) blur(28px) !important;
+            border-bottom: 1px solid rgba(255,255,255,0.06) !important;
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
@@ -112,7 +111,7 @@ export default function LandingPage() {
           /* Mobile Menu Overlay */
           .mobile-menu-overlay {
             position: fixed;
-            top: 64px;
+            top: 60px;
             left: 0;
             right: 0;
             bottom: 0;
@@ -124,7 +123,7 @@ export default function LandingPage() {
           
           .mobile-menu-drawer {
             position: fixed;
-            top: 64px;
+            top: 60px;
             left: 0;
             width: 85%;
             max-width: 320px;
@@ -739,44 +738,88 @@ export default function LandingPage() {
           }
         }
         
-        /* Original desktop navbar styles */
+        /* ── Apple-style Navbar ── */
         .nav-link-active {
-          background: linear-gradient(90deg, #818cf8 0%, #a5b4fc 100%);
-          color: #232b47 !important;
-          font-weight: bold;
-          box-shadow: 0 2px 12px 0 rgba(129,140,248,0.18);
+          color: #22d3ee !important;
+          position: relative;
         }
-        
+        .nav-link-active::after {
+          content: '';
+          position: absolute;
+          bottom: -2px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: #22d3ee;
+        }
+
         .nav-link {
-          transition: background 0.2s, color 0.2s;
+          transition: color 0.2s;
+          position: relative;
         }
-        
+
         .profile-icon {
-          width: 44px !important;
-          height: 44px !important;
+          width: 36px !important;
+          height: 36px !important;
         }
-        
-        .profile-icon:hover {
-          box-shadow: 0 0 0 2px #818cf8;
-        }
-        
+
         @keyframes fade-up {
           0% { opacity: 0; transform: translateY(24px); }
           100% { opacity: 1; transform: translateY(0); }
         }
-        
+
         .animate-fade-up {
           animation: fade-up 0.7s cubic-bezier(.4,0,.2,1);
         }
-        
+
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
-        
+
         @keyframes slideIn {
           from { transform: translateX(-100%); }
           to { transform: translateX(0); }
+        }
+
+        /* Navbar glass — transparent blur */
+        .navbar-glass {
+          background: rgba(10, 17, 36, 0.55);
+          backdrop-filter: saturate(180%) blur(28px);
+          -webkit-backdrop-filter: saturate(180%) blur(28px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* Nav pill hover */
+        .nav-pill-item {
+          color: rgba(203, 213, 225, 0.85);
+          font-size: 0.875rem;
+          font-weight: 500;
+          padding: 0.4rem 0.85rem;
+          border-radius: 9999px;
+          transition: color 0.2s, background 0.2s;
+          position: relative;
+          letter-spacing: 0.01em;
+        }
+        .nav-pill-item:hover {
+          color: white;
+          background: rgba(255, 255, 255, 0.07);
+        }
+        .nav-pill-item.active {
+          color: #22d3ee;
+        }
+        .nav-pill-item.active::after {
+          content: '';
+          position: absolute;
+          bottom: 0px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: #22d3ee;
         }
       `}</style>
 
@@ -786,61 +829,57 @@ export default function LandingPage() {
         <div className="absolute bottom-[-160px] right-[-80px] w-[280px] h-[280px] md:w-[460px] md:h-[460px] bg-indigo-500/14 rounded-full blur-[90px] md:blur-[130px]" />
       </div>
 
-      {/* Navbar */}
-      <nav
-        className="w-full fixed top-0 left-0 flex items-center justify-between h-14 md:h-16 px-6 md:px-24 bg-[#0f172a]/85 backdrop-blur-xl border-b-2 border-zinc-700/15 shadow-xl z-[10000] transition-all duration-300 navbar"
-        style={{height: '64px',minHeight: '64px',borderBottomWidth: '2px',borderBottomColor: 'rgba(113,113,122,0.15)',borderImage: 'linear-gradient(to right, rgba(99,102,241,.18), rgba(34,211,238,.18)) 1',borderBottomStyle: 'solid'}}>
-        
-        {/* Logo */}
-        <div className="flex items-center gap-1 md:gap-2 min-w-max h-full">
-          <span className="text-3xl font-extrabold tracking-tight text-zinc-100 drop-shadow-lg select-none flex items-center h-full navbar-logo">Boarding<span className="text-indigo-300">Book</span></span>
-        </div>
+      {/* ── Apple-style Frosted Glass Navbar ── */}
+      <nav className="w-full fixed top-0 left-0 z-[10000] navbar-glass navbar"
+        style={{ height: 60, minHeight: 60 }}>
+        <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-5 md:px-8">
 
-        {/* Desktop Nav - direct click navigation for all items */}
-        <div className="desktop-nav hidden md:flex flex-1 justify-center">
-          <div className="flex gap-8 items-center bg-zinc-800/60 px-8 py-2.5 rounded-full shadow border border-zinc-700/40">
-            <button type="button" onClick={() => navigate('/')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/'?' nav-link-active':''}`}>Home</button>
-            <button type="button" onClick={() => navigate('/find')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/find'?' nav-link-active':''}`}>Find Rooms</button>
-            <button type="button" onClick={() => navigate('/roommate-finder')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/roommate-finder'?' nav-link-active':''}`}>Roommate Finder</button>
-            <button type="button" onClick={() => navigate('/chatbot')} className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link flex items-center gap-1${activePath==='/chatbot'?' nav-link-active':''}`}>
-              🤖 AI Chatbot
+          {/* Logo */}
+          <div className="flex items-center gap-2 select-none">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-md shadow-indigo-500/30">
+              <span className="text-white font-black text-xs">BB</span>
+            </div>
+            <span className="text-white font-bold text-lg tracking-tight">Boarding<span className="bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">Book</span></span>
+          </div>
+
+          {/* Desktop Nav */}
+          <div className="desktop-nav hidden md:flex items-center gap-1">
+            <button type="button" onClick={() => navigate('/')} className={`nav-pill-item${activePath==='/'?' active':''}`}>Home</button>
+            <button type="button" onClick={() => navigate('/find')} className={`nav-pill-item${activePath==='/find'?' active':''}`}>Find Rooms</button>
+            <button type="button" onClick={() => navigate('/roommate-finder')} className={`nav-pill-item${activePath==='/roommate-finder'?' active':''}`}>Roommates</button>
+            <button type="button" onClick={() => navigate('/chatbot')} className={`nav-pill-item flex items-center gap-1.5${activePath==='/chatbot'?' active':''}`}>
+              <BiBot size={16} />AI Chat
+            </button>
+            <button type="button" onClick={() => navigate('/boarding-management')} className={`nav-pill-item${activePath==='/boarding-management'?' active':''}`}>List Property</button>
+          </div>
+
+          {/* Right: Auth + Profile + Hamburger */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/signin')}
+              className="hidden md:flex items-center px-4 py-1.5 rounded-full text-white/75 hover:text-white font-medium text-sm border border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 transition-all duration-200"
+            >
+              Sign In
             </button>
             <button
               type="button"
-              onClick={() => navigate('/boarding-management')}
-              className={`text-zinc-200 font-semibold text-sm px-3 py-2 rounded-xl hover:bg-zinc-700/30 transition nav-link${activePath==='/boarding-management' ? ' nav-link-active' : ''}`}
+              onClick={() => navigate('/signup')}
+              className="hidden md:flex items-center px-4 py-1.5 rounded-full text-white font-semibold text-sm bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-400 hover:to-cyan-400 shadow-md shadow-indigo-500/25 transition-all duration-200 hover:scale-105"
             >
-              List Your Property
+              Sign Up
             </button>
+            {/* Hamburger - Mobile Only */}
             <button
-              type="button"
-              onClick={() => navigate('/find')}
-              className="px-5 py-2.5 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 border border-indigo-400 nav-link-cta"
-              style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
+              className="hamburger-btn flex md:hidden"
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              aria-label="Toggle menu"
             >
-              Find Rooms
+              {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
-        </div>
 
-        {/* Desktop Profile */}
-        <div className="desktop-profile hidden md:flex items-center min-w-max ml-8 profile-area">
-          <span className="text-zinc-200 text-sm font-medium mr-3">Profile</span>
-          <div className="profile-icon relative group" tabIndex={0} style={{display:'flex',alignItems:'center',justifyContent:'center'}} title="Account">
-            <AuthDropdown />
-          </div>
-        </div>
-
-        {/* Hamburger Button - Mobile Only */}
-        <div className="mobile-nav hidden">
-          <button 
-            className="hamburger-btn"
-            onClick={() => setMobileNavOpen(!mobileNavOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileNavOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
+        </div>{/* end max-w inner */}
       </nav>
 
       {/* Mobile Menu Overlay - FIXED with working buttons */}
@@ -851,7 +890,7 @@ export default function LandingPage() {
             <div className="mobile-menu-header">
               <div className="mobile-menu-user">
                 <div className="mobile-menu-avatar">
-                  👤
+                  <BiUser size={28} />
                 </div>
                 <div className="mobile-menu-user-info">
                   <h4>Guest User</h4>
@@ -890,7 +929,7 @@ export default function LandingPage() {
                 className={`mobile-menu-item ${activePath === '/chatbot' ? 'active' : ''}`}
                 onClick={() => { handleMobileLinkClick(); navigate('/chatbot'); }}
               >
-                <span style={{ fontSize: '22px' }}>🤖</span>
+                <BiBot size={22} />
                 AI Chatbot
               </button>
               
@@ -928,7 +967,6 @@ export default function LandingPage() {
                   className="mobile-menu-auth-button signup"
                   onClick={handleSignUp}
                 >
-                  <User size={22} />
                   Sign Up
                 </button>
               </div>
@@ -940,127 +978,13 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Mobile Content - Only visible on mobile */}
-      <div className="mobile-container w-full max-w-6xl mx-auto px-4 md:px-0 pt-24 md:pt-28">
-        {/* Mobile Hero Section */}
-        <div className="hero-section animate-fade-up">
-          <div className="hero-card">
-            <span className="tag-pill">✨ All-in-One Student Boarding Platform</span>
-            <h1>Find Verified Rooms Near Your Campus</h1>
-            
-            {/* Mobile CTAs */}
-            <div className="hero-cta-row">
-              <button className="hero-cta-btn hero-cta-btn-primary">Find Verified Rooms Near Me</button>
-              <button className="hero-cta-btn hero-cta-btn-secondary">I'm a Property Owner</button>
-              <button 
-                onClick={() => navigate('/chatbot')}
-                className="hero-cta-btn bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
-              >
-                🤖 AI Chatbot Assistant
-              </button>
-            </div>
-
-            {/* Mobile Benefits */}
-            <div className="hero-benefits-row">
-              <span className="hero-benefit">No Scams</span>
-              <span className="hero-benefit">Verified</span>
-              <span className="hero-benefit">Near Campus</span>
-            </div>
-
-            <div className="hero-description">
-              Only verified student housing. Find your place before the semester starts.
-            </div>
-          </div>
-
-          {/* Mobile Hero Image */}
-          <img 
-            src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-            alt="Student housing" 
-            className="hero-image-mobile"
-          />
-        </div>
-
-        {/* Mobile Features Grid */}
-        <section id="features" className="features-grid w-full">
-          <FeatureCard title="Find Verified Rooms Fast" desc="Browse and book student rooms near your campus in seconds. Only verified listings with photos and details." />
-          <FeatureCard title="AI Chatbot Assistant" desc="Get instant help finding boarding places and roommates. Just chat naturally with our AI bot 24/7." />
-          <FeatureCard title="Pay Rent Securely" desc="No cash, no awkward transfers. Pay rent and deposits online with full security and transaction tracking." />
-          <FeatureCard title="Roommate Matchmaking" desc="Match with roommates who fit your lifestyle and preferences. Answer a few questions and find your perfect match." />
-          <FeatureCard title="Digital Agreements" desc="Sign rental agreements online. Track your booking status and documents easily in one place." />
-          <FeatureCard title="Owner Tools" desc="List your property, manage tenants, and collect payments—all in one place with powerful analytics." />
-        </section>
-
-        {/* Mobile Contact Section */}
-        <section id="contact" className="contact-section">
-          <h2>Contact & Support</h2>
-          <p>
-            Have questions or need help? Reach out to our support team for assistance with your boarding experience.
-          </p>
-          <a href="mailto:support@boardingbookingsystem.com">Email Support</a>
-        </section>
+      {/* ── HERO SECTION (replaces both old mobile + desktop heroes) ── */}
+      <div className="w-full" style={{ paddingTop: 60 }}>
+        <HeroSection />
       </div>
 
-      {/* IMPROVED DESKTOP CONTENT - Based on feedback */}
-      <main className="hidden md:flex flex-col md:flex-row items-center gap-8 pt-32 md:pt-28 w-full max-w-6xl overflow-visible px-0 md:px-0">
-        {/* Left: Hero content - IMPROVED */}
-        <div className="flex-1 min-w-[320px] animate-fade-up">
-          <div className="surface-card p-7 md:p-8 mb-6 shadow-luxe hero-card">
-            {/* Removed duplicate headline - only one headline now */}
-            <h1 className="text-5xl md:text-6xl font-extrabold mb-4 leading-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-lg">
-              Find Verified Rooms Near Your Campus
-            </h1>
-            
-            {/* NEW: Clear CTAs for desktop */}
-            <div className="desktop-cta-row">
-              <button className="desktop-cta-primary">Find Verified Rooms Near Me</button>
-              <button className="desktop-cta-secondary">List Your Property</button>
-              <button 
-                onClick={() => navigate('/chatbot')}
-                className="px-6 py-3 rounded-xl text-white font-bold text-base shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 transition-all duration-200 border border-purple-400"
-              >
-                🤖 AI Chatbot
-              </button>
-            </div>
-            
-            {/* NEW: User-facing benefits instead of stats */}
-            <div className="user-benefits-row">
-              <div className="user-benefit">
-                <CheckCircle size={20} />
-                <span>Verified Listings Only</span>
-              </div>
-              <div className="user-benefit">
-                <Shield size={20} />
-                <span>No Agents. No Scams.</span>
-              </div>
-              <div className="user-benefit">
-                <MapPin size={20} />
-                <span>Near Your Campus</span>
-              </div>
-            </div>
-            
-            <div className="mt-5 text-zinc-400 text-sm">Only verified student housing. Find your place before the semester starts.</div>
-          </div>
-        </div>
-        
-        {/* Right: Desktop Hero image - with improved visual weight */}
-        <div className="flex-1 flex flex-col items-center relative max-w-xl hero-image-desktop">
-          <div className="surface-glass shadow-luxe p-2 rounded-3xl relative scale-90 md:scale-95">
-            <BoardingSlideshow />
-            {/* Removed the image badge to reduce clutter - keeping pills below */}
-          </div>
-          {/* Keeping the pills (trust signals) */}
-          <div className="flex flex-col gap-4 mt-8 w-full max-w-xs">
-            <div className="surface-card flex items-center gap-3 p-3 shadow-lift">
-              <span className="tag-pill bg-green-500/20 text-green-300">Verified</span>
-              <span className="muted text-xs">University Only</span>
-            </div>
-            <div className="surface-card flex items-center gap-3 p-3 shadow-lift">
-              <span className="tag-pill bg-cyan-500/20 text-cyan-300">Secure</span>
-              <span className="muted text-xs">Payments & Agreements</span>
-            </div>
-          </div>
-        </div>
-      </main>
+      {/* ── LISTINGS SECTION ── */}
+      <ListingsSection />
 
       {/* IMPROVED Desktop Features Section - with icons and better hover */}
       <section id="features" className="hidden md:grid w-full max-w-6xl mx-auto grid-cols-1 md:grid-cols-3 gap-8 px-4 md:px-0 mb-20 mt-16 z-10 desktop-features-grid">
@@ -1071,7 +995,7 @@ export default function LandingPage() {
         />
         <div onClick={() => navigate('/chatbot')} className="cursor-pointer">
           <FeatureCardDesktopImproved 
-            icon={<span style={{ fontSize: '24px' }}>🤖</span>}
+            icon={<BiBot size={24} />}
             title="AI Chatbot Assistant" 
             desc="Get instant help finding boarding places and roommates. Just chat naturally 24/7." 
           />
@@ -1110,11 +1034,11 @@ export default function LandingPage() {
       {/* Floating Chatbot Button */}
       <button
         onClick={() => navigate('/chatbot')}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-3xl transition-all duration-300 hover:scale-110 animate-bounce"
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 animate-bounce"
         style={{ animationDuration: '2s', animationIterationCount: '3' }}
         title="Open AI Chatbot"
       >
-        🤖
+        <BiBot size={28} className="text-white" />
       </button>
     </div>
   );

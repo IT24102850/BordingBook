@@ -1,15 +1,16 @@
 import React from 'react';
 import { FaSlidersH, FaRedo } from 'react-icons/fa';
+import { BiWifi, BiWind, BiRestaurant, BiShower, BiCar, BiLoaderCircle, BiShield, BiDumbbell, BiCheck } from 'react-icons/bi';
 
-const FACILITIES = [
-  { key: 'WiFi', label: '📶 WiFi' },
-  { key: 'AC', label: '❄️ Air-Cond' },
-  { key: 'Meals', label: '🍽️ Meals' },
-  { key: 'Bathroom', label: '🚿 Private Bath' },
-  { key: 'Parking', label: '🅿️ Parking' },
-  { key: 'Laundry', label: '🧺 Laundry' },
-  { key: 'Security', label: '🔒 Security' },
-  { key: 'Gym', label: '💪 Gym' },
+const FACILITIES: { key: string; label: string; icon: React.ReactNode }[] = [
+  { key: 'WiFi',     label: 'WiFi',         icon: <BiWifi size={15} /> },
+  { key: 'AC',       label: 'Air-Cond',     icon: <BiWind size={15} /> },
+  { key: 'Meals',    label: 'Meals',        icon: <BiRestaurant size={15} /> },
+  { key: 'Bathroom', label: 'Private Bath', icon: <BiShower size={15} /> },
+  { key: 'Parking',  label: 'Parking',      icon: <BiCar size={15} /> },
+  { key: 'Laundry',  label: 'Laundry',      icon: <BiLoaderCircle size={15} /> },
+  { key: 'Security', label: 'Security',     icon: <BiShield size={15} /> },
+  { key: 'Gym',      label: 'Gym',          icon: <BiDumbbell size={15} /> },
 ];
 
 interface FiltersPanelProps {
@@ -194,7 +195,7 @@ export default function FiltersPanel({ filters, setters, onReset }: FiltersPanel
           Facilities
         </label>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {FACILITIES.map(({ key, label }) => (
+          {FACILITIES.map(({ key, label, icon }) => (
             <div
               key={key}
               onClick={() => toggleFac(key)}
@@ -205,15 +206,15 @@ export default function FiltersPanel({ filters, setters, onReset }: FiltersPanel
               }`}
             >
               <div
-                className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                  facs.includes(key)
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-600 text-gray-400'
+                className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  facs.includes(key) ? 'bg-green-500 text-white' : 'bg-gray-600 text-gray-400'
                 }`}
               >
-                {facs.includes(key) ? '✓' : ''}
+                {facs.includes(key) && <BiCheck size={13} />}
               </div>
-              <span className="text-sm font-medium text-white">{label}</span>
+              <span className="text-sm font-medium text-white flex items-center gap-2">
+                {icon}{label}
+              </span>
             </div>
           ))}
         </div>

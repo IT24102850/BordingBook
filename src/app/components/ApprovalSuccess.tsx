@@ -40,7 +40,7 @@ export default function ApprovalSuccess() {
       {/* Success Message */}
       <div className="text-center mb-8 max-w-2xl">
         <h1 className="text-5xl font-bold text-white mb-4 animate-pulse">
-          Booking Approved! 🎉
+          Booking Approved!
         </h1>
         <p className="text-xl text-gray-300 mb-2">
           Congratulations! Your {booking.type === 'group' ? 'group booking' : 'booking'} has been approved.

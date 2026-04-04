@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/jayvox/UNI/MERN/BM Manager/BordingBook/**)",
+      "Bash(awk 'NR>=2600 && NR<=2620' \"/Users/jayvox/UNI/MERN/BM Manager/BordingBook/src/app/components/SearchPage.tsx\")",
+      "Bash(awk 'NR>=2680 && NR<=2720' \"/Users/jayvox/UNI/MERN/BM Manager/BordingBook/src/app/components/SearchPage.tsx\")",
+      "Bash(awk 'NR>=2870 && NR<=2900' \"/Users/jayvox/UNI/MERN/BM Manager/BordingBook/src/app/components/SearchPage.tsx\")",
+      "Bash(awk 'NR>=2960 && NR<=2990' \"/Users/jayvox/UNI/MERN/BM Manager/BordingBook/src/app/components/SearchPage.tsx\")",
+      "Bash(awk 'NR>=3020 && NR<=3060' \"/Users/jayvox/UNI/MERN/BM Manager/BordingBook/src/app/components/SearchPage.tsx\")",
+      "Bash(awk 'NR>=3130 && NR<=3165' \"/Users/jayvox/UNI/MERN/BM Manager/BordingBook/src/app/components/SearchPage.tsx\")",
+      "Bash(awk 'NR>=3165 && NR<=3200' \"/Users/jayvox/UNI/MERN/BM Manager/BordingBook/src/app/components/SearchPage.tsx\")"
+    ]
+  }
+}

@@ -28,7 +28,7 @@ exports.getPublicHouses = async (req, res) => {
     const houses = await Promise.race([
       BoardingHouse
         .find({ status: 'active' })
-        .select('name address monthlyPrice roomType genderPreference status createdAt')
+        .select('name address monthlyPrice deposit roomType genderPreference status rating totalReviews features image images description createdAt')
         .sort({ createdAt: -1 })
         .limit(20)
         .maxTimeMS(15000)

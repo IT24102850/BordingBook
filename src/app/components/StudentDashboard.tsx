@@ -515,7 +515,7 @@ export default function StudentDashboard() {
             <div className="relative overflow-hidden bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-white/10 rounded-2xl p-6">
               <div className="relative z-10">
                 <p className="text-gray-400 text-sm mb-1">Welcome back</p>
-                <h1 className="text-white font-bold text-2xl mb-2">{displayName} 👋</h1>
+                <h1 className="text-white font-bold text-2xl mb-2">{displayName}</h1>
                 <p className="text-gray-400 text-sm">
                   {user?.academicYear ? `Year ${user.academicYear} student` : 'Student'} · {user?.email}
                 </p>

@@ -9,7 +9,7 @@ import {
   FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
   FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
 } from 'react-icons/fa';
-import { BiCurrentLocation } from 'react-icons/bi';
+import { BiCurrentLocation, BiWifi, BiWind, BiRestaurant, BiShower, BiCar, BiShield, BiDumbbell, BiLoaderCircle } from 'react-icons/bi';
 import { RiUserSharedLine } from 'react-icons/ri';
 // Mini Card for side panels
 const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> = ({ listing, type }) => {
@@ -1923,15 +1923,15 @@ const FiltersPanel: React.FC<{
   const { priceMax, dist, room, avail, facs } = filters;
   const { setPriceMax, setDist, setRoom, setAvail, setFacs } = setters;
 
-  const facilityOptions = [
-    { name: 'WiFi', icon: '📶' },
-    { name: 'Air-Cond', icon: '❄️' },
-    { name: 'Meals', icon: '🍽️' },
-    { name: 'Private Bath', icon: '🚿' },
-    { name: 'Parking', icon: '🅿️' },
-    { name: 'Laundry', icon: '🧺' },
-    { name: 'Security', icon: '🛡️' },
-    { name: 'Gym', icon: '💪' }
+  const facilityOptions: { name: string; icon: React.ReactNode }[] = [
+    { name: 'WiFi',         icon: <BiWifi size={22} /> },
+    { name: 'Air-Cond',    icon: <BiWind size={22} /> },
+    { name: 'Meals',       icon: <BiRestaurant size={22} /> },
+    { name: 'Private Bath', icon: <BiShower size={22} /> },
+    { name: 'Parking',     icon: <BiCar size={22} /> },
+    { name: 'Laundry',     icon: <BiLoaderCircle size={22} /> },
+    { name: 'Security',    icon: <BiShield size={22} /> },
+    { name: 'Gym',         icon: <BiDumbbell size={22} /> },
   ];
 
   const distanceOptions = [

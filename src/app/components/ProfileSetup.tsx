@@ -29,10 +29,10 @@ const roommatePrefs = [
 
 type RoomType = { label: string; icon: string };
 const roomTypes: RoomType[] = [
-  { label: 'Single Room', icon: '🛏️' },
-  { label: 'Shared Room', icon: '👫' },
-  { label: 'Studio/Annex', icon: '🏠' },
-  { label: 'Any', icon: '✨' },
+  { label: 'Single Room', icon: 'bed' },
+  { label: 'Shared Room', icon: 'group' },
+  { label: 'Studio/Annex', icon: 'home' },
+  { label: 'Any', icon: 'any' },
 ];
 
 type LifestyleOption = { key: string; label: string; icon: string };
@@ -60,12 +60,12 @@ const steps = [
 
 // Location data for popular areas around SLIIT
 const popularLocations = [
-  { name: 'Malabe', distance: 0.5, icon: '📍', color: 'cyan' },
-  { name: 'Kaduwela', distance: 3.2, icon: '🏘️', color: 'purple' },
-  { name: 'Battaramulla', distance: 4.5, icon: '🏢', color: 'pink' },
-  { name: 'Kotte', distance: 5.8, icon: '🏛️', color: 'orange' },
-  { name: 'Rajagiriya', distance: 7.2, icon: '🌆', color: 'green' },
-  { name: 'Nugegoda', distance: 8.5, icon: '🏬', color: 'blue' },
+  { name: 'Malabe', distance: 0.5, icon: 'pin', color: 'cyan' },
+  { name: 'Kaduwela', distance: 3.2, icon: 'pin', color: 'purple' },
+  { name: 'Battaramulla', distance: 4.5, icon: 'pin', color: 'pink' },
+  { name: 'Kotte', distance: 5.8, icon: 'pin', color: 'orange' },
+  { name: 'Rajagiriya', distance: 7.2, icon: 'pin', color: 'green' },
+  { name: 'Nugegoda', distance: 8.5, icon: 'pin', color: 'blue' },
 ];
 
 // Interactive Map Component with location pins
@@ -523,10 +523,10 @@ const PriceRangeSlider = ({ minPrice, maxPrice, setMinPrice, setMaxPrice }: {
       
       <div className="grid grid-cols-4 gap-2 mt-4">
         {[
-          { label: 'Budget', min: 5000, max: 30000, icon: '💰' },
-          { label: 'Standard', min: 30000, max: 60000, icon: '🌟' },
-          { label: 'Premium', min: 60000, max: 100000, icon: '💎' },
-          { label: 'Luxury', min: 100000, max: 150000, icon: '👑' },
+          { label: 'Budget', min: 5000, max: 30000, icon: '' },
+          { label: 'Standard', min: 30000, max: 60000, icon: '' },
+          { label: 'Premium', min: 60000, max: 100000, icon: '' },
+          { label: 'Luxury', min: 100000, max: 150000, icon: '' },
         ].map((preset) => (
           <button
             key={preset.label}
@@ -950,7 +950,7 @@ function ProfileSetup() {
       }
 
       setSubmitting(false);
-      setSuccess('Profile completed! 🎉 You can now access all features');
+      setSuccess('Profile completed! You can now access all features');
       setTimeout(() => navigate('/find'), 2000);
     } catch (submitError) {
       setSubmitting(false);
@@ -1472,7 +1472,7 @@ function ProfileSetup() {
 
             {success && (
               <div className="p-3 bg-green-500/20 border border-green-500/30 text-green-300 rounded-lg text-xs text-center animate-fade-in">
-                {success} 🎉
+                {success}
               </div>
             )}
 

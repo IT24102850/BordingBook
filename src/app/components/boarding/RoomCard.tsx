@@ -1,5 +1,6 @@
 import React from 'react';
 import { fi } from '../../data/rooms';
+import { BiMapPin, BiBed, BiUser, BiRuler, BiCheck, BiX } from 'react-icons/bi';
 
 interface Room {
   id: number;
@@ -34,24 +35,24 @@ export default function RoomCard({ room: r, onOpen }: RoomCardProps) {
     >
       {/* Image Section */}
       <div className="relative h-48 overflow-hidden">
-        <img 
-          src={r.img} 
-          alt={r.name} 
+        <img
+          src={r.img}
+          alt={r.name}
           loading="lazy"
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-        
+
         {/* Availability Badge */}
         {r.available ? (
           <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-xs font-semibold flex items-center gap-1">
-            ✅ Available
+            <BiCheck size={14} /> Available
           </span>
         ) : (
           <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-red-500/90 backdrop-blur-sm text-white text-xs font-semibold flex items-center gap-1">
-            ❌ Occupied
+            <BiX size={14} /> Occupied
           </span>
         )}
-        
+
         {/* Price Badge */}
         <div className="absolute bottom-3 right-3 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600/95 to-indigo-600/95 backdrop-blur-sm text-white font-bold text-lg shadow-lg">
           Rs. {r.price.toLocaleString()}/mo
@@ -67,7 +68,7 @@ export default function RoomCard({ room: r, onOpen }: RoomCardProps) {
 
         {/* Location */}
         <div className="flex items-start gap-2 text-sm text-cyan-200/80">
-          <span className="text-base">📍</span>
+          <BiMapPin size={16} className="flex-shrink-0 mt-0.5" />
           <span className="flex-1 line-clamp-1">
             {r.location} · {r.distKm}km from {r.campus}
           </span>
@@ -75,14 +76,14 @@ export default function RoomCard({ room: r, onOpen }: RoomCardProps) {
 
         {/* Meta Info */}
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="px-2 py-1 rounded-lg bg-white/5 text-gray-300 border border-white/10">
-            🛏️ {r.roomType}
+          <span className="px-2 py-1 rounded-lg bg-white/5 text-gray-300 border border-white/10 flex items-center gap-1">
+            <BiBed size={13} /> {r.roomType}
           </span>
-          <span className="px-2 py-1 rounded-lg bg-white/5 text-gray-300 border border-white/10">
-            📏 {r.distKm}km
+          <span className="px-2 py-1 rounded-lg bg-white/5 text-gray-300 border border-white/10 flex items-center gap-1">
+            <BiRuler size={13} /> {r.distKm}km
           </span>
-          <span className="px-2 py-1 rounded-lg bg-white/5 text-gray-300 border border-white/10">
-            👤 {r.owner}
+          <span className="px-2 py-1 rounded-lg bg-white/5 text-gray-300 border border-white/10 flex items-center gap-1">
+            <BiUser size={13} /> {r.owner}
           </span>
         </div>
 

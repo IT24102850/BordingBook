@@ -155,6 +155,28 @@ app.get('/api/debug/conversations', async (req, res) => {
   }
 });
 
+// Public platform stats (no auth required)
+app.get('/api/stats', async (req, res) => {
+  try {
+    const User = require('./models/User');
+    const BoardingHouse = require('./models/BoardingHouse');
+    const Review = require('./admin/models/Review');
+
+    const [listings, students, owners, reviewAgg] = await Promise.all([
+      BoardingHouse.countDocuments({ isActive: { $ne: false } }),
+      User.countDocuments({ role: 'student' }),
+      User.countDocuments({ role: 'owner' }),
+      Review.aggregate([{ $group: { _id: null, avg: { $avg: '$rating' } } }]),
+    ]);
+
+    const avgRating = reviewAgg.length > 0 ? Math.round(reviewAgg[0].avg * 10) / 10 : 4.9;
+
+    res.status(200).json({ success: true, data: { listings, students, owners, avgRating } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch stats', error: err.message });
+  }
+});
+
 // 404 handler
 app.use(notFoundHandler);
 
