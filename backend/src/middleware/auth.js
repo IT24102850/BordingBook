@@ -15,14 +15,21 @@ async function requireAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(token, env.jwtSecret);
+    console.log('[requireAuth] Decoded JWT payload:', payload);
 
-    const user = await User.findById(payload.userId || payload.id).select('isBanned role');
-    if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+    const userId = payload.userId || payload.id;
+    console.log('[requireAuth] Looking up user by id:', userId);
+    const user = await User.findById(userId).select('isBanned role');
+    if (!user) {
+      console.log('[requireAuth] User not found for id:', userId);
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
     if (user.isBanned) return res.status(403).json({ success: false, message: 'Your account has been suspended. Contact support.' });
 
     req.user = { ...payload, isBanned: user.isBanned, role: user.role };
     return next();
   } catch (error) {
+    console.error('[requireAuth] Error verifying token:', error);
     return res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 }

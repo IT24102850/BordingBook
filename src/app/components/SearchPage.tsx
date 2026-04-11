@@ -1,4 +1,70 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
+
+
+// Public house listings for all users
+type PublicHouse = {
+  _id: string;
+  name: string;
+  address: string;
+  monthlyPrice: number;
+  deposit: number;
+  roomType: string;
+  genderPreference: string;
+  status: string;
+  rating?: number;
+  totalReviews?: number;
+  features?: string[];
+  image?: string;
+  images?: string[];
+  description?: string;
+  createdAt?: string;
+};
+
+// --- Public Listings Section ---
+function PublicListings() {
+  const [listings, setListings] = useState<PublicHouse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('http://localhost:5001/api/owner/public/houses')
+      .then(res => res.json())
+      .then(data => {
+        setListings(data.data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError('Failed to load listings');
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="text-cyan-300">Loading public listings...</div>;
+  if (error) return <div className="text-red-400">{error}</div>;
+  if (!listings.length) return <div className="text-gray-400">No public listings found.</div>;
+
+  return (
+    <div className="my-6">
+      <h3 className="text-lg font-bold text-cyan-200 mb-2">Public Boarding Houses</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {listings.map(house => (
+          <div key={house._id} className="bg-white/10 rounded-lg p-4 border border-cyan-900/30">
+            <div className="font-bold text-white text-lg mb-1">{house.name}</div>
+            <div className="text-cyan-300 text-xs mb-1">{house.address}</div>
+            <div className="text-cyan-100 text-sm mb-2">Rs. {house.monthlyPrice?.toLocaleString()} / month</div>
+            {house.image && <img src={house.image} alt={house.name} className="w-full h-32 object-cover rounded mb-2" />}
+            <div className="text-xs text-gray-300 mb-1">Type: {house.roomType} | Gender: {house.genderPreference}</div>
+            <div className="text-xs text-gray-400 mb-1">{house.description?.slice(0, 80)}{house.description && house.description.length > 80 ? '...' : ''}</div>
+            <div className="text-xs text-gray-500">Listed: {house.createdAt ? new Date(house.createdAt).toLocaleDateString() : ''}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
@@ -59,12 +125,20 @@ function MapViewPlaceholder() {
 }
 
 // Roommate Finder Placeholder Component
-const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings: Listing[]; currentUserId: string; isRoommatesLoading: boolean; onToast: (msg: string) => void }> = ({ roommateData, dbListings, currentUserId, isRoommatesLoading, onToast }) => {
+const RoommateFinderPlaceholder: React.FC<{
+  roommateData: Roommate[];
+  dbListings: Listing[];
+  currentUserId: string;
+  isRoommatesLoading: boolean;
+  onToast: (msg: string) => void;
+  currentUserName?: string;
+  currentUserImage?: string;
+}> = ({ roommateData, dbListings, currentUserId, isRoommatesLoading, onToast, currentUserName, currentUserImage }) => {
   const navigate = useNavigate();
   const [selectedRoommate, setSelectedRoommate] = useState<Roommate | null>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
-  const [activeSection, setActiveSection] = useState<'browse' | 'sent' | 'inbox' | 'groups'>('browse');
+  const [activeSection, setActiveSection] = useState<'browse' | 'rooms' | 'sent' | 'inbox' | 'groups'>('browse');
   const [inboxItems, setInboxItems] = useState<any[]>([]);
   const [sentItems, setSentItems] = useState<any[]>([]);
   const [groupItems, setGroupItems] = useState<any[]>([]);
@@ -1155,9 +1229,17 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
       )) : <p className="text-sm text-gray-400">No groups found.</p>}
     </div>
   );
+  // ...existing code...
+
+  // --- Render public listings at the top ---
+  // You can move this section wherever you want in your layout
+  // It will show public houses from the database for all users
+
+  // ...existing code...
 
   return (
     <div className="space-y-6">
+
       <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl p-6 border border-white/10">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -1197,10 +1279,22 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
 
       <div className="flex flex-wrap items-center gap-2">
         <button
+          onClick={() => navigate('/student/dashboard')}
+          className="px-5 py-2 rounded-xl text-sm border bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-semibold shadow hover:from-cyan-500 hover:to-purple-500 transition-all mr-2"
+        >
+          Go to Student Dashboard
+        </button>
+        <button
           onClick={() => setActiveSection('browse')}
           className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'browse' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
         >
           Browse
+        </button>
+        <button
+          onClick={() => setActiveSection('rooms')}
+          className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'rooms' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
+        >
+          Rooms & Houses
         </button>
         <button
           onClick={() => setActiveSection('sent')}
@@ -1223,6 +1317,14 @@ const RoommateFinderPlaceholder: React.FC<{ roommateData: Roommate[]; dbListings
       </div>
 
       {activeSection === 'browse' && renderBrowseTab()}
+
+      {activeSection === 'rooms' && (
+        <div className="space-y-6">
+          <h3 className="text-xl font-bold text-white mb-2">Rooms & Houses</h3>
+          <PublicListings />
+          {/* TODO: Insert your existing rooms rendering logic here if you have a separate rooms list */}
+        </div>
+      )}
 
       {activeSection !== 'browse' && (
         <div className="space-y-3">
@@ -2292,9 +2394,10 @@ const BookingForm: React.FC<{
 };
 
 
+// React Router navigation
 function SearchPage() {
-        // React Router navigation
-        const navigate = useNavigate();
+  const navigate = useNavigate();
+  const location = useLocation();
       // State for details modal
       const [showDetails, setShowDetails] = useState(false);
       const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
@@ -2413,7 +2516,7 @@ function SearchPage() {
       }
 
       try {
-        const fetchNotificationItems = async (url: string, timeoutMs = 45000) => {
+        const fetchNotificationItems = async (url: string, timeoutMs = 8000) => {
           const controller = new AbortController();
           const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
           try {
@@ -2583,17 +2686,21 @@ function SearchPage() {
 
     let isMounted = true;
     let intervalId = 0;
+    let delayId = 0;
 
-    const poll = () => {
+    // Delay first poll by 4 seconds so page loads first
+    delayId = window.setTimeout(() => {
       if (!isMounted) return;
       void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
-    };
-
-    poll();
-    intervalId = window.setInterval(poll, 30000);
+      intervalId = window.setInterval(() => {
+        if (!isMounted) return;
+        void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
+      }, 60000); // 60s interval
+    }, 4000);
 
     return () => {
       isMounted = false;
+      window.clearTimeout(delayId);
       window.clearInterval(intervalId);
     };
   }, [currentUserId]);
@@ -2660,11 +2767,13 @@ function SearchPage() {
     setIsListingsLoading(true);
     setIsListingsTimedOut(false);
     setListingsError('');
+    // Reduce loading timeout to 5 seconds
     const loadingTimeoutId = window.setTimeout(() => {
       if (!isCancelled) {
         setIsListingsTimedOut(true);
+        setIsListingsLoading(false);
       }
-    }, 12000);
+    }, 5000);
 
     const loadSearchData = async () => {
       try {
@@ -2686,9 +2795,9 @@ function SearchPage() {
           }
         };
 
-        const [roomsResult, housesResult, meResult] = await Promise.allSettled([
+        // Load rooms and me immediately (fast)
+        const [roomsResult, meResult] = await Promise.allSettled([
           fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/rooms`, undefined, 12000),
-          fetchJsonWithTimeout(`${API_BASE_URL}/api/owner/public/houses`, undefined, 16000),
           token
             ? fetchJsonWithTimeout(`${API_BASE_URL}/api/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -2699,21 +2808,59 @@ function SearchPage() {
         if (isCancelled) return;
 
         const roomsOk = roomsResult.status === 'fulfilled' && roomsResult.value.ok;
-        const housesOk = housesResult.status === 'fulfilled' && housesResult.value.ok;
-
         const roomsPayload = roomsOk ? roomsResult.value.json : {};
-        const housesPayload = housesOk ? housesResult.value.json : {};
-        const mePayload = meResult.status === 'fulfilled' && meResult.value.ok ? meResult.value.json : null;
 
-        if (!roomsOk && !housesOk && !isCancelled) {
-          const roomErr = roomsResult.status === 'fulfilled'
-            ? String(roomsResult.value.json?.message || roomsResult.value.json?.error || 'Failed to load rooms')
-            : 'Rooms request failed';
-          const houseErr = housesResult.status === 'fulfilled'
-            ? String(housesResult.value.json?.message || housesResult.value.json?.error || 'Failed to load houses')
-            : 'Houses request failed';
-          setListingsError(`${roomErr}. ${houseErr}.`);
+        // Handle /api/auth/me errors gracefully
+        let mePayload = null;
+        if (meResult.status === 'fulfilled') {
+          if (meResult.value.ok) {
+            mePayload = meResult.value.json;
+          } else {
+            // If 404 or error, treat as guest
+            mePayload = null;
+            setCurrentUserId('');
+            setCurrentUserEmail('');
+            setCurrentUserName('');
+            setCurrentUserImage('');
+          }
         }
+
+        // Show page immediately after rooms load
+        if (!isCancelled) {
+          setIsListingsLoading(false);
+          setIsListingsTimedOut(false);
+        }
+
+        // Load houses in background — non-blocking
+        fetchJsonWithTimeout(`${API_BASE_URL}/api/owner/public/houses`, undefined, 16000)
+          .then(({ ok, json }) => {
+            if (!ok || isCancelled) return;
+            const housesData = Array.isArray(json?.data) ? json.data
+              : Array.isArray(json?.houses) ? json.houses
+              : Array.isArray(json) ? json : [];
+            const mappedHouses: Listing[] = housesData.map((house: any, index: number) => ({
+              id: 100000 + index,
+              title: house.name || 'Boarding House',
+              images: Array.isArray(house.images) && house.images.length > 0 ? house.images
+                : house.image ? [house.image] : [roomImages[index % roomImages.length]],
+              price: Number(house.monthlyPrice) || 0,
+              location: house.address || 'Unknown',
+              distance: 1.2, distanceUnit: 'km', travelTime: 'Near city',
+              roomType: house.roomType || 'Single Room',
+              genderPreference: house.genderPreference || 'any',
+              availableFrom: house.availableFrom || '',
+              billsIncluded: false, verified: true,
+              badges: [house.status === 'active' ? 'Available' : 'Occupied'],
+              description: house.description || '',
+              features: Array.isArray(house.features) ? house.features : [],
+              deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
+              roommateCount: Number(house.occupiedRooms) || 0,
+              totalRooms: Number(house.totalRooms) || 0,
+              occupiedRooms: Number(house.occupiedRooms) || 0,
+            }));
+            if (!isCancelled) setDbListings(prev => [...prev, ...mappedHouses]);
+          })
+          .catch(() => {});
 
         const roomsData = Array.isArray(roomsPayload?.data)
           ? roomsPayload.data
@@ -2721,14 +2868,6 @@ function SearchPage() {
             ? roomsPayload.rooms
             : Array.isArray(roomsPayload)
               ? roomsPayload
-              : [];
-
-        const housesData = Array.isArray(housesPayload?.data)
-          ? housesPayload.data
-          : Array.isArray(housesPayload?.houses)
-            ? housesPayload.houses
-            : Array.isArray(housesPayload)
-              ? housesPayload
               : [];
 
         const mappedRooms: Listing[] = roomsResult.status === 'fulfilled' && roomsResult.value.ok && roomsData.length > 0
@@ -2760,42 +2899,13 @@ function SearchPage() {
             }))
           : [];
 
-        const mappedHouses: Listing[] = housesResult.status === 'fulfilled' && housesResult.value.ok && housesData.length > 0
-          ? housesData.map((house: any, index: number) => ({
-              id: 100000 + index,
-              title: house.name || 'Boarding House',
-              images: Array.isArray(house.images) && house.images.length > 0
-                ? house.images
-                : house.image
-                  ? [house.image]
-                  : [roomImages[index % roomImages.length]],
-              price: Number(house.monthlyPrice) || 0,
-              location: house.address || 'Unknown',
-              distance: 1.2,
-              distanceUnit: 'km',
-              travelTime: 'Near city',
-              roomType: house.roomType || 'Single Room',
-              genderPreference: house.genderPreference || 'any',
-              availableFrom: house.availableFrom || '',
-              billsIncluded: false,
-              verified: true,
-              badges: [house.status === 'active' ? 'Available' : 'Occupied'],
-              description: house.description || '',
-              features: Array.isArray(house.features) ? house.features : [],
-              deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
-              roommateCount: Number(house.occupiedRooms) || 0,
-              totalRooms: Number(house.totalRooms) || 0,
-              occupiedRooms: Number(house.occupiedRooms) || 0,
-            }))
-          : [];
-
         if (!isCancelled) {
-          setDbListings([...mappedRooms, ...mappedHouses]);
+          setDbListings([...mappedRooms]);
           setIsListingsLoading(false);
           setIsListingsTimedOut(false);
         }
 
-        const currentUser = mePayload?.data || null;
+        const currentUser = mePayload?.data?.user || mePayload?.data || mePayload?.user || null;
         const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
 
         if (!isCancelled && currentUser?.email) {
@@ -2835,7 +2945,7 @@ function SearchPage() {
 
           const roommateResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/browse`, {
             headers: { Authorization: `Bearer ${token}` },
-          }, 50000);
+          }, 10000);
 
           if (!isCancelled && roommateResult.ok) {
             const roommateData = Array.isArray(roommateResult.json?.data)
@@ -3208,6 +3318,12 @@ function SearchPage() {
                   className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/owner-dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
                 >
                   List Your Property
+                </button>
+                <button
+                  onClick={() => navigate('/student/dashboard')}
+                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/student/dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                >
+                  Student Dashboard
                 </button>
               </div>
 
@@ -3818,43 +3934,14 @@ function SearchPage() {
             dbListings={dbListings}
             currentUserId={currentUserId}
             isRoommatesLoading={isRoommatesLoading}
+            currentUserName={currentUserName}
+            currentUserImage={currentUserImage}
             onToast={(msg) => {
               setToastMessage(msg);
               setShowToast(true);
               setTimeout(() => setShowToast(false), 3000);
             }}
           />
-        )}
-
-        {/* Popup Notification */}
-        {popupNotification && (
-          <div className="fixed bottom-24 right-4 w-[min(92vw,22rem)] z-50 animate-fade-in-up">
-            <div className="rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-[#101a36] to-[#0b132b] shadow-2xl backdrop-blur-xl overflow-hidden">
-              <div className="flex items-start gap-3 p-4">
-                <div className="w-9 h-9 rounded-full bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center flex-shrink-0">
-                  <FaBell className="text-cyan-300 text-sm" />
-                </div>
-                <button
-                  onClick={() => {
-                    openNotification(popupNotification);
-                    dismissPopupNotification();
-                  }}
-                  className="flex-1 min-w-0 text-left"
-                >
-                  <p className="text-xs text-cyan-200/80 mb-1">New notification</p>
-                  <p className="text-sm font-semibold text-white truncate">{popupNotification.title}</p>
-                  <p className="text-xs text-gray-300 mt-1 line-clamp-2">{popupNotification.message}</p>
-                </button>
-                <button
-                  onClick={dismissPopupNotification}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-                  aria-label="Dismiss notification"
-                >
-                  <FaTimes className="text-xs" />
-                </button>
-              </div>
-            </div>
-          </div>
         )}
 
         {/* Toast Notification */}

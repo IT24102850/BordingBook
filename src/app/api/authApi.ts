@@ -114,7 +114,37 @@ async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined>
   return result.data;
 }
 
+
+interface UserInfo {
+  id: string;
+  email: string;
+  role: 'student' | 'owner' | 'admin';
+  fullName?: string;
+  phoneNumber?: string;
+  companyName?: string;
+  propertyCount?: number;
+  profileCompleted?: boolean;
+  isVerified: boolean;
+}
+
+async function getCurrentUser(token?: string): Promise<UserInfo> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    credentials: 'include',
+  });
+  const result = await parseJson<{ user: UserInfo }>(response);
+  if (!response.ok || !result.success || !result.data || !result.data.user) {
+    throw new AuthApiError(result.message || 'Failed to fetch user', response.status);
+  }
+  return result.data.user;
+}
+
 export const authApi = {
   signIn,
   signUp,
+  getCurrentUser,
 };

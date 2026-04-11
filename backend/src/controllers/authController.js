@@ -9,8 +9,9 @@ const jwt = require('jsonwebtoken');
  */
 exports.signup = async (req, res) => {
   try {
-    const { email, password, role, fullName, phoneNumber, nic: ownerNic, address, occupation,
-            firstName, lastName, studentId, nic, birthday, academicYear } = req.body;
+
+    // Only accept the fields present in the new UI
+    const { email, password, role, fullName, phoneNumber } = req.body;
 
     // Validate required fields
     if (!email || !password) {
@@ -35,19 +36,12 @@ exports.signup = async (req, res) => {
           message: 'Property owners must use a business or personal email',
         });
       }
-      
       // Validate owner-specific required fields
       if (!fullName || !phoneNumber) {
         return res.status(400).json({
           success: false,
           message: 'Full name and phone number are required for property owners',
         });
-      }
-      if (!ownerNic) {
-        return res.status(400).json({ success: false, message: 'NIC is required for property owners' });
-      }
-      if (!address) {
-        return res.status(400).json({ success: false, message: 'Address is required for property owners' });
       }
     }
 
@@ -60,34 +54,18 @@ exports.signup = async (req, res) => {
       });
     }
 
+
     // Owners are auto-verified; students must confirm email
     const isOwner = role === 'owner';
 
+    // Only include relevant fields
     const userData = {
       email,
       password,
       role: role || 'student',
       isVerified: isOwner,
+      ...(isOwner ? { fullName, phoneNumber } : {}),
     };
-
-    // Add owner-specific fields
-    if (isOwner) {
-      userData.fullName = fullName;
-      userData.phoneNumber = phoneNumber;
-      userData.nic = ownerNic || '';
-      userData.address = address || '';
-      userData.occupation = occupation || '';
-    }
-
-    // Add student-specific fields
-    if (role === 'student') {
-      userData.firstName = firstName || '';
-      userData.lastName = lastName || '';
-      userData.studentId = studentId || '';
-      userData.nic = nic || '';
-      userData.birthday = birthday || '';
-      userData.academicYear = academicYear || '';
-    }
 
     const user = new User(userData);
 
@@ -434,13 +412,15 @@ exports.resetPassword = async (req, res) => {
  */
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    console.log('[getMe] Looking up user with userId:', req.user.userId);
+    const user = await User.findById(req.user.userId);
     if (!user) {
+      console.log('[getMe] User not found for userId:', req.user.userId);
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     res.status(200).json({ success: true, user });
   } catch (error) {
-    console.error('getMe error:', error);
+    console.error('[getMe] Error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch user' });
   }
 };

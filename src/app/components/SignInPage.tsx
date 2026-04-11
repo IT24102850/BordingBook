@@ -135,7 +135,18 @@ export default function SignIn() {
       localStorage.setItem('userName', result.data.user.fullName || result.data.user.email.split('@')[0]);
       localStorage.setItem('bb_current_user', JSON.stringify(result.data.user));
       setSuccess('Signed in successfully!');
-      const destination = result.data.user.role === 'owner' ? '/owner/dashboard' : '/student/dashboard';
+
+      // Determine if profile is complete (use profileCompleted or check required fields)
+      const isProfileComplete = result.data.user.profileCompleted || (
+        result.data.user.fullName && result.data.user.role && result.data.user.isVerified
+      );
+
+      let destination = '/find';
+      if (!isProfileComplete) {
+        destination = '/profile-setup';
+      } else if (result.data.user.role === 'owner') {
+        destination = '/owner/dashboard';
+      }
       setTimeout(() => navigate(destination), 800);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
