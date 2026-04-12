@@ -441,7 +441,9 @@ exports.updateProfile = async (req, res) => {
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) updates[field] = req.body[field];
     }
-    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true });
+    // Use the correct user ID property from the JWT payload
+    const userId = req.user.id || req.user.userId || req.user._id;
+    const user = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true });
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
