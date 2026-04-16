@@ -59,6 +59,7 @@ interface Tenant {
   monthlyRent: number;
   phone?: string;
   email?: string;
+  nextPaymentCycleStartDate?: string;
 }
 
 interface Room {
@@ -699,7 +700,15 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
             
             <div className="flex items-center gap-2 text-[8px] text-gray-400 mb-1.5">
               <Calendar size={8} />
-              <span>{new Date(tenant.checkInDate).toLocaleDateString()} - {new Date(tenant.checkOutDate).toLocaleDateString()}</span>
+              <span>
+                {tenant.nextPaymentCycleStartDate
+                  ? new Date(tenant.nextPaymentCycleStartDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    }).toUpperCase()
+                  : new Date(tenant.checkInDate).toLocaleDateString() + ' - ' + new Date(tenant.checkOutDate).toLocaleDateString()}
+              </span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -1155,8 +1164,34 @@ export default function OwnerDashboard() {
           ownerDashboardApi.getRooms(),
         ]);
 
-        setHouses(houseData.map(mapHouseDtoToUi));
-        setRooms(roomData.map(mapRoomDtoToUi));
+        const mappedHouses = houseData.map(mapHouseDtoToUi);
+        const mappedRooms = roomData.map(mapRoomDtoToUi);
+        
+        setHouses(mappedHouses);
+        setRooms(mappedRooms);
+
+        // Load next payment cycle dates for all tenants
+        const enhancedRooms = await Promise.all(
+          mappedRooms.map(async (room) => {
+            const enhancedTenants = await Promise.all(
+              room.tenants.map(async (tenant) => {
+                try {
+                  const cycleData = await ownerDashboardApi.getNextPaymentCycleDate(tenant.id);
+                  return {
+                    ...tenant,
+                    nextPaymentCycleStartDate: cycleData.nextPaymentCycleStartDate,
+                  };
+                } catch (error) {
+                  console.warn(`Failed to fetch next cycle for tenant ${tenant.id}:`, error);
+                  return tenant;
+                }
+              })
+            );
+            return { ...room, tenants: enhancedTenants };
+          })
+        );
+
+        setRooms(enhancedRooms);
       } catch (error) {
         console.error('Failed to load owner dashboard data:', error);
       }

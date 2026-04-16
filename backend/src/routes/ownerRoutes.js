@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const { requireAuth } = require('../middleware/auth');
 const validateRequest = require('../middleware/validateRequest');
 const ownerController = require('../controllers/ownerController');
+const ownerPaymentDashboardController = require('../controllers/payment/ownerPaymentDashboardController');
 const bookingController = require('../controllers/bookingController');
 
 const router = express.Router();
@@ -86,5 +87,66 @@ router.post(
   validateRequest,
   bookingController.createAgreementForRequest
 );
+
+// **DASHBOARD ENDPOINTS** - Owner payment & rental management
+router.get('/boarding-houses/:boardingHouseId/stats', requireAuth, ownerPaymentDashboardController.getDashboardStats);
+router.get('/boarding-houses/:boardingHouseId/rooms-overview', requireAuth, ownerPaymentDashboardController.getRoomsOverview);
+router.get('/boarding-houses/:boardingHouseId/payment-ledger', requireAuth, ownerPaymentDashboardController.getPaymentLedger);
+router.get('/tenants/:studentId/next-payment-cycle', requireAuth, ownerPaymentDashboardController.getNextPaymentCycleDate);
+router.post('/tenants/:studentId/send-reminder', requireAuth, ownerPaymentDashboardController.sendPaymentReminder);
+router.delete('/agreements/:agreementId', requireAuth, ownerPaymentDashboardController.cancelAgreement);
+router.get('/students/:studentId/receipts', requireAuth, ownerPaymentDashboardController.getStudentReceiptsForOwner);
+router.get('/students/:studentId/receipts/:receiptNumber/download', requireAuth, ownerPaymentDashboardController.downloadStudentReceipt);
+
+// **DEBUG ENDPOINT** - Check what's in database
+router.get('/debug/boarding-house/:boardingHouseId', requireAuth, async (req, res) => {
+  try {
+    const BoardingHouse = require('../models/BoardingHouse');
+    const Room = require('../models/Room');
+    const { boardingHouseId } = req.params;
+    const ownerId = req.user.userId;
+
+    console.log('🔍 DEBUG: Checking boarding house data');
+    console.log('   boardingHouseId:', boardingHouseId);
+    console.log('   ownerId:', ownerId);
+
+    const boardingHouse = await BoardingHouse.findById(boardingHouseId);
+    const rooms = await Room.find({ houseId: boardingHouseId });
+
+    console.log('   Boarding House:', boardingHouse ? { _id: boardingHouse._id, name: boardingHouse.name, ownerId: boardingHouse.ownerId } : 'NOT FOUND');
+    console.log('   Rooms found:', rooms.length);
+    rooms.forEach((r, i) => {
+      console.log(`     Room ${i+1}: ${r.roomNumber} (${r.name}) - houseId: ${r.houseId}`);
+    });
+
+    return res.status(200).json({
+      success: true,
+      debug: {
+        boardingHouseId,
+        ownerId,
+        boardingHouse: boardingHouse ? {
+          _id: boardingHouse._id.toString(),
+          name: boardingHouse.name,
+          ownerId: boardingHouse.ownerId.toString(),
+          ownerIdMatch: boardingHouse.ownerId.toString() === ownerId,
+        } : null,
+        roomsCount: rooms.length,
+        rooms: rooms.map((r) => ({
+          _id: r._id.toString(),
+          roomNumber: r.roomNumber,
+          name: r.name,
+          price: r.price,
+          houseId: r.houseId?.toString(),
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('❌ Debug error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;

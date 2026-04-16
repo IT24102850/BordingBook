@@ -8,6 +8,8 @@ interface ReceiptData {
     date: string;
     receiptNumber: string;
     paymentMethod: string;
+    validFrom?: string;
+    validTo?: string;
 }
 
 export const generatePaymentReceiptPDF = (data: ReceiptData) => {
@@ -89,19 +91,30 @@ export const generatePaymentReceiptPDF = (data: ReceiptData) => {
     doc.setFont('helvetica', 'normal');
     doc.text(data.paymentMethod, 75, startY + lineGap * 4);
 
+    doc.setFont('helvetica', 'bold');
+    doc.text('Valid From:', 14, startY + lineGap * 5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.validFrom || 'N/A', 75, startY + lineGap * 5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Valid To:', 14, startY + lineGap * 6);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.validTo || 'N/A', 75, startY + lineGap * 6);
+
     // Amount Total Section
     doc.setFillColor(248, 250, 252); // Slate-50 background
-    doc.rect(14, 160, 182, 30, 'F');
+    doc.rect(14, 205, 182, 30, 'F');
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Total Amount Paid:', 20, 178);
+    doc.setTextColor(textColor);
+    doc.text('Total Amount Paid:', 20, 223);
 
     doc.setTextColor(primaryColor);
-    doc.text(`Rs. ${data.amount.toLocaleString()}`, 140, 178);
+    doc.text(`Rs. ${data.amount.toLocaleString()}`, 140, 223);
 
     // Footer / Status
-    const statusY = 205;
+    const statusY = 245;
 
     // Status Badge Background
     doc.setFillColor(34, 197, 94); // Green-500
@@ -116,14 +129,14 @@ export const generatePaymentReceiptPDF = (data: ReceiptData) => {
     // Decorative Line
     doc.setDrawColor(226, 232, 240); // Slate-200
     doc.setLineWidth(1);
-    doc.line(14, 250, 196, 250);
+    doc.line(14, 270, 196, 270);
 
     // Footer Text
     doc.setTextColor(secondaryColor);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'italic');
-    doc.text('This is a system-generated receipt. No signature is required.', 14, 260);
-    doc.text('Thank you for choosing BoardingBook.', 14, 265);
+    doc.text('This is a system-generated receipt. No signature is required.', 14, 280);
+    doc.text('Thank you for choosing BoardingBook.', 14, 285);
 
     return doc;
 };

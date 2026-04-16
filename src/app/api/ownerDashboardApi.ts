@@ -1,5 +1,4 @@
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
-
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5000').replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -73,7 +72,7 @@ async function ensureSuccess<T>(response: Response): Promise<T> {
 }
 
 async function getHouses(): Promise<OwnerHouseDto[]> {
-  const response = await fetch(`${API_BASE_URL}/api/owner/houses`, {
+  const response = await fetch(`${API_BASE_URL}/owner/houses`, {
     headers: getAuthHeaders(),
   });
   return ensureSuccess<OwnerHouseDto[]>(response);
@@ -95,7 +94,7 @@ async function createHouse(payload: {
   status?: 'active' | 'inactive';
   genderPreference?: 'any' | 'girls' | 'boys';
 }): Promise<OwnerHouseDto> {
-  const response = await fetch(`${API_BASE_URL}/api/owner/houses`, {
+  const response = await fetch(`${API_BASE_URL}/owner/houses`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
@@ -104,7 +103,7 @@ async function createHouse(payload: {
 }
 
 async function updateHouse(houseId: string, payload: Partial<OwnerHouseDto>): Promise<OwnerHouseDto> {
-  const response = await fetch(`${API_BASE_URL}/api/owner/houses/${houseId}`, {
+  const response = await fetch(`${API_BASE_URL}/owner/houses/${houseId}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
@@ -113,7 +112,7 @@ async function updateHouse(houseId: string, payload: Partial<OwnerHouseDto>): Pr
 }
 
 async function deleteHouse(houseId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/owner/houses/${houseId}`, {
+  const response = await fetch(`${API_BASE_URL}/owner/houses/${houseId}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -125,7 +124,7 @@ async function deleteHouse(houseId: string): Promise<void> {
 }
 
 async function getRooms(): Promise<OwnerRoomDto[]> {
-  const response = await fetch(`${API_BASE_URL}/api/owner/rooms`, {
+  const response = await fetch(`${API_BASE_URL}/owner/rooms`, {
     headers: getAuthHeaders(),
   });
   return ensureSuccess<OwnerRoomDto[]>(response);
@@ -151,7 +150,7 @@ async function createRoom(payload: {
   ownerPhone?: string;
   ownerEmail?: string;
 }): Promise<OwnerRoomDto> {
-  const response = await fetch(`${API_BASE_URL}/api/owner/rooms`, {
+  const response = await fetch(`${API_BASE_URL}/owner/rooms`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
@@ -160,7 +159,7 @@ async function createRoom(payload: {
 }
 
 async function updateRoom(roomId: string, payload: Partial<OwnerRoomDto>): Promise<OwnerRoomDto> {
-  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}`, {
+  const response = await fetch(`${API_BASE_URL}/owner/rooms/${roomId}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
@@ -169,7 +168,7 @@ async function updateRoom(roomId: string, payload: Partial<OwnerRoomDto>): Promi
 }
 
 async function deleteRoom(roomId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}`, {
+  const response = await fetch(`${API_BASE_URL}/owner/rooms/${roomId}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -180,6 +179,7 @@ async function deleteRoom(roomId: string): Promise<void> {
   }
 }
 
+<<<<<<< Updated upstream
 
 // Booking Requests API
 export type BookingRequestDto = {
@@ -219,6 +219,23 @@ async function updateBookingRequestStatus(requestId: string, status: 'approved' 
     body: JSON.stringify({ status, rejectionReason }),
   });
   return ensureSuccess<BookingRequestDto>(response);
+=======
+async function getNextPaymentCycleDate(studentId: string): Promise<{
+  nextPaymentCycleStartDate: string;
+  currentCycleNumber: number;
+  nextCycleNumber: number;
+  currentCycleDueDate: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/owner/tenants/${studentId}/next-payment-cycle`, {
+    headers: getAuthHeaders(),
+  });
+  return ensureSuccess<{
+    nextPaymentCycleStartDate: string;
+    currentCycleNumber: number;
+    nextCycleNumber: number;
+    currentCycleDueDate: string;
+  }>(response);
+>>>>>>> Stashed changes
 }
 
 export const ownerDashboardApi = {
@@ -230,6 +247,10 @@ export const ownerDashboardApi = {
   createRoom,
   updateRoom,
   deleteRoom,
+<<<<<<< Updated upstream
   getBookingRequests,
   updateBookingRequestStatus,
+=======
+  getNextPaymentCycleDate,
+>>>>>>> Stashed changes
 };
