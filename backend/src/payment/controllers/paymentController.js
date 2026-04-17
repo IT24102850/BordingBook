@@ -20,14 +20,38 @@ const fs = require('fs');
  */
 exports.submitPaymentSlip = async (req, res) => {
   try {
-    const { bookingAgreementId, paymentAmount, remarks } = req.body;
-    const studentId = req.user.userId;
+    console.log('📨 Payment submission request received');
+    console.log('   req.user:', req.user);
+    console.log('   req.body:', req.body);
+    console.log('   req.file:', req.file);
+    console.log('   req.uploadedFile:', req.uploadedFile);
 
-    if (!bookingAgreementId || !paymentAmount) {
+    const { bookingAgreementId, paymentAmount, remarks } = req.body;
+    const studentId = req.user?.userId;
+
+    console.log('   Extracted studentId:', studentId);
+
+    if (!studentId) {
+      if (req.file) deleteUploadedFile(req.file.path);
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication failed. Student ID not found.',
+      });
+    }
+
+    if (!bookingAgreementId || bookingAgreementId.trim() === '') {
       if (req.file) deleteUploadedFile(req.file.path);
       return res.status(400).json({
         success: false,
-        message: 'Booking agreement and payment amount are required',
+        message: 'Booking agreement ID is required. Please ensure you have an active booking agreement.',
+      });
+    }
+
+    if (!paymentAmount || Number(paymentAmount) <= 0) {
+      if (req.file) deleteUploadedFile(req.file.path);
+      return res.status(400).json({
+        success: false,
+        message: 'Valid payment amount is required and must be greater than 0',
       });
     }
 
@@ -173,7 +197,7 @@ exports.getPendingPayments = async (req, res) => {
         tenantName: payment.studentId?.fullName || 'Unknown Tenant',
         roomId: payment.roomId ? String(payment.roomId._id) : '',
         roomNumber: payment.roomId?.roomNumber || 'N/A',
-        placeId: payment.boardingHouseId ? String(payment.boardingHouseId._id) : '',
+        placeId: payment.boardingHouseId ? String(payment.boardingHouseId._id || payment.boardingHouseId) : '',
         placeName: payment.boardingHouseId?.name || 'Unknown House',
         amount: payment.paymentAmount || 0,
         originalRent: payment.roomId?.price || 0,
@@ -218,6 +242,10 @@ exports.approvePaymentSlip = async (req, res) => {
     const { paymentId } = req.params;
     const approverId = req.user.userId;
 
+    console.log('🔍 [Controller] Approval request received');
+    console.log('   Payment ID:', paymentId);
+    console.log('   Approver ID:', approverId);
+
     if (!paymentId) {
       return res.status(400).json({
         success: false,
@@ -225,15 +253,29 @@ exports.approvePaymentSlip = async (req, res) => {
       });
     }
 
+    console.log('🔍 [Controller] Calling service...');
     const result = await paymentService.approvePaymentSlip(paymentId, approverId);
+    console.log('🔍 [Controller] Service returned result:', {
+      success: result.success,
+      paymentId: result.paymentId,
+      receiptNumber: result.receiptNumber,
+      currentCycle: result.currentCycle?.cycleNumber,
+      nextCycle: result.nextCycle?.cycleNumber,
+    });
 
-    return res.status(200).json({
+    console.log('🔍 [Controller] Sending response...');
+    res.status(200).json({
       success: true,
       message: 'Payment approved successfully',
       data: result,
     });
+    console.log('🔍 [Controller] Response sent successfully');
+    return;
   } catch (error) {
-    console.error('Error approving payment:', error);
+    console.error('❌ [Controller] Error approving payment:');
+    console.error('   Message:', error.message);
+    console.error('   Stack:', error.stack);
+    console.error('   Full Error:', error);
 
     return res.status(500).json({
       success: false,

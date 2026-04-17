@@ -8,7 +8,6 @@ const ProfileSetup = lazy(() => import('./components/ProfileSetup'));
 const SearchPage = lazy(() => import('./components/SearchPage'));
 const VerifyEmailPage = lazy(() => import('./components/VerifyEmailPage'));
 
-<<<<<<< Updated upstream
 const MobileLayout = lazy(() => import('./components/mobile/MobileLayout'));
 const MobileLogin = lazy(() =>
   import('./components/mobile/AuthScreens').then((m) => ({ default: m.MobileLogin }))
@@ -31,21 +30,6 @@ const MobileNotifications = lazy(() =>
 const MobileProfile = lazy(() =>
   import('./components/mobile/AppScreens').then((m) => ({ default: m.MobileProfile }))
 );
-=======
-// Pages
-import OwnerPaymentDashboard from './pages/OwnerPaymentDashboard';
-
-// Mobile Components
-import MobileLayout from './components/mobile/MobileLayout';
-import { MobileLogin, MobileSignUp } from './components/mobile/AuthScreens';
-import { 
-  MobileDashboard, 
-  MobileBoardingPass, 
-  MobileStatus, 
-  MobileNotifications, 
-  MobileProfile 
-} from './components/mobile/AppScreens';
->>>>>>> Stashed changes
 
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 const AdminLogin = lazy(() =>
@@ -151,11 +135,6 @@ export default function App() {
         <Route path="/student-booking" element={<StudentBookingDashboard />} />
         <Route path="/student-payment" element={<StudentPayment />} />
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
-<<<<<<< Updated upstream
-=======
-        <Route path="/owner-dashboard" element={<OwnerDashboard />} />
-        <Route path="/owner/dashboard/:boardingHouseId" element={<OwnerPaymentDashboard />} />
->>>>>>> Stashed changes
         <Route path="/profile" element={<UserProfileDashboard />} />
 
         {/* Roommate Finder Enhanced Routes (from main branch) */}

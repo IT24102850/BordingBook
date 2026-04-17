@@ -20,13 +20,21 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Create student-specific subdirectory
     const studentId = req.user?.userId;
+    
+    if (!studentId) {
+      return cb(new Error('Student ID not found. Authentication may have failed.'));
+    }
+    
     const studentDir = path.join(uploadsDir, studentId);
 
-    if (!fs.existsSync(studentDir)) {
-      fs.mkdirSync(studentDir, { recursive: true });
+    try {
+      if (!fs.existsSync(studentDir)) {
+        fs.mkdirSync(studentDir, { recursive: true });
+      }
+      cb(null, studentDir);
+    } catch (error) {
+      cb(new Error(`Failed to create upload directory: ${error.message}`));
     }
-
-    cb(null, studentDir);
   },
   filename: (req, file, cb) => {
     // Generate unique filename: timestamp_originalname (replace spaces with underscores)
@@ -84,6 +92,13 @@ exports.validateUploadedFile = (req, res, next) => {
     });
   }
 
+  if (!req.user || !req.user.userId) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication failed. Student ID not found.',
+    });
+  }
+
   // Add file info to request
   req.uploadedFile = {
     path: req.file.path,
@@ -102,6 +117,12 @@ exports.validateUploadedFile = (req, res, next) => {
  * Error handler for multer upload errors
  */
 exports.handleUploadError = (err, req, res, next) => {
+  if (!err) {
+    return next();
+  }
+
+  console.error('📤 Upload middleware error:', err.message);
+
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
@@ -115,6 +136,11 @@ exports.handleUploadError = (err, req, res, next) => {
         message: 'Too many files uploaded',
       });
     }
+    
+    return res.status(400).json({
+      success: false,
+      message: `Upload error: ${err.message}`,
+    });
   }
 
   if (err && err.message) {

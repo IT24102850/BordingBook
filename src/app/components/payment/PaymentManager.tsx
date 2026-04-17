@@ -151,22 +151,14 @@ export default function PaymentManager() {
     setProcessingSlipId(slip.id);
     try {
       // Call API to approve slip
+      // Backend handles receipt generation and storage
       await paymentApi.approvePaymentSlip(slip.id);
-
-      // Generate receipt PDF
-      const doc = generatePaymentReceiptPDF({
-        tenantName: slip.tenantName,
-        roomNumber: slip.roomNumber,
-        placeName: slip.placeName,
-        amount: slip.amount,
-        date: slip.date,
-        receiptNumber: `REC-${Math.floor(Math.random() * 100000)}`,
-        paymentMethod: 'Bank Transfer'
-      });
-      doc.save(`receipt_${slip.tenantName.replace(/\s+/g, '_')}_${slip.date}.pdf`);
 
       // Remove slip from pending list
       setPendingSlips(prev => prev.filter(s => s.id !== slip.id));
+      
+      // Show success message
+      alert('✓ Payment approved successfully! Receipt has been generated and the tenant has been notified.');
     } catch (err) {
       console.error('Error approving slip:', err);
       alert('Failed to approve payment slip. Please try again.');

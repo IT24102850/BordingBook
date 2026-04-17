@@ -76,6 +76,14 @@ async function startServer() {
       console.warn('⚠️ Notification routes not loaded');
     }
 
+    try {
+      const paymentRoutes = require('./payment/routes/paymentRoutes');
+      app.use('/api/payments', paymentRoutes);
+      console.log('✓ Payment routes mounted successfully');
+    } catch (e) {
+      console.error('✗ Payment routes failed to load:', e.message);
+    }
+
     // Health check route
     app.get('/api/health', (req, res) => {
       res.json({

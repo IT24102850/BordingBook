@@ -1,4 +1,4 @@
-const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5000/api';
+const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001/api';
 
 
 interface ApiResponse<T> {
@@ -73,7 +73,7 @@ async function parseJson<T>(response: Response): Promise<ApiResponse<T>> {
 
 
 async function signIn(payload: SignInPayload): Promise<SignInResult> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
+  const response = await fetch(`${API_BASE_URL}/auth/signin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -94,7 +94,7 @@ async function signIn(payload: SignInPayload): Promise<SignInResult> {
 }
 
 async function signUp(payload: SignUpPayload): Promise<SignUpResult | undefined> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+  const response = await fetch(`${API_BASE_URL}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -128,7 +128,7 @@ interface UserInfo {
 }
 
 async function getCurrentUser(token?: string): Promise<UserInfo> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

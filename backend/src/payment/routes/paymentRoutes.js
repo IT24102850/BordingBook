@@ -98,11 +98,11 @@ router.post(
   paymentController.rejectPaymentSlip
 );
 
-// ==================== DASHBOARD ROUTES ====================
+// ==================== OWNER DASHBOARD ROUTES ====================
 
 /**
- * GET /api/payment/boarding-places
- * Get all boarding houses for owner dashboard
+ * GET /api/payments/boarding-places
+ * Get all boarding houses for owner dashboard (only their owned houses)
  */
 router.get('/boarding-places', requireAuth, paymentController.getOwnerBoardingPlaces);
 router.get('/boarding-places-v2', requireAuth, paymentController.getOwnerBoardingPlacesWithTenants);

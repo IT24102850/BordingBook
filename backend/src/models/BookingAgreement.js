@@ -64,7 +64,7 @@ const bookingAgreementSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['sent', 'accepted', 'rejected'],
+      enum: ['sent', 'accepted', 'rejected', 'cancelled'],
       default: 'sent',
       index: true,
     },
@@ -77,6 +77,10 @@ const bookingAgreementSchema = new mongoose.Schema(
       default: null,
     },
     rejectedAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledAt: {
       type: Date,
       default: null,
     },

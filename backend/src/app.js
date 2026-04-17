@@ -69,7 +69,7 @@ app.use('/api/roommates', roommateRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/payment', paymentRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/kyc', kycRoutes);
 app.use('/api/tickets', ticketRoutes);

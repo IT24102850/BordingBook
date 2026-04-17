@@ -102,7 +102,7 @@ export default function BoardingPlaceDetail() {
       setLoading(true);
       setError(null);
       
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000/api';
+      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
       
       // Fetch boarding house details
       const placeResponse = await fetch(
@@ -211,7 +211,7 @@ export default function BoardingPlaceDetail() {
   const fetchTenantReceipts = useCallback(async (studentId: string) => {
     try {
       setLoadingReceipts(true);
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000/api';
+      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
       
       const response = await fetch(
         `${apiUrl}/owner/students/${studentId}/receipts`,
@@ -303,7 +303,7 @@ export default function BoardingPlaceDetail() {
       }
 
       // Call backend to cancel agreement
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000/api';
+      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await fetch(
         `${apiUrl}/owner/agreements/${tenant.id}`,
         {
@@ -375,7 +375,7 @@ export default function BoardingPlaceDetail() {
       console.log(`✅ Payment reminder sent to ${tenant.name}: ${reminderMessage}`);
 
       // Send reminder to backend API
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000/api';
+      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await fetch(
         `${apiUrl}/owner/tenants/${tenant.studentId}/send-reminder`,
         {
@@ -763,7 +763,8 @@ export default function BoardingPlaceDetail() {
                             onClick={async () => {
                               try {
                                 const token = localStorage.getItem('bb_access_token');
-                                const response = await fetch(`http://localhost:5000/api/owner/students/${selectedTenant.studentId}/receipts/${receipt.receiptNumber}/download`, {
+                                const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+                                const response = await fetch(`${apiUrl}/owner/students/${selectedTenant.studentId}/receipts/${receipt.receiptNumber}/download`, {
                                   headers: {
                                     Authorization: `Bearer ${token}`,
                                   },
@@ -931,4 +932,5 @@ export default function BoardingPlaceDetail() {
     </div>
   );
 }
+
 

@@ -286,7 +286,8 @@ export default function StudentPayment() {
         const fetchPayments = async () => {
           setIsLoadingPayments(true);
           try {
-            const response = await fetch(`http://localhost:5000/api/payments/history`, {
+            const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+            const response = await fetch(`${apiUrl}/payments/history`, {
               headers: {
                 Authorization: `Bearer ${token}`,
               },
@@ -365,32 +366,6 @@ export default function StudentPayment() {
           }
         };
 
-        const fetchNotifications = async () => {
-          setIsLoadingNotifications(true);
-          const token = localStorage.getItem('bb_access_token');
-          
-          const response = await fetch('http://localhost:5000/api/notifications', {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            // Show all notifications (rejection + payment reminders)
-            const allNotifications = (data.data || []).filter((notif: any) => 
-              notif.type === 'payment_rejected' || notif.type === 'payment_pre_payment'
-            );
-            setNotifications(allNotifications);
-          } else {
-            setNotifications([]);
-          }
-        };
-
-        fetchNotifications();
-        
         // Only fetch if we have accepted bookings
         if (acceptedBookings.length > 0) {
           fetchPayments();
@@ -418,14 +393,15 @@ export default function StudentPayment() {
     }
   }, [acceptedBookings]);
 
-  // Fetch rejection notifications
+  // Fetch rejection notifications (single source of truth for all notifications)
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
         setIsLoadingNotifications(true);
         const token = localStorage.getItem('bb_access_token');
+        const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
         
-        const response = await fetch('http://localhost:5000/api/notifications', {
+        const response = await fetch(`${apiUrl}/notifications`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -436,9 +412,15 @@ export default function StudentPayment() {
         if (response.ok) {
           const data = await response.json();
           // Show all notifications (rejection + payment reminders)
-          const allNotifications = (data.data || []).filter((notif: any) => 
-            notif.type === 'payment_rejected' || notif.type === 'payment_pre_payment'
-          );
+          const allNotifications = (data.data || [])
+            .filter((notif: any) => 
+              notif.type === 'payment_rejected' || notif.type === 'payment_pre_payment'
+            )
+            .map((notif: any) => ({
+              ...notif,
+              id: notif._id,
+              isRead: notif.read,
+            }));
           setNotifications(allNotifications);
         } else {
           setNotifications([]);
@@ -453,8 +435,8 @@ export default function StudentPayment() {
 
     fetchNotifications();
     
-    // Refresh notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
+    // Refresh notifications every 60 seconds instead of 30 for better performance
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -464,8 +446,9 @@ export default function StudentPayment() {
       try {
         setIsLoadingReceipts(true);
         const token = localStorage.getItem('bb_access_token');
+        const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
         
-        const response = await fetch('http://localhost:5000/api/payments/receipts', {
+        const response = await fetch(`${apiUrl}/payments/receipts`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -498,38 +481,13 @@ export default function StudentPayment() {
     return () => clearInterval(refreshInterval);
   }, []);
 
-  // Mark notification as read
-  const handleMarkAsRead = async (notificationId: string) => {
-    try {
-      const token = localStorage.getItem('bb_access_token');
-      
-      const response = await fetch(`http://localhost:5000/api/notifications/${notificationId}/read`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        // Update local state
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif.id === notificationId ? { ...notif, isRead: true, readAt: new Date() } : notif
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
-    }
-  };
-
   // Delete a notification
   const handleDeleteNotification = async (notificationId: string) => {
     try {
       const token = localStorage.getItem('bb_access_token');
+      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
       
-      const response = await fetch(`http://localhost:5000/api/notifications/${notificationId}`, {
+      const response = await fetch(`${apiUrl}/notifications/${notificationId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -562,7 +520,8 @@ export default function StudentPayment() {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/payments/receipt/download/${receiptNumber}`, {
+      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${apiUrl}/payments/receipt/download/${receiptNumber}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -656,17 +615,24 @@ export default function StudentPayment() {
       return;
     }
 
+    // Validate we have an active booking agreement
+    if (!acceptedBookings || acceptedBookings.length === 0 || !acceptedBookings[0]?._id) {
+      setFormErrors({ agreement: 'No active booking agreement found. Please ensure you have an accepted booking agreement.' });
+      return;
+    }
+
     // All validation passed - submit to backend
     setIsSubmittingPayment(true);
     try {
       const formData = new FormData();
       formData.append('paymentSlip', uploadedFile as File);
-      formData.append('bookingAgreementId', acceptedBookings[0]?._id || '');
+      formData.append('bookingAgreementId', acceptedBookings[0]._id);
       formData.append('paymentAmount', paymentAmount);
       formData.append('remarks', paymentRemark);
 
       const token = localStorage.getItem('bb_access_token');
-      const response = await fetch('http://localhost:5000/api/payments/submit', {
+      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${apiUrl}/payments/submit`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -856,11 +822,6 @@ export default function StudentPayment() {
                           {notif.message}
                         </p>
                         <div className="flex items-center gap-4 mt-3">
-                          {!notif.isRead && (
-                            <button onClick={() => handleMarkAsRead(notif.id)} className="text-xs font-medium text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-                              <Check size={14} /> Mark as Read
-                            </button>
-                          )}
                           <button onClick={() => handleDeleteNotification(notif.id)} className="text-xs font-medium text-gray-500 hover:text-rose-400 flex items-center gap-1">
                             <Trash2 size={14} /> Delete
                           </button>
@@ -1117,3 +1078,4 @@ export default function StudentPayment() {
     </div>
   );
 }
+

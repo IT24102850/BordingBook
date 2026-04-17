@@ -398,12 +398,14 @@ exports.sendPaymentReminder = async (req, res) => {
     // Create notification
     const Notification = require('../../models/Notification');
     const notification = new Notification({
-      userId: studentId,
+      user: studentId,
       type: 'payment_pre_payment',
       title: '💰 Payment Reminder',
       message: reminderMessage,
-      isRead: false,
-      createdAt: new Date(),
+      read: false,
+      data: {
+        daysLeft,
+      },
     });
 
     await notification.save();

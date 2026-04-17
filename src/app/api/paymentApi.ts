@@ -1,5 +1,6 @@
 // API service for payment-related endpoints
-const BASE_URL = 'http://localhost:5000';
+// Strip /api suffix from VITE_API_URL if present, since endpoints already include /api prefix
+const BASE_URL = ((import.meta as any).env?.VITE_API_URL as string)?.replace(/\/api\/?$/, '') || 'http://localhost:5001';
 
 // ============================================
 // PAYMENT DASHBOARD TYPES
