@@ -154,7 +154,11 @@ exports.getAllRooms = async (req, res) => {
       filter.rating = { $gte: parseFloat(minRating) };
     }
 
+<<<<<<< HEAD
     // Sort
+=======
+    // Sort selection
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
     let sortStage = { createdAt: -1 };
     if (sort === 'price') {
       sortStage = { price: 1 };
@@ -166,6 +170,7 @@ exports.getAllRooms = async (req, res) => {
       sortStage = { distKm: 1 };
     }
 
+<<<<<<< HEAD
     // Use lean projection to avoid heavy payload on search page.
     let rooms = await Room.find(filter)
       .select('name location price totalSpots occupancy facilities images roomType genderPreference availableFrom deposit description campus rating distKm verified badges createdAt')
@@ -202,7 +207,64 @@ exports.getAllRooms = async (req, res) => {
     // Cache the result if no filters
     if (noFilters) {
       setCachedRooms(rooms);
+=======
+    if (location) {
+      filter.location = { $regex: location, $options: 'i' };
     }
+
+    if (minPrice) {
+      filter.price = { $gte: parseInt(minPrice) };
+    }
+
+    if (maxPrice) {
+      if (!filter.price) filter.price = {};
+      filter.price.$lte = parseInt(maxPrice);
+    }
+
+    if (minVacancy) {
+      // Only use aggregation when vacancy math is requested.
+      const roomsWithVacancy = await Room.aggregate([
+        { $match: filter },
+        {
+          $addFields: {
+            vacancy: { $subtract: ['$totalSpots', '$occupancy'] },
+          },
+        },
+        { $match: { vacancy: { $gte: parseInt(minVacancy) } } },
+        {
+          $project: {
+            name: 1,
+            location: 1,
+            price: 1,
+            totalSpots: 1,
+            occupancy: 1,
+            facilities: 1,
+            roomType: 1,
+            genderPreference: 1,
+            availableFrom: 1,
+            deposit: 1,
+            description: 1,
+            createdAt: 1,
+          },
+        },
+        { $sort: sortStage },
+        { $limit: 200 },
+      ]).option({ maxTimeMS: 6000 });
+
+      return res.status(200).json({
+        success: true,
+        count: roomsWithVacancy.length,
+        data: roomsWithVacancy,
+      });
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
+    }
+
+    const rooms = await Room.find(filter)
+      .select('name location price totalSpots occupancy facilities roomType genderPreference availableFrom deposit description createdAt')
+      .sort(sortStage)
+      .limit(200)
+      .lean()
+      .maxTimeMS(6000);
 
     res.status(200).json({
       success: true,

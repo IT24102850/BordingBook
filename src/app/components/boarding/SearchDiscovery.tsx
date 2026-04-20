@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import SearchSection from './SearchSection';
 import { ROOMS } from '../../data/rooms';
 import { FaTimes, FaMapMarkerAlt, FaStar, FaHeart, FaShare } from 'react-icons/fa';
+import { BiCheck, BiX } from 'react-icons/bi';
 
 export default function SearchDiscovery() {
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
@@ -49,11 +50,11 @@ export default function SearchDiscovery() {
               <div className="absolute top-6 left-6">
                 {selectedRoom.available ? (
                   <span className="px-4 py-2 rounded-full bg-green-500/90 backdrop-blur-sm text-white font-semibold flex items-center gap-2">
-                    ✅ Available
+                    <BiCheck size={16} /> Available
                   </span>
                 ) : (
                   <span className="px-4 py-2 rounded-full bg-red-500/90 backdrop-blur-sm text-white font-semibold flex items-center gap-2">
-                    ❌ Occupied
+                    <BiX size={16} /> Occupied
                   </span>
                 )}
               </div>

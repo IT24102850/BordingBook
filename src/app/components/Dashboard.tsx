@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BiChat } from 'react-icons/bi';
 import {
   Home, Users, CreditCard, MessageSquare, Calendar, FileText,
   LogOut, Settings, Bell, Download, Phone, Mail, Edit3
@@ -274,7 +275,7 @@ export default function Dashboard() {
               <p className="text-gray-400 mb-2">No active conversations yet</p>
               <p className="text-gray-500 text-sm mb-6">Start a conversation with your boarding owner or roommates</p>
               <button onClick={() => navigate('/chat')} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-2 px-6 rounded-lg transition inline-flex items-center gap-2">
-                💬 Open Chat
+                <BiChat size={18} /> Open Chat
               </button>
             </div>
           )}

@@ -277,7 +277,7 @@ export default function OwnerDashboardPayment() {
             return (
               <div
                 key={place.id}
-                onClick={() => navigate(`/payment-rental/${place.id}`)}
+                onClick={() => navigate(`/owner/dashboard/${place.id}`)}
                 className="group p-5 bg-white/5 border border-white/10 rounded-xl hover:border-cyan-500/50 hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden"
               >
                 <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0">

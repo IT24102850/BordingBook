@@ -36,6 +36,24 @@ const bookingGroupSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  scenario: {
+    type: String,
+    enum: ['join-existing', 'new-place'],
+    default: 'new-place',
+  },
+  roomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room',
+    default: null,
+  },
+  currentBoardingHouseTag: {
+    type: String,
+    default: '',
+  },
+  plannedBoardingHouseTag: {
+    type: String,
+    default: '',
+  },
   status: {
     type: String,
     enum: ['forming', 'ready', 'booked'],
@@ -65,5 +83,8 @@ bookingGroupSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });
+
+bookingGroupSchema.index({ creatorId: 1, updatedAt: -1 });
+bookingGroupSchema.index({ 'members.userId': 1, updatedAt: -1 });
 
 module.exports = mongoose.model('BookingGroup', bookingGroupSchema);

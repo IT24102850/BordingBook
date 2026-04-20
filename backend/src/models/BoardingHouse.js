@@ -99,8 +99,12 @@ const boardingHouseSchema = new mongoose.Schema(
 // but prevents the same owner from having duplicate named houses
 boardingHouseSchema.index({ name: 1, ownerId: 1 }, { unique: true });
 
+<<<<<<< HEAD
 // Add indexes for query performance
 boardingHouseSchema.index({ status: 1 });
+=======
+// Additional indexes for performance
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
 boardingHouseSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('BoardingHouse', boardingHouseSchema);

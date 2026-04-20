@@ -9,13 +9,23 @@ const env = require('./config/env');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
+const isDevelopment = env.nodeEnv !== 'production';
 
 // Security middleware setup
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: isDevelopment ? 5000 : 300,
   standardHeaders: true,
   legacyHeaders: false,
+  // Avoid throttling local development traffic while preserving production protection.
+  skip: (req) => {
+    if (!isDevelopment) return false;
+    const origin = String(req.headers.origin || '');
+    const host = String(req.headers.host || '');
+    const localhostOrigin = origin.includes('localhost') || origin.includes('127.0.0.1');
+    const localhostHost = host.includes('localhost') || host.includes('127.0.0.1');
+    return localhostOrigin || localhostHost;
+  },
 });
 
 app.use(helmet());
@@ -49,15 +59,29 @@ const studentRoutes = require('./routes/studentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const paymentRoutes = require('./payment/routes/paymentRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const kycRoutes = require('./routes/kycRoutes');
+const ticketRoutes = require('./routes/ticketRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/roommates', roommateRoutes);
 app.use('/api/owner', ownerRoutes);
+<<<<<<< HEAD
 app.use('/api/student', studentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payment', paymentRoutes);
+=======
+app.use('/api/chats', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/kyc', kycRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/reviews', reviewRoutes);
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -136,6 +160,28 @@ app.get('/api/debug/conversations', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Public platform stats (no auth required)
+app.get('/api/stats', async (req, res) => {
+  try {
+    const User = require('./models/User');
+    const BoardingHouse = require('./models/BoardingHouse');
+    const Review = require('./admin/models/Review');
+
+    const [listings, students, owners, reviewAgg] = await Promise.all([
+      BoardingHouse.countDocuments({ isActive: { $ne: false } }),
+      User.countDocuments({ role: 'student' }),
+      User.countDocuments({ role: 'owner' }),
+      Review.aggregate([{ $group: { _id: null, avg: { $avg: '$rating' } } }]),
+    ]);
+
+    const avgRating = reviewAgg.length > 0 ? Math.round(reviewAgg[0].avg * 10) / 10 : 4.9;
+
+    res.status(200).json({ success: true, data: { listings, students, owners, avgRating } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch stats', error: err.message });
   }
 });
 

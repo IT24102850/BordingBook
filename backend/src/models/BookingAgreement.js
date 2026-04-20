@@ -64,8 +64,13 @@ const bookingAgreementSchema = new mongoose.Schema(
     },
     status: {
       type: String,
+<<<<<<< HEAD
       enum: ['pending', 'sent', 'accepted', 'signed', 'expired', 'partially_signed', 'rejected'],
       default: 'pending',
+=======
+      enum: ['sent', 'accepted', 'rejected', 'cancelled'],
+      default: 'sent',
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
       index: true,
     },
     sentAt: {
@@ -80,6 +85,7 @@ const bookingAgreementSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+<<<<<<< HEAD
     expirationDate: {
       type: Date,
       required: true,
@@ -104,6 +110,9 @@ const bookingAgreementSchema = new mongoose.Schema(
       },
     ],
     acknowledgedAt: {
+=======
+    cancelledAt: {
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
       type: Date,
       default: null,
     },

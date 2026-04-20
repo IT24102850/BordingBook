@@ -3,14 +3,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Building, Home, Bed, Users, Star, Download, Edit, Trash2, 
-  Plus, Wifi, Coffee, Bath, Wind, Upload, 
+import {
+  Building, Home, Bed, Users, Star, Download, Edit, Trash2,
+  Plus, Wifi, Coffee, Bath, Wind, Upload,
   Calendar, AlertCircle, DollarSign,
   Camera, Eye, Settings,
   BarChart, CreditCard, Award, TrendingUp, Menu, X,
   Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight, LogOut,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, ShieldCheck, LifeBuoy, Send, CheckCircle, Loader2, Clock
 } from 'lucide-react';
 import BookingManagementSystem from './booking/BookingManagementSystem';
 import OwnerSignedAgreementsTab from './OwnerSignedAgreementsTab';
@@ -67,6 +67,7 @@ interface Tenant {
   monthlyRent: number;
   phone?: string;
   email?: string;
+  nextPaymentCycleStartDate?: string;
 }
 
 interface Room {
@@ -707,7 +708,15 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
             
             <div className="flex items-center gap-2 text-[8px] text-gray-400 mb-1.5">
               <Calendar size={8} />
-              <span>{new Date(tenant.checkInDate).toLocaleDateString()} - {new Date(tenant.checkOutDate).toLocaleDateString()}</span>
+              <span>
+                {tenant.nextPaymentCycleStartDate
+                  ? new Date(tenant.nextPaymentCycleStartDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    }).toUpperCase()
+                  : new Date(tenant.checkInDate).toLocaleDateString() + ' - ' + new Date(tenant.checkOutDate).toLocaleDateString()}
+              </span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -964,7 +973,24 @@ export default function OwnerDashboard() {
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [selectedRoomForTenants, setSelectedRoomForTenants] = useState<Room | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'rooms' | 'tenants' | 'payments' | 'bookings' | 'agreements' | 'notifications' | 'notices' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'rooms' | 'tenants' | 'payments' | 'bookings' | 'agreements' | 'notifications' | 'notices' | 'profile' | 'kyc' | 'support'>('overview');
+
+  // ── KYC state ─────────────────────────────────────────────────
+  const [kycStatus, setKycStatus] = useState<'not_submitted' | 'pending' | 'approved' | 'rejected' | null>(null);
+  const [kycRejectionReason, setKycRejectionReason] = useState('');
+  const [kycFiles, setKycFiles] = useState<{ nicFront: File | null; nicBack: File | null; selfie: File | null }>({ nicFront: null, nicBack: null, selfie: null });
+  const [kycUploading, setKycUploading] = useState(false);
+  const [kycError, setKycError] = useState('');
+  const [kycSuccess, setKycSuccess] = useState('');
+
+  // ── Support Ticket state ───────────────────────────────────────
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketCategory, setTicketCategory] = useState('other');
+  const [ticketDescription, setTicketDescription] = useState('');
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketError, setTicketError] = useState('');
+  const [ticketSuccess, setTicketSuccess] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1097,6 +1123,68 @@ export default function OwnerDashboard() {
     navigate('/signin');
   };
 
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('bb_access_token')}` });
+
+  // ── KYC handlers ───────────────────────────────────────────────
+  const fetchKycStatus = async () => {
+    try {
+      const res = await fetch(`${API}/api/kyc/status`, { headers: authHeader() });
+      const data = await res.json();
+      if (data.success) { setKycStatus(data.data.kycStatus); setKycRejectionReason(data.data.kycRejectionReason || ''); }
+    } catch { /* silent */ }
+  };
+
+  const handleKycSubmit = async () => {
+    if (!kycFiles.nicFront || !kycFiles.nicBack || !kycFiles.selfie) {
+      setKycError('Please upload all 3 documents'); return;
+    }
+    setKycUploading(true); setKycError(''); setKycSuccess('');
+    try {
+      const form = new FormData();
+      form.append('nicFront', kycFiles.nicFront);
+      form.append('nicBack', kycFiles.nicBack);
+      form.append('selfie', kycFiles.selfie);
+      const res = await fetch(`${API}/api/kyc/submit`, { method: 'POST', headers: authHeader(), body: form });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message);
+      setKycSuccess('Documents submitted! Admin will review within 1-2 business days.');
+      setKycStatus('pending');
+    } catch (err: any) {
+      setKycError(err.message || 'Upload failed');
+    } finally { setKycUploading(false); }
+  };
+
+  // ── Support Ticket handlers ────────────────────────────────────
+  const fetchTickets = async () => {
+    try {
+      const res = await fetch(`${API}/api/tickets/my`, { headers: authHeader() });
+      const data = await res.json();
+      if (data.success) setTickets(data.data);
+    } catch { /* silent */ }
+  };
+
+  const handleTicketSubmit = async () => {
+    if (!ticketSubject.trim() || !ticketDescription.trim()) {
+      setTicketError('Subject and description are required'); return;
+    }
+    setTicketLoading(true); setTicketError(''); setTicketSuccess('');
+    try {
+      const res = await fetch(`${API}/api/tickets`, {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: ticketSubject, category: ticketCategory, description: ticketDescription }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message);
+      setTicketSuccess('Ticket submitted! Our team will respond shortly.');
+      setTicketSubject(''); setTicketDescription(''); setTicketCategory('other');
+      fetchTickets();
+    } catch (err: any) {
+      setTicketError(err.message || 'Failed to submit ticket');
+    } finally { setTicketLoading(false); }
+  };
+
   const mapHouseDtoToUi = (house: OwnerHouseDto): BoardingHouse => ({
     id: house._id,
     name: house.name,
@@ -1157,6 +1245,7 @@ export default function OwnerDashboard() {
           ownerDashboardApi.getRooms(),
         ]);
 
+<<<<<<< HEAD
         if (housesResult.status === 'fulfilled') {
           setHouses(housesResult.value.map(mapHouseDtoToUi));
         } else {
@@ -1170,6 +1259,36 @@ export default function OwnerDashboard() {
           console.error('Failed to load owner rooms:', roomsResult.reason);
           setRooms([]);
         }
+=======
+        const mappedHouses = houseData.map(mapHouseDtoToUi);
+        const mappedRooms = roomData.map(mapRoomDtoToUi);
+        
+        setHouses(mappedHouses);
+        setRooms(mappedRooms);
+
+        // Load next payment cycle dates for all tenants
+        const enhancedRooms = await Promise.all(
+          mappedRooms.map(async (room) => {
+            const enhancedTenants = await Promise.all(
+              room.tenants.map(async (tenant) => {
+                try {
+                  const cycleData = await ownerDashboardApi.getNextPaymentCycleDate(tenant.id);
+                  return {
+                    ...tenant,
+                    nextPaymentCycleStartDate: cycleData.nextPaymentCycleStartDate,
+                  };
+                } catch (error) {
+                  console.warn(`Failed to fetch next cycle for tenant ${tenant.id}:`, error);
+                  return tenant;
+                }
+              })
+            );
+            return { ...room, tenants: enhancedTenants };
+          })
+        );
+
+        setRooms(enhancedRooms);
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
       } catch (error) {
         console.error('Failed to load owner dashboard data:', error);
       }
@@ -1704,6 +1823,8 @@ export default function OwnerDashboard() {
                 { id: 'rooms', label: 'Rooms', icon: <Bed size={16} /> },
                 { id: 'tenants', label: 'Tenants', icon: <Users size={16} /> },
                 { id: 'bookings', label: 'Bookings', icon: <FileText size={16} /> },
+                { id: 'kyc', label: 'KYC', icon: <ShieldCheck size={16} /> },
+                { id: 'support', label: 'Support', icon: <LifeBuoy size={16} /> },
                 { id: 'notices', label: 'Notices', icon: <Mail size={16} /> },
                 { id: 'profile', label: 'Profile', icon: <Settings size={16} /> },
                 { id: 'notifications', label: 'Alerts', icon: <Bell size={16} />, badge: unreadNotifications },
@@ -1721,7 +1842,11 @@ export default function OwnerDashboard() {
                 ) : (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      if (tab.id === 'kyc') fetchKycStatus();
+                      if (tab.id === 'support') fetchTickets();
+                    }}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/25'
@@ -2482,6 +2607,131 @@ export default function OwnerDashboard() {
           )}
 
           {/* Notifications Tab - Desktop */}
+          {/* KYC Verification Tab */}
+          {activeTab === 'kyc' && (
+            <div className="space-y-6 max-w-2xl">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2"><ShieldCheck size={20} className="text-cyan-400" /> Identity Verification (KYC)</h2>
+
+              {/* Status badge */}
+              {kycStatus && (
+                <div className={`rounded-xl p-4 border flex items-center gap-3 ${
+                  kycStatus === 'approved' ? 'bg-green-900/20 border-green-500/30' :
+                  kycStatus === 'pending'  ? 'bg-amber-900/20 border-amber-500/30' :
+                  kycStatus === 'rejected' ? 'bg-red-900/20 border-red-500/30' :
+                                            'bg-white/5 border-white/10'
+                }`}>
+                  {kycStatus === 'approved' && <CheckCircle size={20} className="text-green-400 flex-shrink-0" />}
+                  {kycStatus === 'pending'  && <Clock size={20} className="text-amber-400 flex-shrink-0" />}
+                  {kycStatus === 'rejected' && <AlertCircle size={20} className="text-red-400 flex-shrink-0" />}
+                  {kycStatus === 'not_submitted' && <ShieldCheck size={20} className="text-gray-400 flex-shrink-0" />}
+                  <div>
+                    <p className="text-sm font-semibold text-white capitalize">{kycStatus.replace('_', ' ')}</p>
+                    {kycStatus === 'approved' && <p className="text-xs text-green-300 mt-0.5">Your identity is verified. You can list properties.</p>}
+                    {kycStatus === 'pending'  && <p className="text-xs text-amber-300 mt-0.5">Your documents are under review. This takes 1–2 business days.</p>}
+                    {kycStatus === 'rejected' && <p className="text-xs text-red-300 mt-0.5">Reason: {kycRejectionReason || 'Documents were unclear. Please resubmit.'}</p>}
+                    {kycStatus === 'not_submitted' && <p className="text-xs text-gray-400 mt-0.5">Upload your documents to get verified.</p>}
+                  </div>
+                </div>
+              )}
+
+              {/* Upload form — show if not approved */}
+              {kycStatus !== 'approved' && (
+                <div className="bg-white/5 rounded-xl p-5 border border-white/10 space-y-4">
+                  <p className="text-sm text-gray-300">Upload clear photos of the following documents:</p>
+                  {(['nicFront', 'nicBack', 'selfie'] as const).map((field) => (
+                    <div key={field}>
+                      <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                        {field === 'nicFront' ? 'NIC Front' : field === 'nicBack' ? 'NIC Back' : 'Selfie with NIC'}
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:border-cyan-400/40 rounded-lg text-xs text-gray-300 transition-colors">
+                          <Upload size={14} />
+                          {kycFiles[field] ? kycFiles[field]!.name : 'Choose file'}
+                          <input type="file" accept="image/*" className="hidden"
+                            onChange={e => setKycFiles(prev => ({ ...prev, [field]: e.target.files?.[0] || null }))} />
+                        </label>
+                        {kycFiles[field] && <CheckCircle size={14} className="text-green-400" />}
+                      </div>
+                    </div>
+                  ))}
+
+                  {kycError   && <p className="text-xs text-red-400 flex items-center gap-1.5"><AlertCircle size={13} />{kycError}</p>}
+                  {kycSuccess && <p className="text-xs text-green-400 flex items-center gap-1.5"><CheckCircle size={13} />{kycSuccess}</p>}
+
+                  <button onClick={handleKycSubmit} disabled={kycUploading}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity">
+                    {kycUploading ? <><Loader2 size={14} className="animate-spin" />Uploading…</> : <><Upload size={14} />Submit Documents</>}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Support Tickets Tab */}
+          {activeTab === 'support' && (
+            <div className="space-y-6 max-w-2xl">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2"><LifeBuoy size={20} className="text-cyan-400" /> Support Tickets</h2>
+
+              {/* New ticket form */}
+              <div className="bg-white/5 rounded-xl p-5 border border-white/10 space-y-4">
+                <h3 className="text-sm font-semibold text-white">Open a New Ticket</h3>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Subject</label>
+                  <input value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} maxLength={120}
+                    placeholder="Brief description of your issue"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-cyan-400/50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Category</label>
+                  <select value={ticketCategory} onChange={e => setTicketCategory(e.target.value)}
+                    className="w-full bg-[#131a30] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400/50 [color-scheme:dark]">
+                    <option value="account">Account</option>
+                    <option value="payment">Payment</option>
+                    <option value="listing">Listing</option>
+                    <option value="booking">Booking</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Description</label>
+                  <textarea value={ticketDescription} onChange={e => setTicketDescription(e.target.value)}
+                    rows={4} placeholder="Describe your issue in detail…"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-cyan-400/50 resize-none" />
+                </div>
+                {ticketError   && <p className="text-xs text-red-400 flex items-center gap-1.5"><AlertCircle size={13} />{ticketError}</p>}
+                {ticketSuccess && <p className="text-xs text-green-400 flex items-center gap-1.5"><CheckCircle size={13} />{ticketSuccess}</p>}
+                <button onClick={handleTicketSubmit} disabled={ticketLoading}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity">
+                  {ticketLoading ? <><Loader2 size={14} className="animate-spin" />Submitting…</> : <><Send size={14} />Submit Ticket</>}
+                </button>
+              </div>
+
+              {/* Ticket history */}
+              {tickets.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-white">Your Tickets</h3>
+                  {tickets.map((t: any) => (
+                    <div key={t._id} className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-white">{t.subject}</p>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          t.status === 'open'        ? 'bg-cyan-500/20 text-cyan-300' :
+                          t.status === 'in_progress' ? 'bg-amber-500/20 text-amber-300' :
+                          t.status === 'resolved'    ? 'bg-green-500/20 text-green-300' :
+                                                       'bg-gray-500/20 text-gray-400'
+                        }`}>{t.status.replace('_', ' ')}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 capitalize">{t.category} · {new Date(t.createdAt).toLocaleDateString()}</p>
+                      {t.messages?.length > 0 && (
+                        <p className="text-xs text-cyan-300 mt-1">Admin replied: {t.messages[t.messages.length - 1].content}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'notifications' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">

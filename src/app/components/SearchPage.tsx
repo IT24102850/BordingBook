@@ -1,4 +1,70 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
+
+
+// Public house listings for all users
+type PublicHouse = {
+  _id: string;
+  name: string;
+  address: string;
+  monthlyPrice: number;
+  deposit: number;
+  roomType: string;
+  genderPreference: string;
+  status: string;
+  rating?: number;
+  totalReviews?: number;
+  features?: string[];
+  image?: string;
+  images?: string[];
+  description?: string;
+  createdAt?: string;
+};
+
+// --- Public Listings Section ---
+function PublicListings() {
+  const [listings, setListings] = useState<PublicHouse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('http://localhost:5001/api/owner/public/houses')
+      .then(res => res.json())
+      .then(data => {
+        setListings(data.data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError('Failed to load listings');
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="text-cyan-300">Loading public listings...</div>;
+  if (error) return <div className="text-red-400">{error}</div>;
+  if (!listings.length) return <div className="text-gray-400">No public listings found.</div>;
+
+  return (
+    <div className="my-6">
+      <h3 className="text-lg font-bold text-cyan-200 mb-2">Public Boarding Houses</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {listings.map(house => (
+          <div key={house._id} className="bg-white/10 rounded-lg p-4 border border-cyan-900/30">
+            <div className="font-bold text-white text-lg mb-1">{house.name}</div>
+            <div className="text-cyan-300 text-xs mb-1">{house.address}</div>
+            <div className="text-cyan-100 text-sm mb-2">Rs. {house.monthlyPrice?.toLocaleString()} / month</div>
+            {house.image && <img src={house.image} alt={house.name} className="w-full h-32 object-cover rounded mb-2" />}
+            <div className="text-xs text-gray-300 mb-1">Type: {house.roomType} | Gender: {house.genderPreference}</div>
+            <div className="text-xs text-gray-400 mb-1">{house.description?.slice(0, 80)}{house.description && house.description.length > 80 ? '...' : ''}</div>
+            <div className="text-xs text-gray-500">Listed: {house.createdAt ? new Date(house.createdAt).toLocaleDateString() : ''}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
@@ -9,7 +75,7 @@ import {
   FaHistory, FaBookmark, FaSave, FaTrash, FaFolder, FaRobot,
   FaChevronDown, FaChevronUp, FaEdit, FaPlus, FaEye, FaBell, FaSignOutAlt
 } from 'react-icons/fa';
-import { BiCurrentLocation } from 'react-icons/bi';
+import { BiCurrentLocation, BiWifi, BiWind, BiRestaurant, BiShower, BiCar, BiShield, BiDumbbell, BiLoaderCircle } from 'react-icons/bi';
 import { RiUserSharedLine } from 'react-icons/ri';
 import { createStudentBookingRequest, signAgreement } from '../api/bookingAgreementApi';
 // Mini Card for side panels
@@ -59,14 +125,677 @@ function MapViewPlaceholder() {
   );
 }
 
-// RoommateFinderPlaceholder stub
-function RoommateFinderPlaceholder(props: any) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12">
-      <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mb-4" />
-      <p className="text-cyan-200 text-sm">Roommate Finder Placeholder</p>
+// Roommate Finder Placeholder Component
+const RoommateFinderPlaceholder: React.FC<{
+  roommateData: Roommate[];
+  dbListings: Listing[];
+  currentUserId: string;
+  isRoommatesLoading: boolean;
+  onToast: (msg: string) => void;
+  currentUserName?: string;
+  currentUserImage?: string;
+}> = ({ roommateData, dbListings, currentUserId, isRoommatesLoading, onToast, currentUserName, currentUserImage }) => {
+  const navigate = useNavigate();
+  const [selectedRoommate, setSelectedRoommate] = useState<Roommate | null>(null);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [activeSection, setActiveSection] = useState<'browse' | 'rooms' | 'sent' | 'inbox' | 'groups'>('browse');
+  const [inboxItems, setInboxItems] = useState<any[]>([]);
+  const [sentItems, setSentItems] = useState<any[]>([]);
+  const [groupItems, setGroupItems] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [isTabLoading, setIsTabLoading] = useState(false);
+  const [tabErrorMessage, setTabErrorMessage] = useState('');
+  const [groupScenario, setGroupScenario] = useState<'join-existing' | 'new-place'>('new-place');
+  const [selectedRoomId, setSelectedRoomId] = useState('');
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [browseIndex, setBrowseIndex] = useState(0);
+  const [browseAnimating, setBrowseAnimating] = useState(false);
+  const [browseDirection, setBrowseDirection] = useState<string | null>(null);
+  const [likedProfiles, setLikedProfiles] = useState<Roommate[]>([]);
+  const [passedProfiles, setPassedProfiles] = useState<Roommate[]>([]);
+  const swipeRef = useRef<HTMLDivElement>(null);
+  const startXRef = useRef(0);
+  const currentXRef = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+
+  const currentProfile = roommateData[browseIndex];
+
+  const getAuthToken = () => localStorage.getItem('bb_access_token') || '';
+  const inboxCacheKey = currentUserId ? `bb_inbox_cache_${currentUserId}` : 'bb_inbox_cache';
+
+  const sortRequestsNewestFirst = (items: any[]) => {
+    if (!Array.isArray(items)) return [];
+    return [...items].sort((a, b) => {
+      const aTime = new Date(a?.createdAt || 0).getTime();
+      const bTime = new Date(b?.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+  };
+
+  const DEFAULT_PROFILE_IMAGE = 'https://randomuser.me/api/portraits/lego/1.jpg';
+
+  const resolveProfileImage = (profile: any) => {
+    const raw = profile?.image || profile?.profilePicture || (Array.isArray(profile?.profilePictures) ? profile.profilePictures[0] : '');
+    return typeof raw === 'string' && raw.trim().length > 0 ? raw : DEFAULT_PROFILE_IMAGE;
+  };
+
+  const mapProfile = (profile: any): Roommate => ({
+    id: normalizeIdValue(profile._id || profile.id),
+    userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+    name: profile.name || profile.fullName || 'Student',
+    email: profile.email || '',
+    age: Number(profile.age) || deriveProfileAge(profile),
+    gender: profile.gender || 'Any',
+    university: profile.university || profile.boardingHouse || profile.academicYear || 'SLIIT',
+    bio: profile.bio || profile.description || profile.about || profile.profileBio || 'No bio provided yet.',
+    image: resolveProfileImage(profile),
+    interests: Array.isArray(profile.interests) ? profile.interests : Array.isArray(profile.tags) ? profile.tags : [],
+    mutualCount: Number(profile.mutualCount) || 0,
+    role: profile.role || 'student',
+    compatibility: Number(profile.compatibility) || 0,
+  });
+
+  const pushSwipeToDatabase = async (profile: Roommate, action: 'like' | 'pass') => {
+    const token = getAuthToken();
+    if (!token) return;
+    const profileId = profile.userId || profile.id;
+    if (!profileId) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/roommates/swipe`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ profileId, action }),
+      });
+    } catch {
+      // Keep UI responsive even if swipe persistence fails.
+    }
+  };
+
+  const createRequestFromLike = async (profile: Roommate) => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const recipientId = resolveValidRecipientId(profile);
+    if (!recipientId) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/roommates/request/send`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipientId,
+          message: `Hi ${profile.name}, I liked your profile and would like to connect as roommates.`,
+        }),
+      });
+
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json?.success === false) {
+        return;
+      }
+
+      // Optimistically surface in Sent tab with pending/default status.
+      setSentItems((prev) => {
+        const key = String(profile.userId || profile.id);
+        if (prev.some((item) => String(item?.recipientId?._id || item?.recipientId || '') === key)) {
+          return prev;
+        }
+        return [
+          {
+            _id: json?.data?._id || `like-${key}`,
+            recipientId: {
+              _id: profile.userId || profile.id,
+              fullName: profile.name,
+              email: profile.email,
+              profilePicture: profile.image,
+            },
+            message: json?.data?.message || `Hi ${profile.name}, I liked your profile and would like to connect as roommates.`,
+            status: json?.data?.status || 'pending',
+            createdAt: json?.data?.createdAt || new Date().toISOString(),
+          },
+          ...prev,
+        ];
+      });
+    } catch {
+      // Keep swipe flow responsive even if request creation fails.
+    }
+  };
+
+  const loadLikedProfiles = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 20000);
+      const response = await fetch(`${API_BASE_URL}/api/roommates/liked`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+        cache: 'no-store',
+      }).finally(() => window.clearTimeout(timeoutId));
+
+      const json = await response.json();
+      const rows = response.ok ? extractResponseArray(json) : [];
+      setLikedProfiles(rows.map(mapProfile));
+    } catch {
+      setLikedProfiles([]);
+    }
+  };
+
+  const handleBrowseLike = async () => {
+    if (!currentProfile || browseAnimating) return;
+    setBrowseAnimating(true);
+    setBrowseDirection('right');
+    void pushSwipeToDatabase(currentProfile, 'like');
+    window.setTimeout(() => {
+      setLikedProfiles((prev) => {
+        const profileKey = String(currentProfile.userId || currentProfile.id);
+        if (prev.some((item) => String(item.userId || item.id) === profileKey)) {
+          return prev;
+        }
+        return [...prev, currentProfile];
+      });
+      void createRequestFromLike(currentProfile);
+      onToast(`Added ${currentProfile.name} to favourites`);
+      setBrowseIndex((prev) => prev + 1);
+      setBrowseDirection(null);
+      setBrowseAnimating(false);
+    }, 260);
+  };
+
+  const handleBrowsePass = async () => {
+    if (!currentProfile || browseAnimating) return;
+    setBrowseAnimating(true);
+    setBrowseDirection('left');
+    void pushSwipeToDatabase(currentProfile, 'pass');
+    window.setTimeout(() => {
+      setPassedProfiles((prev) => [...prev, currentProfile]);
+      setBrowseIndex((prev) => prev + 1);
+      setBrowseDirection(null);
+      setBrowseAnimating(false);
+    }, 260);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swipeRef.current || browseAnimating || !currentProfile) return;
+    currentXRef.current = e.touches[0].clientX;
+    const diff = currentXRef.current - startXRef.current;
+    if (Math.abs(diff) > 20) {
+      swipeRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.02}deg)`;
+      swipeRef.current.style.opacity = `${1 - Math.abs(diff) / 500}`;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!swipeRef.current || browseAnimating || !currentProfile) return;
+    const diff = currentXRef.current - startXRef.current;
+    swipeRef.current.style.transform = '';
+    swipeRef.current.style.opacity = '';
+    if (diff > 100) handleBrowseLike();
+    if (diff < -100) handleBrowsePass();
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (browseAnimating || !currentProfile) return;
+    setIsDragging(true);
+    setDragStartX(e.clientX);
+    if (swipeRef.current) swipeRef.current.style.transition = 'none';
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !swipeRef.current || browseAnimating || !currentProfile) return;
+    const diff = e.clientX - dragStartX;
+    if (Math.abs(diff) > 20) {
+      swipeRef.current.style.transform = `translateX(${diff}px) rotate(${diff * 0.02}deg)`;
+      swipeRef.current.style.opacity = `${1 - Math.abs(diff) / 500}`;
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!isDragging || !swipeRef.current || browseAnimating || !currentProfile) {
+      setIsDragging(false);
+      return;
+    }
+    const diff = e.clientX - dragStartX;
+    swipeRef.current.style.transition = '';
+    swipeRef.current.style.transform = '';
+    swipeRef.current.style.opacity = '';
+    if (diff > 100) handleBrowseLike();
+    if (diff < -100) handleBrowsePass();
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging && swipeRef.current) {
+      swipeRef.current.style.transition = '';
+      swipeRef.current.style.transform = '';
+      swipeRef.current.style.opacity = '';
+      setIsDragging(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection !== 'sent' && activeSection !== 'inbox' && activeSection !== 'groups') return;
+    const token = localStorage.getItem('bb_access_token') || '';
+    if (!token) return;
+
+    let cancelled = false;
+    const fetchJsonWithTimeout = async (url: string, timeoutMs = 15000) => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        const json = await response.json().catch(() => ({}));
+        return {
+          ok: response.ok,
+          status: response.status,
+          data: response.ok ? extractResponseArray(json) : [],
+          message: typeof json?.message === 'string' ? json.message : '',
+        };
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    };
+
+    const loadTabData = async () => {
+      setIsTabLoading(true);
+      setTabErrorMessage('');
+      try {
+        if (cancelled) return;
+
+        if (activeSection === 'inbox') {
+          const cachedInboxRaw = localStorage.getItem(inboxCacheKey);
+          if (cachedInboxRaw && !cancelled) {
+            try {
+              const cachedInbox = JSON.parse(cachedInboxRaw);
+              if (Array.isArray(cachedInbox) && cachedInbox.length > 0) {
+                setInboxItems(sortRequestsNewestFirst(cachedInbox));
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
+          const inboxResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/inbox`, 12000);
+          if (!cancelled && inboxResult.ok) {
+            const freshInbox = sortRequestsNewestFirst(inboxResult.data);
+            setInboxItems(freshInbox);
+            localStorage.setItem(inboxCacheKey, JSON.stringify(freshInbox));
+          } else if (!cancelled && !inboxResult.ok) {
+            if (inboxResult.status === 401 || inboxResult.status === 403) {
+              setTabErrorMessage('Inbox could not refresh because your session expired. Please sign in again.');
+            } else if (inboxResult.status >= 500) {
+              setTabErrorMessage('Inbox service is temporarily unavailable. Showing the latest available data.');
+            } else if (inboxResult.message) {
+              setTabErrorMessage(inboxResult.message);
+            }
+          }
+
+          // Fetch conversations/chats
+          const conversationsResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/chats/conversations`, 12000);
+          if (!cancelled && conversationsResult.ok) {
+            setConversations(conversationsResult.data);
+          }
+        } else if (activeSection === 'sent') {
+          const sentResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
+          if (!cancelled && sentResult.ok) setSentItems(sentResult.data);
+        } else if (activeSection === 'groups') {
+          const cachedGroupsRaw = localStorage.getItem('bb_groups_cache');
+          if (cachedGroupsRaw && !cancelled) {
+            try {
+              const cachedGroups = JSON.parse(cachedGroupsRaw);
+              if (Array.isArray(cachedGroups) && cachedGroups.length > 0) {
+                setGroupItems(cachedGroups);
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
+          const groupsResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/groups`, 12000);
+          if (!cancelled && groupsResult.ok) {
+            setGroupItems(groupsResult.data);
+            localStorage.setItem('bb_groups_cache', JSON.stringify(groupsResult.data));
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          if (activeSection === 'inbox') {
+            setTabErrorMessage('Could not refresh inbox right now. Showing the latest available data.');
+          }
+          if (activeSection === 'sent') setSentItems([]);
+          if (activeSection === 'groups') setGroupItems([]);
+        }
+      } finally {
+        if (!cancelled) setIsTabLoading(false);
+      }
+    };
+
+    loadTabData();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== 'inbox') return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    let cancelled = false;
+
+    const refreshInboxFromDatabase = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/roommates/request/inbox`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled) return;
+
+        const latestInbox = sortRequestsNewestFirst(extractResponseArray(json));
+        setInboxItems(latestInbox);
+        localStorage.setItem(inboxCacheKey, JSON.stringify(latestInbox));
+
+        // Also fetch conversations
+        try {
+          const convResponse = await fetch(`${API_BASE_URL}/api/chats/conversations`, {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+          });
+          const convJson = await convResponse.json().catch(() => ({}));
+          if (convResponse.ok && !cancelled) {
+            setConversations(extractResponseArray(convJson));
+          }
+        } catch {
+          // Keep current conversations on fetch failure
+        }
+      } catch {
+        // Keep current inbox UI state when background refresh fails.
+      }
+    };
+
+    const onWindowFocus = () => {
+      void refreshInboxFromDatabase();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshInboxFromDatabase();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void refreshInboxFromDatabase();
+    }, 15000);
+
+    window.addEventListener('focus', onWindowFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onWindowFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [activeSection, inboxCacheKey]);
+
+  useEffect(() => {
+    if (activeSection !== 'browse') return;
+    // Avoid heavy initial /liked fetch slowing down first swipe render.
+    // Favorites are updated optimistically on like and can be refreshed when needed.
+  }, [activeSection]);
+
+  const handleSendRequest = (roommate: Roommate) => {
+    if (!resolveValidRecipientId(roommate)) {
+      onToast('This profile cannot receive roommate requests because it does not have a valid account id. Please refresh and try again.');
+      return;
+    }
+    setSelectedRoommate(roommate);
+    setShowRequestModal(true);
+  };
+
+  const submitRequest = async () => {
+    if (!selectedRoommate) return;
+    const token = getAuthToken();
+    if (!token) {
+      onToast('Please sign in to send roommate requests');
+      return;
+    }
+
+    const recipientId = resolveValidRecipientId(selectedRoommate);
+    if (!recipientId) {
+      onToast('This roommate profile is missing a valid account id. Refresh the list and try again.');
+      return;
+    }
+
+    const trimmed = requestMessage.trim();
+    const messageToSend = trimmed.length >= 10
+      ? trimmed
+      : 'Hi! I would like to connect as a roommate near SLIIT.';
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/roommates/request/send`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipientId,
+          message: messageToSend,
+        }),
+      });
+
+      const json = await response.json();
+      if (!response.ok || json?.success === false) {
+        onToast(json?.message || 'Failed to send roommate request');
+        return;
+      }
+
+      onToast(`Roommate request sent to ${selectedRoommate.name}!`);
+      setShowRequestModal(false);
+      setRequestMessage('');
+      if (activeSection !== 'browse') {
+        setActiveSection('sent');
+      }
+    } catch {
+      onToast('Network error while sending request');
+    }
+  };
+
+  const refreshRoommateTabData = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    const load = async (url: string) => {
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+      const json = await response.json().catch(() => ({}));
+      return response.ok ? extractResponseArray(json) : [];
+    };
+    const [inbox, sent, groups] = await Promise.all([
+      load(`${API_BASE_URL}/api/roommates/request/inbox`),
+      load(`${API_BASE_URL}/api/roommates/request/sent`),
+      load(`${API_BASE_URL}/api/roommates/groups`),
+    ]);
+    const sortedInbox = sortRequestsNewestFirst(inbox);
+    setInboxItems(sortedInbox);
+    setSentItems(sent);
+    setGroupItems(groups);
+    localStorage.setItem(inboxCacheKey, JSON.stringify(sortedInbox));
+    localStorage.setItem('bb_groups_cache', JSON.stringify(groups));
+  };
+
+  const handleRequestDecision = async (requestId: string, decision: 'accept' | 'reject') => {
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/roommates/request/${requestId}/${decision}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json?.success === false) {
+        onToast(json?.message || `Failed to ${decision} request`);
+        return;
+      }
+      onToast(`Request ${decision}ed`);
+      await refreshRoommateTabData();
+    } catch {
+      onToast(`Network error while trying to ${decision} request`);
+    }
+  };
+
+  const handleGroupInviteDecision = async (groupId: string, decision: 'accepted' | 'rejected') => {
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/roommates/group/${groupId}/respond`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: decision }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json?.success === false) {
+        onToast(json?.message || 'Failed to respond to group invite');
+        return;
+      }
+      onToast(`Group invite ${decision}`);
+      await refreshRoommateTabData();
+    } catch {
+      onToast('Network error while responding to group invite');
+    }
+  };
+
+  const handleStartGroupChat = async (group: any) => {
+    const groupId = String(group?._id || group?.id || '');
+    if (!groupId) {
+      onToast('Invalid group');
+      return;
+    }
+
+    const acceptedCount = Array.isArray(group?.members)
+      ? group.members.filter((member: any) => member?.status === 'accepted').length
+      : 0;
+
+    if (acceptedCount < 2) {
+      onToast('Group chat requires at least 2 accepted members');
+      return;
+    }
+
+    navigate('/chat', { state: { groupId } });
+  };
+
+  const toggleGroupMember = (memberId: string) => {
+    setSelectedGroupMembers((prev) => (
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    ));
+  };
+
+  const submitCreateGroup = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      onToast('Please sign in first');
+      return;
+    }
+    if (selectedGroupMembers.length === 0) {
+      onToast('Select at least one member to invite');
+      return;
+    }
+    if (groupScenario === 'join-existing' && !selectedRoomId) {
+      onToast('Choose a room with vacancy to join');
+      return;
+    }
+
+    const members = roommateData.filter((m) => selectedGroupMembers.includes(m.userId || m.id));
+    const memberEmails = members.map((m) => m.email).filter(Boolean);
+    if (!memberEmails.length) {
+      onToast('Selected members do not have valid emails');
+      return;
+    }
+
+    const selectedRoom: any = (dbListings || []).find((room: any) => String(room.id || room._id) === String(selectedRoomId));
+    const totalSpots = Number(selectedRoom?.totalSpots || 0);
+    const occupancy = Number(selectedRoom?.occupancy || 0);
+    const vacancy = Math.max(0, totalSpots - occupancy);
+
+    setIsCreatingGroup(true);
+    try {
+      const payload: any = {
+        memberEmails,
+        scenario: groupScenario,
+        plannedBoardingHouseTag: groupScenario === 'new-place' ? 'Planned boarding house' : '',
+        currentBoardingHouseTag:
+          groupScenario === 'join-existing'
+            ? (vacancy === 1 ? 'Current boarding house (1 vacancy left)' : 'Current boarding house')
+            : '',
+      };
+      if (groupScenario === 'join-existing') {
+        payload.roomId = selectedRoomId;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/roommates/group`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json?.success === false) {
+        onToast(json?.message || 'Failed to create group');
+        return;
+      }
+
+      onToast('Group created and invitations sent');
+      setSelectedGroupMembers([]);
+      setSelectedRoomId('');
+      await refreshRoommateTabData();
+      setActiveSection('groups');
+    } catch {
+      onToast('Network error while creating group');
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
+
+  const MiniProfileCard: React.FC<{ item: Roommate; type: 'passed' | 'liked' }> = ({ item, type }) => (
+    <div className="bg-[#111b38] rounded-lg border border-white/10 p-2 flex items-center gap-2">
+      <img
+        src={resolveProfileImage(item)}
+        alt={item.name}
+        className="w-10 h-10 rounded-full object-cover"
+        onError={(event) => {
+          const target = event.currentTarget;
+          if (target.src !== DEFAULT_PROFILE_IMAGE) target.src = DEFAULT_PROFILE_IMAGE;
+        }}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-white font-semibold truncate">{item.name}</p>
+        <p className="text-[10px] text-gray-400 truncate">{item.university}</p>
+      </div>
+      {type === 'liked' ? <FaHeart className="text-green-400 text-xs" /> : <FaRegTimesCircle className="text-red-400 text-xs" />}
     </div>
   );
+<<<<<<< HEAD
 }
 
 interface AgreementSigningModalProps {
@@ -177,6 +906,646 @@ function AgreementSigningModal({ agreementId, onClose, onSign, isSigning }: Agre
     </div>
   );
 }
+=======
+
+  const renderBrowseTab = () => {
+    if (isRoommatesLoading && !roommateData.length) {
+      return (
+        <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
+          <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Loading Students</h3>
+          <p className="text-gray-400 text-sm">Finding available roommates near SLIIT...</p>
+        </div>
+      );
+    }
+
+    if (!roommateData.length) {
+      return (
+        <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
+          <FaUserFriends className="text-5xl text-gray-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">No Roommates Found</h3>
+          <p className="text-gray-400 mb-4 max-w-md mx-auto">We couldn't find any roommate matches right now. Check back later.</p>
+        </div>
+      );
+    }
+
+    if (!currentProfile) {
+      return (
+        <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
+          <FaCheckCircle className="text-5xl text-cyan-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">You reviewed all student profiles</h3>
+          <button
+            onClick={() => {
+              setBrowseIndex(0);
+              setLikedProfiles([]);
+              setPassedProfiles([]);
+            }}
+            className="px-5 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-semibold"
+          >
+            Restart Swipe
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="hidden md:grid grid-cols-3 gap-5">
+
+          <div className="bg-white/5 rounded-xl border border-white/10 p-3 space-y-2 max-h-[560px] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-white font-semibold">Passed</p>
+              <span className="text-xs text-red-300">{passedProfiles.length}</span>
+            </div>
+            {passedProfiles.length ? passedProfiles.map((item) => <MiniProfileCard key={`p-${item.id}`} item={item} type="passed" />) : <p className="text-xs text-gray-500">Swipe left to pass</p>}
+          </div>
+
+          <div>
+            <div
+              ref={swipeRef}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl overflow-hidden border border-white/10 ${browseDirection === 'left' ? 'animate-swipe-left' : ''} ${browseDirection === 'right' ? 'animate-swipe-right' : ''}`}
+              style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+            >
+              <div className="relative h-80">
+                <img src={currentProfile.image} alt={currentProfile.name} className="w-full h-full object-cover" draggable="false" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 text-white">
+                  <h3 className="text-2xl font-bold">{currentProfile.name}, <span className="text-pink-300">{currentProfile.age}</span></h3>
+                  <p className="text-xs text-cyan-200">{currentProfile.gender} | {currentProfile.university}</p>
+                  <p className="text-xs text-gray-200 mt-1 line-clamp-2">{currentProfile.bio}</p>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="mb-3 flex justify-center">
+                  <span className="px-3 py-1 rounded-full text-xs bg-cyan-500/20 border border-cyan-400/40 text-cyan-200">
+                    {Math.max(1, currentProfile.mutualCount || currentProfile.interests.length || 1)} mutual interests
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {currentProfile.interests.slice(0, 4).map((interest, idx) => (
+                    <span key={idx} className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] rounded-full">{interest}</span>
+                  ))}
+                </div>
+                <div className="flex justify-center gap-6">
+                  <button onClick={handleBrowsePass} disabled={browseAnimating} className="w-12 h-12 rounded-full bg-pink-600 text-white flex items-center justify-center">
+                    <FaRegTimesCircle />
+                  </button>
+                  <button onClick={handleBrowseLike} disabled={browseAnimating} className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                    <FaHeart />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/5 rounded-xl border border-white/10 p-3 space-y-2 max-h-[560px] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-white font-semibold">Favorites</p>
+              <span className="text-xs text-green-300">{likedProfiles.length}</span>
+            </div>
+            {likedProfiles.length ? likedProfiles.map((item) => <MiniProfileCard key={`l-${item.id}`} item={item} type="liked" />) : <p className="text-xs text-gray-500">Swipe right to like</p>}
+          </div>
+        </div>
+
+        <div className="md:hidden">
+          <div
+            ref={swipeRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            className={`relative bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl overflow-hidden border border-white/10 ${browseDirection === 'left' ? 'animate-swipe-left' : ''} ${browseDirection === 'right' ? 'animate-swipe-right' : ''}`}
+            style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+          >
+            <div className="relative h-80">
+              <img src={currentProfile.image} alt={currentProfile.name} className="w-full h-full object-cover" draggable="false" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3 text-white">
+                <h3 className="text-2xl font-bold">{currentProfile.name}, <span className="text-pink-300">{currentProfile.age}</span></h3>
+                <p className="text-xs text-cyan-200">{currentProfile.gender} | {currentProfile.university}</p>
+                <p className="text-xs text-gray-200 mt-1 line-clamp-2">{currentProfile.bio}</p>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="mb-3 flex justify-center">
+                <span className="px-3 py-1 rounded-full text-xs bg-cyan-500/20 border border-cyan-400/40 text-cyan-200">
+                  {Math.max(1, currentProfile.mutualCount || currentProfile.interests.length || 1)} mutual interests
+                </span>
+              </div>
+              <div className="flex flex-wrap justify-center gap-1.5 mb-4">
+                {currentProfile.interests.slice(0, 4).map((interest, idx) => (
+                  <span key={idx} className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] rounded-full">{interest}</span>
+                ))}
+              </div>
+              <div className="flex justify-center gap-6">
+                <button onClick={handleBrowsePass} disabled={browseAnimating} className="w-14 h-14 rounded-full bg-pink-600 text-white flex items-center justify-center text-xl">
+                  <FaRegTimesCircle />
+                </button>
+                <button onClick={handleBrowseLike} disabled={browseAnimating} className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl">
+                  <FaHeart />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderRequestCard = (item: any, mode: 'sent' | 'inbox') => {
+    const person = mode === 'sent' ? item?.recipientId : item?.senderId;
+    const personId = normalizeIdValue(person?._id || person?.id || person?.userId || person);
+    const personName = person?.fullName || person?.name || person?.email || (mode === 'sent' ? 'Recipient' : 'Sender');
+    const personEmail = person?.email || '';
+    const createdAt = item?.createdAt ? new Date(item.createdAt).toLocaleString() : '';
+    const status = String(item?.status || 'pending');
+    const statusTone = status === 'accepted'
+      ? 'text-emerald-300 bg-emerald-500/15 border-emerald-400/30'
+      : status === 'rejected'
+      ? 'text-rose-300 bg-rose-500/15 border-rose-400/30'
+      : 'text-amber-200 bg-amber-500/15 border-amber-300/30';
+
+    const hasActions = mode === 'inbox' && status === 'pending';
+  const canStartChat = mode === 'inbox' && status === 'accepted' && Boolean(personId);
+
+    return (
+      <div key={item?._id || `${mode}-${Math.random().toString(36).slice(2)}`} className="bg-white/5 rounded-xl border border-white/10 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-white text-sm font-semibold truncate">{personName}</p>
+            {personEmail ? <p className="text-[11px] text-gray-400 truncate">{personEmail}</p> : null}
+          </div>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] border ${statusTone}`}>{status}</span>
+        </div>
+        <p className="text-xs text-gray-200 mt-2">{item?.message || 'No message provided.'}</p>
+        {createdAt ? <p className="text-[11px] text-gray-500 mt-2">{createdAt}</p> : null}
+        {hasActions ? (
+          <div className="flex gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => handleRequestDecision(String(item?._id), 'accept')}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs"
+            >
+              Accept
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRequestDecision(String(item?._id), 'reject')}
+              className="px-3 py-1.5 rounded-lg bg-rose-500/20 border border-rose-400/30 text-rose-200 text-xs"
+            >
+              Reject
+            </button>
+          </div>
+        ) : null}
+        {canStartChat ? (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => navigate('/chat', { state: { recipientId: personId } })}
+              className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-xs"
+            >
+              Start Chat
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderConversationCard = (conversation: any) => {
+    const title = conversation?.name || 'Conversation';
+    const avatar = conversation?.avatar || '';
+    const lastMessage = conversation?.lastMessage?.text || 'No messages yet';
+    const updatedAt = conversation?.updatedAt ? new Date(conversation.updatedAt).toLocaleString() : '';
+    const unreadCount = conversation?.unreadCount || 0;
+    const conversationId = conversation?.id || conversation?._id || '';
+
+    return (
+      <div key={conversationId} className="bg-white/5 rounded-xl border border-white/10 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {avatar && (
+              <img
+                src={avatar}
+                alt={title}
+                className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-sm font-semibold truncate">{title}</p>
+              <p className="text-xs text-gray-300 truncate">{lastMessage}</p>
+            </div>
+          </div>
+          {unreadCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-pink-500/20 border border-pink-400/30 text-pink-200 flex-shrink-0">
+              {unreadCount} new
+            </span>
+          )}
+        </div>
+        {updatedAt && <p className="text-[11px] text-gray-500 mt-2">{updatedAt}</p>}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => navigate('/chat', { state: { conversationId } })}
+            className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-xs w-full"
+          >
+            Open Chat
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGroups = () => (
+    <div className="space-y-4">
+      <div className="bg-white/5 rounded-xl border border-white/10 p-4 space-y-3">
+        <p className="text-sm text-white font-semibold">Create Booking Group</p>
+        <div className="flex gap-3 text-xs">
+          <label className="flex items-center gap-2 text-gray-200">
+            <input
+              type="radio"
+              checked={groupScenario === 'join-existing'}
+              onChange={() => setGroupScenario('join-existing')}
+              className="accent-cyan-400"
+            />
+            Join existing room
+          </label>
+          <label className="flex items-center gap-2 text-gray-200">
+            <input
+              type="radio"
+              checked={groupScenario === 'new-place'}
+              onChange={() => setGroupScenario('new-place')}
+              className="accent-pink-400"
+            />
+            Form group for new place
+          </label>
+        </div>
+
+        {groupScenario === 'join-existing' ? (
+          <div>
+            <label className="block text-xs text-gray-300 mb-1">Select current boarding house</label>
+            <select
+              value={selectedRoomId}
+              onChange={(e) => setSelectedRoomId(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white"
+            >
+              <option value="">-- Select a room --</option>
+              {dbListings.map((room: any) => {
+                const roomId = String(room.id || room._id || '');
+                const vacancy = Math.max(0, Number(room.totalSpots || room.totalRooms || 0) - Number(room.occupancy || room.occupiedRooms || 0));
+                return (
+                  <option key={roomId} value={roomId}>
+                    {room.title || room.name || 'Room'} ({vacancy} vacancies)
+                  </option>
+                );
+              })}
+            </select>
+            {(() => {
+              const selectedRoom: any = dbListings.find((room: any) => String(room.id || room._id) === String(selectedRoomId));
+              if (!selectedRoom) return null;
+              const vacancy = Math.max(0, Number(selectedRoom.totalSpots || selectedRoom.totalRooms || 0) - Number(selectedRoom.occupancy || selectedRoom.occupiedRooms || 0));
+              if (vacancy !== 1) return null;
+              return <p className="mt-2 text-xs text-amber-300">Tagged: Current boarding house (1 vacancy left)</p>;
+            })()}
+          </div>
+        ) : (
+          <p className="text-xs text-cyan-200">Tagged: Planned boarding house</p>
+        )}
+
+        <div>
+          <label className="block text-xs text-gray-300 mb-1">Invite members</label>
+          <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+            {roommateData.map((mate) => (
+              <label key={mate.userId || mate.id} className="flex items-center gap-2 text-xs text-gray-200">
+                <input
+                  type="checkbox"
+                  checked={selectedGroupMembers.includes(mate.userId || mate.id)}
+                  onChange={() => toggleGroupMember(mate.userId || mate.id)}
+                  className="accent-cyan-400"
+                />
+                <span>{mate.name}</span>
+                <span className="text-gray-400 truncate">{mate.email}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={isCreatingGroup}
+          onClick={submitCreateGroup}
+          className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-semibold disabled:opacity-60"
+        >
+          {isCreatingGroup ? 'Creating...' : 'Create Group & Send Invites'}
+        </button>
+      </div>
+
+      {groupItems.length ? groupItems.map((group: any) => (
+        <div key={group._id || group.id} className="bg-white/5 rounded-xl border border-white/10 p-4">
+          {(() => {
+            const members = Array.isArray(group?.members) ? group.members : [];
+            const acceptedCount = members.filter((member: any) => member?.status === 'accepted').length;
+            const isCurrentUserAccepted = members.some((member: any) => {
+              const memberId = String(member?.userId?._id || member?.userId || '');
+              return member?.status === 'accepted' && memberId === String(currentUserId);
+            });
+
+            return (
+              <>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-white text-sm font-semibold">{group.name || 'Booking Group'}</p>
+              <p className="text-[11px] text-gray-400 mt-1">Members: {Array.isArray(group.members) ? group.members.length : 0}</p>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] border border-cyan-400/30 bg-cyan-500/15 text-cyan-200">
+              {group.status || 'forming'}
+            </span>
+          </div>
+          {group?.scenario === 'join-existing' ? (
+            <p className="text-[11px] text-amber-200 mt-1">{group?.currentBoardingHouseTag || 'Current boarding house'}</p>
+          ) : (
+            <p className="text-[11px] text-cyan-200 mt-1">{group?.plannedBoardingHouseTag || 'Planned boarding house'}</p>
+          )}
+          {Array.isArray(group.members) && group.members.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {group.members.slice(0, 6).map((member: any, index: number) => (
+                <span key={`${group._id || group.id}-member-${index}`} className="px-2 py-0.5 rounded-full text-[10px] bg-white/10 text-gray-200">
+                  {member?.name || member?.email || 'Member'}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {isCurrentUserAccepted ? (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-gray-300">
+                Accepted members: <span className="text-cyan-200 font-semibold">{acceptedCount}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => handleStartGroupChat(group)}
+                disabled={acceptedCount < 2}
+                className="px-3 py-1.5 rounded text-[11px] font-semibold bg-cyan-500/20 border border-cyan-400/30 text-cyan-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Start Group Chat
+              </button>
+            </div>
+          ) : null}
+
+          {Array.isArray(group.members) && group.members.some((member: any) => {
+            const memberId = String(member?.userId?._id || member?.userId || '');
+            return member?.status === 'pending' && memberId === String(currentUserId);
+          }) ? (
+            <div className="mt-3 space-y-2">
+              {group.members
+                .filter((member: any) => {
+                  const memberId = String(member?.userId?._id || member?.userId || '');
+                  return member?.status === 'pending' && memberId === String(currentUserId);
+                })
+                .map((member: any, idx: number) => (
+                  <div key={`${group._id || group.id}-pending-${idx}`} className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-gray-300">Pending invite: {member?.name || member?.email || 'Member'}</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleGroupInviteDecision(String(group._id || group.id), 'accepted')}
+                        className="px-2 py-1 text-[10px] rounded bg-emerald-500/20 border border-emerald-400/30 text-emerald-200"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleGroupInviteDecision(String(group._id || group.id), 'rejected')}
+                        className="px-2 py-1 text-[10px] rounded bg-rose-500/20 border border-rose-400/30 text-rose-200"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : null}
+                      </>
+                    );
+                  })()}
+        </div>
+      )) : <p className="text-sm text-gray-400">No groups found.</p>}
+    </div>
+  );
+  // ...existing code...
+
+  // --- Render public listings at the top ---
+  // You can move this section wherever you want in your layout
+  // It will show public houses from the database for all users
+
+  // ...existing code...
+
+  return (
+    <div className="space-y-6">
+
+      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl p-6 border border-white/10">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Find Your Perfect Roommate</h2>
+            <p className="text-gray-400 text-sm mt-1">
+              Connect with students looking for roommates near SLIIT
+            </p>
+          </div>
+          <div className="bg-cyan-500/20 px-3 py-1.5 rounded-full">
+            <span className="text-cyan-300 text-sm font-semibold">{roommateData.length} Matches</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <div className="bg-white/5 rounded-lg p-3 text-center">
+            <FaUserFriends className="text-cyan-400 text-xl mx-auto mb-1" />
+            <p className="text-xs text-gray-400">Active Students</p>
+            <p className="text-white font-bold text-lg">{roommateData.length}</p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-3 text-center">
+            <FaHeart className="text-pink-400 text-xl mx-auto mb-1" />
+            <p className="text-xs text-gray-400">Compatibility Rate</p>
+            <p className="text-white font-bold text-lg">85%</p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-3 text-center">
+            <FaMapMarkerAlt className="text-purple-400 text-xl mx-auto mb-1" />
+            <p className="text-xs text-gray-400">Near Campus</p>
+            <p className="text-white font-bold text-lg">2km</p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-3 text-center">
+            <FaCalendarAlt className="text-orange-400 text-xl mx-auto mb-1" />
+            <p className="text-xs text-gray-400">Available Now</p>
+            <p className="text-white font-bold text-lg">{roommateData.length}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => navigate('/student/dashboard')}
+          className="px-5 py-2 rounded-xl text-sm border bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-semibold shadow hover:from-cyan-500 hover:to-purple-500 transition-all mr-2"
+        >
+          Go to Student Dashboard
+        </button>
+        <button
+          onClick={() => setActiveSection('browse')}
+          className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'browse' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
+        >
+          Browse
+        </button>
+        <button
+          onClick={() => setActiveSection('rooms')}
+          className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'rooms' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
+        >
+          Rooms & Houses
+        </button>
+        <button
+          onClick={() => setActiveSection('sent')}
+          className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'sent' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
+        >
+          Sent ({sentItems.length})
+        </button>
+        <button
+          onClick={() => setActiveSection('inbox')}
+          className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'inbox' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
+        >
+          Inbox ({inboxItems.length + conversations.length})
+        </button>
+        <button
+          onClick={() => setActiveSection('groups')}
+          className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'groups' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
+        >
+          Groups ({groupItems.length})
+        </button>
+      </div>
+
+      {activeSection === 'browse' && renderBrowseTab()}
+
+      {activeSection === 'rooms' && (
+        <div className="space-y-6">
+          <h3 className="text-xl font-bold text-white mb-2">Rooms & Houses</h3>
+          <PublicListings />
+          {/* TODO: Insert your existing rooms rendering logic here if you have a separate rooms list */}
+        </div>
+      )}
+
+      {activeSection !== 'browse' && (
+        <div className="space-y-3">
+          {activeSection === 'inbox' && tabErrorMessage ? (
+            <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {tabErrorMessage}
+              {(tabErrorMessage.toLowerCase().includes('sign in') || tabErrorMessage.toLowerCase().includes('session')) ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/signin')}
+                  className="ml-3 underline text-amber-100"
+                >
+                  Go to sign in
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {isTabLoading ? (
+            <div className="text-center py-10 text-gray-400">
+              <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-sm">Loading {activeSection}...</p>
+            </div>
+          ) : activeSection === 'sent' ? (
+            sentItems.length ? sentItems.map((item) => renderRequestCard(item, 'sent')) : <p className="text-sm text-gray-400">No sent requests found in database.</p>
+          ) : activeSection === 'inbox' ? (
+            inboxItems.length || conversations.length ? (
+              <div className="space-y-3">
+                {/* Roommate Requests Section */}
+                {inboxItems.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-300 mb-2 px-1">Roommate Requests ({inboxItems.length})</h3>
+                    {inboxItems.map((item) => renderRequestCard(item, 'inbox'))}
+                  </div>
+                )}
+                {/* Chat Conversations Section */}
+                {conversations.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-300 mb-2 px-1">Chats ({conversations.length})</h3>
+                    {conversations.map((conv) => renderConversationCard(conv))}
+                  </div>
+                )}
+              </div>
+            ) : <p className="text-sm text-gray-400">No inbox requests or messages found in database.</p>
+          ) : (
+            renderGroups()
+          )}
+        </div>
+      )}
+
+      {showRequestModal && selectedRoommate && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl">
+            <div className="bg-gradient-to-r from-cyan-500/20 to-purple-500/20 p-4 border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={selectedRoommate.image}
+                    alt={selectedRoommate.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div>
+                    <h2 className="text-lg font-bold text-white">Send Request</h2>
+                    <p className="text-xs text-gray-400">to {selectedRoommate.name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRequestModal(false)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <FaTimes className="text-white" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-white font-semibold mb-2">Message (Optional)</label>
+                <textarea
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  placeholder="Hi! I'm also looking for a roommate near SLIIT. Would you be interested in connecting?"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRequestModal(false)}
+                  className="flex-1 px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitRequest}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                >
+                  Send Request
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
 // ...existing code...
 
 // ---- TypeScript type/interface stubs ----
@@ -203,6 +1572,10 @@ interface Listing {
   deposit?: number;
   roommateCount?: number;
   rating?: number;
+  totalSpots?: number;
+  occupancy?: number;
+  totalRooms?: number;
+  occupiedRooms?: number;
 }
 
 interface Roommate {
@@ -218,6 +1591,8 @@ interface Roommate {
   interests: string[];
   mutualCount: number;
   role: string;
+  compatibility?: number;
+  availability?: string;
 }
 
 interface Notification {
@@ -273,9 +1648,37 @@ function normalizeIdValue(value: any): string {
   return '';
 }
 
+function isMongoObjectId(value: unknown): boolean {
+  return typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
+}
+
+function resolveValidRecipientId(roommate: Roommate | null | undefined): string {
+  if (!roommate) return '';
+  const candidateIds = [roommate.userId, roommate.id].map((value) => String(value || '').trim());
+  return candidateIds.find((value) => isMongoObjectId(value)) || '';
+}
+
 function deriveProfileAge(profile: any): number {
-  // TODO: Implement age calculation if needed
-  return 0;
+  if (!profile) return 0;
+
+  const directAge = Number(profile.age);
+  if (Number.isFinite(directAge) && directAge > 0) {
+    return Math.floor(directAge);
+  }
+
+  const dobRaw = profile.dateOfBirth || profile.dob || profile.birthDate;
+  if (!dobRaw) return 0;
+
+  const dob = new Date(dobRaw);
+  if (Number.isNaN(dob.getTime())) return 0;
+
+  const today = new Date();
+  let years = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  const beforeBirthday = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate());
+  if (beforeBirthday) years -= 1;
+
+  return years > 0 ? years : 0;
 }
 
 const roomImages = [
@@ -740,15 +2143,15 @@ const FiltersPanel: React.FC<{
   const { priceMax, dist, room, avail, facs } = filters;
   const { setPriceMax, setDist, setRoom, setAvail, setFacs } = setters;
 
-  const facilityOptions = [
-    { name: 'WiFi', icon: '📶' },
-    { name: 'Air-Cond', icon: '❄️' },
-    { name: 'Meals', icon: '🍽️' },
-    { name: 'Private Bath', icon: '🚿' },
-    { name: 'Parking', icon: '🅿️' },
-    { name: 'Laundry', icon: '🧺' },
-    { name: 'Security', icon: '🛡️' },
-    { name: 'Gym', icon: '💪' }
+  const facilityOptions: { name: string; icon: React.ReactNode }[] = [
+    { name: 'WiFi',         icon: <BiWifi size={22} /> },
+    { name: 'Air-Cond',    icon: <BiWind size={22} /> },
+    { name: 'Meals',       icon: <BiRestaurant size={22} /> },
+    { name: 'Private Bath', icon: <BiShower size={22} /> },
+    { name: 'Parking',     icon: <BiCar size={22} /> },
+    { name: 'Laundry',     icon: <BiLoaderCircle size={22} /> },
+    { name: 'Security',    icon: <BiShield size={22} /> },
+    { name: 'Gym',         icon: <BiDumbbell size={22} /> },
   ];
 
   const distanceOptions = [
@@ -1204,9 +2607,10 @@ const BookingForm: React.FC<{
 };
 
 
+// React Router navigation
 function SearchPage() {
-        // React Router navigation
-        const navigate = useNavigate();
+  const navigate = useNavigate();
+  const location = useLocation();
       // State for details modal
       const [showDetails, setShowDetails] = useState(false);
       const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
@@ -1258,6 +2662,10 @@ function SearchPage() {
   const [dbListings, setDbListings] = useState<Listing[]>([]);
   const [dbRoommates, setDbRoommates] = useState<Roommate[]>([]);
   const [isListingsLoading, setIsListingsLoading] = useState<boolean>(true);
+  const [isRoommatesLoading, setIsRoommatesLoading] = useState<boolean>(true);
+  const [isListingsTimedOut, setIsListingsTimedOut] = useState<boolean>(false);
+  const [listingsError, setListingsError] = useState<string>('');
+  const [listingsLoadKey, setListingsLoadKey] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState('Guest');
   const [currentUserName, setCurrentUserName] = useState('');
@@ -1266,6 +2674,7 @@ function SearchPage() {
   const [popupNotification, setPopupNotification] = useState<Notification | null>(null);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
   const popupHideTimerRef = useRef<number | null>(null);
+  const isFetchingNotifications = useRef(false);
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
 
   const dismissPopupNotification = React.useCallback(() => {
@@ -1318,12 +2727,16 @@ function SearchPage() {
       const suppressPopup = options?.suppressPopup ?? false;
 
       if (!token || !userId) return;
+      if (isFetchingNotifications.current) return;
+
+      isFetchingNotifications.current = true;
 
       if (withLoader) {
         setIsNotificationsLoading(true);
       }
 
       try {
+<<<<<<< HEAD
         const parseJsonSafely = async (response: Response) => {
           if (response.status === 304) return null;
           const raw = await response.text();
@@ -1360,6 +2773,35 @@ function SearchPage() {
         const inboxItems = inboxResponse.ok ? extractResponseArray(inboxJson) : [];
         const sentItems = sentResponse.ok ? extractResponseArray(sentJson) : [];
         const groupItems = groupsResponse.ok ? extractResponseArray(groupsJson) : [];
+=======
+        const fetchNotificationItems = async (url: string, timeoutMs = 8000) => {
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const response = await fetch(url, {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: controller.signal,
+              cache: 'no-store',
+            });
+            const json = await response.json().catch(() => ({}));
+            return response.ok ? extractResponseArray(json) : [];
+          } finally {
+            window.clearTimeout(timeout);
+          }
+        };
+
+        const [inboxResult, sentResult, groupsResult, dbNotificationsResult] = await Promise.allSettled([
+          fetchNotificationItems(`${API_BASE_URL}/api/roommates/request/inbox`),
+          fetchNotificationItems(`${API_BASE_URL}/api/roommates/request/sent`),
+          fetchNotificationItems(`${API_BASE_URL}/api/roommates/groups`),
+          fetchNotificationItems(`${API_BASE_URL}/api/notifications`),
+        ]);
+
+        const inboxItems = inboxResult.status === 'fulfilled' ? inboxResult.value : [];
+        const sentItems = sentResult.status === 'fulfilled' ? sentResult.value : [];
+        const groupItems = groupsResult.status === 'fulfilled' ? groupsResult.value : [];
+        const dbNotificationItems = dbNotificationsResult.status === 'fulfilled' ? dbNotificationsResult.value : [];
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
 
         const inboxNotifications: Notification[] = inboxItems.map((req: any) => {
           const senderName = req?.senderId?.fullName || req?.senderId?.email || 'A student';
@@ -1448,6 +2890,7 @@ function SearchPage() {
           return mapped;
         });
 
+<<<<<<< HEAD
         const systemNotificationItems = systemNotificationsResponse.ok
           ? extractResponseArray(systemNotificationsJson)
           : [];
@@ -1465,6 +2908,19 @@ function SearchPage() {
         }));
 
         const allNotifications = [...systemNotifications, ...inboxNotifications, ...sentNotifications, ...groupNotifications].sort(
+=======
+        const persistedNotifications: Notification[] = dbNotificationItems.map((item: any) => ({
+          id: `db-notification-${item?._id || Math.random().toString(36).slice(2)}`,
+          type: item?.type || 'other',
+          title: item?.title || 'Notification',
+          message: item?.message || '',
+          timestamp: item?.createdAt || new Date().toISOString(),
+          read: Boolean(item?.read),
+          actionRequired: ['group_invite', 'group_invite_accepted', 'group_invite_rejected'].includes(String(item?.type || '')),
+        }));
+
+        const allNotifications = [...inboxNotifications, ...sentNotifications, ...groupNotifications, ...persistedNotifications].sort(
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
           (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
 
@@ -1491,8 +2947,9 @@ function SearchPage() {
         seenNotificationIdsRef.current = new Set(hydrated.map((n) => n.id));
         setNotifications(hydrated);
       } catch {
-        setNotifications([]);
+        // Keep existing notifications when network errors happen.
       } finally {
+        isFetchingNotifications.current = false;
         if (withLoader) {
           setIsNotificationsLoading(false);
         }
@@ -1503,18 +2960,29 @@ function SearchPage() {
 
   useEffect(() => {
     if (!currentUserId) return;
-
     const token = localStorage.getItem('bb_access_token') || '';
     if (!token) return;
 
-    const intervalId = window.setInterval(() => {
+    let isMounted = true;
+    let intervalId = 0;
+    let delayId = 0;
+
+    // Delay first poll by 4 seconds so page loads first
+    delayId = window.setTimeout(() => {
+      if (!isMounted) return;
       void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
-    }, 15000);
+      intervalId = window.setInterval(() => {
+        if (!isMounted) return;
+        void fetchLatestNotifications(token, currentUserId, { withLoader: false, suppressPopup: false });
+      }, 60000); // 60s interval
+    }, 4000);
 
     return () => {
+      isMounted = false;
+      window.clearTimeout(delayId);
       window.clearInterval(intervalId);
     };
-  }, [currentUserId, fetchLatestNotifications]);
+  }, [currentUserId]);
 
   useEffect(() => {
     return () => {
@@ -1575,10 +3043,21 @@ function SearchPage() {
 
   useEffect(() => {
     let isCancelled = false;
+    setIsListingsLoading(true);
+    setIsListingsTimedOut(false);
+    setListingsError('');
+    // Reduce loading timeout to 5 seconds
+    const loadingTimeoutId = window.setTimeout(() => {
+      if (!isCancelled) {
+        setIsListingsTimedOut(true);
+        setIsListingsLoading(false);
+      }
+    }, 5000);
 
     const loadSearchData = async () => {
       const token = localStorage.getItem('bb_access_token') || '';
 
+<<<<<<< HEAD
       console.log('[SearchPage] 📍 Component mounted, loading listings');
 
       // Render shell immediately; listings stream in when endpoints return.
@@ -1734,9 +3213,56 @@ function SearchPage() {
             console.error('[SearchPage] ❌ Houses fetch error:', err);
           }
           // Houses are optional for initial UX responsiveness.
+=======
+        const fetchJsonWithTimeout = async (url: string, init?: RequestInit, timeoutMs = 8000) => {
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const response = await fetch(url, {
+              ...init,
+              signal: controller.signal,
+              cache: 'no-store',
+            });
+            const json = await response.json().catch(() => ({}));
+            return { ok: response.ok, json };
+          } finally {
+            window.clearTimeout(timeout);
+          }
+        };
+
+        // Load rooms and me immediately (fast)
+        const [roomsResult, meResult] = await Promise.allSettled([
+          fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/rooms`, undefined, 12000),
+          token
+            ? fetchJsonWithTimeout(`${API_BASE_URL}/api/auth/me`, {
+                headers: { Authorization: `Bearer ${token}` },
+              }, 10000)
+            : Promise.resolve({ ok: false, json: null }),
+        ]);
+
+        if (isCancelled) return;
+
+        const roomsOk = roomsResult.status === 'fulfilled' && roomsResult.value.ok;
+        const roomsPayload = roomsOk ? roomsResult.value.json : {};
+
+        // Handle /api/auth/me errors gracefully
+        let mePayload = null;
+        if (meResult.status === 'fulfilled') {
+          if (meResult.value.ok) {
+            mePayload = meResult.value.json;
+          } else {
+            // If 404 or error, treat as guest
+            mePayload = null;
+            setCurrentUserId('');
+            setCurrentUserEmail('');
+            setCurrentUserName('');
+            setCurrentUserImage('');
+          }
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
         }
       })();
 
+<<<<<<< HEAD
       // Non-critical path: load profile, notifications, and roommate recommendations in background.
       if (!token) return;
 
@@ -1796,13 +3322,179 @@ function SearchPage() {
           }
         }
       })();
+=======
+        // Show page immediately after rooms load
+        if (!isCancelled) {
+          setIsListingsLoading(false);
+          setIsListingsTimedOut(false);
+        }
+
+        // Load houses in background — non-blocking
+        fetchJsonWithTimeout(`${API_BASE_URL}/api/owner/public/houses`, undefined, 16000)
+          .then(({ ok, json }) => {
+            if (!ok || isCancelled) return;
+            const housesData = Array.isArray(json?.data) ? json.data
+              : Array.isArray(json?.houses) ? json.houses
+              : Array.isArray(json) ? json : [];
+            const mappedHouses: Listing[] = housesData.map((house: any, index: number) => ({
+              id: 100000 + index,
+              title: house.name || 'Boarding House',
+              images: Array.isArray(house.images) && house.images.length > 0 ? house.images
+                : house.image ? [house.image] : [roomImages[index % roomImages.length]],
+              price: Number(house.monthlyPrice) || 0,
+              location: house.address || 'Unknown',
+              distance: 1.2, distanceUnit: 'km', travelTime: 'Near city',
+              roomType: house.roomType || 'Single Room',
+              genderPreference: house.genderPreference || 'any',
+              availableFrom: house.availableFrom || '',
+              billsIncluded: false, verified: true,
+              badges: [house.status === 'active' ? 'Available' : 'Occupied'],
+              description: house.description || '',
+              features: Array.isArray(house.features) ? house.features : [],
+              deposit: Number(house.deposit) || Number(house.monthlyPrice || 0) * 2,
+              roommateCount: Number(house.occupiedRooms) || 0,
+              totalRooms: Number(house.totalRooms) || 0,
+              occupiedRooms: Number(house.occupiedRooms) || 0,
+            }));
+            if (!isCancelled) setDbListings(prev => [...prev, ...mappedHouses]);
+          })
+          .catch(() => {});
+
+        const roomsData = Array.isArray(roomsPayload?.data)
+          ? roomsPayload.data
+          : Array.isArray(roomsPayload?.rooms)
+            ? roomsPayload.rooms
+            : Array.isArray(roomsPayload)
+              ? roomsPayload
+              : [];
+
+        const mappedRooms: Listing[] = roomsResult.status === 'fulfilled' && roomsResult.value.ok && roomsData.length > 0
+          ? roomsData.map((roomItem: any, index: number) => ({
+              id: index + 1,
+              title: roomItem.name || 'Room Listing',
+              images: Array.isArray(roomItem.images) && roomItem.images.length > 0
+                ? roomItem.images
+                : [roomImages[index % roomImages.length]],
+              price: Number(roomItem.price) || 0,
+              location: roomItem.location || 'Unknown',
+              distance: 1,
+              distanceUnit: 'km',
+              travelTime: 'Near campus',
+              roomType: roomItem.roomType || 'Single Room',
+              genderPreference: roomItem.genderPreference || 'Any',
+              availableFrom: roomItem.availableFrom || '',
+              billsIncluded: Array.isArray(roomItem.facilities)
+                ? roomItem.facilities.includes('Meals')
+                : false,
+              verified: true,
+              badges: [roomItem.occupancy < roomItem.totalSpots ? 'Available' : 'Occupied'],
+              description: roomItem.description || '',
+              features: Array.isArray(roomItem.facilities) ? roomItem.facilities : [],
+              deposit: Number(roomItem.deposit) || Number(roomItem.price || 0) * 2,
+              roommateCount: Number(roomItem.occupancy) || 0,
+              totalSpots: Number(roomItem.totalSpots) || 0,
+              occupancy: Number(roomItem.occupancy) || 0,
+            }))
+          : [];
+
+        if (!isCancelled) {
+          setDbListings([...mappedRooms]);
+          setIsListingsLoading(false);
+          setIsListingsTimedOut(false);
+        }
+
+        const currentUser = mePayload?.data?.user || mePayload?.data || mePayload?.user || null;
+        const resolvedUserId = String(currentUser?._id || currentUser?.id || '');
+
+        if (!isCancelled && currentUser?.email) {
+          setCurrentUserId(resolvedUserId);
+          setCurrentUserEmail(currentUser.email);
+          setCurrentUserName(currentUser.fullName || '');
+          if (currentUser.profilePicture) {
+            setCurrentUserImage(currentUser.profilePicture);
+          }
+        }
+
+        if (token && !isCancelled) {
+          if (resolvedUserId) {
+            void fetchLatestNotifications(token, resolvedUserId, {
+              withLoader: false,
+              suppressPopup: true,
+            });
+          }
+
+          // Start loading roommates
+          if (!isCancelled) setIsRoommatesLoading(true);
+
+          // Instant fallback: show last successful roommate list while fresh data loads.
+          const cachedRoommatesRaw = localStorage.getItem('bb_roommates_cache');
+          if (cachedRoommatesRaw && !isCancelled) {
+            try {
+              const cachedRoommates = JSON.parse(cachedRoommatesRaw);
+              if (Array.isArray(cachedRoommates) && cachedRoommates.length > 0) {
+                setDbRoommates(cachedRoommates);
+                // Cache available, so loading is not needed anymore
+                if (!isCancelled) setIsRoommatesLoading(false);
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
+          const roommateResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/browse`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }, 10000);
+
+          if (!isCancelled && roommateResult.ok) {
+            const roommateData = Array.isArray(roommateResult.json?.data)
+              ? roommateResult.json.data
+              : Array.isArray(roommateResult.json?.profiles)
+                ? roommateResult.json.profiles
+                : Array.isArray(roommateResult.json)
+                  ? roommateResult.json
+                  : [];
+
+            const mappedRoommates = roommateData
+              .map((profile: any) => ({
+                id: normalizeIdValue(profile._id || profile.id),
+                userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+                name: profile.name || 'Student',
+                email: profile.email || '',
+                age: deriveProfileAge(profile),
+                gender: profile.gender || 'Any',
+                university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+                bio: profile.bio || profile.description || profile.about || profile.profileBio || 'No bio provided yet.',
+                image: profile.image || profile.profilePicture || (Array.isArray(profile.profilePictures) ? profile.profilePictures[0] : '') || 'https://randomuser.me/api/portraits/lego/1.jpg',
+                interests: Array.isArray(profile.tags) ? profile.tags : Array.isArray(profile.interests) ? profile.interests : [],
+                mutualCount: Number(profile.mutualCount) || 0,
+                role: profile.role || 'student',
+              }));
+
+            setDbRoommates(mappedRoommates);
+            localStorage.setItem('bb_roommates_cache', JSON.stringify(mappedRoommates));
+            if (!isCancelled) setIsRoommatesLoading(false);
+          } else if (!isCancelled) {
+            // Fetch failed or timed out, stop loading indicator
+            setIsRoommatesLoading(false);
+          }
+        }
+      } catch {
+        setDbListings([]);
+      } finally {
+        window.clearTimeout(loadingTimeoutId);
+        if (!isCancelled) {
+          setIsListingsLoading(false);
+        }
+      }
+>>>>>>> 3e40b5965f6b81066515973ab4691af39c4f662f
     };
 
     loadSearchData();
     return () => {
       isCancelled = true;
+      window.clearTimeout(loadingTimeoutId);
     };
-  }, []);
+  }, [fetchLatestNotifications, listingsLoadKey]);
 
   const effectiveListings = dbListings;
   const availableRoomsForBooking = React.useMemo(() => {
@@ -2062,7 +3754,44 @@ function SearchPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-300 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-cyan-200 text-sm">Loading rooms and boarding data...</p>
+          {!isListingsTimedOut ? (
+            <p className="text-cyan-200 text-sm">Loading rooms and boarding data...</p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-amber-200 text-sm">Loading is taking longer than expected.</p>
+              <button
+                onClick={() => {
+                  setListingsLoadKey((prev) => prev + 1);
+                  setIsListingsLoading(true);
+                  setIsListingsTimedOut(false);
+                }}
+                className="px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-300/40 text-cyan-100 text-sm hover:bg-cyan-500/30"
+              >
+                Retry loading data
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (listingsError && dbListings.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] px-4">
+        <div className="max-w-xl w-full text-center space-y-3 bg-white/5 border border-rose-400/30 rounded-xl p-6">
+          <p className="text-rose-200 text-sm">Failed to load data: {listingsError}</p>
+          <button
+            onClick={() => {
+              setListingsLoadKey((prev) => prev + 1);
+              setIsListingsLoading(true);
+              setIsListingsTimedOut(false);
+              setListingsError('');
+            }}
+            className="px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-300/40 text-cyan-100 text-sm hover:bg-cyan-500/30"
+          >
+            Retry loading data
+          </button>
         </div>
       </div>
     );
@@ -2119,6 +3848,12 @@ function SearchPage() {
                   className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/owner-dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
                 >
                   List Your Property
+                </button>
+                <button
+                  onClick={() => navigate('/student/dashboard')}
+                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/student/dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                >
+                  Student Dashboard
                 </button>
               </div>
 
@@ -2730,38 +4465,19 @@ function SearchPage() {
         ) : activeTab === 'map' ? (
           <MapViewPlaceholder />
         ) : (
-          <RoommateFinderPlaceholder roommateData={effectiveRoommates} dbListings={dbListings} />
-        )}
-
-        {/* Popup Notification */}
-        {popupNotification && (
-          <div className="fixed bottom-24 right-4 w-[min(92vw,22rem)] z-50 animate-fade-in-up">
-            <div className="rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-[#101a36] to-[#0b132b] shadow-2xl backdrop-blur-xl overflow-hidden">
-              <div className="flex items-start gap-3 p-4">
-                <div className="w-9 h-9 rounded-full bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center flex-shrink-0">
-                  <FaBell className="text-cyan-300 text-sm" />
-                </div>
-                <button
-                  onClick={() => {
-                    openNotification(popupNotification);
-                    dismissPopupNotification();
-                  }}
-                  className="flex-1 min-w-0 text-left"
-                >
-                  <p className="text-xs text-cyan-200/80 mb-1">New notification</p>
-                  <p className="text-sm font-semibold text-white truncate">{popupNotification.title}</p>
-                  <p className="text-xs text-gray-300 mt-1 line-clamp-2">{popupNotification.message}</p>
-                </button>
-                <button
-                  onClick={dismissPopupNotification}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-                  aria-label="Dismiss notification"
-                >
-                  <FaTimes className="text-xs" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <RoommateFinderPlaceholder
+            roommateData={effectiveRoommates}
+            dbListings={dbListings}
+            currentUserId={currentUserId}
+            isRoommatesLoading={isRoommatesLoading}
+            currentUserName={currentUserName}
+            currentUserImage={currentUserImage}
+            onToast={(msg) => {
+              setToastMessage(msg);
+              setShowToast(true);
+              setTimeout(() => setShowToast(false), 3000);
+            }}
+          />
         )}
 
         {/* Agreement Signing Modal */}

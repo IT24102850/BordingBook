@@ -5,6 +5,7 @@
 
 // Only one require for RoommateRequest should exist at the top of the file:
 
+const mongoose = require('mongoose');
 const RoommateRequest = require('../models/RoommateRequest');
 const User = require('../models/User');
 
@@ -88,21 +89,64 @@ exports.getInboxRequests = async (req, res) => {
   try {
     const recipientId = req.user.userId;
     const { status } = req.query;
-    const cacheKey = status ? `inbox:${recipientId}:status:${status}` : `inbox:${recipientId}`;
+    const normalizedRecipientId = mongoose.Types.ObjectId.isValid(recipientId)
+      ? new mongoose.Types.ObjectId(recipientId)
+      : null;
 
-    const filter = { recipientId };
+    if (!normalizedRecipientId) {
+      return res.status(400).json({ success: false, message: 'Invalid recipient id' });
+    }
+
+    const filter = { recipientId: normalizedRecipientId };
     if (status) {
       filter.status = status;
     }
 
     const requests = await RoommateRequest.find(filter)
-      .populate('senderId', 'fullName email profilePicture')
-      .sort({ createdAt: -1 });
+      .select('senderId recipientId message status createdAt respondedAt')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .hint({ recipientId: 1, createdAt: -1 })
+      .lean()
+      .maxTimeMS(8000);
+
+    const senderIds = Array.from(
+      new Set(
+        requests
+          .map((item) => String(item?.senderId || ''))
+          .filter(Boolean)
+      )
+    );
+
+    const senders = senderIds.length
+      ? await User.find({ _id: { $in: senderIds } })
+          .select('fullName name email')
+          .lean()
+          .maxTimeMS(8000)
+      : [];
+
+    const senderMap = new Map(senders.map((user) => [String(user._id), user]));
+    const data = requests.map((item) => {
+      const senderId = String(item?.senderId || '');
+      const sender = senderMap.get(senderId);
+      return {
+        ...item,
+        senderId: sender
+          ? {
+              _id: sender._id,
+              fullName: sender.fullName || sender.name || '',
+              name: sender.name || sender.fullName || '',
+              email: sender.email || '',
+              profilePicture: '',
+            }
+          : item.senderId,
+      };
+    });
 
     res.status(200).json({
       success: true,
-      count: requests.length,
-      data: requests,
+      count: data.length,
+      data,
     });
   } catch (error) {
     res.status(500).json({
@@ -122,21 +166,64 @@ exports.getSentRequests = async (req, res) => {
   try {
     const senderId = req.user.userId;
     const { status } = req.query;
-    const cacheKey = status ? `sent:${senderId}:status:${status}` : `sent:${senderId}`;
+    const normalizedSenderId = mongoose.Types.ObjectId.isValid(senderId)
+      ? new mongoose.Types.ObjectId(senderId)
+      : null;
 
-    const filter = { senderId };
+    if (!normalizedSenderId) {
+      return res.status(400).json({ success: false, message: 'Invalid sender id' });
+    }
+
+    const filter = { senderId: normalizedSenderId };
     if (status) {
       filter.status = status;
     }
 
     const requests = await RoommateRequest.find(filter)
-      .populate('recipientId', 'fullName email profilePicture')
-      .sort({ createdAt: -1 });
+      .select('senderId recipientId message status createdAt respondedAt')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .hint({ senderId: 1, createdAt: -1 })
+      .lean()
+      .maxTimeMS(8000);
+
+    const recipientIds = Array.from(
+      new Set(
+        requests
+          .map((item) => String(item?.recipientId || ''))
+          .filter(Boolean)
+      )
+    );
+
+    const recipients = recipientIds.length
+      ? await User.find({ _id: { $in: recipientIds } })
+          .select('fullName name email')
+          .lean()
+          .maxTimeMS(8000)
+      : [];
+
+    const recipientMap = new Map(recipients.map((user) => [String(user._id), user]));
+    const data = requests.map((item) => {
+      const recipientId = String(item?.recipientId || '');
+      const recipient = recipientMap.get(recipientId);
+      return {
+        ...item,
+        recipientId: recipient
+          ? {
+              _id: recipient._id,
+              fullName: recipient.fullName || recipient.name || '',
+              name: recipient.name || recipient.fullName || '',
+              email: recipient.email || '',
+              profilePicture: '',
+            }
+          : item.recipientId,
+      };
+    });
 
     res.status(200).json({
       success: true,
-      count: requests.length,
-      data: requests,
+      count: data.length,
+      data,
     });
   } catch (error) {
     res.status(500).json({

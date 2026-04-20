@@ -39,6 +39,8 @@ const roommateRequestSchema = new mongoose.Schema({
 
 // Compound index for sender-recipient pair
 roommateRequestSchema.index({ senderId: 1, recipientId: 1 });
+roommateRequestSchema.index({ senderId: 1, createdAt: -1 });
+roommateRequestSchema.index({ recipientId: 1, createdAt: -1 });
 
 // Update timestamp on save
 roommateRequestSchema.pre('save', function (next) {

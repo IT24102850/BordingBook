@@ -1,42 +1,36 @@
 const env = require('../config/env');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 /**
- * Middleware to verify JWT token
+ * Middleware to verify JWT token and check account is not banned
  */
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const [scheme, token] = authHeader.split(' ');
 
-  console.log('🔐 AUTH MIDDLEWARE DEBUG:');
-  console.log('   Authorization header:', authHeader ? `${authHeader.substring(0, 30)}...` : 'NO HEADER');
-  console.log('   Scheme:', scheme);
-  console.log('   Token exists:', !!token);
-  console.log('   Token length:', token?.length);
-  console.log('   JWT_SECRET exists:', !!env.jwtSecret);
-  console.log('   JWT_SECRET length:', env.jwtSecret?.length);
-
   if (scheme !== 'Bearer' || !token) {
-    console.log('   ❌ FAIL: Missing Bearer scheme or token');
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required',
-    });
+    return res.status(401).json({ success: false, message: 'Authentication required' });
   }
 
   try {
     const payload = jwt.verify(token, env.jwtSecret);
-    console.log('   ✅ SUCCESS: Token verified');
-    console.log('   Payload:', payload);
-    req.user = payload;
+    console.log('[requireAuth] Decoded JWT payload:', payload);
+
+    const userId = payload.userId || payload.id;
+    console.log('[requireAuth] Looking up user by id:', userId);
+    const user = await User.findById(userId).select('isBanned role');
+    if (!user) {
+      console.log('[requireAuth] User not found for id:', userId);
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+    if (user.isBanned) return res.status(403).json({ success: false, message: 'Your account has been suspended. Contact support.' });
+
+    req.user = { ...payload, isBanned: user.isBanned, role: user.role };
     return next();
   } catch (error) {
-    console.log('   ❌ FAIL: Token verification failed');
-    console.log('   Error:', error.message);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid or expired token',
-    });
+    console.error('[requireAuth] Error verifying token:', error);
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 }
 

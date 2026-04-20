@@ -2,16 +2,31 @@
  * @route GET /api/roommates/browse
  * @access Private
  */
+const mongoose = require('mongoose');
 const User = require('../models/User');
+const RoommateProfile = require('../models/RoommateProfile');
 
 exports.browseProfiles = async (req, res) => {
   try {
     const userId = req.user && req.user.userId;
-    const query = { isActive: true };
-    if (userId) {
-      query._id = { $ne: userId };
+
+    const currentUserObjectId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : null;
+
+    const browseFilter = { role: 'student' };
+    if (currentUserObjectId) {
+      browseFilter._id = { $ne: currentUserObjectId };
     }
-    const users = await User.find(query).select('name fullName email gender academicYear profilePicture profilePictures description bio tags boardingHouse age dateOfBirth dob birthDate');
+
+    const users = await User.find(browseFilter)
+      .select('name fullName email role gender academicYear profilePicture tags boardingHouse age dateOfBirth dob birthDate bio description')
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(500)
+      .lean()
+      .maxTimeMS(15000)
+      .exec();
+
     const deriveAge = (user) => {
       if (user.age && user.age > 0) return user.age;
       const dobRaw = user.dateOfBirth || user.dob || user.birthDate;
@@ -28,23 +43,30 @@ exports.browseProfiles = async (req, res) => {
       }
       return 0;
     };
-    const profiles = users.map(user => ({
-      id: user._id,
-      userId: user._id,
-      name: user.name || user.fullName || '',
-      bio: user.bio || user.description || '',
-      profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
-        ? user.profilePictures
-        : (user.profilePicture ? [user.profilePicture] : []),
-      profilePicture: user.profilePicture || '',
-      ...( (!user.profilePicture && (!user.profilePictures || user.profilePictures.length === 0)) ? { profilePictures: [], profilePicture: '' } : {} ),
-      gender: user.gender || '',
-      university: user.boardingHouse || user.academicYear || '',
-      email: user.email || '',
-      interests: Array.isArray(user.tags) ? user.tags : [],
-      age: deriveAge(user),
-      dateOfBirth: user.dateOfBirth || user.dob || user.birthDate || '',
-    }));
+
+    const profiles = users
+      .filter(Boolean)
+      .map((user) => ({
+        id: user._id,
+        userId: user._id,
+        name: user.name || user.fullName || '',
+        bio: user.bio || user.description || '',
+        profilePicture: user.profilePicture || '',
+        gender: user.gender || '',
+        university: user.boardingHouse || user.academicYear || '',
+        email: user.email || '',
+        interests: Array.isArray(user.tags) ? user.tags : [],
+        age: deriveAge(user),
+        role: user.role || 'student',
+        dateOfBirth: user.dateOfBirth || user.dob || user.birthDate || '',
+        budget: null,
+        preferences: '',
+        roomType: '',
+        boardingScenario: 'none',
+        taggedRoomId: null,
+        taggedRoomVacancy: null,
+      }));
+
     res.json({ success: true, data: profiles });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch roommate profiles', error: error.message });
@@ -57,10 +79,59 @@ exports.browseProfiles = async (req, res) => {
  * @access Private
  */
 exports.createOrUpdateProfile = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Roommate profiles not yet implemented',
-  });
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId).select('fullName name email');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const {
+      description = '',
+      budget,
+      gender,
+      academicYear,
+      preferences = '',
+      roomType,
+      billsIncluded = false,
+      availableFrom,
+      tags = [],
+      boardingHouse = '',
+      lookingFor = 'Shared Room',
+      boardingScenario = 'none',
+      taggedRoomId = null,
+      taggedRoomVacancy = null,
+    } = req.body;
+
+    const profile = await RoommateProfile.findOneAndUpdate(
+      { userId },
+      {
+        userId,
+        name: user.fullName || user.name || user.email,
+        email: user.email,
+        description,
+        budget,
+        gender,
+        academicYear,
+        preferences,
+        roomType,
+        billsIncluded: Boolean(billsIncluded),
+        availableFrom,
+        tags: Array.isArray(tags) ? tags.filter(Boolean) : [],
+        boardingHouse,
+        lookingFor,
+        boardingScenario,
+        taggedRoomId,
+        taggedRoomVacancy,
+        isActive: true,
+      },
+      { new: true, upsert: true, runValidators: true }
+    ).lean();
+
+    return res.status(200).json({ success: true, data: profile });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to save roommate profile', error: error.message });
+  }
 };
 
 /**
@@ -69,10 +140,16 @@ exports.createOrUpdateProfile = async (req, res) => {
  * @access Private
  */
 exports.getMyProfile = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Roommate profiles not yet implemented',
-  });
+  try {
+    const userId = req.user.userId;
+    const profile = await RoommateProfile.findOne({ userId, isActive: true }).lean();
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Roommate profile not found' });
+    }
+    return res.status(200).json({ success: true, data: profile });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch roommate profile', error: error.message });
+  }
 };
 
 /**
@@ -106,24 +183,37 @@ exports.swipeProfile = async (req, res) => {
 exports.getLikedProfiles = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const user = await User.findById(userId);
-    const likedIds = user.liked || [];
-    const users = await User.find({ _id: { $in: likedIds }, isActive: true })
-      .select('name email gender academicYear profilePicture profilePictures description tags boardingHouse');
-    const profiles = users.map(user => ({
-      id: user._id,
-      userId: user._id,
-      name: user.name || user.fullName || '',
-      bio: user.bio || user.description || '',
-      profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
-        ? user.profilePictures
-        : (user.profilePicture ? [user.profilePicture] : []),
-      profilePicture: user.profilePicture || '',
-      gender: user.gender || '',
-      university: user.boardingHouse || user.academicYear || '',
-      email: user.email || '',
-      interests: Array.isArray(user.tags) ? user.tags : [],
-    }));
+    const user = await User.findById(userId).select('liked').lean().maxTimeMS(10000);
+    const likedIds = Array.isArray(user?.liked) ? user.liked.slice(0, 120) : [];
+
+    if (!likedIds.length) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const users = await User.find({ _id: { $in: likedIds } })
+      .select('name fullName email role gender academicYear profilePicture profilePictures description bio tags boardingHouse age')
+      .lean()
+      .maxTimeMS(12000);
+
+    const profiles = users
+      .filter((u) => String(u?.role || '').toLowerCase() === 'student')
+      .map((user) => ({
+        id: user._id,
+        userId: user._id,
+        name: user.name || user.fullName || '',
+        bio: user.bio || user.description || '',
+        profilePictures: Array.isArray(user.profilePictures) && user.profilePictures.length > 0
+          ? user.profilePictures
+          : (user.profilePicture ? [user.profilePicture] : []),
+        profilePicture: user.profilePicture || '',
+        gender: user.gender || '',
+        university: user.boardingHouse || user.academicYear || '',
+        email: user.email || '',
+        interests: Array.isArray(user.tags) ? user.tags : [],
+        role: user.role || 'student',
+        age: user.age || 0,
+      }));
+
     res.json({ success: true, data: profiles });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch liked profiles', error: error.message });
@@ -220,65 +310,5 @@ exports.getMutualMatches = async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch mutual matches', error: error.message });
   }
-};
-
-/**
- * @desc Send roommate request
- * @route POST /api/roommates/request/send
- * @access Private
- */
-exports.sendRequest = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Request functionality not yet implemented',
-  });
-};
-
-/**
- * @desc Get inbox requests
- * @route GET /api/roommates/request/inbox
- * @access Private
- */
-exports.getInboxRequests = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Inbox not yet implemented',
-  });
-};
-
-/**
- * @desc Get sent requests
- * @route GET /api/roommates/request/sent
- * @access Private
- */
-exports.getSentRequests = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Sent requests not yet implemented',
-  });
-};
-
-/**
- * @desc Accept roommate request
- * @route PATCH /api/roommates/request/:requestId/accept
- * @access Private
- */
-exports.acceptRequest = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Request acceptance not yet implemented',
-  });
-};
-
-/**
- * @desc Reject roommate request
- * @route PATCH /api/roommates/request/:requestId/reject
- * @access Private
- */
-exports.rejectRequest = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Request rejection not yet implemented',
-  });
 };
 

@@ -66,6 +66,7 @@ export default function PaymentManager() {
     totalCollected: 0,
     totalDeficit: 0,
     collectionPercentage: 0,
+    overdueCount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +74,7 @@ export default function PaymentManager() {
   const [rejectingSlip, setRejectingSlip] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectError, setRejectError] = useState('');
-  const [viewingSlip, setViewingSlip] = useState<PaymentSlip | null>(null);
+  const [selectedSlip, setSelectedSlip] = useState<PaymentSlip | null>(null);
   const [downloadingSlipId, setDownloadingSlipId] = useState<string | null>(null);
 
   // Fetch data from API - ONLY REAL DATA FROM DATABASE
@@ -84,6 +85,8 @@ export default function PaymentManager() {
 
       // Fetch boarding houses from REAL API (no mock data fallback)
       const housesData = await paymentApi.getOwnerBoardingPlaces();
+      const pendingSlipsData = await paymentApi.getPendingPayments();
+      setPendingSlips(pendingSlipsData);
       
       // If no boarding places, show error message and empty state
       if (!housesData || housesData.length === 0) {
@@ -95,6 +98,7 @@ export default function PaymentManager() {
           totalCollected: 0,
           totalDeficit: 0,
           collectionPercentage: 0,
+          overdueCount: 0,
         });
         return;
       }
@@ -115,10 +119,6 @@ export default function PaymentManager() {
       }
 
       setBoardingHouses(uniqueHouses || []);
-
-      // Fetch pending payment slips
-      const slipsData = await paymentApi.getPendingPaymentSlips();
-      setPendingSlips(slipsData || []);
 
       // Fetch financial overview
       const overviewData = await paymentApi.getFinancialOverview();
@@ -144,29 +144,21 @@ export default function PaymentManager() {
   }, [fetchData]);
 
   const handleApproveSlip = async (slip: PaymentSlip) => {
-    if (!window.confirm(`Approve Rs.${slip.amount.toLocaleString()} payment from ${slip.tenantName}?\n\nThis will generate an official receipt and notify the tenant.`)) {
+    if (!window.confirm(`Approve Rs.${(slip.amount || 0).toLocaleString()} payment from ${slip.tenantName}?\n\nThis will generate an official receipt and notify the tenant.`)) {
       return;
     }
 
     setProcessingSlipId(slip.id);
     try {
       // Call API to approve slip
+      // Backend handles receipt generation and storage
       await paymentApi.approvePaymentSlip(slip.id);
-
-      // Generate receipt PDF
-      const doc = generatePaymentReceiptPDF({
-        tenantName: slip.tenantName,
-        roomNumber: slip.roomNumber,
-        placeName: slip.placeName,
-        amount: slip.amount,
-        date: slip.date,
-        receiptNumber: `REC-${Math.floor(Math.random() * 100000)}`,
-        paymentMethod: 'Bank Transfer'
-      });
-      doc.save(`receipt_${slip.tenantName.replace(/\s+/g, '_')}_${slip.date}.pdf`);
 
       // Remove slip from pending list
       setPendingSlips(prev => prev.filter(s => s.id !== slip.id));
+      
+      // Show success message
+      alert('✓ Payment approved successfully! Receipt has been generated and the tenant has been notified.');
     } catch (err) {
       console.error('Error approving slip:', err);
       alert('Failed to approve payment slip. Please try again.');
@@ -264,8 +256,8 @@ export default function PaymentManager() {
         </div>
       )}
 
-      {/* Financial Overview Analytics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* Financial Overview Analytics - HIDDEN */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 hidden">
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl p-6 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
           <p className="text-sm font-medium text-gray-400 mb-1">Expected Revenue</p>
@@ -312,62 +304,11 @@ export default function PaymentManager() {
           )}
         </h3>
 
-        {pendingSlips.length > 0 ? (
-          // Thumbnail Gallery
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-            {pendingSlips.map(slip => (
-              <div key={slip.id} className="group relative">
-                <div className="relative overflow-hidden rounded-lg bg-white/5 border border-white/10 hover:border-amber-500/50 transition-all cursor-pointer h-32">
-                  {slip.slipUrl ? (
-                    <>
-                      <img
-                        src={slip.slipUrl}
-                        alt={`Payment slip from ${slip.tenantName}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2">
-                        <div className="text-white text-[10px] font-semibold">
-                          <p>{slip.tenantName}</p>
-                          <p className="text-amber-300">Rs. {slip.amount.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-                      <ImageIcon size={20} className="mb-1" />
-                      <p className="text-[10px]">No image</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Actions Overlay */}
-                <div className="absolute -bottom-10 left-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-hover:-bottom-11 transition-all">
-                  <button
-                    onClick={() => setViewingSlip(slip)}
-                    className="flex-1 flex items-center justify-center p-1.5 bg-cyan-500/20 hover:bg-cyan-500/40 rounded text-cyan-400 text-[10px] font-semibold"
-                    title="View full slip"
-                  >
-                    <Eye size={12} /> View
-                  </button>
-                  <button
-                    onClick={() => handleDownloadSlip(slip)}
-                    disabled={downloadingSlipId === slip.id}
-                    className="flex-1 flex items-center justify-center p-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 rounded text-emerald-400 text-[10px] font-semibold"
-                    title="Download slip"
-                  >
-                    {downloadingSlipId === slip.id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
         {/* Detailed List View */}
         <div className="space-y-3">
           {pendingSlips.length > 0 ? (
-            pendingSlips.map(slip => (
-              <div key={slip.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-amber-500/20 rounded-xl hover:bg-white/10 transition-colors">
+            pendingSlips.map((slip, index) => (
+              <div key={`slip-detail-${slip.id}-${index}`} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-amber-500/20 rounded-xl hover:bg-white/10 transition-colors">
                 <div className="mb-3 md:mb-0">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-sm text-white font-semibold">{slip.tenantName}</p>
@@ -385,9 +326,9 @@ export default function PaymentManager() {
 
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-sm font-bold text-white">Rs. {slip.amount.toLocaleString()}</p>
-                    {slip.amount < slip.originalRent ? (
-                      <p className="text-[10px] text-amber-400 font-medium">Partial (Owes Rs. {(slip.originalRent - slip.amount).toLocaleString()})</p>
+                    <p className="text-sm font-bold text-white">Rs. {(slip.amount || 0).toLocaleString()}</p>
+                    {(slip.amount || 0) < (slip.originalRent || 0) ? (
+                      <p className="text-[10px] text-amber-400 font-medium">Partial (Owes Rs. {((slip.originalRent || 0) - (slip.amount || 0)).toLocaleString()})</p>
                     ) : (
                       <p className="text-[10px] text-gray-500">Full Rent Uploaded</p>
                     )}
@@ -395,19 +336,19 @@ export default function PaymentManager() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setViewingSlip(slip)}
-                      className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 rounded-lg text-cyan-400 transition-colors border border-white/10"
-                      title="View payment slip"
-                    >
-                      <Eye size={18} />
-                    </button>
-                    <button
                       onClick={() => handleDownloadSlip(slip)}
                       disabled={downloadingSlipId === slip.id}
-                      className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 rounded-lg text-indigo-400 transition-colors border border-white/10 disabled:opacity-50"
-                      title="Download slip"
+                      className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 rounded-lg text-cyan-400 transition-colors border border-white/10"
+                      title="Download payment slip"
                     >
                       {downloadingSlipId === slip.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                    </button>
+                    <button
+                      onClick={() => setSelectedSlip(slip)}
+                      className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 rounded-lg text-indigo-400 transition-colors border border-white/10 disabled:opacity-50"
+                      title="View slip details"
+                    >
+                      <Eye size={18} />
                     </button>
                     <button
                       onClick={() => handleApproveSlip(slip)}
@@ -479,7 +420,7 @@ export default function PaymentManager() {
 
               return (
                 <div
-                  key={place.id || place._id}
+                  key={`house-${place.id || place._id}-${idx}`}
                   onClick={() => navigate(`/payment-rental/${place.id || place._id}`)}
                   className="group p-5 bg-white/5 border border-white/10 rounded-xl hover:border-cyan-500/50 hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden"
                 >
@@ -508,66 +449,67 @@ export default function PaymentManager() {
         )}
       </div>
 
-      {/* View Slip Modal */}
-      {viewingSlip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 ring-1 ring-white/10 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-white/10 bg-cyan-500/5">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <ImageIcon size={18} className="text-cyan-400" /> Payment Slip - {viewingSlip.tenantName}
-              </h3>
-              <button onClick={() => setViewingSlip(null)} className="text-gray-500 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-all">
-                <XCircle size={18} />
-              </button>
+      {/* Payment Slip Review Modal */}
+      {selectedSlip && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSelectedSlip(null)}>
+          <div className="bg-slate-800 border border-cyan-500/30 rounded-2xl shadow-2xl w-full max-w-lg p-6 relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setSelectedSlip(null)} className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors">
+              <XCircle size={20} />
+            </button>
+            <h3 className="text-lg font-semibold text-cyan-400 mb-4">Payment Slip Review</h3>
+            
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-sm text-gray-400">Room • Paid on</p>
+                <p className="text-white font-medium">{selectedSlip.roomNumber} - {selectedSlip.date}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-white">Rs. {selectedSlip.amount.toLocaleString()}</p>
+                <p className="text-xs text-emerald-400 flex items-center justify-end gap-1"><CheckCircle size={12} /> Full Slip Uploaded</p>
+              </div>
             </div>
 
-            <div className="p-6">
-              {viewingSlip.slipUrl ? (
-                <img src={viewingSlip.slipUrl} alt="Payment slip" className="w-full rounded-lg border border-white/10" />
-              ) : (
-                <div className="w-full h-64 bg-white/5 rounded-lg border-2 border-dashed border-white/10 flex items-center justify-center">
-                  <div className="text-center text-gray-400">
-                    <ImageIcon size={32} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No payment slip image available</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-400 text-xs font-medium mb-1">TENANT</p>
-                  <p className="text-white font-semibold">{viewingSlip.tenantName}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs font-medium mb-1">AMOUNT</p>
-                  <p className="text-white font-semibold">Rs. {viewingSlip.amount.toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs font-medium mb-1">ROOM</p>
-                  <p className="text-white font-semibold">Room {viewingSlip.roomNumber}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs font-medium mb-1">DATE</p>
-                  <p className="text-white font-semibold">{viewingSlip.date}</p>
-                </div>
+            <div className="mt-4 p-4 bg-slate-900/50 rounded-lg text-center">
+              <p className="text-sm font-medium text-white mb-2">Payment Slip - {selectedSlip.tenantName}</p>
+              {/* Display payment receipt template */}
+              <div className="w-full flex justify-center">
+                <embed 
+                  src="/payment-receipt.pdf" 
+                  type="application/pdf" 
+                  width="100%" 
+                  height="500px"
+                  className="rounded-lg border border-white/10"
+                />
               </div>
+            </div>
 
-              <div className="mt-6 flex gap-3">
-                <button
+            <div className="mt-6 flex justify-between items-center">
+              <button 
+                onClick={() => handleDownloadSlip(selectedSlip)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 rounded-lg text-indigo-300 transition-all border border-indigo-500/30"
+              >
+                <Download size={16} /> Download
+              </button>
+              <div className="flex gap-2">
+                <button 
                   onClick={() => {
-                    handleDownloadSlip(viewingSlip);
-                    setViewingSlip(null);
+                    handleApproveSlip(selectedSlip);
+                    setSelectedSlip(null);
                   }}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-500/20 hover:bg-indigo-500/40 rounded-lg text-indigo-400 text-sm font-semibold transition-all border border-indigo-500/30"
+                  className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/40 rounded-lg text-emerald-300 transition-all border border-emerald-500/30"
                 >
-                  <Download size={16} /> Download
+                  Approve
                 </button>
-                <button
-                  onClick={() => setViewingSlip(null)}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 text-sm font-semibold transition-all border border-white/10"
+                <button 
+                  onClick={() => {
+                    setRejectingSlip(selectedSlip);
+                    setSelectedSlip(null);
+                  }}
+                  className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/40 rounded-lg text-rose-300 transition-all border border-rose-500/30"
                 >
-                  Close
+                  Reject
                 </button>
+                <button onClick={() => setSelectedSlip(null)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all">Close</button>
               </div>
             </div>
           </div>

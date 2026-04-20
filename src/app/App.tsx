@@ -1,68 +1,96 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Landing
-import LandingPage from './components/LandingPage';
-import SignInPage from './components/SignInPage';
-import SignUpPage from './components/SignUpPage';
-import ProfileSetup from './components/ProfileSetup';
-import SearchPage from './components/SearchPage';
-import VerifyEmailPage from './components/VerifyEmailPage';
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const SignInPage = lazy(() => import('./components/SignInPage'));
+const SignUpPage = lazy(() => import('./components/SignUpPage'));
+const ProfileSetup = lazy(() => import('./components/ProfileSetup'));
+const SearchPage = lazy(() => import('./components/SearchPage'));
+const VerifyEmailPage = lazy(() => import('./components/VerifyEmailPage'));
 
-// Mobile Components
-import MobileLayout from './components/mobile/MobileLayout';
-import { MobileLogin, MobileSignUp } from './components/mobile/AuthScreens';
-import { 
-  MobileDashboard, 
-  MobileBoardingPass, 
-  MobileStatus, 
-  MobileNotifications, 
-  MobileProfile 
-} from './components/mobile/AppScreens';
+const MobileLayout = lazy(() => import('./components/mobile/MobileLayout'));
+const MobileLogin = lazy(() =>
+  import('./components/mobile/AuthScreens').then((m) => ({ default: m.MobileLogin }))
+);
+const MobileSignUp = lazy(() =>
+  import('./components/mobile/AuthScreens').then((m) => ({ default: m.MobileSignUp }))
+);
+const MobileDashboard = lazy(() =>
+  import('./components/mobile/AppScreens').then((m) => ({ default: m.MobileDashboard }))
+);
+const MobileBoardingPass = lazy(() =>
+  import('./components/mobile/AppScreens').then((m) => ({ default: m.MobileBoardingPass }))
+);
+const MobileStatus = lazy(() =>
+  import('./components/mobile/AppScreens').then((m) => ({ default: m.MobileStatus }))
+);
+const MobileNotifications = lazy(() =>
+  import('./components/mobile/AppScreens').then((m) => ({ default: m.MobileNotifications }))
+);
+const MobileProfile = lazy(() =>
+  import('./components/mobile/AppScreens').then((m) => ({ default: m.MobileProfile }))
+);
 
-// Admin Components
-import AdminLayout from './components/admin/AdminLayout';
-import { 
-  AdminLogin, 
-  AdminDashboard, 
-  UserManagement, 
-  KYCVerification, 
-  SupportTickets, 
-  FeedbackManagement 
-} from './components/admin/AdminScreens';
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
+const AdminLogin = lazy(() =>
+  import('./components/admin/AdminScreens').then((m) => ({ default: m.AdminLogin }))
+);
+const AdminDashboard = lazy(() =>
+  import('./components/admin/AdminScreens').then((m) => ({ default: m.AdminDashboard }))
+);
+const UserManagement = lazy(() =>
+  import('./components/admin/AdminScreens').then((m) => ({ default: m.UserManagement }))
+);
+const KYCVerification = lazy(() =>
+  import('./components/admin/AdminScreens').then((m) => ({ default: m.KYCVerification }))
+);
+const SupportTickets = lazy(() =>
+  import('./components/admin/AdminScreens').then((m) => ({ default: m.SupportTickets }))
+);
+const FeedbackManagement = lazy(() =>
+  import('./components/admin/AdminScreens').then((m) => ({ default: m.FeedbackManagement }))
+);
+const AdminSettings = lazy(() =>
+  import('./components/admin/AdminScreens').then((m) => ({ default: m.AdminSettings }))
+);
 
-// Boarding Management System Core Functions
-import BoardingManagement from './components/boarding/BoardingManagement';
-import SearchDiscovery from './components/boarding/SearchDiscovery';
-import BookingAgreement from './components/boarding/BookingAgreement';
-import PaymentRentalPage from './components/payment/PaymentRentalPage';
-import BoardingPlaceDetail from './components/payment/BoardingPlaceDetail';
-import StudentPayment from './components/payment/StudentPayment';
-import AdministrationMonitoring from './components/boarding/AdministrationMonitoring';
-import RoommateFinderPage from './components/RoommateFinderPage';
-import RoommateFinderEnhanced from './components/RoommateFinderEnhanced';
-import ChatbotSection from './components/ChatbotSection';
-import OwnerDashboard from './components/OwnerDashboard';
+const BoardingManagement = lazy(() => import('./components/boarding/BoardingManagement'));
+const SearchDiscovery = lazy(() => import('./components/boarding/SearchDiscovery'));
+const BookingAgreement = lazy(() => import('./components/boarding/BookingAgreement'));
+const PaymentRentalPage = lazy(() => import('./components/payment/PaymentRentalPage'));
+const BoardingPlaceDetail = lazy(() => import('./components/payment/BoardingPlaceDetail'));
+const StudentPayment = lazy(() => import('./components/payment/StudentPayment'));
+const AdministrationMonitoring = lazy(() => import('./components/boarding/AdministrationMonitoring'));
+const RoommateFinderPage = lazy(() => import('./components/RoommateFinderPage'));
+const RoommateFinderEnhanced = lazy(() => import('./components/RoommateFinderEnhanced'));
+const ChatbotSection = lazy(() => import('./components/ChatbotSection'));
+const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
+const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
 
-import BookingManagementSystem from './components/booking/BookingManagementSystem';
-import StudentBookingDashboard from './components/booking/StudentBookingDashboard';
-import UserProfileDashboard from './components/UserProfileDashboard';
+const BookingManagementSystem = lazy(() => import('./components/booking/BookingManagementSystem'));
+const StudentBookingDashboard = lazy(() => import('./components/booking/StudentBookingDashboard'));
+const UserProfileDashboard = lazy(() => import('./components/UserProfileDashboard'));
 
-
-// Roommate Finder Flow Components
-import BoardingDetail from './components/BoardingDetail';
-import GroupBooking from './components/GroupBooking';
-import ApprovalSuccess from './components/ApprovalSuccess';
-import AgreementPayment from './components/AgreementPayment';
-import Dashboard from './components/Dashboard';
-import Chat from './components/Chat';
-import RoommateFinderGroupPage from './components/RoommateFinderGroupPage';
-import OwnerApprovalPage from './components/OwnerApprovalPage';
+const BoardingDetail = lazy(() => import('./components/BoardingDetail'));
+const GroupBooking = lazy(() => import('./components/GroupBooking'));
+const ApprovalSuccess = lazy(() => import('./components/ApprovalSuccess'));
+const AgreementPayment = lazy(() => import('./components/AgreementPayment'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const Chat = lazy(() => import('./components/Chat'));
+const RoommateFinderGroupPage = lazy(() => import('./components/RoommateFinderGroupPage'));
+const OwnerApprovalPage = lazy(() => import('./components/OwnerApprovalPage'));
 
 
 export default function App() {
   return (
     <BrowserRouter>
+      <Suspense
+        fallback={
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: '#cbd5e1' }}>
+            Loading...
+          </div>
+        }
+      >
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignInPage />} />
@@ -94,6 +122,7 @@ export default function App() {
           <Route path="kyc" element={<KYCVerification />} />
           <Route path="tickets" element={<SupportTickets />} />
           <Route path="feedback" element={<FeedbackManagement />} />
+          <Route path="settings" element={<AdminSettings />} />
         </Route>
 
         {/* Boarding Booking Management System Core Functions */}
@@ -106,7 +135,6 @@ export default function App() {
         <Route path="/student-booking" element={<StudentBookingDashboard />} />
         <Route path="/student-payment" element={<StudentPayment />} />
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />
-        <Route path="/owner-dashboard" element={<OwnerDashboard />} />
         <Route path="/profile" element={<UserProfileDashboard />} />
 
         {/* Roommate Finder Enhanced Routes (from main branch) */}
@@ -121,11 +149,15 @@ export default function App() {
         <Route path="/chat" element={<Chat />} />
         <Route path="/owner-approval" element={<OwnerApprovalPage />} />
         <Route path="/chatbot" element={<ChatbotSection standalone={true} />} />
-        <Route path="/owner-dashboard" element={<OwnerDashboard />} />
+
+        {/* Role-based dashboard routes */}
+        <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+        <Route path="/student/dashboard" element={<StudentDashboard />} />
 
         {/* Catch-all: Redirect unknown routes to /signin */}
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -1,303 +1,213 @@
-const nodemailer = require('nodemailer');
-const env = require('../config/env');
+const { Resend } = require('resend');
 
-class EmailService {
-  constructor() {
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM = 'BoardingBook <noreply@project.fxjpro.com>';
 
-    // Create transporter - handle missing email config
-    try {
-      this.transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: process.env.EMAIL_PORT || 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD,
-        },
-      });
-      this.enabled = true;
-    } catch (error) {
-      console.warn('Email service disabled:', error.message);
-      this.enabled = false;
-      this.transporter = null;
-    }
+// Sends to actual recipient; override with DEV_TEST_EMAIL in .env for local testing
+const resolveRecipient = (email) =>
+  process.env.DEV_TEST_EMAIL || email;
 
-    const hasPlaceholderCredentials =
-      env.emailUser === 'your-email@gmail.com' ||
-      env.emailPassword === 'your-app-specific-password';
+/**
+ * Send email verification link after sign-up
+ */
+async function sendVerificationEmail(email, verificationToken) {
+  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
 
-    this.isConfigured = Boolean(env.emailHost && env.emailUser && env.emailPassword) && !hasPlaceholderCredentials;
-    this.configError = hasPlaceholderCredentials
-      ? 'Email credentials are placeholders. Set EMAIL_USER and EMAIL_PASSWORD in backend/.env'
-      : null;
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: resolveRecipient(email),
+    subject: 'Verify your BoardingBook account',
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Verify your BoardingBook account</title>
+</head>
+<body style="margin:0;padding:0;background:#060b18;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
 
-    this.transporter = this.isConfigured
-      ? nodemailer.createTransport({
-          host: env.emailHost,
-          port: env.emailPort,
-          secure: env.emailPort === 465,
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-          socketTimeout: 10000,
-          auth: {
-            user: env.emailUser,
-            pass: env.emailPassword,
-          },
-        })
-      : null;
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#060b18;padding:52px 16px 48px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;">
 
-      this.fromHeader = `"${env.emailFromName}" <${env.emailFromAddress || env.emailUser}>`;
+        <!-- Wordmark -->
+        <tr><td align="center" style="padding-bottom:40px;">
+          <table cellpadding="0" cellspacing="0"><tr>
+            <td style="background:linear-gradient(135deg,#818cf8,#22d3ee);border-radius:12px;padding:10px 20px;">
+              <span style="color:#fff;font-size:16px;font-weight:800;letter-spacing:-0.4px;">BoardingBook</span>
+            </td>
+          </tr></table>
+        </td></tr>
 
-  }
+        <!-- Card -->
+        <tr><td style="background:#0e1525;border-radius:28px;border:1px solid rgba(129,140,248,0.16);box-shadow:0 48px 140px rgba(0,0,0,0.8),0 0 0 1px rgba(255,255,255,0.03);overflow:hidden;">
 
-  /**
-   * Send verification email
-   * @param {string} email - Recipient email address
-   * @param {string} verificationToken - Verification token
-   */
-  async sendVerificationEmail(email, verificationToken) {
-    const verificationUrl = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
+          <!-- Hero section -->
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="background:linear-gradient(175deg,#131c38 0%,#0e1525 60%,#0e1525 100%);padding:56px 40px 48px;text-align:center;border-bottom:1px solid rgba(129,140,248,0.09);">
 
-    if (!this.isConfigured || !this.transporter) {
-      const reason = this.configError || 'Email service is not configured. Skipping verification email send.';
-      console.warn(reason);
-      console.warn(`Development verification URL: ${verificationUrl}`);
-      return { success: false, skipped: true, reason, verificationUrl };
-    }
+              <!-- Illustration -->
+              <table cellpadding="0" cellspacing="0" style="margin:0 auto 40px;">
+                <tr><td align="center">
+                  <!-- Outer glow ring -->
+                  <div style="width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.18) 0%,transparent 70%);border:1px solid rgba(129,140,248,0.18);margin:0 auto;">
+                    <table cellpadding="0" cellspacing="0" width="130" height="130"><tr><td align="center" valign="middle">
+                      <!-- Inner solid circle -->
+                      <div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(145deg,#4338ca,#7c3aed);box-shadow:0 0 50px rgba(99,102,241,0.7),0 0 100px rgba(99,102,241,0.3),inset 0 1px 0 rgba(255,255,255,0.15);margin:0 auto;">
+                        <table cellpadding="0" cellspacing="0" width="90" height="90"><tr><td align="center" valign="middle">
+                          <img src="https://em-content.zobj.net/source/apple/391/envelope-with-arrow_1f4e9.png" width="44" height="44" alt="📩" style="display:block;margin:0 auto;" />
+                        </td></tr></table>
+                      </div>
+                    </td></tr></table>
+                  </div>
+                </td></tr>
+              </table>
 
-    const mailOptions = {
-      from: this.fromHeader,
-      to: email,
-      subject: 'Verify Your Email Address',
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              max-width: 600px;
-              margin: 0 auto;
-              padding: 20px;
-            }
-            .container {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              border-radius: 10px;
-              padding: 30px;
-              color: white;
-            }
-            .content {
-              background: white;
-              color: #333;
-              padding: 30px;
-              border-radius: 8px;
-              margin-top: 20px;
-            }
-            .button {
-              display: inline-block;
-              padding: 14px 32px;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              text-decoration: none;
-              border-radius: 6px;
-              font-weight: bold;
-              margin: 20px 0;
-            }
-            .footer {
-              margin-top: 20px;
-              font-size: 12px;
-              color: rgba(255, 255, 255, 0.8);
-              text-align: center;
-            }
-            .warning {
-              background: #fff3cd;
-              border-left: 4px solid #ffc107;
-              padding: 15px;
-              margin: 20px 0;
-              color: #856404;
-              border-radius: 4px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1 style="margin: 0; font-size: 28px;">Welcome to BoardingBook! 🎉</h1>
-            
-            <div class="content">
-              <p style="font-size: 16px; margin-top: 0;">Hi there,</p>
-              
-              <p>Thank you for signing up with BoardingBook! We're excited to help you find the perfect boarding place or roommate.</p>
-              
-              <p>To complete your registration and activate your account, please verify your email address by clicking the button below:</p>
-              
-              <div style="text-align: center;">
-                <a href="${verificationUrl}" class="button">Verify Email Address</a>
-              </div>
-              
-              <div class="warning">
-                <strong>⏰ Important:</strong> This verification link will expire in 24 hours.
-              </div>
-              
-              <p>If the button doesn't work, copy and paste this link into your browser:</p>
-              <p style="word-break: break-all; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 14px;">
-                ${verificationUrl}
+              <h1 style="margin:0 0 14px;color:#ffffff;font-size:32px;font-weight:800;letter-spacing:-0.8px;line-height:1.1;">Verify your email</h1>
+              <p style="margin:0 auto;color:#8892a8;font-size:15px;line-height:1.7;max-width:310px;">
+                Click the button below to activate your <strong style="color:#c7d2fe;">BoardingBook</strong> account and get started.
               </p>
-              
-              <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; color: #666;">
-                If you didn't create an account with BoardingBook, you can safely ignore this email.
+            </td></tr>
+          </table>
+
+          <!-- Body -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="padding:44px 40px 38px;">
+
+            <!-- CTA Button -->
+            <tr><td align="center" style="padding-bottom:24px;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td style="border-radius:14px;background:linear-gradient(135deg,#818cf8 0%,#6366f1 50%,#22d3ee 100%);box-shadow:0 0 44px rgba(129,140,248,0.55),0 12px 40px rgba(0,0,0,0.5);">
+                  <a href="${verificationUrl}" style="display:inline-block;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:18px 56px;letter-spacing:0.3px;border-radius:14px;">
+                    Verify Email Address &nbsp;→
+                  </a>
+                </td>
+              </tr></table>
+            </td></tr>
+
+            <!-- Expiry pill -->
+            <tr><td align="center" style="padding-bottom:32px;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.18);border-radius:100px;padding:8px 22px;">
+                  <span style="color:#818cf8;font-size:12px;font-weight:600;letter-spacing:0.2px;">⏱&nbsp;&nbsp;Link expires in 24 hours</span>
+                </td>
+              </tr></table>
+            </td></tr>
+
+            <!-- Divider -->
+            <tr><td style="padding-bottom:26px;">
+              <table width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td style="height:1px;background:linear-gradient(90deg,transparent,rgba(129,140,248,0.12),transparent);"></td>
+              </tr></table>
+            </td></tr>
+
+            <!-- Ignore note -->
+            <tr><td align="center">
+              <p style="margin:0;color:#3d4f68;font-size:12px;line-height:1.7;text-align:center;">
+                If you didn't create an account, you can safely ignore this email.<br/>
+                No action is required on your part.
               </p>
-            </div>
-            
-            <div class="footer">
-              <p>© ${new Date().getFullYear()} BoardingBook. All rights reserved.</p>
-              <p>Making student housing simple and accessible.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `,
-      text: `
-        Welcome to BoardingBook!
-        
-        Thank you for signing up! To complete your registration, please verify your email address by visiting:
-        
-        ${verificationUrl}
-        
-        This link will expire in 24 hours.
-        
-        If you didn't create an account, you can safely ignore this email.
-        
-        © ${new Date().getFullYear()} BoardingBook
-      `,
-    };
+            </td></tr>
 
-    try {
-      if (!this.enabled || !this.transporter) {
-        console.warn('Email service is disabled. Email not sent to:', email);
-        return { success: true, messageId: 'SKIPPED_NO_EMAIL_CONFIG' };
-      }
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log('Verification email sent: %s', info.messageId);
-      return { success: true, messageId: info.messageId };
-    } catch (error) {
-      console.error('Error sending verification email:', error);
+          </table>
+        </td></tr>
 
-      // Don't throw, just log the warning
-      console.warn('Verification email could not be sent, but signup will continue');
-      return { success: true, messageId: 'FAILED_BUT_CONTINUED' };
+        <!-- Fallback URL -->
+        <tr><td style="padding:24px 8px 0;" align="center">
+          <p style="margin:0;color:#1f2e44;font-size:11px;text-align:center;line-height:1.85;">
+            Can't click the button? Copy and paste this link into your browser:<br/>
+            <a href="${verificationUrl}" style="color:#3a4f6e;word-break:break-all;text-decoration:none;">${verificationUrl}</a>
+          </p>
+        </td></tr>
 
-      return {
-        success: false,
-        reason: error.message || 'Failed to send verification email',
-        verificationUrl,
-      };
+        <!-- Footer -->
+        <tr><td align="center" style="padding-top:28px;padding-bottom:4px;">
+          <p style="margin:0;color:#182030;font-size:11px;letter-spacing:0.1px;">© ${new Date().getFullYear()} BoardingBook &nbsp;·&nbsp; SLIIT Student Platform</p>
+        </td></tr>
 
-    }
-  }
+      </table>
+    </td></tr>
+  </table>
 
-  /**
-   * Send welcome email after verification
-   * @param {string} email - Recipient email address
-   * @param {string} name - User's name
-   */
-  async sendWelcomeEmail(email, name) {
+</body>
+</html>`,
+  });
 
-    if (!this.isConfigured || !this.transporter) {
-      const reason = this.configError || 'Email service is not configured. Skipping welcome email send.';
-      console.warn(reason);
-      return { success: false, skipped: true, reason };
-    }
-
-    const mailOptions = {
-      from: this.fromHeader,
-      to: email,
-      subject: 'Welcome to BoardingBook! 🏠',
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              max-width: 600px;
-              margin: 0 auto;
-              padding: 20px;
-            }
-            .container {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              border-radius: 10px;
-              padding: 30px;
-              color: white;
-            }
-            .content {
-              background: white;
-              color: #333;
-              padding: 30px;
-              border-radius: 8px;
-              margin-top: 20px;
-            }
-            .button {
-              display: inline-block;
-              padding: 14px 32px;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              text-decoration: none;
-              border-radius: 6px;
-              font-weight: bold;
-              margin: 20px 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1 style="margin: 0; font-size: 28px;">Your Account is Verified! ✅</h1>
-            
-            <div class="content">
-              <p style="font-size: 16px; margin-top: 0;">Hi ${name || 'there'},</p>
-              
-              <p>Congratulations! Your email has been successfully verified and your account is now active.</p>
-              
-              <p><strong>Here's what you can do now:</strong></p>
-              <ul>
-                <li>🔍 Search for boarding places near your campus</li>
-                <li>👥 Find compatible roommates</li>
-                <li>💬 Chat with property owners</li>
-                <li>⭐ Save your favorite listings</li>
-                <li>📝 Complete your profile</li>
-              </ul>
-              
-              <div style="text-align: center;">
-                <a href="${env.frontendUrl}/signin" class="button">Sign In Now</a>
-              </div>
-              
-              <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; color: #666;">
-                Need help? Contact us at support@boardingbook.com
-              </p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `,
-    };
-
-    try {
-      if (!this.enabled || !this.transporter) {
-        console.warn('Email service is disabled. Email not sent to:', email);
-        return { success: true, messageId: 'SKIPPED_NO_EMAIL_CONFIG' };
-      }
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log('Welcome email sent: %s', info.messageId);
-      return { success: true, messageId: info.messageId };
-    } catch (error) {
-      console.error('Error sending welcome email:', error);
-      // Don't throw error for welcome email - it's not critical
-      return { success: false, error: error.message };
-    }
-  }
+  if (error) throw new Error(error.message);
 }
 
-module.exports = new EmailService();
+/**
+ * Send welcome email after successful verification
+ */
+async function sendWelcomeEmail(email, name) {
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: resolveRecipient(email),
+    subject: 'Welcome to BoardingBook!',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family:Arial,sans-serif;background:#0f1425;margin:0;padding:30px;">
+        <div style="max-width:560px;margin:0 auto;background:#1e2436;border-radius:12px;padding:36px;border:1px solid rgba(129,140,248,0.2);">
+          <div style="text-align:center;margin-bottom:28px;">
+            <div style="display:inline-block;background:linear-gradient(135deg,#818cf8,#22d3ee);border-radius:10px;padding:12px 20px;">
+              <span style="color:white;font-size:18px;font-weight:bold;">BoardingBook</span>
+            </div>
+          </div>
+          <h2 style="color:#ffffff;text-align:center;margin:0 0 8px;">You're all set, ${name || 'there'}!</h2>
+          <p style="color:#94a3b8;text-align:center;margin:0 0 28px;font-size:14px;">Your email has been verified and your account is now active.</p>
+          <div style="text-align:center;">
+            <a href="${process.env.FRONTEND_URL}/signin" style="display:inline-block;background:linear-gradient(135deg,#818cf8,#22d3ee);color:white;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">
+              Sign In Now
+            </a>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  });
+
+  if (error) console.error('Welcome email failed:', error.message);
+}
+
+/**
+ * Send password reset email
+ */
+async function sendPasswordResetEmail(email, resetToken) {
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: resolveRecipient(email),
+    subject: 'Reset your BoardingBook password',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family:Arial,sans-serif;background:#0f1425;margin:0;padding:30px;">
+        <div style="max-width:560px;margin:0 auto;background:#1e2436;border-radius:12px;padding:36px;border:1px solid rgba(129,140,248,0.2);">
+          <div style="text-align:center;margin-bottom:28px;">
+            <div style="display:inline-block;background:linear-gradient(135deg,#818cf8,#22d3ee);border-radius:10px;padding:12px 20px;">
+              <span style="color:white;font-size:18px;font-weight:bold;">BoardingBook</span>
+            </div>
+          </div>
+          <h2 style="color:#ffffff;text-align:center;margin:0 0 8px;">Reset your password</h2>
+          <p style="color:#94a3b8;text-align:center;margin:0 0 28px;font-size:14px;">Click the button below to set a new password. This link expires in 1 hour.</p>
+          <div style="text-align:center;margin-bottom:28px;">
+            <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#818cf8,#22d3ee);color:white;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:600;font-size:15px;">
+              Reset Password
+            </a>
+          </div>
+          <p style="color:#64748b;font-size:12px;text-align:center;margin:0 0 8px;">If you didn't request this, you can safely ignore this email.</p>
+          <hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:24px 0;" />
+          <p style="color:#475569;font-size:11px;text-align:center;margin:0;">Can't click the button? Copy this link:<br/>
+            <span style="color:#818cf8;word-break:break-all;">${resetUrl}</span>
+          </p>
+        </div>
+      </body>
+      </html>
+    `,
+  });
+
+  if (error) throw new Error(error.message);
+}
+
+module.exports = { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail };
