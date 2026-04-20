@@ -64,7 +64,7 @@ const bookingAgreementSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'signed', 'expired', 'partially_signed', 'rejected'],
+      enum: ['pending', 'sent', 'accepted', 'signed', 'expired', 'partially_signed', 'rejected'],
       default: 'pending',
       index: true,
     },

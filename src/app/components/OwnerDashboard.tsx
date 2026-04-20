@@ -18,7 +18,9 @@ import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api
 import {
   createOwnerAgreementTemplate,
   getOwnerAgreementTemplates,
+  getOwnerBookingRequests,
   type AgreementTemplateDto,
+  type BookingRequestDto,
 } from '../api/bookingAgreementApi';
 
 // ============================================
@@ -937,6 +939,22 @@ export default function OwnerDashboard() {
         setAgreementError((error as Error).message || 'Failed to save agreement template.');
       }
     };
+
+    // Load pending booking requests
+    const loadPendingBookingRequests = async () => {
+      setLoadingBookingRequests(true);
+      try {
+        const requests = await getOwnerBookingRequests('pending');
+        setPendingBookingRequests(requests);
+        // Update unread notifications count based on pending requests
+        setUnreadNotifications(requests.length);
+      } catch (error) {
+        console.error('Failed to load pending booking requests:', error);
+      } finally {
+        setLoadingBookingRequests(false);
+      }
+    };
+
   const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -967,6 +985,10 @@ export default function OwnerDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const houseFileInputRef = useRef<HTMLInputElement>(null);
   const profileImageInputRef = useRef<HTMLInputElement>(null);
+  
+  // Booking requests state
+  const [pendingBookingRequests, setPendingBookingRequests] = useState<any[]>([]);
+  const [loadingBookingRequests, setLoadingBookingRequests] = useState(false);
   
   // Form state for new room
   const [newRoom, setNewRoom] = useState({
@@ -1160,7 +1182,15 @@ export default function OwnerDashboard() {
     const token = localStorage.getItem('bb_access_token');
     if (!token) return;
     loadAgreementTemplates();
+    loadPendingBookingRequests();
   }, []);
+
+  // Reload booking requests when notifications tab is opened
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      loadPendingBookingRequests();
+    }
+  }, [activeTab]);
 
   // ============================================
   // STATS CALCULATIONS
@@ -2465,30 +2495,50 @@ export default function OwnerDashboard() {
               </div>
 
               <div className="space-y-3">
-                {/* New Booking Notifications */}
-                <div className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-4 border border-cyan-500/30">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText size={20} className="text-cyan-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-sm font-semibold text-white">New Booking Request</h4>
-                        <span className="text-xs text-gray-400">2 hours ago</span>
+                {/* Pending Booking Requests */}
+                {pendingBookingRequests.length > 0 ? (
+                  pendingBookingRequests.map((request: BookingRequestDto, index: number) => (
+                    <div key={request._id} className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-4 border border-cyan-500/30">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <FileText size={20} className="text-cyan-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="text-sm font-semibold text-white">New Booking Request</h4>
+                            <span className="text-xs text-gray-400">Just now</span>
+                          </div>
+                          <p className="text-xs text-gray-300 mb-2">
+                            {request.studentId?.fullName || 'A student'} submitted a booking request for {request.roomId?.name ? `"${request.roomId.name}"` : 'a room'}
+                          </p>
+                          <button 
+                            onClick={() => setActiveTab('bookings')}
+                            className="mt-2 text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                          >
+                            View Request <ArrowRight size={12} />
+                          </button>
+                        </div>
+                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
                       </div>
-                      <p className="text-xs text-gray-300">
-                        Kasun Perera submitted a booking request for "Modern Boarding House near SLIIT"
-                      </p>
-                      <button 
-                        onClick={() => setActiveTab('bookings')}
-                        className="mt-2 text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-                      >
-                        View Request <ArrowRight size={12} />
-                      </button>
                     </div>
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                  ))
+                ) : (
+                  <div className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 rounded-xl p-4 border border-cyan-500/30">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FileText size={20} className="text-cyan-400" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="text-sm font-semibold text-white">No Pending Requests</h4>
+                        </div>
+                        <p className="text-xs text-gray-300">
+                          All booking requests have been reviewed!
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Payment Uploaded Notification */}
                 <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-4 border border-green-500/30">

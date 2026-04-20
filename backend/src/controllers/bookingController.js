@@ -711,7 +711,7 @@ exports.signAgreement = async (req, res) => {
       agreement.rejectedAt = new Date();
     } else if (action === 'sign') {
       if (isStudent) {
-        agreement.status = 'signed';
+        agreement.status = 'accepted';
         agreement.signedAt = new Date();
         agreement.acknowledgedAt = new Date();
       } else if (isGroupMember) {
@@ -723,7 +723,7 @@ exports.signAgreement = async (req, res) => {
           (sig) => sig.status === 'signed'
         );
         if (allSigned) {
-          agreement.status = 'signed';
+          agreement.status = 'accepted';
           agreement.signedAt = new Date();
         }
       }
@@ -793,11 +793,13 @@ exports.getOwnerSignedAgreements = async (req, res) => {
     // Map UI statuses to DB statuses
     if (status) {
       if (status === 'pending') filter.status = 'pending';
+      else if (status === 'sent') filter.status = 'sent';
+      else if (status === 'accepted') filter.status = 'accepted';
       else if (status === 'signed') filter.status = 'signed';
       else if (status === 'partially_signed') filter.status = 'partially_signed';
       else if (status === 'expired') {
         filter.expirationDate = { $lt: new Date() };
-        filter.status = { $in: ['pending', 'partially_signed'] };
+        filter.status = { $in: ['pending', 'sent', 'accepted', 'signed', 'partially_signed'] };
       }
     }
 
@@ -818,10 +820,10 @@ exports.getOwnerSignedAgreements = async (req, res) => {
     const enriched = agreements.map((agr) => ({
       ...agr,
       computedStatus:
-        agr.status === 'signed'
+        (agr.status === 'accepted' || agr.status === 'signed')
           ? agr.periodEnd < now
             ? 'expired'
-            : 'signed'
+            : agr.status
           : agr.status,
     }));
 
@@ -857,21 +859,18 @@ exports.downloadAgreement = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to download this agreement' });
     }
 
-    // Generate PDF
-    const pdfDir = path.join(__dirname, '../../public/agreements');
-    if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="agreement_${agreement._id}.pdf"`);
 
-    const pdfFileName = `agreement_${agreement._id}.pdf`;
-    const pdfPath = path.join(pdfDir, pdfFileName);
-
-    // Create PDF document
+    // Create PDF document and pipe directly to response
     const doc = new PDFDocument({
       margin: 50,
       bufferPages: true,
     });
 
-    // Pipe to file
-    doc.pipe(fs.createWriteStream(pdfPath));
+    // Pipe directly to response instead of file
+    doc.pipe(res);
 
     // Set up document
     doc.fontSize(24).font('Helvetica-Bold').text('BOARDING HOUSE RENTAL AGREEMENT', { align: 'center' });
@@ -900,9 +899,15 @@ exports.downloadAgreement = async (req, res) => {
     }
     doc.moveDown();
 
+    // Helper function to strip HTML tags
+    const stripHtmlTags = (html) => {
+      return html.replace(/<[^>]*>/g, '').trim();
+    };
+
     // Terms
     doc.fontSize(11).font('Helvetica-Bold').text('TERMS AND CONDITIONS', { underline: true });
-    doc.fontSize(10).font('Helvetica').text(agreement.terms, { align: 'left' });
+    const cleanTerms = stripHtmlTags(agreement.terms);
+    doc.fontSize(10).font('Helvetica').text(cleanTerms, { align: 'left' });
     doc.moveDown();
 
     // Additional clauses
@@ -910,38 +915,53 @@ exports.downloadAgreement = async (req, res) => {
       doc.fontSize(11).font('Helvetica-Bold').text('ADDITIONAL CLAUSES', { underline: true });
       doc.fontSize(10).font('Helvetica');
       agreement.additionalClauses.forEach((clause, idx) => {
-        doc.text(`${idx + 1}. ${clause}`, { indent: 20 });
+        const cleanClause = stripHtmlTags(clause);
+        doc.text(`${idx + 1}. ${cleanClause}`, { indent: 20 });
       });
       doc.moveDown();
     }
 
     // Signature section
     doc.fontSize(11).font('Helvetica-Bold').text('SIGNATURE', { underline: true });
-    doc.moveDown(2);
-    doc.fontSize(9).font('Helvetica').text('Tenant Signature: ________________________  Date: ____________', {
-      indent: 20,
-    });
-    doc.moveDown(2);
-    doc.text('Owner Signature: ________________________  Date: ____________', { indent: 20 });
+    doc.moveDown(1);
+    
+    // Format dates for signature
+    const sentDate = agreement.sentAt ? new Date(agreement.sentAt).toLocaleDateString() : 'N/A';
+    const signedDate = agreement.signedAt ? new Date(agreement.signedAt).toLocaleDateString() : 'N/A';
+    
+    doc.fontSize(9).font('Helvetica').text(`Sent At: ${sentDate}`, { indent: 20 });
+    doc.moveDown(0.5);
+    
+    if (agreement.status === 'accepted' || agreement.status === 'signed' || agreement.status === 'partially_signed') {
+      doc.fontSize(9).font('Helvetica').text(`Tenant: ✓ Digitally Signed on ${signedDate}`, { indent: 20 });
+      doc.moveDown(0.5);
+      doc.fontSize(9).font('Helvetica').text(`Owner: ✓ Digitally Signed on ${signedDate}`, { indent: 20 });
+    } else {
+      doc.fontSize(9).font('Helvetica').text('Tenant Signature: ________________________  Date: ____________', {
+        indent: 20,
+      });
+      doc.moveDown(1);
+      doc.text('Owner Signature: ________________________  Date: ____________', { indent: 20 });
+    }
 
+    doc.moveDown(2);
+    
     // Footer
-    doc.moveTo(50, doc.y + 20).lineTo(550, doc.y + 20).stroke();
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.fontSize(8).text('This agreement is digitally signed and approved by BordingBook.', {
       align: 'center',
-      y: doc.y + 25,
+      y: doc.y + 10,
     });
 
+    // End document (streams directly to response)
     doc.end();
 
-    // Send file
-    const stream = fs.createReadStream(pdfPath);
-    stream.on('error', (err) => {
-      res.status(500).json({ success: false, message: 'Failed to generate PDF', error: err.message });
+    // Handle errors
+    doc.on('error', (err) => {
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, message: 'Failed to generate PDF', error: err.message });
+      }
     });
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="agreement_${agreement._id}.pdf"`);
-    stream.pipe(res);
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to download agreement', error: error.message });
   }

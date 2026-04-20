@@ -55,7 +55,7 @@ export type BookingAgreementDto = {
   periodStart: string;
   periodEnd: string;
   additionalClauses: string[];
-  status: 'pending' | 'signed' | 'expired' | 'partially_signed' | 'rejected';
+  status: 'pending' | 'sent' | 'accepted' | 'signed' | 'expired' | 'partially_signed' | 'rejected';
   sentAt: string;
   signedAt?: string;
   expirationDate: string;
@@ -277,7 +277,7 @@ export async function sendAgreementFromTemplate(payload: {
   return ensureSuccess<BookingAgreementDto>(response);
 }
 
-export async function getOwnerSignedAgreements(status?: 'pending' | 'signed' | 'partially_signed' | 'expired') {
+export async function getOwnerSignedAgreements(status?: 'pending' | 'sent' | 'accepted' | 'signed' | 'partially_signed' | 'expired') {
   const params = new URLSearchParams();
   if (status) {
     params.set('status', status);
@@ -299,13 +299,43 @@ export async function signAgreement(agreementId: string, action: 'sign' | 'rejec
 }
 
 export async function downloadAgreement(agreementId: string) {
-  const token = localStorage.getItem('bb_access_token') || '';
-  window.location.href = `${API_BASE_URL}/api/student/agreements/${agreementId}/download?token=${token}`;
+  const response = await fetch(`${API_BASE_URL}/api/student/agreements/${agreementId}/download`, {
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to download agreement');
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `agreement_${agreementId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 export async function downloadAgreementAsOwner(agreementId: string) {
-  const token = localStorage.getItem('bb_access_token') || '';
-  window.location.href = `${API_BASE_URL}/api/owner/agreements/${agreementId}/download?token=${token}`;
+  const response = await fetch(`${API_BASE_URL}/api/owner/agreements/${agreementId}/download`, {
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to download agreement');
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `agreement_${agreementId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 export type NotificationDto = {

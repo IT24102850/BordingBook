@@ -20,7 +20,7 @@ export default function SignedAgreementsTab() {
   const [agreements, setAgreements] = useState<BookingAgreementDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'signed' | 'partially_signed' | 'expired'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'sent' | 'accepted' | 'signed' | 'partially_signed' | 'expired'>('all');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const loadAgreements = async () => {
@@ -55,7 +55,7 @@ export default function SignedAgreementsTab() {
   const getStatusBadge = (agreement: BookingAgreementDto) => {
     const status = agreement.status || 'pending';
 
-    if (status === 'pending') {
+    if (status === 'pending' || status === 'sent') {
       return (
         <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-900/30 text-amber-300 rounded-full text-xs font-semibold border border-amber-500/30">
           <Clock size={12} />
@@ -73,7 +73,7 @@ export default function SignedAgreementsTab() {
       );
     }
 
-    if (status === 'signed') {
+    if (status === 'accepted' || status === 'signed') {
       // Check if agreement has expired
       const periodEnd = new Date(agreement.periodEnd);
       const now = new Date();
@@ -89,7 +89,7 @@ export default function SignedAgreementsTab() {
       return (
         <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-900/30 text-green-300 rounded-full text-xs font-semibold border border-green-500/30">
           <CheckCircle size={12} />
-          Signed
+          {status === 'accepted' ? 'Accepted' : 'Signed'}
         </span>
       );
     }
@@ -121,7 +121,7 @@ export default function SignedAgreementsTab() {
     <div className="space-y-6">
       {/* Filter Tabs */}
       <div className="flex flex-wrap gap-2">
-        {(['all', 'pending', 'signed', 'partially_signed', 'expired'] as const).map(status => (
+        {(['all', 'pending', 'sent', 'accepted', 'signed', 'partially_signed', 'expired'] as const).map(status => (
           <button
             key={status}
             onClick={() => setFilterStatus(status)}

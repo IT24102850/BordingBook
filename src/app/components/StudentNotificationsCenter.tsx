@@ -52,6 +52,20 @@ export default function StudentNotificationsCenter() {
     setSigningAgreement(prev => ({ ...prev, [agreementId]: true }));
     try {
       await signAgreement(agreementId, action);
+      
+      // Find and mark the related notification as read
+      const relatedNotification = notifications.find(
+        n => n.data?.agreementId === agreementId && 
+        ['agreement_pending', 'agreement_signed', 'agreement_reminder'].includes(n.type)
+      );
+      
+      if (relatedNotification && !relatedNotification.read) {
+        await markNotificationAsRead(relatedNotification._id);
+        setNotifications(prev =>
+          prev.map(n => n._id === relatedNotification._id ? { ...n, read: true } : n)
+        );
+      }
+      
       setError('');
       await loadNotifications();
       setShowAgreementModal(false);
