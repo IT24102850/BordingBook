@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
 
 
+const BACKEND_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '');
+
 // Public house listings for all users
 type PublicHouse = {
   _id: string;
@@ -25,38 +29,70 @@ function PublicListings() {
   const [listings, setListings] = useState<PublicHouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const nav = useNavigate();
 
   useEffect(() => {
-    fetch('http://localhost:5001/api/owner/public/houses')
+    fetch(`${BACKEND_URL}/api/owner/public/houses`)
       .then(res => res.json())
       .then(data => {
         setListings(data.data || []);
         setLoading(false);
       })
-      .catch(err => {
+      .catch(() => {
         setError('Failed to load listings');
         setLoading(false);
       });
   }, []);
 
-  if (loading) return <div className="text-cyan-300">Loading public listings...</div>;
-  if (error) return <div className="text-red-400">{error}</div>;
-  if (!listings.length) return <div className="text-gray-400">No public listings found.</div>;
+  const handleClick = (house: PublicHouse) => {
+    const listing = {
+      id: house._id,
+      mongoId: house._id,
+      title: house.name,
+      images: house.images?.length ? house.images : (house.image ? [house.image] : []),
+      price: house.monthlyPrice ?? 0,
+      location: house.address,
+      distance: 0,
+      roomType: house.roomType,
+      genderPreference: house.genderPreference,
+      deposit: house.deposit,
+      description: house.description,
+      features: house.features,
+      rating: house.rating,
+    };
+    nav(`/listing/${house._id}`, { state: { listing } });
+  };
+
+  if (loading) return <div className="text-cyan-300 py-4">Loading listings...</div>;
+  if (error) return <div className="text-red-400 py-4">{error}</div>;
+  if (!listings.length) return <div className="text-gray-400 py-4">No listings found.</div>;
 
   return (
     <div className="my-6">
-      <h3 className="text-lg font-bold text-cyan-200 mb-2">Public Boarding Houses</h3>
+      <h3 className="text-lg font-bold text-cyan-200 mb-3">Boarding Houses</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {listings.map(house => (
-          <div key={house._id} className="bg-white/10 rounded-lg p-4 border border-cyan-900/30">
-            <div className="font-bold text-white text-lg mb-1">{house.name}</div>
-            <div className="text-cyan-300 text-xs mb-1">{house.address}</div>
-            <div className="text-cyan-100 text-sm mb-2">Rs. {house.monthlyPrice?.toLocaleString()} / month</div>
-            {house.image && <img src={house.image} alt={house.name} className="w-full h-32 object-cover rounded mb-2" />}
-            <div className="text-xs text-gray-300 mb-1">Type: {house.roomType} | Gender: {house.genderPreference}</div>
-            <div className="text-xs text-gray-400 mb-1">{house.description?.slice(0, 80)}{house.description && house.description.length > 80 ? '...' : ''}</div>
-            <div className="text-xs text-gray-500">Listed: {house.createdAt ? new Date(house.createdAt).toLocaleDateString() : ''}</div>
-          </div>
+          <button
+            key={house._id}
+            onClick={() => handleClick(house)}
+            className="text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/30 rounded-xl overflow-hidden transition-all cursor-pointer group"
+          >
+            {(house.image || house.images?.[0]) && (
+              <img
+                src={house.image || house.images![0]}
+                alt={house.name}
+                className="w-full h-44 object-cover group-hover:scale-[1.02] transition-transform duration-300"
+              />
+            )}
+            <div className="p-4">
+              <p className="font-semibold text-white text-sm mb-1 truncate">{house.name}</p>
+              <p className="text-gray-400 text-xs mb-2 truncate">{house.address}</p>
+              <div className="flex items-center justify-between">
+                <span className="text-cyan-400 font-bold text-sm">Rs. {house.monthlyPrice?.toLocaleString()}<span className="text-gray-500 font-normal text-xs">/mo</span></span>
+                <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">{house.roomType}</span>
+              </div>
+            </div>
+          </button>
         ))}
       </div>
     </div>
@@ -1437,6 +1473,7 @@ const RoommateFinderPlaceholder: React.FC<{
 // ---- TypeScript type/interface stubs ----
 interface Listing {
   id: string | number;
+  mongoId?: string; // actual MongoDB _id for API calls
   title: string;
   images: string[];
   price: number;
@@ -1569,7 +1606,7 @@ const roomImages = [
   'https://randomuser.me/api/portraits/lego/3.jpg',
 ];
 
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
+const API_BASE_URL = BACKEND_URL;
 
 
 
@@ -1584,8 +1621,11 @@ const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = 
   return (
     <div
       onClick={() => onOpen(room.id)}
-      className="bg-gradient-to-br from-[#181f36]/80 to-[#232b47]/80 backdrop-blur-sm rounded-xl p-4 mb-3 border border-white/10 hover:border-cyan-400/50 hover:bg-gradient-to-br hover:from-[#181f36] hover:to-[#232b47] transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/20"
+      className="relative bg-gradient-to-br from-[#181f36]/80 to-[#232b47]/80 backdrop-blur-sm rounded-xl p-4 mb-3 border border-white/10 hover:border-cyan-400/50 hover:bg-gradient-to-br hover:from-[#181f36] hover:to-[#232b47] transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/20 group"
     >
+      <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/5 border border-white/10 group-hover:bg-cyan-500/20 group-hover:border-cyan-500/40 flex items-center justify-center transition-all">
+        <FaArrowLeft className="rotate-180 text-[10px] text-gray-500 group-hover:text-cyan-400 transition-colors" />
+      </div>
       <div className="flex items-start justify-between gap-4 mb-2">
         <div className="flex-1">
           <h3 className="text-base md:text-lg font-bold text-white mb-1">{room.name}</h3>
@@ -1837,10 +1877,10 @@ const ListingCard: React.FC<ListingCardProps> = ({
           </p>
           <button
             onClick={() => onViewDetails(listing)}
-            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+            className="w-full py-2.5 mt-1 bg-white/5 hover:bg-cyan-500/15 border border-white/10 hover:border-cyan-500/40 text-gray-300 hover:text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 group"
           >
-            <FaInfoCircle />
-            <span>View details</span>
+            View listing
+            <FaArrowLeft className="rotate-180 text-xs text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full md:hidden">
@@ -1890,9 +1930,10 @@ const ListingCard: React.FC<ListingCardProps> = ({
         </div>
         <button
           onClick={() => onViewDetails(listing)}
-          className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+          className="w-full mt-1 py-2 bg-white/5 hover:bg-cyan-500/15 border border-white/10 hover:border-cyan-500/40 text-gray-300 hover:text-white rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 group"
         >
-          <FaInfoCircle /> Details
+          View listing
+          <FaArrowLeft className="rotate-180 text-[10px] text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
         </button>
       </div>
     </div>
@@ -2216,43 +2257,66 @@ const BookingForm: React.FC<{
   const [bookingType, setBookingType] = useState<'INDIVIDUAL' | 'GROUP'>('INDIVIDUAL');
   const [studentName, setStudentName] = useState(currentUserName);
   const [groupName, setGroupName] = useState('');
+  const [groupSize, setGroupSize] = useState('2');
   const [contactNumber, setContactNumber] = useState('');
   const [moveInDate, setMoveInDate] = useState('');
   const [durationMonths, setDurationMonths] = useState('');
   const [specialNotes, setSpecialNotes] = useState('');
   const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   const listingTitle = listing?.title || 'N/A';
-  const listingId = listing?.id || 'N/A';
+  const roomMongoId = listing?.mongoId || '';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     setSuccessMessage('');
     if (
       (bookingType === 'INDIVIDUAL' && !studentName) ||
       (bookingType === 'GROUP' && !groupName) ||
-      !contactNumber ||
       !moveInDate ||
       !durationMonths
     ) {
       setFormError('Please fill all required fields.');
       return;
     }
-    onSubmit({
-      bookingType,
-      studentName,
-      groupName,
-      contactNumber,
-      moveInDate,
-      durationMonths,
-      specialNotes,
-      listingId,
-      listingTitle,
-    });
-    setSuccessMessage('Booking request submitted!');
-    onClose();
+    if (!roomMongoId) {
+      setFormError('Room ID is missing. Please try selecting the room again.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('bb_access_token') || '';
+      const payload: any = {
+        roomId: roomMongoId,
+        bookingType: bookingType === 'GROUP' ? 'group' : 'individual',
+        moveInDate,
+        durationMonths: parseInt(durationMonths, 10),
+        message: specialNotes || undefined,
+      };
+      if (bookingType === 'GROUP') {
+        payload.groupName = groupName;
+        payload.groupSize = parseInt(groupSize, 10) || 2;
+      }
+      const res = await fetch(`${BACKEND_URL}/api/roommates/booking-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMessage('Booking request submitted! The owner will review and respond.');
+        onSubmit({ bookingType, studentName, groupName, moveInDate, durationMonths, specialNotes });
+        setTimeout(() => onClose(), 2000);
+      } else {
+        setFormError(data.message || 'Failed to submit booking. Please try again.');
+      }
+    } catch {
+      setFormError('Network error. Please check your connection and try again.');
+    }
+    setIsSubmitting(false);
   };
 
   return (
@@ -2263,7 +2327,7 @@ const BookingForm: React.FC<{
 
         <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 mb-6">
           <h3 className="text-lg font-semibold mb-1">Selected Room</h3>
-          <p className="text-sm text-gray-300">{listingTitle} • ID: {listingId}</p>
+          <p className="text-sm text-gray-300">{listingTitle}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gradient-to-br from-[#181f36] to-[#0f172a] border border-white/10 rounded-xl p-4 md:p-6 space-y-4">
@@ -2300,7 +2364,7 @@ const BookingForm: React.FC<{
 
           {bookingType === 'INDIVIDUAL' ? (
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Full Name *</label>
+              <label className="block text-sm text-gray-300 mb-1">Full Name</label>
               <input
                 type="text"
                 value={studentName}
@@ -2310,28 +2374,30 @@ const BookingForm: React.FC<{
               />
             </div>
           ) : (
-            <div>
-              <label className="block text-sm text-gray-300 mb-1">Group Name *</label>
-              <input
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                placeholder="e.g. SLIIT Friends"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Group Name *</label>
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  placeholder="e.g. SLIIT Friends"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Group Size</label>
+                <input
+                  type="number"
+                  min="2"
+                  max="6"
+                  value={groupSize}
+                  onChange={(e) => setGroupSize(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                />
+              </div>
             </div>
           )}
-
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Contact Number *</label>
-            <input
-              type="tel"
-              value={contactNumber}
-              onChange={(e) => setContactNumber(e.target.value)}
-              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              placeholder="e.g. 0771234567"
-            />
-          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -2356,35 +2422,44 @@ const BookingForm: React.FC<{
             </div>
           </div>
 
-          {bookingType === 'INDIVIDUAL' && (
-            <div>
-              <label className="block text-sm text-gray-300 mb-1">Special Notes</label>
-              <textarea
-                value={specialNotes}
-                onChange={(e) => setSpecialNotes(e.target.value)}
-                rows={3}
-                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                placeholder="Any additional requests"
-              />
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Notes for owner</label>
+            <textarea
+              value={specialNotes}
+              onChange={(e) => setSpecialNotes(e.target.value)}
+              rows={2}
+              className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              placeholder="Any additional requests or questions for the owner…"
+            />
+          </div>
+
+          {formError && (
+            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+              <span className="text-red-400 text-sm">{formError}</span>
             </div>
           )}
-
-          {formError && <p className="text-red-400 text-sm text-center">{formError}</p>}
-          {successMessage && <p className="text-green-400 text-sm text-center">{successMessage}</p>}
+          {successMessage && (
+            <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2">
+              <span className="text-green-400 text-sm">{successMessage}</span>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600"
+              disabled={isSubmitting}
+              className="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
             >
-              Submit Booking Request
+              {isSubmitting && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              {isSubmitting ? 'Submitting…' : 'Submit Booking Request'}
             </button>
           </div>
         </form>
@@ -2840,6 +2915,7 @@ function SearchPage() {
               : Array.isArray(json) ? json : [];
             const mappedHouses: Listing[] = housesData.map((house: any, index: number) => ({
               id: 100000 + index,
+              mongoId: house._id || '',
               title: house.name || 'Boarding House',
               images: Array.isArray(house.images) && house.images.length > 0 ? house.images
                 : house.image ? [house.image] : [roomImages[index % roomImages.length]],
@@ -2873,6 +2949,7 @@ function SearchPage() {
         const mappedRooms: Listing[] = roomsResult.status === 'fulfilled' && roomsResult.value.ok && roomsData.length > 0
           ? roomsData.map((roomItem: any, index: number) => ({
               id: index + 1,
+              mongoId: roomItem._id || '',
               title: roomItem.name || 'Room Listing',
               images: Array.isArray(roomItem.images) && roomItem.images.length > 0
                 ? roomItem.images
@@ -3216,8 +3293,8 @@ function SearchPage() {
   };
 
   const handleViewDetails = (listing: Listing): void => {
-    setSelectedListing(listing);
-    setShowDetails(true);
+    const slug = listing.mongoId || String(listing.id);
+    navigate(`/listing/${slug}`, { state: { listing } });
   };
 
   const handleLogout = (): void => {
@@ -3281,51 +3358,39 @@ function SearchPage() {
         <div className="flex flex-col items-center w-full mb-6">
           <div className="w-full mb-4 md:max-w-5xl md:mx-auto rounded-2xl border border-white/10 bg-[#0f172a]/70 backdrop-blur-xl shadow-2xl px-3 py-3 md:px-5">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { window.location.href = '/'; }}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                  aria-label="Go to home"
-                >
-                  <FaArrowLeft className="text-white text-sm" />
-                </button>
-                <button
-                  onClick={() => { window.location.href = '/'; }}
-                  className="text-left"
-                >
-                  <h1 className="text-base md:text-xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent leading-tight">
+              {/* Logo */}
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 flex-shrink-0"
+              >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                  <span className="text-white font-bold text-xs">BB</span>
+                </div>
+                <div className="hidden sm:block text-left">
+                  <h1 className="text-base font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent leading-tight">
                     BoardingBook
                   </h1>
-                  <p className="text-[10px] md:text-xs text-cyan-100/70">Find & Search</p>
-                </button>
-              </div>
+                  <p className="text-[10px] text-cyan-100/60">Find your room</p>
+                </div>
+              </button>
 
-              <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
-                <button
-                  onClick={() => navigate('/')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  Home
-                </button>
-                <button
-                  onClick={() => navigate('/chatbot')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/chatbot' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  AI Chatbot
-                </button>
-                <button
-                  onClick={() => navigate('/owner-dashboard')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/owner-dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  List Your Property
-                </button>
-                <button
-                  onClick={() => navigate('/student/dashboard')}
-                  className={`px-4 py-2 text-sm rounded-xl border transition ${location.pathname === '/student/dashboard' ? 'bg-cyan-500/25 border-cyan-300/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
-                >
-                  Student Dashboard
-                </button>
-              </div>
+              {/* Center nav — only show if logged in as student */}
+              {currentUserId && (
+                <div className="hidden md:flex items-center gap-2">
+                  <button
+                    onClick={() => navigate('/student/dashboard')}
+                    className="px-4 py-2 text-sm rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition"
+                  >
+                    My Dashboard
+                  </button>
+                  <button
+                    onClick={() => navigate('/chat')}
+                    className="px-4 py-2 text-sm rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition"
+                  >
+                    Messages
+                  </button>
+                </div>
+              )}
 
               <div className="flex items-center gap-2">
                 <div className="relative z-[130]">
@@ -3452,7 +3517,7 @@ function SearchPage() {
                 </div>
 
                 <button
-                  onClick={() => navigate('/profile')}
+                  onClick={() => navigate('/student/dashboard', { state: { tab: 'profile' } })}
                   className="flex items-center gap-2 px-2 md:px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
                   title="Open profile settings"
                 >
@@ -3952,18 +4017,6 @@ function SearchPage() {
           </div>
         )}
 
-        {/* Details Modal */}
-        {showDetails && selectedListing && (
-          <DetailsModal
-            listing={selectedListing}
-            onClose={() => setShowDetails(false)}
-            onLike={handleLike}
-            onBooking={(listing) => {
-              setSelectedRoomForBooking(listing);
-              setShowBooking(true);
-            }}
-          />
-        )}
 
         {/* Booking Form Modal */}
         {showBooking && (

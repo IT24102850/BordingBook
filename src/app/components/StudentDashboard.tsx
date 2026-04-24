@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import StudentPaymentPanel from './payment/StudentPayment';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home, Users, CreditCard, MessageSquare, Bell, LogOut,
   FileText, Download, Phone, Mail, MapPin, Search,
@@ -12,7 +13,9 @@ import {
 // ============================================
 // CONFIG
 // ============================================
-const API = 'http://localhost:5001/api';
+const API = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5001')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '') + '/api';
 const getToken = () => localStorage.getItem('bb_access_token') || '';
 const authHeaders = () => ({ Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' });
 
@@ -28,12 +31,17 @@ interface UserProfile {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  mobileNumber?: string;
   studentId?: string;
   nic?: string;
   birthday?: string;
+  age?: string | number;
   academicYear?: string;
   bio?: string;
   profilePicture?: string;
+  profilePictures?: string[];
+  roommatePreference?: string;
+  roomType?: string;
   isVerified?: boolean;
   createdAt?: string;
 }
@@ -159,7 +167,12 @@ const EmptyState: React.FC<{ icon: React.ReactNode; title: string; sub?: string;
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const location = useLocation();
+  const profilePicInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const initialTab = (location.state as any)?.tab as Tab | undefined;
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'overview');
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
@@ -350,14 +363,44 @@ export default function StudentDashboard() {
     e.preventDefault();
     setProfileError(''); setProfileSuccess(false); setProfileSaving(true);
     try {
+      const payload = {
+        fullName: [profileEdit.firstName, profileEdit.lastName].filter(Boolean).join(' ') || profileEdit.fullName,
+        firstName: profileEdit.firstName,
+        lastName: profileEdit.lastName,
+        phoneNumber: profileEdit.phoneNumber,
+        mobileNumber: profileEdit.phoneNumber,
+        age: profileEdit.age ? Number(profileEdit.age) : undefined,
+        studentId: profileEdit.studentId,
+        nic: profileEdit.nic,
+        academicYear: profileEdit.academicYear,
+        bio: profileEdit.bio,
+        profilePicture: profileEdit.profilePicture,
+        profilePictures: profileEdit.profilePictures,
+        roommatePreference: profileEdit.roommatePreference,
+        roomType: profileEdit.roomType,
+      };
       const res = await fetch(`${API}/auth/profile`, {
         method: 'PUT',
         headers: authHeaders(),
-        body: JSON.stringify(profileEdit),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (data.success) { setProfileSuccess(true); fetchUser(); }
-      else setProfileError(data.message || 'Failed to save.');
+      if (data.success) {
+        setProfileSuccess(true);
+        fetchUser();
+        const cached = localStorage.getItem('bb_current_user');
+        if (cached) {
+          try {
+            localStorage.setItem('bb_current_user', JSON.stringify({
+              ...JSON.parse(cached),
+              fullName: payload.fullName,
+              profilePicture: payload.profilePicture,
+            }));
+          } catch { /* ignore */ }
+        }
+      } else {
+        setProfileError(data.message || 'Failed to save.');
+      }
     } catch { setProfileError('Network error.'); }
     setProfileSaving(false);
   };
@@ -840,16 +883,12 @@ export default function StudentDashboard() {
 
         {/* ===== PAYMENTS ===== */}
         {activeTab === 'payments' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div>
               <h2 className="text-white font-bold text-xl">Payments</h2>
-              <p className="text-gray-400 text-sm mt-0.5">Track your rental payments and history</p>
+              <p className="text-gray-400 text-sm mt-0.5">Upload receipts and track your rental payment history</p>
             </div>
-            <EmptyState
-              icon={<CreditCard size={40} />}
-              title="No payment records"
-              sub="Your payment history will appear here once you have an active lease"
-            />
+            <StudentPaymentPanel />
           </div>
         )}
 
@@ -1082,20 +1121,67 @@ export default function StudentDashboard() {
           <div className="space-y-6 max-w-2xl">
             <div>
               <h2 className="text-white font-bold text-xl">My Profile</h2>
-              <p className="text-gray-400 text-sm mt-0.5">Update your personal information</p>
+              <p className="text-gray-400 text-sm mt-0.5">Update your personal information and preferences</p>
             </div>
+
+            {/* Hidden file inputs */}
+            <input
+              ref={profilePicInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => setProfileEdit(prev => ({ ...prev, profilePicture: String(ev.target?.result || '') }));
+                reader.readAsDataURL(file);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={e => {
+                const files = e.target.files;
+                if (!files || files.length === 0) return;
+                const readers = Array.from(files).map(file =>
+                  new Promise<string>(resolve => {
+                    const r = new FileReader();
+                    r.onload = ev => resolve(String(ev.target?.result || ''));
+                    r.readAsDataURL(file);
+                  })
+                );
+                Promise.all(readers).then(imgs => {
+                  setProfileEdit(prev => ({ ...prev, profilePictures: [...(prev.profilePictures || []), ...imgs.filter(Boolean)] }));
+                });
+                e.target.value = '';
+              }}
+            />
 
             {/* Avatar */}
             <div className="flex items-center gap-5">
               <div className="relative">
-                {user?.profilePicture ? (
-                  <img src={user.profilePicture} alt={displayName} className="w-20 h-20 rounded-2xl object-cover border-2 border-white/20" />
+                {(profileEdit.profilePicture || user?.profilePicture) ? (
+                  <img
+                    src={profileEdit.profilePicture || user?.profilePicture}
+                    alt={displayName}
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-white/20"
+                  />
                 ) : (
                   <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
                     <span className="text-white text-2xl font-bold">{initials}</span>
                   </div>
                 )}
-                <button className="absolute -bottom-2 -right-2 bg-[#131d3a] border border-white/20 p-1.5 rounded-lg text-gray-400 hover:text-white transition">
+                <button
+                  type="button"
+                  onClick={() => profilePicInputRef.current?.click()}
+                  className="absolute -bottom-2 -right-2 bg-[#131d3a] border border-white/20 p-1.5 rounded-lg text-gray-400 hover:text-white transition"
+                  title="Change profile picture"
+                >
                   <Camera size={14} />
                 </button>
               </div>
@@ -1119,21 +1205,63 @@ export default function StudentDashboard() {
                   { label: 'First Name', key: 'firstName', type: 'text' },
                   { label: 'Last Name', key: 'lastName', type: 'text' },
                   { label: 'Phone Number', key: 'phoneNumber', type: 'tel' },
+                  { label: 'Age', key: 'age', type: 'number' },
                   { label: 'Student ID', key: 'studentId', type: 'text' },
                   { label: 'NIC Number', key: 'nic', type: 'text' },
-                  { label: 'Academic Year', key: 'academicYear', type: 'text', placeholder: 'e.g. 2nd' },
-                ].map(({ label, key, type, placeholder }) => (
+                ] .map(({ label, key, type }) => (
                   <div key={key}>
                     <label className="block text-gray-400 text-xs font-medium mb-1.5">{label}</label>
                     <input
                       type={type}
-                      placeholder={placeholder || label}
+                      placeholder={label}
                       value={(profileEdit as Record<string, string>)[key] || ''}
                       onChange={e => setProfileEdit(prev => ({ ...prev, [key]: e.target.value }))}
                       className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400/50 text-sm transition"
                     />
                   </div>
                 ))}
+
+                <div>
+                  <label className="block text-gray-400 text-xs font-medium mb-1.5">Academic Year</label>
+                  <select
+                    value={profileEdit.academicYear || ''}
+                    onChange={e => setProfileEdit(prev => ({ ...prev, academicYear: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400/50 text-sm"
+                  >
+                    <option value="" className="bg-[#131d3a]">Select</option>
+                    {['1st Year', '2nd Year', '3rd Year', '4th Year', 'Postgraduate'].map(y => (
+                      <option key={y} value={y} className="bg-[#131d3a]">{y}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs font-medium mb-1.5">Roommate Preference</label>
+                  <select
+                    value={profileEdit.roommatePreference || ''}
+                    onChange={e => setProfileEdit(prev => ({ ...prev, roommatePreference: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400/50 text-sm"
+                  >
+                    <option value="" className="bg-[#131d3a]">Select</option>
+                    {['Male', 'Female', 'Any'].map(p => (
+                      <option key={p} value={p} className="bg-[#131d3a]">{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs font-medium mb-1.5">Preferred Room Type</label>
+                  <select
+                    value={profileEdit.roomType || ''}
+                    onChange={e => setProfileEdit(prev => ({ ...prev, roomType: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400/50 text-sm"
+                  >
+                    <option value="" className="bg-[#131d3a]">Select</option>
+                    {['Single', 'Sharing', 'Master', 'Annex'].map(t => (
+                      <option key={t} value={t} className="bg-[#131d3a]">{t}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -1145,6 +1273,36 @@ export default function StudentDashboard() {
                   rows={3}
                   className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400/50 text-sm resize-none transition"
                 />
+              </div>
+
+              {/* Photo gallery */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-gray-400 text-xs font-medium">Profile Gallery</label>
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition"
+                  >
+                    <Camera size={12} /> Add photos
+                  </button>
+                </div>
+                {(profileEdit.profilePictures ?? []).length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {(profileEdit.profilePictures ?? []).map((img, i) => (
+                      <div key={i} className="relative group w-16 h-16">
+                        <img src={img} alt="" className="w-full h-full object-cover rounded-lg border border-white/10" />
+                        <button
+                          type="button"
+                          onClick={() => setProfileEdit(prev => ({ ...prev, profilePictures: (prev.profilePictures || []).filter((_, idx) => idx !== i) }))}
+                          className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-600 text-xs">No gallery photos yet.</p>
+                )}
               </div>
 
               {profileError && (

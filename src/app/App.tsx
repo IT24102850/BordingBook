@@ -71,6 +71,7 @@ const BookingManagementSystem = lazy(() => import('./components/booking/BookingM
 const StudentBookingDashboard = lazy(() => import('./components/booking/StudentBookingDashboard'));
 const UserProfileDashboard = lazy(() => import('./components/UserProfileDashboard'));
 
+const ListingDetailPage = lazy(() => import('./components/ListingDetailPage'));
 const BoardingDetail = lazy(() => import('./components/BoardingDetail'));
 const GroupBooking = lazy(() => import('./components/GroupBooking'));
 const ApprovalSuccess = lazy(() => import('./components/ApprovalSuccess'));
@@ -98,6 +99,7 @@ export default function App() {
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/profile-setup" element={<ProfileSetup />} />
         <Route path="/find" element={<SearchPage />} />
+        <Route path="/listing/:id" element={<ListingDetailPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
         

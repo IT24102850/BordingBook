@@ -8,15 +8,15 @@
 const getApiBaseUrl = (): string => {
   // Vite (recommended)
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+    return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
   }
 
   // Create React App style (for backward compatibility)
   if (typeof process !== 'undefined' && process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL.replace(/\/$/, '');
+    return process.env.REACT_APP_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
   }
   if (typeof process !== 'undefined' && process.env.REACT_APP_API_BASE) {
-    return process.env.REACT_APP_API_BASE.replace(/\/$/, '');
+    return process.env.REACT_APP_API_BASE.replace(/\/api\/?$/, '').replace(/\/$/, '');
   }
 
   // Development fallback

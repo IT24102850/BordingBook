@@ -181,6 +181,19 @@ async function deleteRoom(roomId: string): Promise<void> {
 }
 
 
+async function getNextPaymentCycleDate(tenantId: string): Promise<{ nextPaymentCycleStartDate: string | null }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/next-cycle`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) return { nextPaymentCycleStartDate: null };
+    const data = await parse<{ nextPaymentCycleStartDate: string }>(response);
+    return { nextPaymentCycleStartDate: data.data?.nextPaymentCycleStartDate ?? null };
+  } catch {
+    return { nextPaymentCycleStartDate: null };
+  }
+}
+
 // Booking Requests API
 export type BookingRequestDto = {
   _id: string;
@@ -232,4 +245,5 @@ export const ownerDashboardApi = {
   deleteRoom,
   getBookingRequests,
   updateBookingRequestStatus,
+  getNextPaymentCycleDate,
 };

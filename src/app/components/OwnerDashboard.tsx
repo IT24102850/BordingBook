@@ -1191,7 +1191,7 @@ export default function OwnerDashboard() {
           })
         );
 
-        setRooms(enhancedRooms);
+        setRooms(enhancedRooms as Room[]);
       } catch (error) {
         console.error('Failed to load owner dashboard data:', error);
       }
