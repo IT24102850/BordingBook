@@ -194,7 +194,7 @@ userSchema.index(
 );
 
 // Add index for role and createdAt to speed up browse queries
-userSchema.index({ role: 1, createdAt: -1, _id: -1 });
+userSchema.index({ role: 1, createdAt: -1 });
 
 const User = mongoose.model('User', userSchema);
 

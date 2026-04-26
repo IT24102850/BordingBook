@@ -1,71 +1,14 @@
 import React, { useState } from "react";
+import { useRoommateProfiles } from "../hooks/useRoommateProfiles";
 import { FaHeart, FaRegTimesCircle, FaUndo, FaHistory, FaBookmark, FaUserFriends, FaMoneyBillWave, FaBed, FaBolt, FaCalendarAlt, FaInfoCircle } from 'react-icons/fa';
 import { BiCurrentLocation } from 'react-icons/bi';
 import { RiUserSharedLine } from 'react-icons/ri';
 import { Menu, X, Home, Search, Users, User, LogIn, Users as UsersIcon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const roommateProfiles = [
-  {
-    id: 1,
-    name: "Ayesha",
-    description: "Clean, quiet, loves to cook. Looking for female roommate.",
-    budget: 12000,
-    academicYear: "2nd Year",
-    gender: "Female",
-    preferences: "Early riser, non-smoker",
-    image: "https://randomuser.me/api/portraits/women/44.jpg",
-    roomType: "Single Room",
-    billsIncluded: true,
-    availableFrom: "2024-02-01",
-    tags: ["Pet Friendly", "Vegetarian"]
-  },
-  {
-    id: 2,
-    name: "Nuwan",
-    description: "Outgoing, enjoys music, prefers group study.",
-    budget: 15000,
-    academicYear: "3rd Year",
-    gender: "Male",
-    preferences: "Night owl, likes guests",
-    image: "https://randomuser.me/api/portraits/men/34.jpg",
-    roomType: "Shared Room",
-    billsIncluded: false,
-    availableFrom: "2024-01-15",
-    tags: ["Group Study", "Music"]
-  },
-  {
-    id: 3,
-    name: "Sithara",
-    description: "Pet friendly, vegetarian, likes quiet evenings.",
-    budget: 11000,
-    academicYear: "1st Year",
-    gender: "Female",
-    preferences: "No parties, early bedtime",
-    image: "https://randomuser.me/api/portraits/women/68.jpg",
-    roomType: "Single Room",
-    billsIncluded: true,
-    availableFrom: "2024-02-10",
-    tags: ["Quiet", "Early Bedtime"]
-  },
-  {
-    id: 4,
-    name: "Kasun",
-    description: "Sports lover, tidy, prefers shared room.",
-    budget: 13000,
-    academicYear: "4th Year",
-    gender: "Male",
-    preferences: "Likes group activities",
-    image: "https://randomuser.me/api/portraits/men/22.jpg",
-    roomType: "Shared Room",
-    billsIncluded: false,
-    availableFrom: "2024-01-20",
-    tags: ["Sports", "Group Activities"]
-  }
-];
+// Profiles are now fetched from backend
 
-interface MiniProfileCardProps {
-  profile: typeof roommateProfiles[number];
+  profile: any;
   type: 'passed' | 'liked';
 }
 
@@ -90,8 +33,7 @@ function MiniProfileCard({ profile, type }: MiniProfileCardProps) {
   );
 }
 
-interface SwipeCardProps {
-  profile: typeof roommateProfiles[number];
+  profile: any;
   onSwipe: (dir: 'left' | 'right') => void;
   isAnimating: boolean;
   direction: 'left' | 'right' | null;
@@ -235,14 +177,14 @@ function RoommateNavBar() {
   );
 }
 
-export default function RoommateFinderPage() {
+
+  const { profiles: roommateProfiles, loading, error } = useRoommateProfiles();
   const [index, setIndex] = useState<number>(0);
-  const [liked, setLiked] = useState<typeof roommateProfiles>([]);
-  const [passed, setPassed] = useState<typeof roommateProfiles>([]);
+  const [liked, setLiked] = useState<any[]>([]);
+  const [passed, setPassed] = useState<any[]>([]);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const filteredProfiles = roommateProfiles;
-
   const currentProfile = filteredProfiles[index];
 
   const handleSwipe = (dir: 'left' | 'right') => {
@@ -277,71 +219,87 @@ export default function RoommateFinderPage() {
           {/* Header */}
           {/* Removed Roommate Finder heading as requested */}
 
-          {/* Tip */}
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <FaInfoCircle className="text-cyan-400 flex-shrink-0" />
-            <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full text-center">
-              Drag cards left/right to pass or like • Click buttons to act
-            </span>
-          </div>
+          {/* Loading/Error State */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center h-64">
+              <span className="text-cyan-300 text-lg font-semibold">Loading students...</span>
+            </div>
+          )}
+          {error && (
+            <div className="flex flex-col items-center justify-center h-64">
+              <span className="text-red-400 text-lg font-semibold">{error}</span>
+            </div>
+          )}
 
-          {/* Main Card */}
-          <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
-            {index < filteredProfiles.length - 1 && (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
-            )}
-            {currentProfile && (
-              <SwipeCard 
-                profile={currentProfile} 
-                onSwipe={handleSwipe} 
-                isAnimating={isAnimating} 
-                direction={direction} 
-              />
-            )}
-          </div>
+          {/* Main Content */}
+          {!loading && !error && (
+            <>
+              {/* Tip */}
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <FaInfoCircle className="text-cyan-400 flex-shrink-0" />
+                <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full text-center">
+                  Drag cards left/right to pass or like • Click buttons to act
+                </span>
+              </div>
 
-          {/* Results Count & Undo */}
-          <div className="flex justify-between items-center mb-4 max-w-md mx-auto">
-            <span className="text-sm text-gray-400">
-              {filteredProfiles.length - index} profiles remaining
-            </span>
-            <button 
-              onClick={handleUndo} 
-              className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1" 
-              type="button"
-            >
-              <FaUndo /> Undo
-            </button>
-          </div>
+              {/* Main Card */}
+              <div className="relative h-[500px] mb-4 perspective-1000 max-w-md mx-auto">
+                {index < filteredProfiles.length - 1 && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+                )}
+                {currentProfile && (
+                  <SwipeCard 
+                    profile={currentProfile} 
+                    onSwipe={handleSwipe} 
+                    isAnimating={isAnimating} 
+                    direction={direction} 
+                  />
+                )}
+              </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-center gap-4 mt-6">
-            <button
-              onClick={() => handleSwipe("left")}
-              disabled={isAnimating}
-              className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-              title="Not interested (swipe left)"
-              type="button"
-            >
-              <FaRegTimesCircle />
-            </button>
-            <button
-              onClick={() => handleSwipe("right")}
-              disabled={isAnimating}
-              className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-              title="Like this roommate (swipe right)"
-              type="button"
-            >
-              <FaHeart />
-            </button>
-          </div>
+              {/* Results Count & Undo */}
+              <div className="flex justify-between items-center mb-4 max-w-md mx-auto">
+                <span className="text-sm text-gray-400">
+                  {filteredProfiles.length - index} profiles remaining
+                </span>
+                <button 
+                  onClick={handleUndo} 
+                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1" 
+                  type="button"
+                >
+                  <FaUndo /> Undo
+                </button>
+              </div>
 
-          {/* Action Labels */}
-          <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
-            <span>Pass • Swipe Left</span>
-            <span>Like • Swipe Right</span>
-          </div>
+              {/* Action Buttons */}
+              <div className="flex justify-center gap-4 mt-6">
+                <button
+                  onClick={() => handleSwipe("left")}
+                  disabled={isAnimating}
+                  className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                  title="Not interested (swipe left)"
+                  type="button"
+                >
+                  <FaRegTimesCircle />
+                </button>
+                <button
+                  onClick={() => handleSwipe("right")}
+                  disabled={isAnimating}
+                  className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                  title="Like this roommate (swipe right)"
+                  type="button"
+                >
+                  <FaHeart />
+                </button>
+              </div>
 
+              {/* Action Labels */}
+              <div className="flex justify-between px-8 mt-2 text-xs text-gray-500 max-w-md mx-auto">
+                <span>Pass • Swipe Left</span>
+                <span>Like • Swipe Right</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Global Animations */}
@@ -369,127 +327,144 @@ export default function RoommateFinderPage() {
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 pt-24 md:pt-28 pb-6 md:pb-8">
         {/* Header */}
         {/* Removed Roommate Finder heading as requested */}
-        
-        {/* Tip */}
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <FaInfoCircle className="text-cyan-400" />
-          <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full">Drag cards left/right to pass or like • Click buttons to act</span>
-        </div>
-        
+
+        {/* Loading/Error State */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center h-64">
+            <span className="text-cyan-300 text-lg font-semibold">Loading students...</span>
+          </div>
+        )}
+        {error && (
+          <div className="flex flex-col items-center justify-center h-64">
+            <span className="text-red-400 text-lg font-semibold">{error}</span>
+          </div>
+        )}
+
         {/* Main Content - Three Column Layout */}
-        <div className="hidden md:grid md:grid-cols-3 gap-6">
-          {/* Left Column - Passed Profiles */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-            <div className="flex items-center gap-2 mb-4">
-              <FaHistory className="text-red-400" />
-              <h3 className="text-sm font-bold text-white">Passed</h3>
-              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">{passed.length}</span>
+        {!loading && !error && (
+          <>
+            {/* Tip */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <FaInfoCircle className="text-cyan-400" />
+              <span className="text-xs text-cyan-200 bg-cyan-900/60 px-3 py-1.5 rounded-full">Drag cards left/right to pass or like • Click buttons to act</span>
             </div>
-            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              {passed.length > 0 ? (
-                passed.map(profile => <MiniProfileCard key={profile.id} profile={profile} type="passed" />)
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-xs text-gray-500">No passed profiles yet</p>
-                  <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
+
+            {/* Main Content - Three Column Layout */}
+            <div className="hidden md:grid md:grid-cols-3 gap-6">
+              {/* Left Column - Passed Profiles */}
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaHistory className="text-red-400" />
+                  <h3 className="text-sm font-bold text-white">Passed</h3>
+                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full ml-auto">{passed.length}</span>
                 </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Center Column - Main Swipe Card */}
-          <div>
-            <div className="relative h-[500px] mb-4 perspective-1000">
-              {index < filteredProfiles.length - 1 && (
-                <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
-              )}
-              {currentProfile && (
-                <SwipeCard 
-                  profile={currentProfile} 
-                  onSwipe={handleSwipe} 
-                  isAnimating={isAnimating} 
-                  direction={direction} 
-                />
-              )}
-            </div>
-            
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-sm text-gray-400">{filteredProfiles.length - index} profiles remaining</span>
-              <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1" type="button">
-                <FaUndo /> Undo
-              </button>
-            </div>
-            
-            <div className="flex justify-center gap-4 mt-4">
-              <button 
-                onClick={() => handleSwipe("left")}
-                disabled={isAnimating}
-                className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                title="Not interested (swipe left)"
-                type="button"
-              >
-                <FaRegTimesCircle />
-              </button>
-              <button 
-                onClick={() => handleSwipe("right")}
-                disabled={isAnimating}
-                className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                title="Like this roommate (swipe right)"
-                type="button"
-              >
-                <FaHeart />
-              </button>
-            </div>
-            
-            <div className="flex justify-between px-8 mt-2 text-xs text-gray-500">
-              <span>Pass • Swipe Left</span>
-              <span>Like • Swipe Right</span>
-            </div>
-          </div>
-          
-          {/* Right Column - Liked Profiles */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-            <div className="flex items-center gap-2 mb-4">
-              <FaBookmark className="text-green-400" />
-              <h3 className="text-sm font-bold text-white">Favorites</h3>
-              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">{liked.length}</span>
-            </div>
-            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              {liked.length > 0 ? (
-                liked.map(profile => <MiniProfileCard key={profile.id} profile={profile} type="liked" />)
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-xs text-gray-500">No favorites yet</p>
-                  <p className="text-[10px] text-gray-600 mt-1">Swipe right to like</p>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {passed.length > 0 ? (
+                    passed.map(profile => <MiniProfileCard key={profile.id} profile={profile} type="passed" />)
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-xs text-gray-500">No passed profiles yet</p>
+                      <p className="text-[10px] text-gray-600 mt-1">Swipe left to pass</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* Center Column - Main Swipe Card */}
+              <div>
+                <div className="relative h-[500px] mb-4 perspective-1000">
+                  {index < filteredProfiles.length - 1 && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-3xl border border-white/10 shadow-xl transform translate-y-2 translate-x-1 scale-[0.98] opacity-30" />
+                  )}
+                  {currentProfile && (
+                    <SwipeCard 
+                      profile={currentProfile} 
+                      onSwipe={handleSwipe} 
+                      isAnimating={isAnimating} 
+                      direction={direction} 
+                    />
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm text-gray-400">{filteredProfiles.length - index} profiles remaining</span>
+                  <button onClick={handleUndo} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1" type="button">
+                    <FaUndo /> Undo
+                  </button>
+                </div>
+
+                <div className="flex justify-center gap-4 mt-4">
+                  <button 
+                    onClick={() => handleSwipe("left")}
+                    disabled={isAnimating}
+                    className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    title="Not interested (swipe left)"
+                    type="button"
+                  >
+                    <FaRegTimesCircle />
+                  </button>
+                  <button 
+                    onClick={() => handleSwipe("right")}
+                    disabled={isAnimating}
+                    className="w-16 h-16 bg-gradient-to-br from-green-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                    title="Like this roommate (swipe right)"
+                    type="button"
+                  >
+                    <FaHeart />
+                  </button>
+                </div>
+
+                <div className="flex justify-between px-8 mt-2 text-xs text-gray-500">
+                  <span>Pass • Swipe Left</span>
+                  <span>Like • Swipe Right</span>
+                </div>
+              </div>
+
+              {/* Right Column - Liked Profiles */}
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaBookmark className="text-green-400" />
+                  <h3 className="text-sm font-bold text-white">Favorites</h3>
+                  <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full ml-auto">{liked.length}</span>
+                </div>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {liked.length > 0 ? (
+                    liked.map(profile => <MiniProfileCard key={profile.id} profile={profile} type="liked" />)
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-xs text-gray-500">No favorites yet</p>
+                      <p className="text-[10px] text-gray-600 mt-1">Swipe right to like</p>
+                    </div>
+                  )}
+                </div>
+                {liked.length > 0 && (
+                  <button className="w-full mt-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all" type="button">
+                    View All Favorites
+                  </button>
+                )}
+              </div>
             </div>
-            {liked.length > 0 && (
-              <button className="w-full mt-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium hover:shadow-lg transition-all" type="button">
-                View All Favorites
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {/* Global Animations */}
-        <style>{`
-          @keyframes swipe-left {
-            0% { transform: translateX(0) rotate(0); opacity: 1; }
-            100% { transform: translateX(-300px) rotate(-15deg); opacity: 0; }
-          }
-          @keyframes swipe-right {
-            0% { transform: translateX(0) rotate(0); opacity: 1; }
-            100% { transform: translateX(300px) rotate(15deg); opacity: 0; }
-          }
-          .animate-swipe-left { animation: swipe-left 0.3s ease-out forwards; }
-          .animate-swipe-right { animation: swipe-right 0.3s ease-out forwards; }
-          .perspective-1000 { perspective: 1000px; }
-          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(34,211,238,0.3); border-radius: 10px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(34,211,238,0.5); }
-        `}</style>
+
+            {/* Global Animations */}
+            <style>{`
+              @keyframes swipe-left {
+                0% { transform: translateX(0) rotate(0); opacity: 1; }
+                100% { transform: translateX(-300px) rotate(-15deg); opacity: 0; }
+              }
+              @keyframes swipe-right {
+                0% { transform: translateX(0) rotate(0); opacity: 1; }
+                100% { transform: translateX(300px) rotate(15deg); opacity: 0; }
+              }
+              .animate-swipe-left { animation: swipe-left 0.3s ease-out forwards; }
+              .animate-swipe-right { animation: swipe-right 0.3s ease-out forwards; }
+              .perspective-1000 { perspective: 1000px; }
+              .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+              .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+              .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(34,211,238,0.3); border-radius: 10px; }
+              .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(34,211,238,0.5); }
+            `}</style>
+          </>
+        )}
       </div>
     </div>
   );

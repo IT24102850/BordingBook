@@ -1,61 +1,4 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
-// --- Roommate Fetch Effect (Fix 1) ---
-// Add this after your main useEffect for listings, but before component return
-
-// Roommate fetch state
-const [dbRoommates, setDbRoommates] = useState<any[]>([]);
-const [isRoommatesLoading, setIsRoommatesLoading] = useState(false);
-
-useEffect(() => {
-  if (!currentUserId) return; // Wait until user ID is resolved
-  let isCancelled = false;
-  const token = localStorage.getItem('bb_access_token') || '';
-  if (!token) return;
-
-  const loadRoommates = async () => {
-    setIsRoommatesLoading(true);
-    try {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(`${API_BASE_URL}/api/roommates/browse`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-        cache: 'no-store',
-      });
-      window.clearTimeout(timeoutId);
-      if (isCancelled) return;
-      if (!response.ok) { setIsRoommatesLoading(false); return; }
-      const json = await response.json().catch(() => ({}));
-      const roommateData = Array.isArray(json?.data) ? json.data
-        : Array.isArray(json?.profiles) ? json.profiles
-        : Array.isArray(json) ? json : [];
-      const mapped = roommateData.map((profile: any) => ({
-        id: normalizeIdValue(profile._id || profile.id),
-        userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-        name: profile.name || 'Student',
-        email: profile.email || '',
-        age: deriveProfileAge(profile),
-        gender: profile.gender || 'Any',
-        university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-        bio: profile.bio || profile.description || profile.about || 'No bio provided yet.',
-        image: profile.image || profile.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-        interests: Array.isArray(profile.tags) ? profile.tags : Array.isArray(profile.interests) ? profile.interests : [],
-        mutualCount: Number(profile.mutualCount) || 0,
-        role: profile.role || 'student',
-      }));
-      if (!isCancelled) {
-        setDbRoommates(mapped);
-        localStorage.setItem('bb_roommates_cache', JSON.stringify(mapped));
-      }
-    } catch (err: any) {
-      if (err?.name === 'AbortError' || isCancelled) return;
-    } finally {
-      if (!isCancelled) setIsRoommatesLoading(false);
-    }
-  };
-  loadRoommates();
-  return () => { isCancelled = true; };
-}, [currentUserId]);
 
 
 const BACKEND_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001')
@@ -483,7 +426,106 @@ const RoommateFinderPlaceholder: React.FC<{
     if (!token) return;
 
     let cancelled = false;
-    // ...existing code, roommate fetch block removed as per Fix 2...
+    const fetchJsonWithTimeout = async (url: string, timeoutMs = 15000) => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        const json = await response.json().catch(() => ({}));
+        return {
+          ok: response.ok,
+          status: response.status,
+          data: response.ok ? extractResponseArray(json) : [],
+          message: typeof json?.message === 'string' ? json.message : '',
+        };
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    };
+
+    const loadTabData = async () => {
+      setIsTabLoading(true);
+      setTabErrorMessage('');
+      try {
+        if (cancelled) return;
+
+        if (activeSection === 'inbox') {
+          const cachedInboxRaw = localStorage.getItem(inboxCacheKey);
+          if (cachedInboxRaw && !cancelled) {
+            try {
+              const cachedInbox = JSON.parse(cachedInboxRaw);
+              if (Array.isArray(cachedInbox) && cachedInbox.length > 0) {
+                setInboxItems(sortRequestsNewestFirst(cachedInbox));
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
+          const inboxResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/inbox`, 12000);
+          if (!cancelled && inboxResult.ok) {
+            const freshInbox = sortRequestsNewestFirst(inboxResult.data);
+            setInboxItems(freshInbox);
+            localStorage.setItem(inboxCacheKey, JSON.stringify(freshInbox));
+          } else if (!cancelled && !inboxResult.ok) {
+            if (inboxResult.status === 401 || inboxResult.status === 403) {
+              setTabErrorMessage('Inbox could not refresh because your session expired. Please sign in again.');
+            } else if (inboxResult.status >= 500) {
+              setTabErrorMessage('Inbox service is temporarily unavailable. Showing the latest available data.');
+            } else if (inboxResult.message) {
+              setTabErrorMessage(inboxResult.message);
+            }
+          }
+
+          // Fetch conversations/chats
+          const conversationsResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/chats/conversations`, 12000);
+          if (!cancelled && conversationsResult.ok) {
+            setConversations(conversationsResult.data);
+          }
+        } else if (activeSection === 'sent') {
+          const sentResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/request/sent`, 12000);
+          if (!cancelled && sentResult.ok) setSentItems(sentResult.data);
+        } else if (activeSection === 'groups') {
+          const cachedGroupsRaw = localStorage.getItem('bb_groups_cache');
+          if (cachedGroupsRaw && !cancelled) {
+            try {
+              const cachedGroups = JSON.parse(cachedGroupsRaw);
+              if (Array.isArray(cachedGroups) && cachedGroups.length > 0) {
+                setGroupItems(cachedGroups);
+              }
+            } catch {
+              // Ignore invalid cache payloads.
+            }
+          }
+
+          const groupsResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/groups`, 12000);
+          if (!cancelled && groupsResult.ok) {
+            setGroupItems(groupsResult.data);
+            localStorage.setItem('bb_groups_cache', JSON.stringify(groupsResult.data));
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          if (activeSection === 'inbox') {
+            setTabErrorMessage('Could not refresh inbox right now. Showing the latest available data.');
+          }
+          if (activeSection === 'sent') setSentItems([]);
+          if (activeSection === 'groups') setGroupItems([]);
+        }
+      } finally {
+        if (!cancelled) setIsTabLoading(false);
+      }
+    };
+
+    loadTabData();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection]);
 
   useEffect(() => {
     if (activeSection !== 'inbox') return;
@@ -1283,12 +1325,6 @@ const RoommateFinderPlaceholder: React.FC<{
           className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'browse' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
         >
           Browse
-        </button>
-        <button
-          onClick={() => setActiveSection('rooms')}
-          className={`px-5 py-2 rounded-xl text-sm border ${activeSection === 'rooms' ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}`}
-        >
-          Rooms & Houses
         </button>
         <button
           onClick={() => setActiveSection('sent')}
@@ -2952,68 +2988,11 @@ function SearchPage() {
           }
         }
 
-        if (token && !isCancelled) {
-          if (resolvedUserId) {
-            void fetchLatestNotifications(token, resolvedUserId, {
-              withLoader: false,
-              suppressPopup: true,
-            });
-          }
-
-          // Start loading roommates
-          if (!isCancelled) setIsRoommatesLoading(true);
-
-          // Instant fallback: show last successful roommate list while fresh data loads.
-          const cachedRoommatesRaw = localStorage.getItem('bb_roommates_cache');
-          if (cachedRoommatesRaw && !isCancelled) {
-            try {
-              const cachedRoommates = JSON.parse(cachedRoommatesRaw);
-              if (Array.isArray(cachedRoommates) && cachedRoommates.length > 0) {
-                setDbRoommates(cachedRoommates);
-                // Cache available, so loading is not needed anymore
-                if (!isCancelled) setIsRoommatesLoading(false);
-              }
-            } catch {
-              // Ignore invalid cache payloads.
-            }
-          }
-
-          const roommateResult = await fetchJsonWithTimeout(`${API_BASE_URL}/api/roommates/browse`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }, 10000);
-
-          if (!isCancelled && roommateResult.ok) {
-            const roommateData = Array.isArray(roommateResult.json?.data)
-              ? roommateResult.json.data
-              : Array.isArray(roommateResult.json?.profiles)
-                ? roommateResult.json.profiles
-                : Array.isArray(roommateResult.json)
-                  ? roommateResult.json
-                  : [];
-
-            const mappedRoommates = roommateData
-              .map((profile: any) => ({
-                id: normalizeIdValue(profile._id || profile.id),
-                userId: normalizeIdValue(profile.userId || profile._id || profile.id),
-                name: profile.name || 'Student',
-                email: profile.email || '',
-                age: deriveProfileAge(profile),
-                gender: profile.gender || 'Any',
-                university: profile.boardingHouse || profile.academicYear || 'SLIIT',
-                bio: profile.bio || profile.description || profile.about || profile.profileBio || 'No bio provided yet.',
-                image: profile.image || profile.profilePicture || (Array.isArray(profile.profilePictures) ? profile.profilePictures[0] : '') || 'https://randomuser.me/api/portraits/lego/1.jpg',
-                interests: Array.isArray(profile.tags) ? profile.tags : Array.isArray(profile.interests) ? profile.interests : [],
-                mutualCount: Number(profile.mutualCount) || 0,
-                role: profile.role || 'student',
-              }));
-
-            setDbRoommates(mappedRoommates);
-            localStorage.setItem('bb_roommates_cache', JSON.stringify(mappedRoommates));
-            if (!isCancelled) setIsRoommatesLoading(false);
-          } else if (!isCancelled) {
-            // Fetch failed or timed out, stop loading indicator
-            setIsRoommatesLoading(false);
-          }
+        if (token && !isCancelled && resolvedUserId) {
+          void fetchLatestNotifications(token, resolvedUserId, {
+            withLoader: false,
+            suppressPopup: true,
+          });
         }
       } catch {
         setDbListings([]);
@@ -3031,6 +3010,93 @@ function SearchPage() {
       window.clearTimeout(loadingTimeoutId);
     };
   }, [fetchLatestNotifications, listingsLoadKey]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('bb_access_token') || '';
+    if (!token) {
+      setIsRoommatesLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+
+    try {
+      const cached = localStorage.getItem('bb_roommates_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setDbRoommates(parsed);
+          setIsRoommatesLoading(false);
+        }
+      }
+    } catch {
+      // ignore invalid cache
+    }
+
+    setIsRoommatesLoading(true);
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+
+    fetch(`${API_BASE_URL}/api/roommates/browse`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+      cache: 'no-store',
+    })
+      .then(async (res) => {
+        window.clearTimeout(timeoutId);
+        if (isCancelled || !res.ok) return;
+        const json = await res.json().catch(() => ({}));
+        const data = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json?.profiles)
+            ? json.profiles
+            : Array.isArray(json)
+              ? json
+              : [];
+
+        const mapped = data.map((profile: any) => ({
+          id: normalizeIdValue(profile._id || profile.id),
+          userId: normalizeIdValue(profile.userId || profile._id || profile.id),
+          name: profile.name || 'Student',
+          email: profile.email || '',
+          age: deriveProfileAge(profile),
+          gender: profile.gender || 'Any',
+          university: profile.boardingHouse || profile.academicYear || 'SLIIT',
+          bio: profile.bio || profile.description || profile.about || 'No bio provided yet.',
+          image:
+            profile.image ||
+            profile.profilePicture ||
+            (Array.isArray(profile.profilePictures) ? profile.profilePictures[0] : '') ||
+            'https://randomuser.me/api/portraits/lego/1.jpg',
+          interests: Array.isArray(profile.tags)
+            ? profile.tags
+            : Array.isArray(profile.interests)
+              ? profile.interests
+              : [],
+          mutualCount: Number(profile.mutualCount) || 0,
+          role: profile.role || 'student',
+        }));
+
+        if (!isCancelled) {
+          setDbRoommates(mapped);
+          localStorage.setItem('bb_roommates_cache', JSON.stringify(mapped));
+        }
+      })
+      .catch((err) => {
+        window.clearTimeout(timeoutId);
+        if (err?.name === 'AbortError' || isCancelled) return;
+      })
+      .finally(() => {
+        if (!isCancelled) setIsRoommatesLoading(false);
+      });
+
+    return () => {
+      isCancelled = true;
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [listingsLoadKey]);
 
   const effectiveListings = dbListings;
   const effectiveRoommates = dbRoommates;
