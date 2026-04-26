@@ -22,9 +22,10 @@ exports.browseProfiles = async (req, res) => {
     const users = await User.find(browseFilter)
       .select('name fullName email role gender academicYear profilePicture tags boardingHouse age dateOfBirth dob birthDate bio description')
       .sort({ createdAt: -1, _id: -1 })
-      .limit(500)
+      .hint({ role: 1, createdAt: -1, _id: -1 })
+      .limit(120)
       .lean()
-      .maxTimeMS(15000)
+      .maxTimeMS(6000)
       .exec();
 
     const deriveAge = (user) => {

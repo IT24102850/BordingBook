@@ -85,6 +85,7 @@ router.put('/profile', requireAuth, profileUpdateValidation, validateRequest, au
 
 router.get('/me', requireAuth, authController.getMe);
 
+router.get('/profile', requireAuth, authController.getProfile);
 
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
