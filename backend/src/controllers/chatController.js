@@ -6,6 +6,8 @@ const RoommateMatch = require('../models/RoommateMatch');
 const RoommateProfile = require('../models/RoommateProfile');
 const User = require('../models/User');
 
+const CHAT_USER_SELECT = 'fullName email role profilePicture profilePictures';
+
 function toObjectId(value) {
   if (!value || !mongoose.Types.ObjectId.isValid(value)) {
     return null;
@@ -18,11 +20,12 @@ function directKeyFromUsers(userA, userB) {
 }
 
 function mapUser(user) {
+  const profilePicture = user?.profilePicture || (Array.isArray(user?.profilePictures) ? user.profilePictures[0] : '');
   return {
     id: String(user?._id || ''),
     fullName: user?.fullName || '',
     email: user?.email || '',
-    avatar: user?.profilePicture || '',
+    avatar: profilePicture || '',
     role: user?.role || 'student',
   };
 }
@@ -85,8 +88,8 @@ async function ensureConversationMember(conversationId, userId) {
     _id: conversationId,
     'participants.user': userId,
   })
-    .populate('participants.user', 'fullName email role')
-    .populate('lastMessage.sender', 'fullName email role');
+    .populate('participants.user', CHAT_USER_SELECT)
+    .populate('lastMessage.sender', CHAT_USER_SELECT);
 
   return conversation;
 }
@@ -136,8 +139,8 @@ exports.getConversations = async (req, res) => {
   try {
     const currentUserId = req.user.userId;
     const conversations = await ChatConversation.find({ 'participants.user': currentUserId })
-      .populate('participants.user', 'fullName email role')
-      .populate('lastMessage.sender', 'fullName email role')
+      .populate('participants.user', CHAT_USER_SELECT)
+      .populate('lastMessage.sender', CHAT_USER_SELECT)
       .sort({ updatedAt: -1 })
       .limit(100);
 
@@ -174,7 +177,7 @@ exports.getDirectContacts = async (req, res) => {
     }
 
     const users = await User.find(userFilter)
-      .select('fullName email role')
+      .select(CHAT_USER_SELECT)
       .sort({ updatedAt: -1 })
       .limit(limit);
 
@@ -197,7 +200,7 @@ exports.getDirectContacts = async (req, res) => {
       id: String(user._id),
       fullName: user.fullName || '',
       email: user.email || '',
-        avatar: '',
+      avatar: user.profilePicture || (Array.isArray(user.profilePictures) && user.profilePictures.length > 0 ? user.profilePictures[0] : ''),
       role: user.role || 'student',
       conversationId: directMap.get(String(user._id)) || null,
     }));
@@ -231,7 +234,7 @@ exports.getOrCreateDirectConversation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot create direct chat with yourself' });
     }
 
-    const recipient = await User.findById(recipientObjectId).select('fullName email profilePicture role');
+    const recipient = await User.findById(recipientObjectId).select(CHAT_USER_SELECT);
     if (!recipient) {
       console.log('[Chat] Recipient not found:', recipientObjectId);
       return res.status(404).json({ success: false, message: 'Recipient user not found' });
@@ -243,8 +246,8 @@ exports.getOrCreateDirectConversation = async (req, res) => {
     console.log('[Chat] Direct key:', key);
 
     let conversation = await ChatConversation.findOne({ directKey: key })
-        .populate('participants.user', 'fullName email role')
-        .populate('lastMessage.sender', 'fullName email role');
+      .populate('participants.user', CHAT_USER_SELECT)
+      .populate('lastMessage.sender', CHAT_USER_SELECT);
 
     if (!conversation) {
       console.log('[Chat] Creating new conversation');
@@ -258,8 +261,8 @@ exports.getOrCreateDirectConversation = async (req, res) => {
         // Handle duplicate-key race: another request may have created the same direct conversation.
         if (createError && createError.code === 11000) {
           conversation = await ChatConversation.findOne({ directKey: key })
-            .populate('participants.user', 'fullName email role')
-            .populate('lastMessage.sender', 'fullName email role');
+            .populate('participants.user', CHAT_USER_SELECT)
+            .populate('lastMessage.sender', CHAT_USER_SELECT);
         } else {
           throw createError;
         }
@@ -267,8 +270,8 @@ exports.getOrCreateDirectConversation = async (req, res) => {
 
       if (conversation && conversation._id) {
         conversation = await ChatConversation.findById(conversation._id)
-          .populate('participants.user', 'fullName email role')
-          .populate('lastMessage.sender', 'fullName email role');
+          .populate('participants.user', CHAT_USER_SELECT)
+          .populate('lastMessage.sender', CHAT_USER_SELECT);
       }
       console.log('[Chat] Conversation created:', conversation._id);
     } else {
@@ -310,8 +313,8 @@ exports.getOrCreateGroupConversation = async (req, res) => {
       }
 
       let conversation = await ChatConversation.findOne({ groupRef: groupId })
-        .populate('participants.user', 'fullName email role')
-        .populate('lastMessage.sender', 'fullName email role');
+        .populate('participants.user', CHAT_USER_SELECT)
+        .populate('lastMessage.sender', CHAT_USER_SELECT);
 
       if (!conversation) {
         // Only include members with status: 'accepted'
@@ -332,8 +335,8 @@ exports.getOrCreateGroupConversation = async (req, res) => {
         });
 
         conversation = await ChatConversation.findById(conversation._id)
-          .populate('participants.user', 'fullName email role')
-          .populate('lastMessage.sender', 'fullName email role');
+          .populate('participants.user', CHAT_USER_SELECT)
+          .populate('lastMessage.sender', CHAT_USER_SELECT);
       }
 
       const mapped = await mapConversation(conversation, currentUserId);
@@ -348,7 +351,7 @@ exports.getOrCreateGroupConversation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'At least one additional participant is required' });
     }
 
-    const users = await User.find({ _id: { $in: normalizedParticipantIds } }).select('fullName email role');
+    const users = await User.find({ _id: { $in: normalizedParticipantIds } }).select(CHAT_USER_SELECT);
     if (users.length !== normalizedParticipantIds.length) {
       return res.status(404).json({ success: false, message: 'One or more participants were not found' });
     }
@@ -360,8 +363,8 @@ exports.getOrCreateGroupConversation = async (req, res) => {
     });
 
     const populated = await ChatConversation.findById(conversation._id)
-      .populate('participants.user', 'fullName email role')
-      .populate('lastMessage.sender', 'fullName email role');
+      .populate('participants.user', CHAT_USER_SELECT)
+      .populate('lastMessage.sender', CHAT_USER_SELECT);
 
     const mapped = await mapConversation(populated, currentUserId);
 
@@ -391,7 +394,7 @@ exports.getConversationMessages = async (req, res) => {
     }
 
     const messages = await ChatMessage.find(query)
-      .populate('sender', 'fullName email role')
+      .populate('sender', CHAT_USER_SELECT)
       .sort({ createdAt: -1 })
       .limit(limit);
 
@@ -431,7 +434,7 @@ exports.sendMessage = async (req, res) => {
       readBy: [currentUserId],
     });
 
-    const populatedMessage = await ChatMessage.findById(message._id).populate('sender', 'fullName email role');
+    const populatedMessage = await ChatMessage.findById(message._id).populate('sender', CHAT_USER_SELECT);
 
     await ChatConversation.updateOne(
       { _id: conversationId },

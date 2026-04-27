@@ -272,7 +272,7 @@ exports.createAgreementForRequest = async (req, res) => {
       user: agreement.studentId,
       type: 'system',
       title: 'New Agreement Sent',
-      message: `A digital rental agreement has been sent to you for room: ${hydrated.roomId?.name || ''}. Please review and sign to proceed with your booking.`,
+      message: `A digital rental agreement has been sent to you for room: ${hydrated.roomId?.name || ''}. Please review and add your e-signature to proceed with your booking.`,
       data: { agreementId: agreement._id, bookingRequestId: agreement.bookingRequestId },
     });
 

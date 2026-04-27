@@ -6,7 +6,9 @@ import {
   Sparkles, Home
 } from 'lucide-react';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5003';
+const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '');
 
 // Professional image for right panel
 const ProfessionalVisual = () => {
@@ -136,14 +138,13 @@ export default function SignIn() {
       localStorage.setItem('bb_current_user', JSON.stringify(result.data.user));
       setSuccess('Signed in successfully!');
 
-      // Only treat the profile as complete when the backend says it is.
-      const isProfileComplete = result.data.user.profileCompleted === true;
+      const isNewStudent = result.data.user?.isNewStudent === true;
 
-      let destination = '/student/dashboard';
-      if (!isProfileComplete) {
-        destination = '/profile-setup';
-      } else if (result.data.user.role === 'owner') {
+      let destination = '/search';
+      if (result.data.user.role === 'owner') {
         destination = '/owner/dashboard';
+      } else if (isNewStudent) {
+        destination = '/profile-setup';
       }
       setTimeout(() => navigate(destination), 800);
     } catch (err) {

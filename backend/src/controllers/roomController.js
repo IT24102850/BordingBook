@@ -1,4 +1,6 @@
+
 const Room = require('../models/Room');
+const BoardingHouse = require('../models/BoardingHouse');
 
 
 const fallbackRoomImages = [
@@ -303,6 +305,7 @@ exports.createRoom = async (req, res) => {
       ownerEmail,
       amenities,
       rules,
+      houseId: bodyHouseId,
     } = req.body;
 
     if (!name || !location || !price || !totalSpots) {
@@ -310,6 +313,28 @@ exports.createRoom = async (req, res) => {
         success: false,
         message: 'name, location, price, and totalSpots are required',
       });
+    }
+
+    // Get ownerId from authenticated user
+    const ownerId = req.user && req.user._id ? req.user._id : null;
+    if (!ownerId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: ownerId missing from user context',
+      });
+    }
+
+    // Determine houseId: use provided or auto-select owner's house
+    let houseId = bodyHouseId;
+    if (!houseId) {
+      const house = await BoardingHouse.findOne({ ownerId });
+      if (!house) {
+        return res.status(400).json({
+          success: false,
+          message: 'No boarding house found for this owner. Please create a house first or provide houseId.',
+        });
+      }
+      houseId = house._id;
     }
 
     const room = new Room({
@@ -325,6 +350,8 @@ exports.createRoom = async (req, res) => {
       ownerEmail: ownerEmail || '',
       amenities: amenities || [],
       rules: rules || [],
+      ownerId,
+      houseId,
     });
 
     await room.save();

@@ -221,7 +221,7 @@ router.post(
     try {
       const SavedSearch = require('../models/SavedSearch');
       const { name, filters } = req.body;
-      const userId = req.user.id;
+      const userId = req.user.userId || req.user.id || req.user._id;
 
       const savedSearch = new SavedSearch({
         userId,
@@ -250,7 +250,7 @@ router.post(
 router.get('/search/saved', requireAuth, async (req, res) => {
   try {
     const SavedSearch = require('../models/SavedSearch');
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id || req.user._id;
 
     const searches = await SavedSearch.find({ userId }).sort({
       createdAt: -1,
@@ -275,7 +275,7 @@ router.get('/search/saved/:searchId', requireAuth, async (req, res) => {
   try {
     const SavedSearch = require('../models/SavedSearch');
     const { searchId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id || req.user._id;
 
     const search = await SavedSearch.findOne({
       _id: searchId,
@@ -312,7 +312,7 @@ router.patch('/search/saved/:searchId', requireAuth, async (req, res) => {
     const SavedSearch = require('../models/SavedSearch');
     const { searchId } = req.params;
     const { name, filters } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id || req.user._id;
 
     const search = await SavedSearch.findOneAndUpdate(
       { _id: searchId, userId },
@@ -346,7 +346,7 @@ router.delete('/search/saved/:searchId', requireAuth, async (req, res) => {
   try {
     const SavedSearch = require('../models/SavedSearch');
     const { searchId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id || req.user._id;
 
     const search = await SavedSearch.findOneAndDelete({
       _id: searchId,

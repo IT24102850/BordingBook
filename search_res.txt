@@ -1,0 +1,4 @@
+              images: Array.isArray(house.images) && house.images.length > 0 ? house.images
+                : house.image ? [house.image] : [roomImages[index % roomImages.length]],
+              price: Number(house.monthlyPrice) || 0,
+              location: house.address || 'Unknown',

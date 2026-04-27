@@ -72,19 +72,6 @@ interface ChatContact {
   lastSeen?: string;
 }
 
-interface AcceptedRoommate {
-  id: string;
-  userId: string;
-  name: string;
-  email: string;
-  age: number;
-  gender: string;
-  university: string;
-  bio: string;
-  image: string;
-  interests?: string[];
-}
-
 interface IncomingCall {
   conversationId: string;
   fromUser: ChatUser;
@@ -98,16 +85,47 @@ interface ActiveCall {
   phase: 'dialing' | 'connecting' | 'active';
 }
 
+const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/lego/1.jpg';
+
+function resolveAssetUrl(value: unknown): string {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('//')) {
+    return `https:${trimmed}`;
+  }
+  const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${API_BASE_URL}${path}`;
+}
+
+function resolveAvatarUrl(...candidates: unknown[]): string {
+  for (const candidate of candidates) {
+    const normalized = resolveAssetUrl(candidate);
+    if (normalized) return normalized;
+  }
+  return DEFAULT_AVATAR;
+}
+
 function getCurrentUser(): ChatUser | null {
   try {
     const raw = localStorage.getItem('bb_current_user');
     if (!raw) return null;
     const parsed = JSON.parse(raw);
+    const avatar = resolveAvatarUrl(
+      parsed?.profilePicture,
+      parsed?.image,
+      parsed?.avatar,
+      parsed?.photo,
+      parsed?.picture
+    );
     return {
       id: String(parsed?.id || ''),
       fullName: String(parsed?.fullName || ''),
       email: String(parsed?.email || ''),
-      avatar: String(parsed?.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg'),
+      avatar,
       role: String(parsed?.role || 'student'),
     };
   } catch {
@@ -231,13 +249,11 @@ export default function Chat() {
       return [];
     }
   });
-  const [acceptedRoommates, setAcceptedRoommates] = useState<AcceptedRoommate[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingConversations, setLoadingConversations] = useState(false);
-  const [loadingAcceptedRoommates, setLoadingAcceptedRoommates] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState('');
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
@@ -252,7 +268,7 @@ export default function Chat() {
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [initializingChat, setInitializingChat] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'chats' | 'roommates'>('chats');
+  const [sidebarTab, setSidebarTab] = useState<'chats'>('chats');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -285,15 +301,6 @@ export default function Chat() {
     if (!query) return conversations;
     return conversations.filter((conversation) => conversation.name.toLowerCase().includes(query));
   }, [conversations, searchQuery]);
-
-  const filteredAcceptedRoommates = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return acceptedRoommates;
-    return acceptedRoommates.filter((roommate) => 
-      roommate.name.toLowerCase().includes(query) || 
-      roommate.email.toLowerCase().includes(query)
-    );
-  }, [acceptedRoommates, searchQuery]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -362,46 +369,38 @@ export default function Chat() {
     [activeCall, cleanupMedia, cleanupPeer]
   );
 
-  // Fetch accepted roommates from API
-  const fetchAcceptedRoommates = useCallback(async () => {
-    if (!token) return;
-    try {
-      setLoadingAcceptedRoommates(true);
-      const response = await fetch(`${API_BASE_URL}/api/roommates/mutual`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await response.json();
-      
-      if (response.ok && json.success !== false) {
-        const roommates = Array.isArray(json?.data) ? json.data : [];
-        const mappedRoommates: AcceptedRoommate[] = roommates.map((roommate: any) => ({
-          id: normalizeId(roommate._id || roommate.id),
-          userId: normalizeId(roommate.userId || roommate._id || roommate.id),
-          name: roommate.name || roommate.fullName || 'Student',
-          email: roommate.email || '',
-          age: roommate.age || 20,
-          gender: roommate.gender || 'Any',
-          university: roommate.university || roommate.boardingHouse || 'Student',
-          bio: roommate.bio || roommate.description || 'Looking for a compatible roommate.',
-          image: roommate.image || roommate.profilePicture || 'https://randomuser.me/api/portraits/lego/1.jpg',
-          interests: Array.isArray(roommate.interests) ? roommate.interests : (Array.isArray(roommate.tags) ? roommate.tags : []),
-        }));
-        setAcceptedRoommates(mappedRoommates);
-      }
-    } catch (error) {
-      console.error('Error fetching accepted roommates:', error);
-    } finally {
-      setLoadingAcceptedRoommates(false);
-    }
-  }, [token]);
-
   // Fetch conversations
   const fetchConversations = useCallback(async (preferredConversationId?: string): Promise<ChatConversation[]> => {
     if (!token) return [];
     try {
       setLoadingConversations(true);
       const data = await apiFetch<ChatConversation[]>('/conversations', token);
-      const nextConversations = (data || []).sort((a, b) => {
+      const nextConversations = (data || []).map((conversation: ChatConversation) => {
+        const normalizedParticipants = Array.isArray(conversation.participants)
+          ? conversation.participants.map((participant) => ({
+              ...participant,
+              avatar: resolveAvatarUrl(
+                participant.avatar,
+                (participant as any).image,
+                (participant as any).profilePicture,
+                (participant as any).photo,
+                (participant as any).picture
+              ),
+            }))
+          : [];
+        const normalizedAvatar = resolveAvatarUrl(
+          conversation.avatar,
+          (conversation as any).image,
+          (conversation as any).profilePicture,
+          normalizedParticipants.find((participant) => participant.id !== currentUser?.id)?.avatar,
+          normalizedParticipants[0]?.avatar
+        );
+        return {
+          ...conversation,
+          avatar: normalizedAvatar,
+          participants: normalizedParticipants,
+        };
+      }).sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
         return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
@@ -526,47 +525,6 @@ export default function Chat() {
     }
   }, [selectedConversationId, currentUser, token]);
 
-  // Start a chat with an accepted roommate
-  const startChatWithRoommate = useCallback(async (roommate: any) => {
-    if (!token || !currentUser) {
-      setError('Please sign in to start a chat');
-      return;
-    }
-
-    setInitializingChat(true);
-    try {
-      // Robust ID extraction
-      let recipientId = normalizeId(
-        roommate.userId ||
-        roommate.id ||
-        roommate._id ||
-        roommate.userID ||
-        roommate.ID
-      );
-      if (!recipientId && roommate._id) {
-        recipientId = String(roommate._id);
-      }
-      if (!recipientId) {
-        setError('Could not start chat - missing user ID.');
-        return;
-      }
-      console.log('[Chat] Starting chat with roommate:', roommate.name || roommate.fullName, recipientId);
-      const data = await apiFetch<ChatConversation>('/conversations/direct', token, {
-        method: 'POST',
-        body: JSON.stringify({ recipientId }),
-      });
-      setSelectedConversationId(data.id);
-      selectedConversationIdRef.current = data.id;
-      await fetchConversations(data.id);
-      setSidebarTab('chats');
-    } catch (error) {
-      console.error('[Chat] Error starting chat:', error);
-      setError((error as Error).message || 'Unable to start chat');
-    } finally {
-      setInitializingChat(false);
-    }
-  }, [token, currentUser, fetchConversations]);
-
   // Open chat from route state (when coming from search page)
   const ensureConversationFromRouteState = useCallback(async () => {
     if (!token || !currentUser) return;
@@ -581,7 +539,6 @@ export default function Chat() {
       setSelectedConversationId(conversationId);
       selectedConversationIdRef.current = conversationId;
       await fetchConversations(conversationId);
-      setSidebarTab('chats');
       navigate(location.pathname, { replace: true, state: {} });
       return;
     }
@@ -604,7 +561,6 @@ export default function Chat() {
         setSelectedConversationId(data.id);
         selectedConversationIdRef.current = data.id;
         await fetchConversations(data.id);
-        setSidebarTab('chats');
         navigate(location.pathname, { replace: true, state: {} });
       } catch (createError) {
         console.error('[Chat] Error opening group conversation:', createError);
@@ -654,7 +610,17 @@ export default function Chat() {
         setLoadingContacts(true);
         const query = search ? `?search=${encodeURIComponent(search)}` : '';
         const data = await apiFetch<ChatContact[]>(`/contacts${query}`, token);
-        setContacts(data || []);
+        const normalizedContacts = (data || []).map((contact) => ({
+          ...contact,
+          avatar: resolveAvatarUrl(
+            contact.avatar,
+            (contact as any).image,
+            (contact as any).profilePicture,
+            (contact as any).photo,
+            (contact as any).picture
+          ),
+        }));
+        setContacts(normalizedContacts);
       } catch (fetchError) {
         setError((fetchError as Error).message || 'Unable to load contacts');
       } finally {
@@ -953,11 +919,6 @@ export default function Chat() {
     fetchConversations();
   }, [fetchConversations]);
 
-  useEffect(() => {
-    if (sidebarTab !== 'roommates') return;
-    fetchAcceptedRoommates();
-  }, [fetchAcceptedRoommates, sidebarTab]);
-
   // Handle route state for opening chat from roommate
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1210,7 +1171,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex overflow-hidden pt-[env(safe-area-inset-top)]">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b] flex flex-col lg:flex-row overflow-hidden pt-[env(safe-area-inset-top)]">
       {/* Sidebar */}
       <div className={`w-full lg:w-96 border-r border-white/10 h-full overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'} flex-col`}>
         {/* Sidebar Header with Tabs */}
@@ -1225,28 +1186,10 @@ export default function Chat() {
             </button>
           </div>
           
-          {/* Tab Switcher */}
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setSidebarTab('chats')}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                sidebarTab === 'chats'
-                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
-                  : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
-              }`}
-            >
+          <div className="mb-4">
+            <div className="w-full px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg text-center">
               Chats ({conversations.length})
-            </button>
-            <button
-              onClick={() => setSidebarTab('roommates')}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                sidebarTab === 'roommates'
-                  ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg'
-                  : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
-              }`}
-            >
-              Roommates ({acceptedRoommates.length})
-            </button>
+            </div>
           </div>
           
           {/* Search Bar */}
@@ -1254,7 +1197,7 @@ export default function Chat() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input
               type="text"
-              placeholder={sidebarTab === 'chats' ? "Search conversations..." : "Search roommates..."}
+              placeholder="Search conversations..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="w-full bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
@@ -1264,9 +1207,7 @@ export default function Chat() {
 
         {/* Content based on selected tab */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {/* CHATS TAB */}
-          {sidebarTab === 'chats' && (
-            <>
+          <>
               {loadingConversations && (
                 <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
                   <Loader2 size={14} className="animate-spin" /> Loading conversations...
@@ -1321,85 +1262,15 @@ export default function Chat() {
                   </div>
                 </button>
               ))}
-            </>
-          )}
-
-          {/* ROOMMATES TAB - Show accepted roommates */}
-          {sidebarTab === 'roommates' && (
-            <>
-              {loadingAcceptedRoommates && (
-                <div className="px-4 py-3 text-xs text-gray-400 flex items-center gap-2">
-                  <Loader2 size={14} className="animate-spin" /> Loading roommates...
-                </div>
-              )}
-
-              {!loadingAcceptedRoommates && filteredAcceptedRoommates.length === 0 && (
-                <div className="p-6 text-gray-400 text-sm text-center">
-                  <UserCheck size={40} className="mx-auto mb-3 opacity-50" />
-                  <p>No accepted roommates yet.</p>
-                  <p className="text-xs mt-1">When you accept a roommate request, they'll appear here.</p>
-                  <button
-                    onClick={() => navigate('/find')}
-                    className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition"
-                  >
-                    Find Roommates
-                  </button>
-                </div>
-              )}
-
-              {filteredAcceptedRoommates.map((roommate) => (
-                <button
-                  key={roommate.id}
-                  onClick={() => startChatWithRoommate(roommate)}
-                  className="w-full p-4 border-b border-white/10 hover:bg-white/5 transition text-left group"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="relative">
-                      <img
-                        src={roommate.image || 'https://randomuser.me/api/portraits/lego/1.jpg'}
-                        alt={roommate.name}
-                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                      />
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131d3a]"></div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-white font-semibold truncate">{roommate.name}</h3>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 opacity-0 group-hover:opacity-100 transition-opacity">
-                          Chat
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
-                        <span>{roommate.age} yrs</span>
-                        <span>•</span>
-                        <span>{roommate.gender}</span>
-                        <span>•</span>
-                        <span>{roommate.university}</span>
-                      </div>
-                      <p className="text-gray-500 text-xs mt-1 line-clamp-1">{roommate.bio}</p>
-                      {roommate.interests && roommate.interests.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {roommate.interests.slice(0, 3).map((interest, idx) => (
-                            <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300">
-                              {interest}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </>
-          )}
+          </>
         </div>
       </div>
 
       {/* Chat Area */}
       {selectedConversation && (
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 w-full">
           {/* Chat Header */}
-          <div className="border-b border-white/10 p-4 flex items-center justify-between bg-white/5 sticky top-[env(safe-area-inset-top)] z-10">
+          <div className="border-b border-white/10 p-3 sm:p-4 flex items-center justify-between bg-white/5 sticky top-[env(safe-area-inset-top)] z-10">
             <div className="flex items-center gap-3 min-w-0">
               <button 
                 onClick={() => setSelectedConversationId('')} 
@@ -1409,16 +1280,20 @@ export default function Chat() {
               </button>
               <div className="relative cursor-pointer" onClick={() => setShowUserProfile(true)}>
                 <img
-                  src={selectedConversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                  src={resolveAvatarUrl(
+                    selectedConversation.avatar,
+                    selectedConversation.participants.find((participant) => participant.id !== currentUser?.id)?.avatar,
+                    selectedConversation.participants[0]?.avatar
+                  )}
                   alt={selectedConversation.name}
-                  className="w-10 h-10 rounded-full object-cover"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover"
                 />
                 {targetParticipant?.isOnline && (
                   <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#131d3a]"></div>
                 )}
               </div>
               <div className="min-w-0">
-                <h2 className="text-white font-semibold truncate text-base sm:text-lg">{selectedConversation.name}</h2>
+                <h2 className="text-white font-semibold truncate text-sm sm:text-base md:text-lg">{selectedConversation.name}</h2>
                 <p className="text-gray-400 text-xs truncate">
                   {selectedConversation.type === 'group' 
                     ? `${selectedConversation.participants.length} members` 
@@ -1505,7 +1380,7 @@ export default function Chat() {
           )}
 
           {/* Messages Area */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-28 sm:pb-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 pb-28 sm:pb-4 space-y-4">
             {loadingMessages && (
               <div className="text-xs text-gray-400 flex items-center gap-2 justify-center py-8">
                 <Loader2 size={14} className="animate-spin" /> Loading messages...
@@ -1537,12 +1412,12 @@ export default function Chat() {
                   <div className={`flex ${message.mine ? 'justify-end' : 'justify-start'}`}>
                     {!message.mine && (
                       <img
-                        src={message.sender.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                        src={resolveAvatarUrl(message.sender.avatar, (message.sender as any).image, (message.sender as any).profilePicture)}
                         alt={message.sender.fullName}
-                        className="w-8 h-8 rounded-full object-cover mr-2 mt-1 flex-shrink-0"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover mr-2 mt-1 flex-shrink-0"
                       />
                     )}
-                    <div className={`max-w-xs md:max-w-md ${message.mine ? 'items-end' : 'items-start'}`}>
+                    <div className={`max-w-[78vw] sm:max-w-xs md:max-w-md ${message.mine ? 'items-end' : 'items-start'}`}>
                       {selectedConversation.type === 'group' && !message.mine && (
                         <p className="text-xs font-bold mb-1 text-cyan-300">{message.sender.fullName || message.sender.email}</p>
                       )}
@@ -1609,7 +1484,7 @@ export default function Chat() {
           </div>
 
           {/* Message Input Area */}
-          <div className="border-t border-white/10 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/5 sticky bottom-16 sm:bottom-0 z-20">
+          <div className="border-t border-white/10 p-3 sm:p-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] bg-white/5 sticky bottom-0 z-20">
             {replyToMessage && (
               <div className="mb-2 p-2 bg-cyan-500/10 rounded-lg flex items-center justify-between">
                 <div className="flex-1">
@@ -1622,8 +1497,8 @@ export default function Chat() {
               </div>
             )}
             
-            <div className="flex items-end gap-3">
-              <div className="flex gap-1">
+            <div className="flex items-end gap-2 sm:gap-3">
+              <div className="flex gap-1 shrink-0">
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
@@ -1665,7 +1540,7 @@ export default function Chat() {
                 />
               </div>
               
-              <div className="flex-1 relative">
+              <div className="flex-1 relative min-w-0">
                 <textarea
                   value={newMessage}
                   onChange={(event) => {
@@ -1680,7 +1555,7 @@ export default function Chat() {
                   }}
                   placeholder="Type a message..."
                   rows={1}
-                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none"
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-3 sm:px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 resize-none text-sm sm:text-base"
                 />
                 {showEmojiPicker && (
                   <div className="absolute bottom-full mb-2 right-0 z-50">
@@ -1697,7 +1572,7 @@ export default function Chat() {
               <button
                 onClick={() => void handleSendMessage()}
                 disabled={!newMessage.trim() && !isUploading}
-                className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 p-2 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 p-2 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shrink-0"
               >
                 {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
               </button>

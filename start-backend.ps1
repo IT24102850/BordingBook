@@ -1,10 +1,18 @@
 #!/usr/bin/env pwsh
-# Kill any existing Node processes
-Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
- 
-Start-Sleep -Seconds 2
 
-# Navigate to backend and start
-Set-Location -Path "C:\Users\hasir\OneDrive\Documents\BordingBook\backend"
-Write-Output "Starting backend server..."
+# Always resolve backend path from this script location.
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$backendPath = Join-Path $scriptDir "backend"
+
+if (-not (Test-Path $backendPath)) {
+	Write-Error "Backend folder not found at: $backendPath"
+	exit 1
+}
+
+# Kill any existing Node processes.
+Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+# Navigate to backend and start.
+Set-Location -Path $backendPath
+Write-Output "Starting backend server from: $backendPath"
 & npm start

@@ -260,8 +260,8 @@ exports.signin = async (req, res) => {
       });
     }
 
-    // Find user and include password field
-    const user = await User.findOne({ email }).select('+password');
+    // Find user and include password + login history to detect first-time sign-ins
+    const user = await User.findOne({ email }).select('+password +loginHistory');
 
     if (!user) {
       return res.status(401).json({
@@ -288,6 +288,8 @@ exports.signin = async (req, res) => {
         message: 'Invalid email or password',
       });
     }
+
+    const isFirstLogin = !Array.isArray(user.loginHistory) || user.loginHistory.length === 0;
 
     // Record login activity (keep last 20)
     const now = new Date();
@@ -318,6 +320,7 @@ exports.signin = async (req, res) => {
           role: user.role,
           fullName: user.fullName,
           isVerified: user.isVerified,
+          isNewStudent: user.role === 'student' && isFirstLogin,
         },
       },
     });

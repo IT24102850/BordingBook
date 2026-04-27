@@ -99,6 +99,7 @@ export default function App() {
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/profile-setup" element={<ProfileSetup />} />
         <Route path="/find" element={<SearchPage />} />
+        <Route path="/search" element={<SearchPage />} />
         <Route path="/listing/:id" element={<ListingDetailPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/verify-email/:token" element={<VerifyEmailPage />} />

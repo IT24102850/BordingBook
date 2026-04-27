@@ -1,4 +1,89 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
+// Agreement Acceptance Modal
+const AgreementAcceptModal = ({
+  open,
+  onClose,
+  agreementId,
+  bookingRequestId,
+  roomName,
+  onAccepted
+}: {
+  open: boolean;
+  onClose: () => void;
+  agreementId: string;
+  bookingRequestId?: string;
+  roomName?: string;
+  onAccepted: () => void;
+}) => {
+  const [checked, setChecked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleAccept = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('bb_access_token') || '';
+      const res = await fetch(`${BACKEND_URL}/api/roommates/agreements/${agreementId}/respond`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: 'accepted' }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Failed to accept agreement');
+      onAccepted();
+    } catch (e: any) {
+      setError(e.message || 'Failed to accept agreement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl p-6">
+        <h2 className="text-lg font-bold text-cyan-200 mb-2">Agreement Acceptance</h2>
+        <p className="text-gray-300 mb-4">
+          You have received a digital rental agreement{roomName ? ` for room: ${roomName}` : ''}.<br />
+          Please review and accept to proceed.
+        </p>
+        <div className="flex items-center mb-4">
+          <input
+            type="checkbox"
+            id="accept-agreement"
+            checked={checked}
+            onChange={e => setChecked(e.target.checked)}
+            className="mr-2"
+          />
+          <label htmlFor="accept-agreement" className="text-white text-sm">
+            I accept and e-sign this agreement
+          </label>
+        </div>
+        {error && <div className="text-red-400 text-xs mb-2">{error}</div>}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-medium"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAccept}
+            className={`flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-lg hover:shadow-lg transition-all font-medium ${!checked || loading ? 'opacity-60 cursor-not-allowed' : ''}`}
+            disabled={!checked || loading}
+          >
+            {loading ? 'Accepting...' : 'Accept & E-Sign'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
 const BACKEND_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001')
@@ -46,8 +131,8 @@ function PublicListings() {
 
   const handleClick = (house: PublicHouse) => {
     const listing = {
-      id: house._id,
-      mongoId: house._id,
+      id: house._id || (house as any).id,
+      mongoId: house._id || (house as any).id,
       title: house.name,
       images: house.images?.length ? house.images : (house.image ? [house.image] : []),
       price: house.monthlyPrice ?? 0,
@@ -77,13 +162,21 @@ function PublicListings() {
             onClick={() => handleClick(house)}
             className="text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/30 rounded-xl overflow-hidden transition-all cursor-pointer group"
           >
-            {(house.image || house.images?.[0]) && (
-              <img
-                src={house.image || house.images![0]}
-                alt={house.name}
-                className="w-full h-44 object-cover group-hover:scale-[1.02] transition-transform duration-300"
-              />
-            )}
+            {(() => {
+              const src = house.images?.find(img => img && !img.startsWith('data:')) 
+                || (house.image && !house.image.startsWith('data:') ? house.image : null)
+                || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=80';
+              return (
+                <img
+                  src={src}
+                  alt={house.name}
+                  className="w-full h-44 object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=80';
+                  }}
+                />
+              );
+            })()}
             <div className="p-4">
               <p className="font-semibold text-white text-sm mb-1 truncate">{house.name}</p>
               <p className="text-gray-400 text-xs mb-2 truncate">{house.address}</p>
@@ -151,14 +244,6 @@ const MiniListingCard: React.FC<{ listing: Listing; type: 'passed' | 'liked' }> 
 };
 
 // Placeholder for Map View
-function MapViewPlaceholder() {
-  return (
-    <div className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-xl border border-white/10 text-cyan-200 text-lg font-semibold shadow-inner">
-      <span className="mb-2">Map</span>
-      Map View coming soon...
-    </div>
-  );
-}
 
 // Roommate Finder Placeholder Component
 const RoommateFinderPlaceholder: React.FC<{
@@ -1518,6 +1603,7 @@ interface Notification {
   read: boolean;
   actionRequired?: boolean;
   bookingId?: string;
+  data?: any;
 }
 
 interface ListingCardProps {
@@ -1595,9 +1681,16 @@ function deriveProfileAge(profile: any): number {
 }
 
 const roomImages = [
-  'https://randomuser.me/api/portraits/lego/1.jpg',
-  'https://randomuser.me/api/portraits/lego/2.jpg',
-  'https://randomuser.me/api/portraits/lego/3.jpg',
+  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&q=80',
+  'https://images.unsplash.com/photo-1502672260266-1c1de2d9d0cb?w=400&q=80',
+  'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=400&q=80',
+  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&q=80',
+  'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&q=80',
+  'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=400&q=80',
+  'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=400&q=80',
+  'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&q=80',
+  'https://images.unsplash.com/photo-1598928506311-c55d439524e9?w=400&q=80',
+  'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=400&q=80',
 ];
 
 const API_BASE_URL = BACKEND_URL;
@@ -1620,7 +1713,14 @@ const RankedResultCard: React.FC<{ room: any; onOpen: (id: number) => void }> = 
       <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/5 border border-white/10 group-hover:bg-cyan-500/20 group-hover:border-cyan-500/40 flex items-center justify-center transition-all">
         <FaArrowLeft className="rotate-180 text-[10px] text-gray-500 group-hover:text-cyan-400 transition-colors" />
       </div>
-      <div className="flex items-start justify-between gap-4 mb-2">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div className="w-20 h-20 rounded-lg overflow-hidden border border-white/10 shadow-md flex-shrink-0">
+          <img
+            src={room.image}
+            alt={room.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        </div>
         <div className="flex-1">
           <h3 className="text-base md:text-lg font-bold text-white mb-1">{room.name}</h3>
         </div>
@@ -2261,7 +2361,7 @@ const BookingForm: React.FC<{
   const [successMessage, setSuccessMessage] = useState('');
 
   const listingTitle = listing?.title || 'N/A';
-  const roomMongoId = listing?.mongoId || '';
+  const roomMongoId = listing?.mongoId || listing?._id || (typeof listing?.id === 'string' ? listing.id : '') || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2294,11 +2394,18 @@ const BookingForm: React.FC<{
         payload.groupName = groupName;
         payload.groupSize = parseInt(groupSize, 10) || 2;
       }
-      const res = await fetch(`${BACKEND_URL}/api/roommates/booking-request`, {
+      let res = await fetch(`${BACKEND_URL}/api/roommates/booking-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
+      if (res.status === 404) {
+        res = await fetch(`${BACKEND_URL}/api/roommates/booking-requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+      }
       const data = await res.json();
       if (res.ok && data.success) {
         setSuccessMessage('Booking request submitted! The owner will review and respond.');
@@ -2492,6 +2599,7 @@ function SearchPage() {
   const [direction, setDirection] = useState<string | null>(null);
   const [likedListings, setLikedListings] = useState<Listing[]>([]);
   const [passedListings, setPassedListings] = useState<Listing[]>([]);
+  const [showAllSavedSearches, setShowAllSavedSearches] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -2525,6 +2633,9 @@ function SearchPage() {
   const [currentUserName, setCurrentUserName] = useState('');
   const [currentUserImage, setCurrentUserImage] = useState('');
   const [popupNotification, setPopupNotification] = useState<Notification | null>(null);
+  // Agreement acceptance modal state
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [agreementModalData, setAgreementModalData] = useState<{ agreementId: string; bookingRequestId?: string; roomName?: string } | null>(null);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
   const popupHideTimerRef = useRef<number | null>(null);
   const isFetchingNotifications = useRef(false);
@@ -2544,6 +2655,22 @@ function SearchPage() {
       saveReadNotificationIds(updated);
       return updated;
     });
+
+    // Agreement notification logic
+    if (
+      notif.type === 'system' &&
+      notif.title === 'New Agreement Sent' &&
+      notif.data && notif.data.agreementId
+    ) {
+      setAgreementModalData({
+        agreementId: notif.data.agreementId,
+        bookingRequestId: notif.data.bookingRequestId,
+        roomName: notif.message?.match(/room: ([^.]*)/)?.[1] || undefined,
+      });
+      setShowAgreementModal(true);
+      setShowNotifications(false);
+      return;
+    }
 
     if (notif.type === 'owner_approval' || notif.type === 'payment_pending') {
       setSelectedNotificationBooking(notif.bookingId || null);
@@ -2701,14 +2828,22 @@ function SearchPage() {
         });
 
         const persistedNotifications: Notification[] = dbNotificationItems.map((item: any) => ({
-          id: `db-notification-${item?._id || Math.random().toString(36).slice(2)}`,
-          type: item?.type || 'other',
-          title: item?.title || 'Notification',
-          message: item?.message || '',
-          timestamp: item?.createdAt || new Date().toISOString(),
-          read: Boolean(item?.read),
-          actionRequired: ['group_invite', 'group_invite_accepted', 'group_invite_rejected'].includes(String(item?.type || '')),
-        }));
+      id: `db-notification-${item?._id || Math.random().toString(36).slice(2)}`,
+      type: item?.type || 'other',
+      title: item?.title || 'Notification',
+      message: item?.message || '',
+      timestamp: item?.createdAt || new Date().toISOString(),
+      read: Boolean(item?.read),
+      actionRequired: item?.type === 'agreement_pending' || 
+        ['group_invite', 'group_invite_accepted', 'group_invite_rejected'].includes(String(item?.type || '')),
+      bookingId: item?.bookingId || item?.data?.bookingId || '',
+      data: {
+        agreementId: item?.agreementId || item?.data?.agreementId || item?.metadata?.agreementId || '',
+        bookingRequestId: item?.bookingRequestId || item?.data?.bookingRequestId || '',
+        roomName: item?.roomName || item?.data?.roomName || '',
+        ...item?.data,
+      },
+    }));
 
         const allNotifications = [...inboxNotifications, ...sentNotifications, ...groupNotifications, ...persistedNotifications].sort(
           (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -2909,10 +3044,27 @@ function SearchPage() {
               : Array.isArray(json) ? json : [];
             const mappedHouses: Listing[] = housesData.map((house: any, index: number) => ({
               id: 100000 + index,
-              mongoId: house._id || '',
+              mongoId: house._id || house.id || '',
               title: house.name || 'Boarding House',
-              images: Array.isArray(house.images) && house.images.length > 0 ? house.images
-                : house.image ? [house.image] : [roomImages[index % roomImages.length]],
+              images: (() => {
+                const validImages = Array.isArray(house.images)
+                  ? house.images.filter((img) => 
+                      typeof img === 'string' && 
+                      img.trim().length > 0 &&
+                      !img.startsWith('data:image') 
+                    )
+                  : [];
+                
+                if (validImages.length > 0) return validImages;
+                
+                if (typeof house.image === 'string' && 
+                    house.image.trim() && 
+                    !house.image.startsWith('data:image')) {
+                  return [house.image];
+                }
+                
+                return [roomImages[index % roomImages.length]];
+              })(),
               price: Number(house.monthlyPrice) || 0,
               location: house.address || 'Unknown',
               distance: 1.2, distanceUnit: 'km', travelTime: 'Near city',
@@ -2943,7 +3095,7 @@ function SearchPage() {
         const mappedRooms: Listing[] = roomsResult.status === 'fulfilled' && roomsResult.value.ok && roomsData.length > 0
           ? roomsData.map((roomItem: any, index: number) => ({
               id: index + 1,
-              mongoId: roomItem._id || '',
+              mongoId: roomItem._id || roomItem.id || '',
               title: roomItem.name || 'Room Listing',
               images: Array.isArray(roomItem.images) && roomItem.images.length > 0
                 ? roomItem.images
@@ -3152,9 +3304,20 @@ function SearchPage() {
     return listingScore(b) - listingScore(a);
   });
 
+  const savedSearchPreviewLimit = 4;
+  const visibleSavedListings = showAllSavedSearches
+    ? rankedListings
+    : rankedListings.slice(0, savedSearchPreviewLimit);
+  const hiddenSavedListingsCount = Math.max(0, rankedListings.length - savedSearchPreviewLimit);
+
   const roomDataset: any[] = dbListings.map((listing, index) => ({
     id: listing.id || index + 1,
+    mongoId: listing.mongoId || '',
+    _id: listing.mongoId || '',
     name: listing.title,
+    image: Array.isArray(listing.images) && listing.images.length > 0
+      ? listing.images[0]
+      : '',
     location: listing.location,
     campus: listing.location,
     price: listing.price,
@@ -3317,7 +3480,9 @@ function SearchPage() {
   };
 
   const handleViewDetails = (listing: Listing): void => {
-    const slug = listing.mongoId || String(listing.id);
+    const slug = listing.mongoId && listing.mongoId.length === 24
+      ? listing.mongoId
+      : String(listing.id);
     navigate(`/listing/${slug}`, { state: { listing } });
   };
 
@@ -3570,12 +3735,6 @@ function SearchPage() {
                 Rooms
               </button>
               <button
-                className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${activeTab === 'map' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg scale-105' : 'text-cyan-200 hover:bg-white/10'}`}
-                onClick={() => setActiveTab('map')}
-              >
-                Map View
-              </button>
-              <button
                 className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 ${activeTab === 'roommate' ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg scale-105' : 'text-cyan-200 hover:bg-white/10'}`}
                 onClick={() => setActiveTab('roommate')}
               >
@@ -3611,9 +3770,7 @@ function SearchPage() {
               ? (viewMode === 'card' 
                   ? 'Drag cards left/right to pass or like. Click buttons to act.' 
                   : 'Browse all listings in grid view')
-              : activeTab === 'map'
-                ? 'View all rooms on a map (coming soon)'
-                : 'Find your ideal roommate!'}
+              : 'Find your ideal roommate!'}
           </span>
         </div>
 
@@ -3794,24 +3951,59 @@ function SearchPage() {
                 <>
                   {rankedListings.length > 0 && (
                     <>
-                      <h2 className="text-xl font-bold text-white mb-4">Your Saved Searches</h2>
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                        {rankedListings.map((listing) => (
-                          <ListingCard
-                            key={listing.id}
-                            listing={listing}
-                            onLike={() => {
-                              setLikedListings([...likedListings, listing]);
-                              setToastMessage('Added to favorites!');
-                              setShowToast(true);
-                              setTimeout(() => setShowToast(false), 2000);
-                            }}
-                            onPass={() => {}}
-                            onViewDetails={handleViewDetails}
-                            isAnimating={false}
-                            direction={null}
-                            viewMode="grid"
-                          />
+                      <div className="mb-4 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <h2 className="text-xl font-bold text-white">Your Saved Searches</h2>
+                            <p className="text-xs text-cyan-100/80 mt-1">
+                              Showing {visibleSavedListings.length} of {rankedListings.length} best matches
+                            </p>
+                          </div>
+                          {rankedListings.length > savedSearchPreviewLimit && (
+                            <button
+                              onClick={() => setShowAllSavedSearches((prev) => !prev)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 border border-white/15 text-xs font-semibold text-cyan-100 hover:bg-white/15 transition-colors"
+                            >
+                              {showAllSavedSearches ? <FaChevronUp /> : <FaChevronDown />}
+                              {showAllSavedSearches ? 'Show less' : `Show ${hiddenSavedListingsCount} more`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        className="flex gap-4 mb-8 overflow-x-auto custom-scrollbar scroll-smooth"
+                        style={{ WebkitOverflowScrolling: 'touch' }}
+                        ref={savedSearchesRef => {
+                          if (!savedSearchesRef) return;
+                          // Attach wheel event only once
+                          if (!savedSearchesRef._wheelHandlerAttached) {
+                            savedSearchesRef.addEventListener('wheel', (e) => {
+                              if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                                e.preventDefault();
+                                savedSearchesRef.scrollLeft += e.deltaY;
+                              }
+                            }, { passive: false });
+                            savedSearchesRef._wheelHandlerAttached = true;
+                          }
+                        }}
+                      >
+                        {visibleSavedListings.map((listing) => (
+                          <div key={listing.id} className="min-w-[260px] max-w-[320px] flex-shrink-0">
+                            <ListingCard
+                              listing={listing}
+                              onLike={() => {
+                                setLikedListings([...likedListings, listing]);
+                                setToastMessage('Added to favorites!');
+                                setShowToast(true);
+                                setTimeout(() => setShowToast(false), 2000);
+                              }}
+                              onPass={() => {}}
+                              onViewDetails={handleViewDetails}
+                              isAnimating={false}
+                              direction={null}
+                              viewMode="grid"
+                            />
+                          </div>
                         ))}
                       </div>
                     </>
@@ -3846,12 +4038,18 @@ function SearchPage() {
                             key={room.id}
                             room={room}
                             onOpen={(id: number) => {
+                              const original = dbListings.find((l) => l.id === id || Number(l.id) === id);
+                              if (original) {
+                                handleViewDetails(original);
+                                return;
+                              }
                               const r = roomDataset.find((rm: any) => rm.id === id);
                               if (!r) return;
                               const listing: Listing = {
                                 id: r.id,
+                                mongoId: String(r.mongoId || r._id || ''),
                                 title: r.name,
-                                images: [r.img],
+                                images: r.image ? [r.image] : [],
                                 price: r.price,
                                 location: r.location,
                                 distance: r.distKm,
@@ -3941,9 +4139,27 @@ function SearchPage() {
                 <>
                   {rankedListings.length > 0 && (
                     <>
-                      <h2 className="text-lg font-bold text-white mb-3 px-2">Your Saved Searches</h2>
+                      <div className="mb-3 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 p-3 mx-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <h2 className="text-lg font-bold text-white">Your Saved Searches</h2>
+                            <p className="text-[11px] text-cyan-100/80 mt-0.5">
+                              Showing {visibleSavedListings.length} of {rankedListings.length}
+                            </p>
+                          </div>
+                          {rankedListings.length > savedSearchPreviewLimit && (
+                            <button
+                              onClick={() => setShowAllSavedSearches((prev) => !prev)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-[11px] font-semibold text-cyan-100"
+                            >
+                              {showAllSavedSearches ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
+                              {showAllSavedSearches ? 'Less' : `+${hiddenSavedListingsCount}`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 gap-3 mb-6">
-                        {rankedListings.map((listing) => (
+                        {visibleSavedListings.map((listing) => (
                           <ListingCard
                             key={listing.id}
                             listing={listing}
@@ -3980,8 +4196,9 @@ function SearchPage() {
                               if (!r) return;
                               const listing: Listing = {
                                 id: r.id,
+                                mongoId: String(r.mongoId || r._id || ''),
                                 title: r.name,
-                                images: [r.img],
+                                images: r.image ? [r.image] : [],
                                 price: r.price,
                                 location: r.location,
                                 distance: r.distKm,
@@ -4015,8 +4232,6 @@ function SearchPage() {
               )}
             </div>
           </>
-        ) : activeTab === 'map' ? (
-          <MapViewPlaceholder />
         ) : (
           <RoommateFinderPlaceholder
             roommateData={effectiveRoommates}
@@ -4190,6 +4405,22 @@ function SearchPage() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.3); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(34, 211, 238, 0.5); }
       `}</style>
+
+      {showAgreementModal && agreementModalData && (
+        <AgreementAcceptModal
+          open={showAgreementModal}
+          onClose={() => setShowAgreementModal(false)}
+          agreementId={agreementModalData.agreementId}
+          bookingRequestId={agreementModalData.bookingRequestId}
+          roomName={agreementModalData.roomName}
+          onAccepted={() => {
+            setShowAgreementModal(false);
+            setToastMessage('Agreement signed successfully!');
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 3000);
+          }}
+        />
+      )}
     </div>
   );
 }
