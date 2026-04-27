@@ -2597,8 +2597,18 @@ function SearchPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [direction, setDirection] = useState<string | null>(null);
-  const [likedListings, setLikedListings] = useState<Listing[]>([]);
+  const [likedListings, setLikedListings] = useState<Listing[]>(() => {
+    try {
+      const saved = localStorage.getItem('bb_saved_rooms');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [passedListings, setPassedListings] = useState<Listing[]>([]);
+  useEffect(() => {
+    localStorage.setItem('bb_saved_rooms', JSON.stringify(likedListings));
+  }, [likedListings]);
   const [showAllSavedSearches, setShowAllSavedSearches] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -3306,9 +3316,9 @@ function SearchPage() {
 
   const savedSearchPreviewLimit = 4;
   const visibleSavedListings = showAllSavedSearches
-    ? rankedListings
-    : rankedListings.slice(0, savedSearchPreviewLimit);
-  const hiddenSavedListingsCount = Math.max(0, rankedListings.length - savedSearchPreviewLimit);
+    ? likedListings
+    : likedListings.slice(0, savedSearchPreviewLimit);
+  const hiddenSavedListingsCount = Math.max(0, likedListings.length - savedSearchPreviewLimit);
 
   const roomDataset: any[] = dbListings.map((listing, index) => ({
     id: listing.id || index + 1,
@@ -3405,7 +3415,12 @@ function SearchPage() {
     setDirection('right');
     
     setTimeout(() => {
-      setLikedListings([...likedListings, currentListing]);
+      setLikedListings(prev => {
+        if (!prev.find(l => l.id === currentListing.id)) {
+          return [...prev, currentListing];
+        }
+        return prev;
+      });
       setToastMessage('Added to favorites!');
       setShowToast(true);
       
@@ -3949,17 +3964,17 @@ function SearchPage() {
                 </div>
               ) : (
                 <>
-                  {rankedListings.length > 0 && (
+                  {likedListings.length > 0 && (
                     <>
                       <div className="mb-4 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <h2 className="text-xl font-bold text-white">Your Saved Searches</h2>
                             <p className="text-xs text-cyan-100/80 mt-1">
-                              Showing {visibleSavedListings.length} of {rankedListings.length} best matches
+                              Showing {visibleSavedListings.length} of {likedListings.length} saved rooms
                             </p>
                           </div>
-                          {rankedListings.length > savedSearchPreviewLimit && (
+                          {likedListings.length > savedSearchPreviewLimit && (
                             <button
                               onClick={() => setShowAllSavedSearches((prev) => !prev)}
                               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 border border-white/15 text-xs font-semibold text-cyan-100 hover:bg-white/15 transition-colors"
@@ -3973,11 +3988,11 @@ function SearchPage() {
                       <div
                         className="flex gap-4 mb-8 overflow-x-auto custom-scrollbar scroll-smooth"
                         style={{ WebkitOverflowScrolling: 'touch' }}
-                        ref={savedSearchesRef => {
+                        ref={(savedSearchesRef: any) => {
                           if (!savedSearchesRef) return;
                           // Attach wheel event only once
                           if (!savedSearchesRef._wheelHandlerAttached) {
-                            savedSearchesRef.addEventListener('wheel', (e) => {
+                            savedSearchesRef.addEventListener('wheel', (e: any) => {
                               if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
                                 e.preventDefault();
                                 savedSearchesRef.scrollLeft += e.deltaY;
@@ -3988,15 +4003,22 @@ function SearchPage() {
                         }}
                       >
                         {visibleSavedListings.map((listing) => (
-                          <div key={listing.id} className="min-w-[260px] max-w-[320px] flex-shrink-0">
-                            <ListingCard
-                              listing={listing}
-                              onLike={() => {
-                                setLikedListings([...likedListings, listing]);
-                                setToastMessage('Added to favorites!');
+                          <div key={listing.id} className="min-w-[260px] max-w-[320px] flex-shrink-0 relative group">
+                            <button 
+                              onClick={() => {
+                                setLikedListings(likedListings.filter(l => l.id !== listing.id));
+                                setToastMessage('Removed from favorites');
                                 setShowToast(true);
                                 setTimeout(() => setShowToast(false), 2000);
                               }}
+                              className="absolute top-2 right-2 z-10 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                              title="Remove from saved"
+                            >
+                              <FaTrash size={12} />
+                            </button>
+                            <ListingCard
+                              listing={listing}
+                              onLike={() => {}}
                               onPass={() => {}}
                               onViewDetails={handleViewDetails}
                               isAnimating={false}
@@ -4137,17 +4159,17 @@ function SearchPage() {
                 </>
               ) : (
                 <>
-                  {rankedListings.length > 0 && (
+                  {likedListings.length > 0 && (
                     <>
                       <div className="mb-3 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 p-3 mx-2">
                         <div className="flex items-center justify-between gap-2">
                           <div>
                             <h2 className="text-lg font-bold text-white">Your Saved Searches</h2>
                             <p className="text-[11px] text-cyan-100/80 mt-0.5">
-                              Showing {visibleSavedListings.length} of {rankedListings.length}
+                              Showing {visibleSavedListings.length} of {likedListings.length}
                             </p>
                           </div>
-                          {rankedListings.length > savedSearchPreviewLimit && (
+                          {likedListings.length > savedSearchPreviewLimit && (
                             <button
                               onClick={() => setShowAllSavedSearches((prev) => !prev)}
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-[11px] font-semibold text-cyan-100"
@@ -4160,21 +4182,29 @@ function SearchPage() {
                       </div>
                       <div className="grid grid-cols-1 gap-3 mb-6">
                         {visibleSavedListings.map((listing) => (
-                          <ListingCard
-                            key={listing.id}
-                            listing={listing}
-                            onLike={() => {
-                              setLikedListings([...likedListings, listing]);
-                              setToastMessage('Added to favorites!');
-                              setShowToast(true);
-                              setTimeout(() => setShowToast(false), 2000);
-                            }}
-                            onPass={() => {}}
-                            onViewDetails={handleViewDetails}
-                            isAnimating={false}
-                            direction={null}
-                            viewMode="grid"
-                          />
+                          <div key={listing.id} className="relative group mx-2">
+                            <button 
+                              onClick={() => {
+                                setLikedListings(likedListings.filter(l => l.id !== listing.id));
+                                setToastMessage('Removed from favorites');
+                                setShowToast(true);
+                                setTimeout(() => setShowToast(false), 2000);
+                              }}
+                              className="absolute top-2 right-2 z-10 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-lg"
+                              title="Remove from saved"
+                            >
+                              <FaTrash size={12} />
+                            </button>
+                            <ListingCard
+                              listing={listing}
+                              onLike={() => {}}
+                              onPass={() => {}}
+                              onViewDetails={handleViewDetails}
+                              isAnimating={false}
+                              direction={null}
+                              viewMode="grid"
+                            />
+                          </div>
                         ))}
                       </div>
                     </>
