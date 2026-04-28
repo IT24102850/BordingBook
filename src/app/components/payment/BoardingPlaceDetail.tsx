@@ -128,10 +128,17 @@ export default function BoardingPlaceDetail() {
         setPlace(null);
         setTenants([]);
       } else {
+        // Normalize rooms to ensure they have 'id' property
+        const normalizedRooms = (foundPlace.rooms || []).map((room: any) => ({
+          ...room,
+          id: room._id || room.id,
+          tenants: room.tenants || []
+        }));
+
         setPlace({
           ...foundPlace,
           id: foundPlace._id || foundPlace.id,
-          rooms: foundPlace.rooms || []
+          rooms: normalizedRooms
         });
 
         // Fetch accepted booking agreements for this boarding house
@@ -153,15 +160,19 @@ export default function BoardingPlaceDetail() {
         // Filter agreements for this boarding house and transform to tenant format
         const boardingHouseId = foundPlace._id || foundPlace.id;
         const tenantsList: Tenant[] = agreements
-          .filter((agr: any) => agr.boardingHouseId === boardingHouseId || agr.boardingHouseId._id === boardingHouseId)
+          .filter((agr: any) => {
+            const agrBoardingHouseId = agr.boardingHouseId?._id || agr.boardingHouseId;
+            return agrBoardingHouseId === boardingHouseId;
+          })
           .map((agr: any) => {
             const extractedStudentId = agr.studentId?._id || agr.studentId;
-            console.log('📝 Tenant Mapping - StudentId:', extractedStudentId, 'Name:', agr.studentId?.fullName);
+            const roomIdValue = agr.roomId?._id || agr.roomId || '';
+            console.log('📝 Tenant Mapping - StudentId:', extractedStudentId, 'Name:', agr.studentId?.fullName, 'RoomId:', roomIdValue);
             return ({
             id: agr._id,
             studentId: extractedStudentId,
             name: agr.studentId?.fullName || 'Unknown',
-            roomId: agr.roomId?._id || '',
+            roomId: roomIdValue,
             monthlyRent: agr.rentAmount,
             paymentStatus: 'pending' as const,
             dueDate: agr.periodEnd,
