@@ -23,12 +23,12 @@ export default function PaymentRentalPage() {
       <div className="max-w-5xl mx-auto">
         {/* Back Button */}
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/owner/dashboard')}
           className="flex items-center gap-2 px-4 py-2 mb-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 hover:text-white transition-all font-medium text-sm"
           title="Go back (ESC)"
         >
           <ArrowLeft size={18} />
-          Back
+          Back to Owner Dashboard
         </button>
 
         <div className="bg-slate-800/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
