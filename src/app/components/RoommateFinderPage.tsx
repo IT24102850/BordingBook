@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 // Profiles are now fetched from backend
 
+interface MiniProfileCardProps {
   profile: any;
   type: 'passed' | 'liked';
 }
@@ -33,6 +34,7 @@ function MiniProfileCard({ profile, type }: MiniProfileCardProps) {
   );
 }
 
+interface SwipeCardProps {
   profile: any;
   onSwipe: (dir: 'left' | 'right') => void;
   isAnimating: boolean;
@@ -179,6 +181,9 @@ function RoommateNavBar() {
 
 
   const { profiles: roommateProfiles, loading, error } = useRoommateProfiles();
+
+export default function RoommateFinderPage() {
+
   const [index, setIndex] = useState<number>(0);
   const [liked, setLiked] = useState<any[]>([]);
   const [passed, setPassed] = useState<any[]>([]);
