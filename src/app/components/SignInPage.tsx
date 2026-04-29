@@ -138,16 +138,20 @@ export default function SignIn() {
       localStorage.setItem('bb_current_user', JSON.stringify(result.data.user));
       setSuccess('Signed in successfully!');
 
-      // Enhanced logic: student profile setup redirect
+      // Redirect rules:
+      // - owners -> owner dashboard
+      // - first-time students -> profile setup
+      // - existing students -> search page
       const user = result.data.user;
-      let destination = '/find';
+      const isNewStudent = user?.isNewStudent === true;
+      let destination = '/search';
       if (user.role === 'owner') {
         destination = '/owner/dashboard';
       } else if (user.role === 'student') {
-        if (!user.profileCompleted) {
+        if (isNewStudent) {
           destination = '/profile-setup';
         } else {
-          destination = '/find';
+          destination = '/search';
         }
       }
       setTimeout(() => navigate(destination), 800);

@@ -767,6 +767,7 @@ function ProfileSetup() {
   const [showSkipOption, setShowSkipOption] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const totalSteps = 5;
+  const isOnboardingComplete = step === totalSteps || success === 'Profile completed! You can now access all features';
   
   const stepRefs = [
     useRef<HTMLDivElement>(null),
