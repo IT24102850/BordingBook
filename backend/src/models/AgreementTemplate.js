@@ -15,6 +15,10 @@ const agreementTemplateSchema = new mongoose.Schema(
       minlength: 5,
       maxlength: 200,
     },
+    titleKey: {
+      type: String,
+      sparse: true,
+    },
     content: {
       type: String,
       required: true,
@@ -33,6 +37,15 @@ const agreementTemplateSchema = new mongoose.Schema(
   }
 );
 
+// Pre-save hook to auto-generate titleKey from title to prevent duplicate nulls
+agreementTemplateSchema.pre('save', function(next) {
+  if (this.title && !this.titleKey) {
+    this.titleKey = this.title.toLowerCase().replace(/\s+/g, '-');
+  }
+  next();
+});
+
 agreementTemplateSchema.index({ ownerId: 1, version: -1 });
+agreementTemplateSchema.index({ ownerId: 1, titleKey: 1 }, { sparse: true });
 
 module.exports = mongoose.model('AgreementTemplate', agreementTemplateSchema);

@@ -4058,6 +4058,7 @@ function SearchPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-xl font-bold text-white">
                         All Available Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
+                        All Available Rooms and Houses {rankedRooms.length > 0 && `(${rankedRooms.length})`}
                       </h2>
                       {(priceMax < 50000 || dist !== 'any' || room !== 'any' || avail !== 'all' || facs.length > 0) && (
                         <button
@@ -4236,6 +4237,7 @@ function SearchPage() {
                   <div className="px-2">
                     <h2 className="text-lg font-bold text-white mb-3">
                       All Rooms {rankedRooms.length > 0 && `(${rankedRooms.length})`}
+                      All Available Rooms and Houses {rankedRooms.length > 0 && `(${rankedRooms.length})`}
                     </h2>
                     
                     {rankedRooms.length > 0 ? (
