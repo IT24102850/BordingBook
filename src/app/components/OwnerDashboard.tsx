@@ -766,46 +766,11 @@ export default function OwnerDashboard() {
         signedDate?: string;
       };
 
-      // Example mock data for demonstration
-      const [agreementInstances] = useState<AgreementInstance[]>([
-        {
-          id: 'AG-2024-001',
-          bookingType: 'SINGLE',
-          status: 'SIGNED',
-          room: '101',
-          tenants: [
-            { studentId: 'S1', name: 'John Doe', signatureStatus: 'SIGNED', signedDate: '2024-05-01' }
-          ],
-          duration: 12,
-          signedDate: '2024-05-01',
-        },
-        {
-          id: 'AG-2024-002',
-          bookingType: 'GROUP',
-          status: 'PENDING',
-          room: '202',
-          tenants: [
-            { studentId: 'S2', name: 'Jane Smith', signatureStatus: 'SIGNED', signedDate: '2024-05-02' },
-            { studentId: 'S3', name: 'Alice Lee', signatureStatus: 'PENDING' }
-          ],
-          duration: 6,
-        },
-        {
-          id: 'AG-2024-003',
-          bookingType: 'SINGLE',
-          status: 'EXPIRED',
-          room: '303',
-          tenants: [
-            { studentId: 'S4', name: 'Bob Brown', signatureStatus: 'SIGNED', signedDate: '2023-01-01' }
-          ],
-          duration: 3,
-          signedDate: '2023-01-01',
-        },
-      ]);
+      const [signedAgreements, setSignedAgreements] = useState<AgreementInstance[]>([]);
 
       // Filtering and sorting logic
       const [agreementSearch, setAgreementSearch] = useState('');
-      const filteredAgreementInstances = agreementInstances.filter((a: AgreementInstance) =>
+      const filteredAgreementInstances = signedAgreements.filter((a: AgreementInstance) =>
         a.id.toLowerCase().includes(agreementSearch.toLowerCase()) ||
         a.room.toLowerCase().includes(agreementSearch.toLowerCase()) ||
         a.tenants.some((t: AgreementTenant) => t.name.toLowerCase().includes(agreementSearch.toLowerCase()))
@@ -857,8 +822,27 @@ export default function OwnerDashboard() {
         tenant.signatureStatus === 'SIGNED' ? 'Signed' : 'Pending';
       const getTenantMetaLine = (tenant: AgreementTenant) => tenant.meta || '';
       const canOwnerDownloadAgreement = (agreement: AgreementInstance) => agreement.status === 'SIGNED';
-      const handleDownloadAgreementPdf = (agreement: AgreementInstance) => {
-        alert(`Download PDF for agreement ${agreement.id}`);
+      const handleDownloadAgreementPdf = async (agreement: AgreementInstance) => {
+        try {
+          const token = localStorage.getItem('bb_access_token');
+          const response = await fetch(`${API}/agreements/agreement_${agreement.id}.pdf`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+
+          if (!response.ok) {
+            throw new Error('Download failed');
+          }
+
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `Agreement-${agreement.id}.pdf`;
+          link.click();
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          alert('Failed to download agreement PDF');
+        }
       };
     // Agreement tab state
     const [agreementTitle, setAgreementTitle] = useState('');
@@ -877,7 +861,7 @@ export default function OwnerDashboard() {
     };
 
     // Handle create template
-    const handleCreateAgreementTemplate = () => {
+    const handleCreateAgreementTemplate = async () => {
       if (!agreementTitle.trim()) {
         setAgreementError('Template title is required.');
         return;
@@ -886,17 +870,35 @@ export default function OwnerDashboard() {
         setAgreementError('Agreement content cannot be empty.');
         return;
       }
+      const visibleContent = agreementContent
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (visibleContent.length < 10) {
+        setAgreementError('Agreement content must be at least 10 visible characters.');
+        return;
+      }
       setAgreementError('');
-      const newTemplate = {
-        id: Date.now().toString(),
-        title: agreementTitle.trim(),
-        content: agreementContent,
-        version: agreementTemplates.length + 1,
-        updatedAt: new Date().toISOString(),
-      };
-      setAgreementTemplates(prev => [...prev, newTemplate]);
-      setAgreementTitle('');
-      setAgreementContent('');
+
+      try {
+        const saved = await ownerDashboardApi.createAgreementTemplate({
+          title: agreementTitle.trim(),
+          content: agreementContent,
+        });
+
+        setAgreementTemplates((prev) => [...prev, {
+          id: saved._id,
+          title: saved.title,
+          content: saved.content,
+          version: saved.version || prev.length + 1,
+          updatedAt: saved.updatedAt || new Date().toISOString(),
+        }]);
+        setAgreementTitle('');
+        setAgreementContent('');
+      } catch (error) {
+        setAgreementError((error as Error).message || 'Failed to save template');
+      }
     };
   const navigate = useNavigate();
   const [houses, setHouses] = useState<BoardingHouse[]>([]);
@@ -1042,7 +1044,7 @@ export default function OwnerDashboard() {
     navigate('/signin');
   };
 
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  const API = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace(/\/api\/?$/, '');
   const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('bb_access_token')}` });
 
   // ── KYC handlers ───────────────────────────────────────────────
@@ -1159,9 +1161,11 @@ export default function OwnerDashboard() {
       }
 
       try {
-        const [houseData, roomData] = await Promise.all([
+        const [houseData, roomData, agreementData, templateData] = await Promise.all([
           ownerDashboardApi.getHouses(),
           ownerDashboardApi.getRooms(),
+          ownerDashboardApi.getOwnerAgreements(),
+          ownerDashboardApi.getAgreementTemplates(),
         ]);
 
         const mappedHouses = houseData.map(mapHouseDtoToUi);
@@ -1169,6 +1173,33 @@ export default function OwnerDashboard() {
         
         setHouses(mappedHouses);
         setRooms(mappedRooms);
+
+        // Map API agreements to component format
+        const mappedAgreements: AgreementInstance[] = agreementData.map((agr) => ({
+          id: agr._id,
+          bookingType: (agr.bookingRequestId?.bookingType === 'group' ? 'GROUP' : 'SINGLE') as 'SINGLE' | 'GROUP',
+          duration: agr.bookingRequestId?.durationMonths || 0,
+          room: agr.roomId?.name || 'Unknown Room',
+          tenants: [
+            {
+              studentId: agr.studentId?._id || '',
+              name: agr.studentId?.fullName || 'Unknown Student',
+              signatureStatus: (agr.status === 'accepted' ? 'SIGNED' : 'PENDING') as 'SIGNED' | 'PENDING',
+              signedDate: agr.respondedAt || agr.sentAt,
+            },
+          ],
+          status: (agr.status === 'accepted' ? 'SIGNED' : agr.status === 'rejected' ? 'EXPIRED' : 'PENDING') as 'SIGNED' | 'PENDING' | 'EXPIRED',
+          signedDate: agr.sentAt,
+        }));
+
+        setSignedAgreements(mappedAgreements);
+        setAgreementTemplates(templateData.map((template, index) => ({
+          id: template._id,
+          title: template.title,
+          content: template.content,
+          version: template.version || index + 1,
+          updatedAt: template.updatedAt,
+        })));
 
         // Load next payment cycle dates for all tenants
         const enhancedRooms = await Promise.all(

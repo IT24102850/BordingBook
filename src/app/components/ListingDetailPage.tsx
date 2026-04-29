@@ -54,6 +54,8 @@ export default function ListingDetailPage() {
   const [liked, setLiked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingType, setBookingType] = useState<'individual' | 'group'>('individual');
+  const [studentName, setStudentName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [moveInDate, setMoveInDate] = useState('');
   const [durationMonths, setDurationMonths] = useState('3');
   const [message, setMessage] = useState('');
@@ -89,13 +91,13 @@ export default function ListingDetailPage() {
 
   const handleBook = async () => {
     setFormError('');
-    const roomMongoId = listing.mongoId || '';
+    const roomMongoId = listing?.mongoId || listing?._id || (typeof listing?.id === 'string' ? listing.id : '') || '';
     if (!roomMongoId) {
       setFormError('Room ID is missing. Please go back and select the room again.');
       return;
     }
-    if (!moveInDate) {
-      setFormError('Please select a move-in date.');
+    if (!studentName || !contactNumber || !moveInDate) {
+      setFormError('Please fill all required fields (Name, Contact, Move-in Date).');
       return;
     }
     const token = localStorage.getItem('bb_access_token') || '';
@@ -107,10 +109,17 @@ export default function ListingDetailPage() {
     try {
       const payload: any = {
         roomId: roomMongoId,
+        boardingHouseId: roomMongoId,
         bookingType,
         moveInDate,
         durationMonths: parseInt(durationMonths, 10),
+        duration: parseInt(durationMonths, 10),
         message: message || undefined,
+        notes: message || undefined,
+        studentName: studentName,
+        contactNumber: contactNumber,
+        contact: contactNumber,
+        phoneNumber: contactNumber
       };
       if (bookingType === 'group') {
         payload.groupName = groupName;
@@ -327,6 +336,28 @@ export default function ListingDetailPage() {
                     ))}
                   </div>
 
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      placeholder="John Doe"
+                      value={studentName}
+                      onChange={(e) => setStudentName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Contact Number *</label>
+                    <input
+                      type="tel"
+                      placeholder="+94 77 123 4567"
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50"
+                    />
+                  </div>
+
                   {bookingType === 'group' && (
                     <>
                       <input
@@ -347,7 +378,7 @@ export default function ListingDetailPage() {
                   )}
 
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Move-in date</label>
+                    <label className="text-xs text-gray-500 block mb-1">Move-in date *</label>
                     <input
                       type="date"
                       value={moveInDate}

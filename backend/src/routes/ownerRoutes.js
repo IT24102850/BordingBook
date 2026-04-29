@@ -72,6 +72,17 @@ router.patch(
   bookingController.updateBookingRequestStatus
 );
 router.get('/agreements', requireAuth, bookingController.getOwnerAgreements);
+router.get('/agreement-templates', requireAuth, bookingController.getAgreementTemplates);
+router.post(
+  '/agreement-templates',
+  requireAuth,
+  [
+    body('title').isLength({ min: 5, max: 200 }).withMessage('title must be 5-200 characters'),
+    body('content').notEmpty().withMessage('content is required'),
+  ],
+  validateRequest,
+  bookingController.createAgreementTemplate
+);
 router.post(
   '/agreements',
   requireAuth,

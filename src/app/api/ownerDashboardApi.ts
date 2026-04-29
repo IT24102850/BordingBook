@@ -1,4 +1,5 @@
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || '').replace(/\/$/, '');
+// Strip /api suffix from VITE_API_URL if present, since endpoints already include /api prefix
+const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL as string)?.replace(/\/api\/?$/, '') || 'http://localhost:5001';
 
 
 type ApiEnvelope<T> = {
@@ -234,6 +235,125 @@ async function updateBookingRequestStatus(requestId: string, status: 'approved' 
   return ensureSuccess<BookingRequestDto>(response);
 }
 
+export type AgreementTemplateDto = {
+  _id: string;
+  ownerId: string;
+  title: string;
+  content: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// Agreement functions
+export type AgreementDto = {
+  _id: string;
+  ownerId: string;
+  studentId: {
+    _id: string;
+    fullName: string;
+    email: string;
+    phoneNumber?: string;
+    mobileNumber?: string;
+  };
+  roomId: {
+    _id: string;
+    name: string;
+    roomNumber?: string;
+    price: number;
+    location: string;
+  };
+  bookingRequestId: {
+    _id: string;
+    status: string;
+    moveInDate: string;
+    durationMonths: number;
+    bookingType: 'individual' | 'group';
+    groupName?: string;
+    groupSize?: number;
+  };
+  title: string;
+  terms: string;
+  rentAmount: number;
+  depositAmount: number;
+  periodStart: string;
+  periodEnd: string;
+  additionalClauses: string[];
+  status: 'sent' | 'accepted' | 'rejected';
+  sentAt: string;
+  respondedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+async function createAgreementTemplate(payload: {
+  title: string;
+  content: string;
+}): Promise<AgreementTemplateDto> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/agreement-templates`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  // Parse response and return richer errors to the UI
+  const data = await parse<AgreementTemplateDto>(response);
+  if (!response.ok || !data.success || data.data === undefined) {
+    // If server provides structured validation errors, include them
+    if (Array.isArray((data as any).errors) && (data as any).errors.length > 0) {
+      const details = (data as any).errors.map((e: any) => `${e.field}: ${e.message}`).join('; ');
+      throw new Error(`${data.message || 'Request failed'} - ${details}`);
+    }
+    throw new Error(data.message || 'Request failed');
+  }
+  return data.data as AgreementTemplateDto;
+}
+
+async function getAgreementTemplates(): Promise<AgreementTemplateDto[]> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/agreement-templates`, {
+    headers: getAuthHeaders(),
+  });
+  return ensureSuccess<AgreementTemplateDto[]>(response);
+}
+
+async function createAgreementForRequest(payload: {
+  bookingRequestId: string;
+  title: string;
+  terms: string;
+  rentAmount: number;
+  depositAmount?: number;
+  periodStart: string;
+  periodEnd: string;
+  additionalClauses?: string[];
+}): Promise<AgreementDto> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/agreements`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return ensureSuccess<AgreementDto>(response);
+}
+
+async function getOwnerAgreements(status?: string): Promise<AgreementDto[]> {
+  const url = status
+    ? `${API_BASE_URL}/api/owner/agreements?status=${status}`
+    : `${API_BASE_URL}/api/owner/agreements`;
+  const response = await fetch(url, { headers: getAuthHeaders() });
+  return ensureSuccess<AgreementDto[]>(response);
+}
+
+async function cancelAgreement(agreementId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/agreements/${agreementId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+
+  const body = await parse<unknown>(response);
+  if (!response.ok || !body.success) {
+    throw new Error(body.message || 'Failed to cancel agreement');
+  }
+}
+
 export const ownerDashboardApi = {
   getHouses,
   createHouse,
@@ -246,4 +366,9 @@ export const ownerDashboardApi = {
   getBookingRequests,
   updateBookingRequestStatus,
   getNextPaymentCycleDate,
+  createAgreementTemplate,
+  getAgreementTemplates,
+  createAgreementForRequest,
+  getOwnerAgreements,
+  cancelAgreement,
 };

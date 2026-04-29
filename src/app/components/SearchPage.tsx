@@ -2368,7 +2368,8 @@ const BookingForm: React.FC<{
     setFormError('');
     setSuccessMessage('');
     if (
-      (bookingType === 'INDIVIDUAL' && !studentName) ||
+      !studentName ||
+      !contactNumber ||
       (bookingType === 'GROUP' && !groupName) ||
       !moveInDate ||
       !durationMonths
@@ -2385,10 +2386,17 @@ const BookingForm: React.FC<{
       const token = localStorage.getItem('bb_access_token') || '';
       const payload: any = {
         roomId: roomMongoId,
+        boardingHouseId: roomMongoId,
         bookingType: bookingType === 'GROUP' ? 'group' : 'individual',
         moveInDate,
         durationMonths: parseInt(durationMonths, 10),
+        duration: parseInt(durationMonths, 10),
         message: specialNotes || undefined,
+        notes: specialNotes || undefined,
+        studentName: studentName || currentUserName || 'Student',
+        contactNumber: contactNumber,
+        contact: contactNumber,
+        phoneNumber: contactNumber
       };
       if (bookingType === 'GROUP') {
         payload.groupName = groupName;
@@ -2463,9 +2471,9 @@ const BookingForm: React.FC<{
             </button>
           </div>
 
-          {bookingType === 'INDIVIDUAL' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Full Name</label>
+              <label className="block text-sm text-gray-300 mb-1">Full Name *</label>
               <input
                 type="text"
                 value={studentName}
@@ -2474,7 +2482,19 @@ const BookingForm: React.FC<{
                 placeholder="Enter full name"
               />
             </div>
-          ) : (
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Contact Number *</label>
+              <input
+                type="tel"
+                value={contactNumber}
+                onChange={(e) => setContactNumber(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="+94 77 123 4567"
+              />
+            </div>
+          </div>
+
+          {bookingType === 'GROUP' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Group Name *</label>
@@ -3201,7 +3221,10 @@ function SearchPage() {
     const timeoutId = window.setTimeout(() => controller.abort(), 15000);
 
     fetch(`${API_BASE_URL}/api/roommates/browse`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       signal: controller.signal,
       cache: 'no-store',
     })

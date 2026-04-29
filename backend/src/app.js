@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
@@ -50,6 +51,7 @@ app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: false, limit: '25mb' }));
 app.use(limiter);
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
+app.use('/agreements', express.static(path.join(__dirname, '../public/agreements')));
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');

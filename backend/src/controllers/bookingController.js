@@ -2,6 +2,7 @@
 const mongoose = require('mongoose');
 const BookingRequest = require('../models/BookingRequest');
 const BookingAgreement = require('../models/BookingAgreement');
+const AgreementTemplate = require('../models/AgreementTemplate');
 const Room = require('../models/Room');
 const Notification = require('../models/Notification');
 const PDFDocument = require('pdfkit');
@@ -308,6 +309,60 @@ exports.getOwnerAgreements = async (req, res) => {
     return res.status(200).json({ success: true, data: agreements });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch agreements', error: error.message });
+  }
+};
+
+exports.createAgreementTemplate = async (req, res) => {
+  try {
+    if (!isOwnerOrAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'Only owners can create agreement templates' });
+    }
+
+    const { title, content } = req.body;
+    const trimmedTitle = String(title || '').trim();
+    const trimmedContent = String(content || '').trim();
+    const visibleContent = trimmedContent
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (trimmedTitle.length < 5 || trimmedTitle.length > 200) {
+      return res.status(400).json({ success: false, message: 'title must be 5-200 characters' });
+    }
+
+    if (visibleContent.length < 10 || trimmedContent.length > 10000) {
+      return res.status(400).json({ success: false, message: 'content must be at least 10 visible characters' });
+    }
+
+    const version = (await AgreementTemplate.countDocuments({ ownerId: req.user.userId })) + 1;
+
+    const template = await AgreementTemplate.create({
+      ownerId: req.user.userId,
+      title: trimmedTitle,
+      content: trimmedContent,
+      version,
+    });
+
+    return res.status(201).json({ success: true, message: 'Agreement template saved', data: template });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to save agreement template', error: error.message });
+  }
+};
+
+exports.getAgreementTemplates = async (req, res) => {
+  try {
+    if (!isOwnerOrAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'Only owners can view agreement templates' });
+    }
+
+    const templates = await AgreementTemplate.find({ ownerId: req.user.userId })
+      .sort({ version: -1, createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({ success: true, data: templates });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch agreement templates', error: error.message });
   }
 };
 
