@@ -15,7 +15,8 @@ import { MdDashboard, MdSettings, MdHelp, MdDragHandle, MdMyLocation, MdOutlineL
 import { BiCurrentLocation } from 'react-icons/bi';
 import './ProfileSetupAnimations.css';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5001';
+const rawApiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5001';
+const API_BASE_URL = rawApiUrl.replace(/\/api\/?$/, ''); // Prevents duplicate /api/api
 
 const academicYears = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 const genders = ['Male', 'Female', 'Other'];
@@ -766,18 +767,16 @@ function ProfileSetup() {
   const [showSkipOption, setShowSkipOption] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const totalSteps = 5;
+  
+  const stepRefs = [
+    useRef<HTMLDivElement>(null),
+    useRef<HTMLDivElement>(null),
+    useRef<HTMLDivElement>(null),
+    useRef<HTMLDivElement>(null),
+    useRef<HTMLDivElement>(null),
+  ];
 
-  const isOnboardingComplete = Boolean(
-    photo && 
-    bio && 
-    minBudget && 
-    maxBudget && 
-    distance && 
-    gender && 
-    Number(age) > 0 &&
-    year && 
-    roommate
-  );
+
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -800,7 +799,7 @@ function ProfileSetup() {
     } catch {
       // Ignore parse errors for local cache
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (step === 1) {
@@ -1075,8 +1074,8 @@ function ProfileSetup() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <SwitchTransition mode="out-in">
-              <CSSTransition key={step} timeout={300} classNames="step-fade">
-                <div className="min-h-[200px] md:min-h-[240px]">
+              <CSSTransition key={step} nodeRef={stepRefs[step - 1]} timeout={300} classNames="step-fade">
+                <div ref={stepRefs[step - 1]} className="min-h-[200px] md:min-h-[240px]">
                   {step === 1 && (
                     <div className="flex flex-col items-center justify-center py-2">
                       <div 

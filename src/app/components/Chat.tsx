@@ -85,7 +85,7 @@ interface ActiveCall {
   phase: 'dialing' | 'connecting' | 'active';
 }
 
-const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/lego/1.jpg';
+const DEFAULT_AVATAR = '';
 
 function resolveAssetUrl(value: unknown): string {
   if (!value || typeof value !== 'string') return '';
@@ -106,7 +106,40 @@ function resolveAvatarUrl(...candidates: unknown[]): string {
     const normalized = resolveAssetUrl(candidate);
     if (normalized) return normalized;
   }
-  return DEFAULT_AVATAR;
+  return '';
+}
+
+// Avatar component: shows image if available, otherwise initials
+function Avatar({ src, name, className }: { src?: string; name?: string; className?: string }) {
+  const initials = (name || '?')
+    .split(' ')
+    .map(w => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  if (src && src.startsWith('http')) {
+    return (
+      <>
+        <img
+          src={src}
+          alt={name}
+          className={className}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+            (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('style');
+          }}
+        />
+        <div style={{ display: 'none' }} className={`${className} bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm`}>{initials}</div>
+      </>
+    );
+  }
+
+  return (
+    <div className={`${className} bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm`}>
+      {initials}
+    </div>
+  );
 }
 
 function getCurrentUser(): ChatUser | null {
@@ -1232,9 +1265,9 @@ export default function Chat() {
                 >
                   <div className="flex items-start gap-3">
                     <div className="relative">
-                      <img
-                        src={conversation.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
-                        alt={conversation.name}
+                      <Avatar
+                        src={conversation.avatar}
+                        name={conversation.name}
                         className="w-12 h-12 rounded-full object-cover flex-shrink-0"
                       />
                       {conversation.type === 'direct' && conversation.participants.find(p => p.id !== currentUser.id)?.isOnline && (
@@ -1279,13 +1312,13 @@ export default function Chat() {
                 <ArrowLeft size={20} />
               </button>
               <div className="relative cursor-pointer" onClick={() => setShowUserProfile(true)}>
-                <img
+                <Avatar
                   src={resolveAvatarUrl(
                     selectedConversation.avatar,
                     selectedConversation.participants.find((participant) => participant.id !== currentUser?.id)?.avatar,
                     selectedConversation.participants[0]?.avatar
                   )}
-                  alt={selectedConversation.name}
+                  name={selectedConversation.name}
                   className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover"
                 />
                 {targetParticipant?.isOnline && (
@@ -1411,9 +1444,9 @@ export default function Chat() {
                   
                   <div className={`flex ${message.mine ? 'justify-end' : 'justify-start'}`}>
                     {!message.mine && (
-                      <img
+                      <Avatar
                         src={resolveAvatarUrl(message.sender.avatar, (message.sender as any).image, (message.sender as any).profilePicture)}
-                        alt={message.sender.fullName}
+                        name={message.sender.fullName}
                         className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover mr-2 mt-1 flex-shrink-0"
                       />
                     )}
@@ -1673,9 +1706,9 @@ export default function Chat() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <img
-                        src={contact.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
-                        alt={contact.fullName || contact.email}
+                      <Avatar
+                        src={contact.avatar}
+                        name={contact.fullName || contact.email}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                       {contact.isOnline && (
@@ -1707,9 +1740,9 @@ export default function Chat() {
         <div className="fixed inset-0 z-[75] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowUserProfile(false)}>
           <div className="w-full max-w-sm bg-gradient-to-br from-[#101a36] to-[#0f172a] border border-white/15 rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="relative">
-              <img
-                src={targetParticipant.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'}
-                alt={targetParticipant.fullName}
+              <Avatar
+                src={targetParticipant.avatar}
+                name={targetParticipant.fullName}
                 className="w-full h-48 object-cover"
               />
               <button

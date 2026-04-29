@@ -138,13 +138,17 @@ export default function SignIn() {
       localStorage.setItem('bb_current_user', JSON.stringify(result.data.user));
       setSuccess('Signed in successfully!');
 
-      const isNewStudent = result.data.user?.isNewStudent === true;
-
-      let destination = '/search';
-      if (result.data.user.role === 'owner') {
+      // Enhanced logic: student profile setup redirect
+      const user = result.data.user;
+      let destination = '/find';
+      if (user.role === 'owner') {
         destination = '/owner/dashboard';
-      } else if (isNewStudent) {
-        destination = '/profile-setup';
+      } else if (user.role === 'student') {
+        if (!user.profileCompleted) {
+          destination = '/profile-setup';
+        } else {
+          destination = '/find';
+        }
       }
       setTimeout(() => navigate(destination), 800);
     } catch (err) {
