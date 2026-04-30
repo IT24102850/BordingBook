@@ -159,64 +159,11 @@ interface SparklineProps {
   color: string;
 }
 
-interface StatsCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  trend: number;
-  color: string;
-}
-
-interface MobileStatsCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  trend: number;
-  color: string;
-}
-
-interface HouseCardProps {
-  house: BoardingHouse;
-  onEdit: (house: BoardingHouse) => void;
-  onDelete: (house: BoardingHouse) => void;
-  onSelect: (house: BoardingHouse) => void;
-}
-
-interface MobileHouseCardProps {
-  house: BoardingHouse;
-  onEdit: (house: BoardingHouse) => void;
-  onDelete: (house: BoardingHouse) => void;
-  onSelect: (house: BoardingHouse) => void;
-}
-
-interface RoomCardProps {
-  room: Room;
-  onEdit: (room: Room) => void;
-  onDelete: (room: Room) => void;
-  onViewTenants: (room: Room) => void;
-}
-
-interface MobileRoomCardProps {
-  room: Room;
-  onEdit: (room: Room) => void;
-  onDelete: (room: Room) => void;
-  onViewTenants: (room: Room) => void;
-}
-
-interface TenantTableProps {
-  tenants: Tenant[];
-  rooms: Room[];
-}
-
-interface MobileTenantListProps {
-  tenants: Tenant[];
-  rooms: Room[];
-}
-
 // ============================================
 // MOCK DATA
 // ============================================
 
+const API = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace(/\/api\/?$/, '');
 
 const facilitiesList: Facility[] = [
   { id: 'wifi', name: 'Wi-Fi', icon: <Wifi size={14} /> },
@@ -761,9 +708,11 @@ export default function OwnerDashboard() {
         bookingType: 'SINGLE' | 'GROUP';
         status: 'SIGNED' | 'PENDING' | 'EXPIRED';
         room: string;
+        roomId?: string;
         tenants: AgreementTenant[];
         duration: number; // in months
         signedDate?: string;
+        pdfUrl?: string | null;
       };
 
       const [signedAgreements, setSignedAgreements] = useState<AgreementInstance[]>([]);
@@ -825,7 +774,7 @@ export default function OwnerDashboard() {
       const handleDownloadAgreementPdf = async (agreement: AgreementInstance) => {
         try {
           const token = localStorage.getItem('bb_access_token');
-          const response = await fetch(`${API}/agreements/agreement_${agreement.id}.pdf`, {
+          const response = await fetch(`${API}/api/owner/agreements/${agreement.id}/download`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
 
@@ -910,6 +859,17 @@ export default function OwnerDashboard() {
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [selectedRoomForTenants, setSelectedRoomForTenants] = useState<Room | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'houses' | 'rooms' | 'tenants' | 'payments' | 'bookings' | 'agreements' | 'notifications' | 'notices' | 'profile' | 'kyc' | 'support'>('overview');
+  
+  // Room Edit Modal State
+  const [showEditRoom, setShowEditRoom] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [editRoomForm, setEditRoomForm] = useState({ price: 0 });
+  const [editRoomError, setEditRoomError] = useState('');
+  
+  // Room Delete Modal State
+  const [showDeleteRoomConfirm, setShowDeleteRoomConfirm] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState<Room | null>(null);
+  const [deleteRoomError, setDeleteRoomError] = useState('');
 
   // ── KYC state ─────────────────────────────────────────────────
   const [kycStatus, setKycStatus] = useState<'not_submitted' | 'pending' | 'approved' | 'rejected' | null>(null);
@@ -982,19 +942,26 @@ export default function OwnerDashboard() {
   });
 
   // Notice states
-  const [notices, setNotices] = useState<{id:string; type:string; message:string; date:string; recipients:string;}[]>([
+  const [notices, setNotices] = useState<{id:string; type:string; message:string; date:string; recipients:string; description?:string; time?:string;}[]>([
     {
       id: '1',
       type: 'general',
       message: 'powercut from 8 - 5',
-      date: '3/4/2026, 11:21:46 PM',
-      recipients: 'All Tenants'
+      date: '3/4/2026',
+      time: '11:21 PM',
+      recipients: 'All Tenants',
+      description: 'Power cut notice for all tenants.'
     }
   ]);
   const [showNoticeForm, setShowNoticeForm] = useState(false);
   const [noticeType, setNoticeType] = useState('general');
   const [noticeMessage, setNoticeMessage] = useState('');
+  const [noticeDescription, setNoticeDescription] = useState('');
+  const [noticeDate, setNoticeDate] = useState('');
+  const [noticeTime, setNoticeTime] = useState('');
   const [noticeRecipients, setNoticeRecipients] = useState('all');
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [selectedHouses, setSelectedHouses] = useState<string[]>([]);
 
   // Handle window resize
   useEffect(() => {
@@ -1044,7 +1011,6 @@ export default function OwnerDashboard() {
     navigate('/signin');
   };
 
-  const API = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace(/\/api\/?$/, '');
   const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('bb_access_token')}` });
 
   // ── KYC handlers ───────────────────────────────────────────────
@@ -1190,6 +1156,7 @@ export default function OwnerDashboard() {
           ],
           status: (agr.status === 'accepted' ? 'SIGNED' : agr.status === 'rejected' ? 'EXPIRED' : 'PENDING') as 'SIGNED' | 'PENDING' | 'EXPIRED',
           signedDate: agr.sentAt,
+          pdfUrl: agr.pdfUrl || null,
         }));
 
         setSignedAgreements(mappedAgreements);
@@ -1332,35 +1299,44 @@ export default function OwnerDashboard() {
     }
   };
 
-  const handleEditRoom = async (room: Room) => {
-    const nextPriceRaw = window.prompt('Update monthly price (Rs.)', String(room.price));
-    if (!nextPriceRaw) {
-      return;
-    }
-    const nextPrice = Number(nextPriceRaw);
-    if (Number.isNaN(nextPrice) || nextPrice <= 0) {
-      alert('Invalid price value');
-      return;
-    }
+  const handleEditRoom = (room: Room) => {
+    setEditingRoom(room);
+    setEditRoomForm({ price: room.price });
+    setEditRoomError('');
+    setShowEditRoom(true);
+  };
 
+  const handleSaveEditRoom = async () => {
+    if (!editingRoom) return;
+    if (!editRoomForm.price || editRoomForm.price <= 0) {
+      setEditRoomError('Please enter a valid price');
+      return;
+    }
     try {
-      const updated = await ownerDashboardApi.updateRoom(room.id, { price: nextPrice });
-      setRooms((prev) => prev.map((r) => (r.id === room.id ? mapRoomDtoToUi(updated) : r)));
+      const updated = await ownerDashboardApi.updateRoom(editingRoom.id, { price: editRoomForm.price });
+      setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? mapRoomDtoToUi(updated) : r)));
+      setShowEditRoom(false);
+      setEditingRoom(null);
     } catch (error) {
-      alert((error as Error).message || 'Failed to update room');
+      setEditRoomError((error as Error).message || 'Failed to update room');
     }
   };
 
-  const handleDeleteRoom = async (room: Room) => {
-    if (!window.confirm(`Delete Room ${room.roomNumber}?`)) {
-      return;
-    }
+  const handleDeleteRoom = (room: Room) => {
+    setDeletingRoom(room);
+    setDeleteRoomError('');
+    setShowDeleteRoomConfirm(true);
+  };
 
+  const confirmDeleteRoom = async () => {
+    if (!deletingRoom) return;
     try {
-      await ownerDashboardApi.deleteRoom(room.id);
-      setRooms((prev) => prev.filter((r) => r.id !== room.id));
+      await ownerDashboardApi.deleteRoom(deletingRoom.id);
+      setRooms((prev) => prev.filter((r) => r.id !== deletingRoom.id));
+      setShowDeleteRoomConfirm(false);
+      setDeletingRoom(null);
     } catch (error) {
-      alert((error as Error).message || 'Failed to delete room');
+      setDeleteRoomError((error as Error).message || 'Failed to delete room');
     }
   };
 
@@ -1414,21 +1390,23 @@ export default function OwnerDashboard() {
 
   // Handle send notice
   const handleSendNotice = () => {
-    if (!noticeMessage.trim()) { 
-      alert('Please enter a message'); 
-      return; 
+    if (!noticeMessage.trim() || !noticeDate || !noticeTime) {
+      alert('Please enter all required fields (message, date, time)');
+      return;
     }
-
-    const recipientText =
-      noticeRecipients === 'all' ? 'All Tenants'
-      : noticeRecipients === 'unpaid' ? 'Unpaid Tenants'
-      : 'Paid Tenants';
+    let recipientText = '';
+    if (noticeRecipients === 'all') recipientText = 'All Students';
+    else if (noticeRecipients === 'new') recipientText = 'New Students';
+    else if (noticeRecipients === 'selected') recipientText = `Selected Students: ${selectedStudents.join(', ')}`;
+    else if (noticeRecipients === 'houses') recipientText = `Houses: ${selectedHouses.map(id => houses.find(h=>h.id===id)?.name||id).join(', ')}`;
 
     setNotices(prev => [{
       id: Date.now().toString(),
       type: noticeType,
       message: noticeMessage.trim(),
-      date: new Date().toLocaleString(),
+      description: noticeDescription.trim(),
+      date: noticeDate,
+      time: noticeTime,
       recipients: recipientText
     }, ...prev]);
 
@@ -1437,6 +1415,11 @@ export default function OwnerDashboard() {
     setNoticeMessage('');
     setNoticeType('general');
     setNoticeRecipients('all');
+    setNoticeDescription('');
+    setNoticeDate('');
+    setNoticeTime('');
+    setSelectedStudents([]);
+    setSelectedHouses([]);
   };
 
   const handleOpenFileDialog = () => {
@@ -2846,7 +2829,74 @@ export default function OwnerDashboard() {
         </div>
       </div>
 
-      {/* Add House Modal - Desktop */}
+      {/* Send Notice Modal - Desktop */}
+      {showNoticeForm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-lg w-full my-8 p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Mail size={22} className="text-orange-400" /> Send Notice
+              </h2>
+              <button onClick={() => setShowNoticeForm(false)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                <X className="text-gray-400 hover:text-white" size={20} />
+              </button>
+            </div>
+            <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+              <div>
+                <label className="block text-xs text-gray-300 mb-1">Notice Title *</label>
+                <input type="text" value={noticeMessage} onChange={e => setNoticeMessage(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-400" placeholder="e.g., Power Cut Notice" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-300 mb-1">Description</label>
+                <textarea value={noticeDescription} onChange={e => setNoticeDescription(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-400 resize-none h-20" placeholder="Details about the notice..." />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Date *</label>
+                  <input type="date" value={noticeDate} onChange={e => setNoticeDate(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-400" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Time *</label>
+                  <input type="time" value={noticeTime} onChange={e => setNoticeTime(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-300 mb-1">Recipients *</label>
+                <select value={noticeRecipients} onChange={e => setNoticeRecipients(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-400">
+                  <option value="all">All Students</option>
+                  <option value="new">New Students</option>
+                  <option value="selected">Selected Students</option>
+                  <option value="houses">Houses</option>
+                </select>
+              </div>
+              {noticeRecipients === 'selected' && (
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Select Students</label>
+                  <select multiple value={selectedStudents} onChange={e => setSelectedStudents(Array.from(e.target.selectedOptions, opt => opt.value))} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-400 h-24">
+                    {allTenants.map(stu => (
+                      <option key={stu.id} value={stu.id}>{stu.name} ({stu.email || stu.id})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {noticeRecipients === 'houses' && (
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">Select Houses</label>
+                  <select multiple value={selectedHouses} onChange={e => setSelectedHouses(Array.from(e.target.selectedOptions, opt => opt.value))} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-400 h-24">
+                    {houses.map(h => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="flex gap-2 pt-4 border-t border-white/10">
+                <button onClick={() => setShowNoticeForm(false)} className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors">Cancel</button>
+                <button onClick={handleSendNotice} className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all">Send Notice</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {showAddHouse && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-5xl w-full my-8 p-6 shadow-2xl">
@@ -3377,6 +3427,77 @@ export default function OwnerDashboard() {
                   Save Room
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Room Modal */}
+      {showEditRoom && editingRoom && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-md w-full my-8 p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Edit size={24} className="text-cyan-400" /> Edit Room
+              </h2>
+              <button
+                onClick={() => setShowEditRoom(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="text-gray-400 hover:text-white" size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-300 mb-1">Monthly Price (Rs.)</label>
+                <input
+                  type="number"
+                  value={editRoomForm.price}
+                  onChange={e => setEditRoomForm({ price: Number(e.target.value) })}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                  placeholder="18000"
+                />
+              </div>
+              {editRoomError && <div className="text-red-400 text-xs">{editRoomError}</div>}
+              <div className="flex gap-2 pt-4 border-t border-white/10">
+                <button
+                  onClick={() => setShowEditRoom(false)}
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEditRoom}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Room Confirmation Modal */}
+      {showDeleteRoomConfirm && deletingRoom && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-[#131d3a] to-[#0b132b] rounded-xl border border-white/10 max-w-sm w-full my-8 p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-white mb-4">Delete Room</h2>
+            <p className="text-white mb-4">Are you sure you want to delete Room {deletingRoom.roomNumber}?</p>
+            {deleteRoomError && <div className="text-red-400 text-xs mb-2">{deleteRoomError}</div>}
+            <div className="flex gap-2 pt-2 border-t border-white/10">
+              <button
+                onClick={() => setShowDeleteRoomConfirm(false)}
+                className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteRoom}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

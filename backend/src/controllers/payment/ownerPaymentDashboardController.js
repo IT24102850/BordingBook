@@ -127,14 +127,14 @@ exports.getRoomsOverview = async (req, res) => {
     // For each room, find current tenant
     const roomsWithTenants = await Promise.all(
       rooms.map(async (room) => {
-        // Find booking agreement for this room
-        const agreement = await BookingAgreement.findOne({
+        // Find all booking agreements for this room
+        const agreements = await BookingAgreement.find({
           roomId: room._id,
           status: 'accepted',
         }).populate('studentId', 'fullName email phoneNumber');
 
-        const isOccupied = !!agreement;
-        const occupancyStatus = isOccupied ? 'OCCUPIED' : 'AVAILABLE';
+        const isOccupied = agreements.length > 0;
+        const occupancyStatus = isOccupied ? (agreements.length >= room.bedCount ? 'FULL' : 'PARTIALLY OCCUPIED') : 'AVAILABLE';
 
         return {
           id: room._id.toString(),
@@ -143,11 +143,18 @@ exports.getRoomsOverview = async (req, res) => {
           price: room.price,
           bedCount: room.bedCount,
           occupancyStatus,
-          currentTenant: agreement ? {
-            id: agreement.studentId._id.toString(),
-            name: agreement.studentId.fullName,
-            email: agreement.studentId.email,
-            phone: agreement.studentId.phoneNumber,
+          currentTenants: agreements.filter(agg => agg.studentId).map(agg => ({
+            id: agg.studentId._id.toString(),
+            name: agg.studentId.fullName || agg.studentId.name || 'Unknown Student',
+            email: agg.studentId.email,
+            phone: agg.studentId.phoneNumber,
+          })),
+          // Keeping currentTenant for backward compatibility
+          currentTenant: agreements.length > 0 && agreements[0].studentId ? {
+            id: agreements[0].studentId._id.toString(),
+            name: agreements[0].studentId.fullName || agreements[0].studentId.name || 'Unknown Student',
+            email: agreements[0].studentId.email,
+            phone: agreements[0].studentId.phoneNumber,
           } : null,
           location: room.location,
           facilities: room.facilities,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
+
 // Agreement Acceptance Modal
 const AgreementAcceptModal = ({
   open,

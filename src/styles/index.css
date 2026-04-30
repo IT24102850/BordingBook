@@ -45,6 +45,54 @@ input, select, button {
 	scrollbar-width: none;
 }
 
+/* Style native select elements for dark mode */
+select {
+	background-color: rgba(3, 2, 19, 0.3);
+	color: rgba(248, 250, 252, 1);
+	border: 1px solid rgba(148, 163, 184, 0.2);
+	padding: 0.5rem 0.75rem;
+	border-radius: 0.375rem;
+	font-size: 0.875rem;
+}
+
+select option {
+	background-color: rgba(3, 2, 19, 0.95);
+	color: rgba(248, 250, 252, 1);
+}
+
+select option:hover {
+	background-color: rgba(30, 58, 138, 0.8);
+}
+
+select option:checked {
+	background: linear-gradient(rgba(30, 58, 138, 0.8), rgba(30, 58, 138, 0.8));
+	color: rgba(248, 250, 252, 1);
+}
+
+select:focus {
+	outline: 2px solid transparent;
+	outline-offset: 2px;
+	border-color: rgba(34, 211, 238, 0.5);
+	box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+}
+
+/* Dark mode select styles */
+.dark select {
+	background-color: rgba(38, 42, 69, 0.8);
+	color: rgba(248, 250, 252, 1);
+	border-color: rgba(71, 85, 127, 0.3);
+}
+
+.dark select option {
+	background-color: rgba(15, 23, 42, 0.95);
+	color: rgba(248, 250, 252, 1);
+}
+
+.dark select:focus {
+	border-color: rgba(34, 211, 238, 0.6);
+	box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+}
+
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';

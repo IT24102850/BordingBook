@@ -306,7 +306,14 @@ exports.getOwnerAgreements = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    return res.status(200).json({ success: true, data: agreements });
+    const agreementsWithPdf = agreements.map(agg => {
+      if (agg.status === 'accepted') {
+        return { ...agg, pdfUrl: `/agreements/agreement_${agg._id}.pdf` };
+      }
+      return agg;
+    });
+
+    return res.status(200).json({ success: true, data: agreementsWithPdf });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch agreements', error: error.message });
   }
@@ -379,7 +386,14 @@ exports.getMyAgreements = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    return res.status(200).json({ success: true, data: agreements });
+    const agreementsWithPdf = agreements.map(agg => {
+      if (agg.status === 'accepted') {
+        return { ...agg, pdfUrl: `/agreements/agreement_${agg._id}.pdf` };
+      }
+      return agg;
+    });
+
+    return res.status(200).json({ success: true, data: agreementsWithPdf });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch agreements', error: error.message });
   }
@@ -472,5 +486,33 @@ exports.respondToAgreement = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to respond to agreement', error: error.message });
+  }
+};
+
+exports.downloadAgreement = async (req, res) => {
+  try {
+    const { agreementId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(agreementId)) {
+      return res.status(400).json({ success: false, message: 'Invalid agreement id' });
+    }
+
+    const agreement = await BookingAgreement.findById(agreementId);
+    if (!agreement) {
+      return res.status(404).json({ success: false, message: 'Agreement not found' });
+    }
+
+    if (agreement.status !== 'accepted') {
+      return res.status(400).json({ success: false, message: 'Agreement has not been signed yet' });
+    }
+
+    const pdfPath = path.join(__dirname, '../../public/agreements', `agreement_${agreement._id}.pdf`);
+    if (!fs.existsSync(pdfPath)) {
+      return res.status(404).json({ success: false, message: 'PDF file not found' });
+    }
+
+    return res.download(pdfPath);
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to download agreement', error: error.message });
   }
 };

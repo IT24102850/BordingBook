@@ -3,10 +3,24 @@ const { body } = require('express-validator');
 const { requireAuth } = require('../middleware/auth');
 const validateRequest = require('../middleware/validateRequest');
 const ownerController = require('../controllers/ownerController');
+
 const ownerPaymentDashboardController = require('../controllers/payment/ownerPaymentDashboardController');
+const noticeController = require('../controllers/noticeController');
 const bookingController = require('../controllers/bookingController');
 
 const router = express.Router();
+
+// Notice CRUD endpoints
+router.get('/notices', requireAuth, noticeController.getNotices);
+router.post('/notices', requireAuth, [
+  body('title').isLength({ min: 3, max: 100 }).withMessage('Title must be 3-100 characters'),
+  body('message').isLength({ min: 5, max: 2000 }).withMessage('Message must be 5-2000 characters'),
+], validateRequest, noticeController.createNotice);
+router.patch('/notices/:noticeId', requireAuth, [
+  body('title').optional().isLength({ min: 3, max: 100 }),
+  body('message').optional().isLength({ min: 5, max: 2000 }),
+], validateRequest, noticeController.updateNotice);
+router.delete('/notices/:noticeId', requireAuth, noticeController.deleteNotice);
 
 
 router.get('/public/houses', ownerController.getPublicHouses);
@@ -72,6 +86,7 @@ router.patch(
   bookingController.updateBookingRequestStatus
 );
 router.get('/agreements', requireAuth, bookingController.getOwnerAgreements);
+router.get('/agreements/:agreementId/download', requireAuth, bookingController.downloadAgreement);
 router.get('/agreement-templates', requireAuth, bookingController.getAgreementTemplates);
 router.post(
   '/agreement-templates',

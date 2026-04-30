@@ -1,3 +1,49 @@
+// Notice DTO
+export type NoticeDto = {
+  _id: string;
+  ownerId: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// Notice API
+async function getNotices(): Promise<NoticeDto[]> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/notices`, {
+    headers: getAuthHeaders(),
+  });
+  return ensureSuccess<NoticeDto[]>(response);
+}
+
+async function createNotice(payload: { title: string; message: string }): Promise<NoticeDto> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/notices`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return ensureSuccess<NoticeDto>(response);
+}
+
+async function updateNotice(noticeId: string, payload: { title?: string; message?: string }): Promise<NoticeDto> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/notices/${noticeId}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return ensureSuccess<NoticeDto>(response);
+}
+
+async function deleteNotice(noticeId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/notices/${noticeId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  const body = await parse<unknown>(response);
+  if (!response.ok || !body.success) {
+    throw new Error(body.message || 'Failed to delete notice');
+  }
+}
 // Strip /api suffix from VITE_API_URL if present, since endpoints already include /api prefix
 const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL as string)?.replace(/\/api\/?$/, '') || 'http://localhost:5001';
 
@@ -249,6 +295,7 @@ export type AgreementTemplateDto = {
 export type AgreementDto = {
   _id: string;
   ownerId: string;
+  pdfUrl?: string | null;
   studentId: {
     _id: string;
     fullName: string;
@@ -371,4 +418,9 @@ export const ownerDashboardApi = {
   createAgreementForRequest,
   getOwnerAgreements,
   cancelAgreement,
+  // Notice API
+  getNotices,
+  createNotice,
+  updateNotice,
+  deleteNotice,
 };
