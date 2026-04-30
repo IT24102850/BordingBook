@@ -543,7 +543,7 @@ const TenantTable: React.FC<TenantTableProps> = ({ tenants, rooms }) => {
           {tenants.map((tenant) => {
             const bookingStatus = getBookingStatus(tenant.checkOutDate);
             return (
-              <tr key={tenant.id} className="border-b border-white/10 hover:bg-white/10 transition-colors">
+              <tr key={`${tenant.roomId}-${tenant.id}-${tenant.checkInDate}`} className="border-b border-white/10 hover:bg-white/10 transition-colors">
                 <td className="px-4 py-3 text-white font-medium">#{getRoomNumber(tenant.roomId)}</td>
                 <td className="px-4 py-3 text-white">{tenant.name}</td>
                 <td className="px-4 py-3 text-gray-300">{new Date(tenant.checkInDate).toLocaleDateString()}</td>
@@ -604,7 +604,7 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
       {tenants.map((tenant) => {
         const status = bookingStatus(tenant.checkOutDate);
         return (
-          <div key={tenant.id} className="bg-white/5 rounded-lg p-2.5 border border-white/10">
+          <div key={`${tenant.roomId}-${tenant.id}-${tenant.checkInDate}`} className="bg-white/5 rounded-lg p-2.5 border border-white/10">
             <div className="flex justify-between items-start mb-1">
               <div>
                 <p className="text-xs font-medium text-white">{tenant.name}</p>
@@ -854,7 +854,7 @@ const HierarchicalTenantOverview: React.FC<HierarchicalTenantOverviewProps> = ({
                                     const paymentColor = paymentColorMap[tenant.paymentStatus as keyof typeof paymentColorMap] || { bg: 'bg-gray-500/20', text: 'text-gray-400' };
 
                                     return (
-                                      <div key={tenant.id} className="bg-white/5 p-3 rounded-lg border border-white/10 hover:border-white/20 transition-all">
+                                      <div key={`${tenant.roomId}-${tenant.id}-${tenant.checkInDate}`} className="bg-white/5 p-3 rounded-lg border border-white/10 hover:border-white/20 transition-all">
                                         <div className="flex items-start justify-between mb-2">
                                           <div>
                                             <h5 className="font-semibold text-white text-sm">{tenant.name}</h5>
@@ -2549,7 +2549,7 @@ export default function OwnerDashboard() {
                   <h3 className="text-sm font-medium text-cyan-300 mb-3">Recent Payments</h3>
                   <div className="space-y-2">
                     {allTenants.filter(t => t.paymentStatus === 'paid').slice(0, 5).map(tenant => (
-                      <div key={tenant.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                      <div key={`${tenant.roomId}-${tenant.id}-${tenant.checkInDate}`} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                         <div>
                           <p className="text-xs text-white">{tenant.name}</p>
                           <p className="text-[10px] text-gray-400">Room {rooms.find(r => r.id === tenant.roomId)?.roomNumber}</p>
