@@ -659,6 +659,279 @@ const MobileTenantList: React.FC<MobileTenantListProps> = ({ tenants, rooms }) =
 };
 
 // ============================================
+// HIERARCHICAL TENANT OVERVIEW COMPONENT
+// ============================================
+
+interface HierarchicalTenantOverviewProps {
+  tenants: Tenant[];
+  rooms: Room[];
+  houses: BoardingHouse[];
+}
+
+const HierarchicalTenantOverview: React.FC<HierarchicalTenantOverviewProps> = ({ tenants, rooms, houses }) => {
+  const [expandedHouses, setExpandedHouses] = useState<string[]>([]);
+  const [expandedRooms, setExpandedRooms] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Toggle house expansion
+  const toggleHouse = (houseId: string) => {
+    setExpandedHouses(prev => 
+      prev.includes(houseId) ? prev.filter(id => id !== houseId) : [...prev, houseId]
+    );
+  };
+
+  // Toggle room expansion
+  const toggleRoom = (roomId: string) => {
+    setExpandedRooms(prev => 
+      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    );
+  };
+
+  // Get tenants for a room
+  const getRoomTenants = (roomId: string) => {
+    return tenants.filter(t => t.roomId === roomId);
+  };
+
+  // Get rooms for a house
+  const getHouseRooms = (houseId: string) => {
+    return rooms.filter(r => r.houseId === houseId);
+  };
+
+  // Filter houses and content based on search
+  const getFilteredHouses = () => {
+    if (!searchQuery.trim()) {
+      return houses;
+    }
+
+    const query = searchQuery.toLowerCase();
+    return houses.filter(house => {
+      // Check if house name matches
+      if (house.name.toLowerCase().includes(query)) return true;
+      
+      // Check if any room in house matches
+      const houseRooms = getHouseRooms(house.id);
+      if (houseRooms.some(r => r.roomNumber.toLowerCase().includes(query))) return true;
+      
+      // Check if any tenant in house matches
+      for (const room of houseRooms) {
+        const roomTenants = getRoomTenants(room.id);
+        if (roomTenants.some(t => t.name.toLowerCase().includes(query) || t.email.toLowerCase().includes(query))) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
+  };
+
+  const paymentColorMap = {
+    paid: { bg: 'bg-green-500/20', text: 'text-green-400' },
+    pending: { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+    overdue: { bg: 'bg-red-500/20', text: 'text-red-400' }
+  };
+
+  const bookingColorMap = {
+    'Active': { bg: 'bg-green-500/20', text: 'text-green-400' },
+    'Ending Soon': { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+    'Expired': { bg: 'bg-red-500/20', text: 'text-red-400' }
+  };
+
+  const filteredHouses = getFilteredHouses();
+
+  return (
+    <div className="space-y-4">
+      {/* Search Bar */}
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+          <input
+            type="text"
+            placeholder="Search by house, room, or tenant name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
+          />
+        </div>
+      </div>
+
+      {/* Hierarchical List */}
+      <div className="space-y-3">
+        {filteredHouses.length === 0 ? (
+          <div className="bg-white/5 rounded-lg p-8 text-center border border-white/10">
+            <Building className="mx-auto mb-3 text-gray-500" size={24} />
+            <p className="text-gray-400">No boarding houses found</p>
+          </div>
+        ) : (
+          filteredHouses.map(house => {
+            const houseRooms = getHouseRooms(house.id);
+            const houseTenantCount = houseRooms.reduce((acc, r) => acc + getRoomTenants(r.id).length, 0);
+            const isExpanded = expandedHouses.includes(house.id);
+
+            return (
+              <div key={house.id} className="border border-white/10 rounded-lg overflow-hidden">
+                {/* House Header */}
+                <div
+                  onClick={() => toggleHouse(house.id)}
+                  className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 p-4 cursor-pointer hover:from-cyan-900/50 hover:to-purple-900/50 transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button className="p-1 hover:bg-white/10 rounded transition-colors">
+                        {isExpanded ? <ChevronDown size={18} className="text-cyan-400" /> : <ChevronRight size={18} className="text-cyan-400" />}
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <Building size={18} className="text-cyan-400" />
+                        <div>
+                          <h3 className="font-bold text-white text-sm">{house.name}</h3>
+                          <p className="text-xs text-gray-400">{house.address}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-xs font-semibold text-cyan-300">{houseTenantCount} Tenants</div>
+                        <div className="text-xs text-gray-400">{houseRooms.length} Rooms</div>
+                      </div>
+                      {house.image && (
+                        <img src={house.image} alt={house.name} className="w-12 h-12 rounded-lg object-cover border border-white/10" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rooms List (shown when expanded) */}
+                {isExpanded && (
+                  <div className="bg-white/5 space-y-2 p-3">
+                    {houseRooms.length === 0 ? (
+                      <div className="text-center py-4 text-gray-400 text-sm">No rooms in this house</div>
+                    ) : (
+                      houseRooms.map(room => {
+                        const roomTenants = getRoomTenants(room.id);
+                        const isRoomExpanded = expandedRooms.includes(room.id);
+                        const occupancyColor = 
+                          room.occupiedBeds >= room.bedCount ? 'text-red-400' :
+                          room.occupiedBeds > 0 ? 'text-yellow-400' :
+                          'text-green-400';
+
+                        return (
+                          <div key={room.id} className="border border-white/10 rounded-lg overflow-hidden">
+                            {/* Room Header */}
+                            <div
+                              onClick={() => toggleRoom(room.id)}
+                              className="bg-white/5 p-3 cursor-pointer hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <button className="p-0.5 hover:bg-white/10 rounded transition-colors">
+                                    {isRoomExpanded ? <ChevronDown size={16} className="text-purple-400" /> : <ChevronRight size={16} className="text-purple-400" />}
+                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    <Bed size={14} className="text-purple-400" />
+                                    <div>
+                                      <h4 className="font-semibold text-white text-xs">Room {room.roomNumber}</h4>
+                                      <p className="text-[10px] text-gray-400">Floor {room.floor} • {room.roomType}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right">
+                                    <div className={`text-xs font-semibold ${occupancyColor}`}>{room.occupiedBeds}/{room.bedCount} beds</div>
+                                    <div className="text-xs text-gray-400">Rs.{room.price.toLocaleString()}/mo</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Tenants List (shown when room is expanded) */}
+                            {isRoomExpanded && (
+                              <div className="bg-black/30 space-y-2 p-3">
+                                {roomTenants.length === 0 ? (
+                                  <div className="text-center py-3 text-gray-400 text-xs">No tenants in this room</div>
+                                ) : (
+                                  roomTenants.map(tenant => {
+                                    const bookingStatus = getBookingStatus(tenant.checkOutDate);
+                                    const bookingColor = bookingColorMap[bookingStatus.label as keyof typeof bookingColorMap] || { bg: 'bg-gray-500/20', text: 'text-gray-400' };
+                                    const paymentColor = paymentColorMap[tenant.paymentStatus as keyof typeof paymentColorMap] || { bg: 'bg-gray-500/20', text: 'text-gray-400' };
+
+                                    return (
+                                      <div key={tenant.id} className="bg-white/5 p-3 rounded-lg border border-white/10 hover:border-white/20 transition-all">
+                                        <div className="flex items-start justify-between mb-2">
+                                          <div>
+                                            <h5 className="font-semibold text-white text-sm">{tenant.name}</h5>
+                                            <p className="text-xs text-gray-400">{tenant.email}</p>
+                                          </div>
+                                          <div className="flex gap-1 flex-wrap justify-end">
+                                            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${paymentColor.bg} ${paymentColor.text}`}>
+                                              {tenant.paymentStatus === 'paid' ? '✓ Paid' : tenant.paymentStatus === 'pending' ? '⏳ Pending' : '⚠️ Overdue'}
+                                            </span>
+                                            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${bookingColor.bg} ${bookingColor.text}`}>
+                                              {bookingStatus.label}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-1 mb-2">
+                                          <div className="flex items-center gap-2 text-xs text-gray-300">
+                                            <Phone size={12} className="text-cyan-400" />
+                                            <span>{tenant.phone || 'N/A'}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2 text-xs text-gray-300">
+                                            <Calendar size={12} className="text-cyan-400" />
+                                            <span>
+                                              {new Date(tenant.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })} 
+                                              {' → '}
+                                              {new Date(tenant.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2 text-xs text-gray-300">
+                                            <DollarSign size={12} className="text-green-400" />
+                                            <span>Rs.{tenant.monthlyRent.toLocaleString()}/month</span>
+                                          </div>
+                                          {tenant.nextPaymentCycleStartDate && (
+                                            <div className="flex items-center gap-2 text-xs text-gray-300">
+                                              <Clock size={12} className="text-yellow-400" />
+                                              <span>Next due: {new Date(tenant.nextPaymentCycleStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="flex gap-2 pt-2 border-t border-white/10">
+                                          {tenant.phone && (
+                                            <a href={`tel:${tenant.phone}`} className="flex-1 text-center py-1.5 bg-cyan-500/20 text-cyan-300 rounded text-xs font-medium hover:bg-cyan-500/30 transition-colors flex items-center justify-center gap-1">
+                                              <Phone size={12} /> Call
+                                            </a>
+                                          )}
+                                          {tenant.email && (
+                                            <a href={`mailto:${tenant.email}`} className="flex-1 text-center py-1.5 bg-purple-500/20 text-purple-300 rounded text-xs font-medium hover:bg-purple-500/30 transition-colors flex items-center justify-center gap-1">
+                                              <Mail size={12} /> Email
+                                            </a>
+                                          )}
+                                          <button className="flex-1 py-1.5 bg-green-500/20 text-green-300 rounded text-xs font-medium hover:bg-green-500/30 transition-colors flex items-center justify-center gap-1">
+                                            <Download size={12} /> Receipt
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -2193,9 +2466,14 @@ export default function OwnerDashboard() {
           {/* Tenants Tab - Desktop */}
           {activeTab === 'tenants' && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white">Tenant Overview</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white">Tenant Overview</h2>
+                <div className="text-xs text-gray-400">
+                  {totalTenants} tenants across {totalRooms} rooms in {totalHouses} houses
+                </div>
+              </div>
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                <TenantTable tenants={allTenants} rooms={rooms} />
+                <HierarchicalTenantOverview tenants={allTenants} rooms={rooms} houses={houses} />
               </div>
             </div>
           )}
