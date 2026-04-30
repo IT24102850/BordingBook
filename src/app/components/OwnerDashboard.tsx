@@ -10,7 +10,7 @@ import {
   Camera, Eye, Settings,
   BarChart, CreditCard, Award, TrendingUp, Menu, X,
   Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight, LogOut,
-  ChevronUp, ChevronDown, ShieldCheck, LifeBuoy, Send, CheckCircle, Loader2, Clock, RefreshCw
+  ChevronUp, ChevronDown, ChevronRight, ShieldCheck, LifeBuoy, Send, CheckCircle, Loader2, Clock, RefreshCw
 } from 'lucide-react';
 import OwnerApprovalPage from './OwnerApprovalPage';
 import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
