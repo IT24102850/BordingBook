@@ -4,6 +4,11 @@ export type NoticeDto = {
   ownerId: string;
   title: string;
   message: string;
+  type?: 'general' | 'urgent' | 'maintenance' | 'payment';
+  description?: string;
+  recipients?: string;
+  date?: string;
+  time?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -16,7 +21,15 @@ async function getNotices(): Promise<NoticeDto[]> {
   return ensureSuccess<NoticeDto[]>(response);
 }
 
-async function createNotice(payload: { title: string; message: string }): Promise<NoticeDto> {
+async function createNotice(payload: { 
+  title: string; 
+  message: string;
+  type?: string;
+  description?: string;
+  recipients?: string;
+  date?: string;
+  time?: string;
+}): Promise<NoticeDto> {
   const response = await fetch(`${API_BASE_URL}/api/owner/notices`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -25,7 +38,15 @@ async function createNotice(payload: { title: string; message: string }): Promis
   return ensureSuccess<NoticeDto>(response);
 }
 
-async function updateNotice(noticeId: string, payload: { title?: string; message?: string }): Promise<NoticeDto> {
+async function updateNotice(noticeId: string, payload: { 
+  title?: string; 
+  message?: string;
+  type?: string;
+  description?: string;
+  recipients?: string;
+  date?: string;
+  time?: string;
+}): Promise<NoticeDto> {
   const response = await fetch(`${API_BASE_URL}/api/owner/notices/${noticeId}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),

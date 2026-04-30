@@ -1185,17 +1185,7 @@ export default function OwnerDashboard() {
   });
 
   // Notice states
-  const [notices, setNotices] = useState<{id:string; type:string; message:string; date:string; recipients:string; description?:string; time?:string;}[]>([
-    {
-      id: '1',
-      type: 'general',
-      message: 'powercut from 8 - 5',
-      date: '3/4/2026',
-      time: '11:21 PM',
-      recipients: 'All Tenants',
-      description: 'Power cut notice for all tenants.'
-    }
-  ]);
+  const [notices, setNotices] = useState<{_id?: string; id?:string; type:string; message:string; date:string; recipients:string; description?:string; time?:string; title?: string;}[]>([]);
   const [showNoticeForm, setShowNoticeForm] = useState(false);
   const [noticeType, setNoticeType] = useState('general');
   const [noticeMessage, setNoticeMessage] = useState('');
@@ -1205,6 +1195,7 @@ export default function OwnerDashboard() {
   const [noticeRecipients, setNoticeRecipients] = useState('all');
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [selectedHouses, setSelectedHouses] = useState<string[]>([]);
+  const [noticeLoading, setNoticeLoading] = useState(false);
 
   // Handle window resize
   useEffect(() => {
@@ -1463,6 +1454,13 @@ export default function OwnerDashboard() {
     loadOwnerData();
   }, []);
 
+  // Load notices when component mounts or when notices tab is clicked
+  useEffect(() => {
+    if (activeTab === 'notices' && notices.length === 0) {
+      fetchNotices();
+    }
+  }, [activeTab]);
+
   // ============================================
   // REAL-TIME ROOM AVAILABILITY MANAGEMENT
   // ============================================
@@ -1710,7 +1708,7 @@ export default function OwnerDashboard() {
   };
 
   // Handle send notice
-  const handleSendNotice = () => {
+  const handleSendNotice = async () => {
     if (!noticeMessage.trim() || !noticeDate || !noticeTime) {
       alert('Please enter all required fields (message, date, time)');
       return;
@@ -1721,26 +1719,67 @@ export default function OwnerDashboard() {
     else if (noticeRecipients === 'selected') recipientText = `Selected Students: ${selectedStudents.join(', ')}`;
     else if (noticeRecipients === 'houses') recipientText = `Houses: ${selectedHouses.map(id => houses.find(h=>h.id===id)?.name||id).join(', ')}`;
 
-    setNotices(prev => [{
-      id: Date.now().toString(),
-      type: noticeType,
-      message: noticeMessage.trim(),
-      description: noticeDescription.trim(),
-      date: noticeDate,
-      time: noticeTime,
-      recipients: recipientText
-    }, ...prev]);
+    try {
+      // Save to database
+      const savedNotice = await ownerDashboardApi.createNotice({
+        title: noticeMessage.substring(0, 50),
+        message: noticeMessage.trim(),
+        type: noticeType,
+        description: noticeDescription.trim(),
+        recipients: recipientText,
+        date: noticeDate,
+        time: noticeTime
+      });
 
-    alert('Notice sent successfully!');
-    setShowNoticeForm(false);
-    setNoticeMessage('');
-    setNoticeType('general');
-    setNoticeRecipients('all');
-    setNoticeDescription('');
-    setNoticeDate('');
-    setNoticeTime('');
-    setSelectedStudents([]);
-    setSelectedHouses([]);
+      // Add to UI with mapped properties
+      setNotices(prev => [{
+        _id: savedNotice._id,
+        id: savedNotice._id,
+        type: savedNotice.type || noticeType,
+        message: savedNotice.message,
+        description: savedNotice.description || noticeDescription.trim(),
+        date: savedNotice.date || noticeDate,
+        time: savedNotice.time || noticeTime,
+        recipients: savedNotice.recipients || recipientText
+      }, ...prev]);
+
+      alert('Notice sent and saved successfully!');
+      setShowNoticeForm(false);
+      setNoticeMessage('');
+      setNoticeType('general');
+      setNoticeRecipients('all');
+      setNoticeDescription('');
+      setNoticeDate('');
+      setNoticeTime('');
+      setSelectedStudents([]);
+      setSelectedHouses([]);
+    } catch (error) {
+      alert((error as Error).message || 'Failed to send notice');
+    }
+  };
+
+  // ── Notice handlers ────────────────────────────────────
+  const fetchNotices = async () => {
+    try {
+      setNoticeLoading(true);
+      const data = await ownerDashboardApi.getNotices();
+      const mappedNotices = data.map((notice: any) => ({
+        _id: notice._id,
+        id: notice._id,
+        type: notice.type || 'general',
+        message: notice.message,
+        description: notice.description || '',
+        date: notice.date || new Date().toISOString().split('T')[0],
+        time: notice.time || new Date().toLocaleTimeString(),
+        recipients: notice.recipients || 'All Students',
+        title: notice.title || notice.message.substring(0, 30)
+      }));
+      setNotices(mappedNotices);
+    } catch (error) {
+      console.error('Failed to fetch notices:', error);
+    } finally {
+      setNoticeLoading(false);
+    }
   };
 
   const handleOpenFileDialog = () => {
