@@ -1173,25 +1173,18 @@ const RoommateFinderPlaceholder: React.FC<{
               <p className="text-xs text-gray-300 truncate">{lastMessage}</p>
             </div>
           </div>
-                  {savedSearchesLoading || savedSearches.length > 0 ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-pink-500/20 border border-pink-400/30 text-pink-200 flex-shrink-0">
               {unreadCount} new
             </span>
-          )}
         </div>
         {updatedAt && <p className="text-[11px] text-gray-500 mt-2">{updatedAt}</p>}
-                              {savedSearchesLoading
-                                ? 'Loading saved searches...'
-                                : `Showing ${visibleSavedSearches.length} of ${savedSearches.length}`}
           <button
             type="button"
-                          {savedSearches.length > savedSearchPreviewLimit && (
             className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-xs w-full"
           >
             Open Chat
           </button>
         </div>
-                              {showAllSavedSearches ? 'Less' : `+${hiddenSavedSearchesCount}`}
     );
   };
 
