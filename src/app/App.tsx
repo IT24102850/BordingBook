@@ -1,11 +1,11 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-import SignInPage from './components/SignInPage';
-
 const LandingPage = lazy(() => import('./components/LandingPage'));
+const SignInPage = lazy(() => import('./components/SignInPage'));
 const SignUpPage = lazy(() => import('./components/SignUpPage'));
 const ProfileSetup = lazy(() => import('./components/ProfileSetup'));
+const SearchPage = lazy(() => import('./components/SearchPage'));
 const VerifyEmailPage = lazy(() => import('./components/VerifyEmailPage'));
 
 const MobileLayout = lazy(() => import('./components/mobile/MobileLayout'));
@@ -97,8 +97,8 @@ export default function App() {
         <Route path="/auth/signin" element={<Navigate to="/signin" replace />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/profile-setup" element={<ProfileSetup />} />
-        <Route path="/find" element={<SearchDiscovery />} />
-        <Route path="/search" element={<SearchDiscovery />} />
+        <Route path="/find" element={<SearchPage />} />
+        <Route path="/search" element={<SearchPage />} />
         <Route path="/listing/:id" element={<ListingDetailPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
