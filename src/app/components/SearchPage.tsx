@@ -1215,31 +1215,9 @@ const RoommateFinderPlaceholder: React.FC<{
           return <p className="mt-2 text-xs text-amber-300">Tagged: Current boarding house (1 vacancy left)</p>;
         })()}
       </div>
-              <option value="">-- Select a room --</option>
-              {dbListings.map((room: any) => {
-                const roomId = String(room.id || room._id || '');
-                const vacancy = Math.max(0, Number(room.totalSpots || room.totalRooms || 0) - Number(room.occupancy || room.occupiedRooms || 0));
-                return (
-                  <option key={roomId} value={roomId}>
-                    {room.title || room.name || 'Room'} ({vacancy} vacancies)
-                  </option>
-                );
-              })}
-            </select>
-            {(() => {
-              const selectedRoom: any = dbListings.find((room: any) => String(room.id || room._id) === String(selectedRoomId));
-              if (!selectedRoom) return null;
-              const vacancy = Math.max(0, Number(selectedRoom.totalSpots || selectedRoom.totalRooms || 0) - Number(selectedRoom.occupancy || selectedRoom.occupiedRooms || 0));
-              if (vacancy !== 1) return null;
-              return <p className="mt-2 text-xs text-amber-300">Tagged: Current boarding house (1 vacancy left)</p>;
-            })()}
-          </div>
-        ) : (
-          <p className="text-xs text-cyan-200">Tagged: Planned boarding house</p>
-        )}
 
-        <div>
-          <label className="block text-xs text-gray-300 mb-1">Invite members</label>
+      <div>
+        <label className="block text-xs text-gray-300 mb-1">Invite members</label>
           <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
             {roommateData.map((mate) => (
               <label key={mate.userId || mate.id} className="flex items-center gap-2 text-xs text-gray-200">
@@ -1264,7 +1242,6 @@ const RoommateFinderPlaceholder: React.FC<{
         >
           {isCreatingGroup ? 'Creating...' : 'Create Group & Send Invites'}
         </button>
-      </div>
 
       {groupItems.length ? groupItems.map((group: any) => (
         <div key={group._id || group.id} className="bg-white/5 rounded-xl border border-white/10 p-4">
