@@ -1378,7 +1378,29 @@ export default function OwnerDashboard() {
         ]);
 
         const mappedHouses = houseData.map(mapHouseDtoToUi);
-        const mappedRooms = roomData.map(mapRoomDtoToUi);
+        let mappedRooms = roomData.map(mapRoomDtoToUi);
+        
+        // Populate rooms with tenant data from agreements
+        if (agreementData && agreementData.length > 0) {
+          mappedRooms = mappedRooms.map(room => {
+            const roomAgreements = agreementData.filter(agr => agr.roomId?._id === room.id);
+            
+            const roomTenants = roomAgreements.map((agr) => ({
+              id: agr.studentId?._id || '',
+              name: agr.studentId?.fullName || 'Unknown Student',
+              email: agr.studentId?.email || '',
+              phone: agr.studentId?.mobileNumber || '',
+              roomId: room.id,
+              checkInDate: agr.bookingRequestId?.checkInDate || new Date().toISOString(),
+              checkOutDate: agr.bookingRequestId?.checkOutDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              monthlyRent: room.price,
+              paymentStatus: (agr.status === 'accepted' ? 'pending' : 'pending') as 'paid' | 'pending' | 'overdue',
+              nextPaymentCycleStartDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            }));
+            
+            return { ...room, tenants: roomTenants };
+          });
+        }
         
         setHouses(mappedHouses);
         setRooms(mappedRooms);
@@ -1468,8 +1490,34 @@ export default function OwnerDashboard() {
   // Manual refresh function
   const handleManualRefresh = async () => {
     try {
-      const roomData = await ownerDashboardApi.getRooms();
-      const mappedRooms = roomData.map(mapRoomDtoToUi);
+      const [roomData, agreementData] = await Promise.all([
+        ownerDashboardApi.getRooms(),
+        ownerDashboardApi.getOwnerAgreements(),
+      ]);
+      
+      let mappedRooms = roomData.map(mapRoomDtoToUi);
+      
+      // Populate rooms with tenant data from agreements
+      if (agreementData && agreementData.length > 0) {
+        mappedRooms = mappedRooms.map(room => {
+          const roomAgreements = agreementData.filter(agr => agr.roomId?._id === room.id);
+          
+          const roomTenants = roomAgreements.map((agr) => ({
+            id: agr.studentId?._id || '',
+            name: agr.studentId?.fullName || 'Unknown Student',
+            email: agr.studentId?.email || '',
+            phone: agr.studentId?.mobileNumber || '',
+            roomId: room.id,
+            checkInDate: agr.bookingRequestId?.checkInDate || new Date().toISOString(),
+            checkOutDate: agr.bookingRequestId?.checkOutDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            monthlyRent: room.price,
+            paymentStatus: (agr.status === 'accepted' ? 'pending' : 'pending') as 'paid' | 'pending' | 'overdue',
+            nextPaymentCycleStartDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          }));
+          
+          return { ...room, tenants: roomTenants };
+        });
+      }
       
       const enhancedRooms = await Promise.all(
         mappedRooms.map(async (room) => {
