@@ -23,6 +23,7 @@ export type BookingRequestDto = {
     roomNumber?: string;
     price?: number;
     location?: string;
+    deposit?: number;
   };
   studentId?: {
     _id: string;
@@ -75,6 +76,16 @@ export type BookingAgreementDto = {
     bedCount?: number;
     totalSpots?: number;
   };
+};
+
+export type AgreementTemplateDto = {
+  _id: string;
+  title: string;
+  content: string;
+  version?: number;
+  ownerId?: string;
+  updatedAt?: string;
+  createdAt?: string;
 };
 
 export type RoomListDto = {
@@ -165,6 +176,13 @@ export async function getOwnerAgreements(status?: 'sent' | 'accepted' | 'rejecte
     headers: getHeaders(),
   });
   return ensureSuccess<BookingAgreementDto[]>(response);
+}
+
+export async function getAgreementTemplates() {
+  const response = await fetch(`${API_BASE_URL}/api/owner/agreement-templates`, {
+    headers: getHeaders(),
+  });
+  return ensureSuccess<AgreementTemplateDto[]>(response);
 }
 
 export async function getAvailableRooms() {

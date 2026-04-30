@@ -10,10 +10,11 @@ import {
   Camera, Eye, Settings,
   BarChart, CreditCard, Award, TrendingUp, Menu, X,
   Search, Phone, Mail, MapPin, Bell, FileText, ArrowRight, LogOut,
-  ChevronUp, ChevronDown, ShieldCheck, LifeBuoy, Send, CheckCircle, Loader2, Clock
+  ChevronUp, ChevronDown, ShieldCheck, LifeBuoy, Send, CheckCircle, Loader2, Clock, RefreshCw
 } from 'lucide-react';
-import BookingManagementSystem from './booking/BookingManagementSystem';
+import OwnerApprovalPage from './OwnerApprovalPage';
 import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
+import { useRoomAvailability, calculateRoomStatus, getAvailabilitySummary } from '../hooks/useRoomAvailability';
 
 // ============================================
 // TYPES
@@ -368,33 +369,8 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenan
     full: 'text-red-400 bg-red-500/20'
   };
 
-  const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [localStatus, setLocalStatus] = useState(room.status);
-
-  // Helper to map status to occupancy
-  const getOccupancyForStatus = (status: 'available' | 'partial' | 'full') => {
-    if (status === 'available') return 0;
-    if (status === 'partial') return Math.max(1, Math.floor(room.bedCount / 2));
-    if (status === 'full') return room.bedCount;
-    return 0;
-  };
-
-  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newStatus = e.target.value as 'available' | 'partial' | 'full';
-    setUpdatingStatus(true);
-    try {
-      // Update occupancy in backend
-      const newOccupancy = getOccupancyForStatus(newStatus);
-      await ownerDashboardApi.updateRoom(room.id, { occupancy: newOccupancy });
-      setLocalStatus(newStatus);
-      // Optionally: trigger a reload of rooms in parent if needed
-      // (parent should update room.occupiedBeds and status from backend)
-    } catch (err) {
-      alert('Failed to update room status');
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
+  // Auto-calculate status based on occupancy
+  const autoStatus = calculateRoomStatus(room.occupiedBeds || 0, room.bedCount || 1);
 
   return (
     <div className="bg-white/5 rounded-lg p-3 border border-white/10 hover:border-purple-400/30 transition-all">
@@ -403,14 +379,16 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenan
           <h4 className="text-white font-medium text-sm">Room {room.roomNumber}</h4>
           <p className="text-xs text-gray-400">Floor {room.floor}</p>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full ${statusColors[localStatus]}`}> 
-          {localStatus === 'available' ? 'Available' : localStatus === 'partial' ? 'Partial' : 'Full'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-1 rounded-full ${statusColors[autoStatus]}`}> 
+            {autoStatus === 'available' ? '✓ Available' : autoStatus === 'partial' ? '◐ Partial' : '✕ Full'}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-2">
         <Bed size={12} className="text-cyan-400" />
-        <span className="text-xs text-white">{room.occupiedBeds}/{room.bedCount} beds</span>
+        <span className="text-xs text-white">{room.occupiedBeds || 0}/{room.bedCount} beds</span>
         <DollarSign size={12} className="text-green-400 ml-2" />
         <span className="text-xs text-white">Rs.{room.price.toLocaleString()}</span>
       </div>
@@ -427,20 +405,9 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onEdit, onDelete, onViewTenan
         })}
       </div>
 
-      {/* Availability Dropdown */}
-      <div className="flex items-center gap-2 mb-2">
-        <label className="text-xs text-gray-300">Set Availability:</label>
-        <select
-          value={localStatus}
-          onChange={handleStatusChange}
-          disabled={updatingStatus}
-          className="px-2 py-1 rounded bg-white/10 text-xs text-white border border-white/10 focus:outline-none"
-        >
-          <option value="available">Available</option>
-          <option value="partial">Partial</option>
-          <option value="full">Full</option>
-        </select>
-        {updatingStatus && <span className="text-xs text-cyan-400 ml-1">Updating...</span>}
+      {/* Auto-Update Note */}
+      <div className="text-[8px] text-cyan-300 mb-2 flex items-center gap-1">
+        <RefreshCw size={10} /> Auto-updated availability
       </div>
 
       <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/10">
@@ -478,6 +445,9 @@ const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete,
     full: 'text-red-400 bg-red-500/20'
   };
 
+  // Auto-calculate status based on occupancy
+  const autoStatus = calculateRoomStatus(room.occupiedBeds || 0, room.bedCount || 1);
+
   return (
     <div className="bg-white/5 rounded-lg p-2.5 border border-white/10 active:border-purple-400/30 transition-colors touch-manipulation">
       <div className="flex justify-between items-start mb-1.5">
@@ -485,14 +455,14 @@ const MobileRoomCard: React.FC<MobileRoomCardProps> = ({ room, onEdit, onDelete,
           <h4 className="text-white font-medium text-xs">Room {room.roomNumber}</h4>
           <p className="text-[9px] text-gray-400">Floor {room.floor}</p>
         </div>
-        <span className={`text-[9px] px-2 py-1 rounded-full ${statusColors[room.status]}`}>
-          {room.status === 'available' ? 'Available' : room.status === 'partial' ? 'Partial' : 'Full'}
+        <span className={`text-[9px] px-2 py-1 rounded-full ${statusColors[autoStatus]}`}>
+          {autoStatus === 'available' ? '✓ Avail' : autoStatus === 'partial' ? '◐ Part' : '✕ Full'}
         </span>
       </div>
       
       <div className="flex items-center gap-2 mb-1.5">
         <Bed size={10} className="text-cyan-400" />
-        <span className="text-[9px] text-white">{room.occupiedBeds}/{room.bedCount} beds</span>
+        <span className="text-[9px] text-white">{room.occupiedBeds || 0}/{room.bedCount} beds</span>
         <DollarSign size={10} className="text-green-400 ml-1" />
         <span className="text-[9px] text-white">Rs.{room.price.toLocaleString()}</span>
       </div>
@@ -1199,6 +1169,62 @@ export default function OwnerDashboard() {
   }, []);
 
   // ============================================
+  // REAL-TIME ROOM AVAILABILITY MANAGEMENT
+  // ============================================
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  
+  // Set up real-time availability monitoring
+  useRoomAvailability(rooms, (updatedAvailability) => {
+    // Update room statuses based on real-time occupancy changes
+    setRooms((prevRooms) =>
+      prevRooms.map((room) => {
+        const availability = updatedAvailability.find((a) => a.id === room.id);
+        if (availability) {
+          return {
+            ...room,
+            status: availability.status,
+            occupiedBeds: availability.occupiedBeds,
+          };
+        }
+        return room;
+      })
+    );
+    setLastRefreshTime(new Date());
+  });
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    try {
+      const roomData = await ownerDashboardApi.getRooms();
+      const mappedRooms = roomData.map(mapRoomDtoToUi);
+      
+      const enhancedRooms = await Promise.all(
+        mappedRooms.map(async (room) => {
+          const enhancedTenants = await Promise.all(
+            room.tenants.map(async (tenant) => {
+              try {
+                const cycleData = await ownerDashboardApi.getNextPaymentCycleDate(tenant.id);
+                return {
+                  ...tenant,
+                  nextPaymentCycleStartDate: cycleData.nextPaymentCycleStartDate,
+                };
+              } catch (error) {
+                return tenant;
+              }
+            })
+          );
+          return { ...room, tenants: enhancedTenants };
+        })
+      );
+      
+      setRooms(enhancedRooms as Room[]);
+      setLastRefreshTime(new Date());
+    } catch (error) {
+      console.error('Manual refresh failed:', error);
+    }
+  };
+
+  // ============================================
   // STATS CALCULATIONS
   // ============================================
 
@@ -1523,6 +1549,16 @@ export default function OwnerDashboard() {
   const handleSaveRoom = async () => {
     if (!newRoom.roomNumber || !newRoom.houseId || !newRoom.location) {
       alert('Please fill in all required fields (Room Number, House, Location)');
+      return;
+    }
+
+    if (!newRoom.listingTitle) {
+      alert('Please fill in the Room Name/Listing Title');
+      return;
+    }
+
+    if (!newRoom.price || newRoom.price < 5000 || newRoom.price > 50000) {
+      alert('Please enter a valid price between 5,000 and 50,000');
       return;
     }
 
@@ -2080,7 +2116,13 @@ export default function OwnerDashboard() {
           {activeTab === 'rooms' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-white">Rooms Management</h2>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Rooms Management</h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    ✓ Auto-updated availability (refreshes every 10 seconds)
+                    {lastRefreshTime && ` • Last updated: ${lastRefreshTime.toLocaleTimeString()}`}
+                  </p>
+                </div>
                 <div className="flex gap-2">
                   <select 
                     value={filterHouse}
@@ -2093,6 +2135,13 @@ export default function OwnerDashboard() {
                     ))}
                   </select>
                   <button 
+                    onClick={handleManualRefresh}
+                    className="px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                    title="Manually refresh availability"
+                  >
+                    <RefreshCw size={16} className="animate-spin-slow" />
+                  </button>
+                  <button 
                     onClick={() => setShowAddRoom(true)}
                     className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all flex items-center gap-2"
                   >
@@ -2101,6 +2150,31 @@ export default function OwnerDashboard() {
                   </button>
                 </div>
               </div>
+
+              {/* Availability Summary */}
+              {rooms.length > 0 && (
+                <div className="grid grid-cols-3 gap-3">
+                  {(() => {
+                    const summary = getAvailabilitySummary(rooms);
+                    return (
+                      <>
+                        <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-green-400">{summary.available}</div>
+                          <div className="text-xs text-green-300">Available Rooms</div>
+                        </div>
+                        <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-yellow-400">{summary.partial}</div>
+                          <div className="text-xs text-yellow-300">Partial Occupancy</div>
+                        </div>
+                        <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-red-400">{summary.full}</div>
+                          <div className="text-xs text-red-300">Fully Occupied</div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filteredRooms.map(room => (
@@ -2212,7 +2286,7 @@ export default function OwnerDashboard() {
                   <span>Manage student booking requests</span>
                 </div>
               </div>
-              <BookingManagementSystem />
+              <OwnerApprovalPage />
             </div>
           )}
 

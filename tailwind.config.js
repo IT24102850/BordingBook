@@ -6,7 +6,11 @@ export default {
     "./backend/src/**/*.{js,ts,jsx,tsx}"
   ],
   theme: {
-    extend: {},
+    extend: {
+      animation: {
+        'spin-slow': 'spin 2s linear infinite',
+      }
+    },
   },
   plugins: [
     function ({ addComponents }) {

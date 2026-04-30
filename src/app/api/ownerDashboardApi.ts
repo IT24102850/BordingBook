@@ -178,6 +178,45 @@ async function getRooms(): Promise<OwnerRoomDto[]> {
   return ensureSuccess<OwnerRoomDto[]>(response);
 }
 
+async function getRoomAvailability(): Promise<{
+  data: Array<{
+    id: string;
+    roomNumber: string;
+    occupiedBeds: number;
+    bedCount: number;
+    status: 'available' | 'partial' | 'full';
+    availableFrom?: string;
+    isDateRestricted: boolean;
+  }>;
+  summary: {
+    available: number;
+    partial: number;
+    full: number;
+    total: number;
+  };
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/availability/status`, {
+    headers: getAuthHeaders(),
+  });
+  return ensureSuccess<{
+    data: Array<{
+      id: string;
+      roomNumber: string;
+      occupiedBeds: number;
+      bedCount: number;
+      status: 'available' | 'partial' | 'full';
+      availableFrom?: string;
+      isDateRestricted: boolean;
+    }>;
+    summary: {
+      available: number;
+      partial: number;
+      full: number;
+      total: number;
+    };
+  }>(response);
+}
+
 async function createRoom(payload: {
   name?: string;
   houseId: string;
@@ -407,6 +446,7 @@ export const ownerDashboardApi = {
   updateHouse,
   deleteHouse,
   getRooms,
+  getRoomAvailability,
   createRoom,
   updateRoom,
   deleteRoom,

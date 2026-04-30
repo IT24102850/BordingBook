@@ -1,11 +1,11 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
+import SignInPage from './components/SignInPage';
+
 const LandingPage = lazy(() => import('./components/LandingPage'));
-const SignInPage = lazy(() => import('./components/SignInPage'));
 const SignUpPage = lazy(() => import('./components/SignUpPage'));
 const ProfileSetup = lazy(() => import('./components/ProfileSetup'));
-const SearchPage = lazy(() => import('./components/SearchPage'));
 const VerifyEmailPage = lazy(() => import('./components/VerifyEmailPage'));
 
 const MobileLayout = lazy(() => import('./components/mobile/MobileLayout'));
@@ -64,8 +64,10 @@ const AdministrationMonitoring = lazy(() => import('./components/boarding/Admini
 const RoommateFinderPage = lazy(() => import('./components/RoommateFinderPage'));
 const RoommateFinderEnhanced = lazy(() => import('./components/RoommateFinderEnhanced'));
 const ChatbotSection = lazy(() => import('./components/ChatbotSection'));
-const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
+const OwnerApprovalPage = lazy(() => import('./components/OwnerApprovalPage'));
 const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
+
+const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
 
 const BookingManagementSystem = lazy(() => import('./components/booking/BookingManagementSystem'));
 const StudentBookingDashboard = lazy(() => import('./components/booking/StudentBookingDashboard'));
@@ -79,9 +81,6 @@ const AgreementPayment = lazy(() => import('./components/AgreementPayment'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const Chat = lazy(() => import('./components/Chat'));
 const RoommateFinderGroupPage = lazy(() => import('./components/RoommateFinderGroupPage'));
-const OwnerApprovalPage = lazy(() => import('./components/OwnerApprovalPage'));
-
-
 export default function App() {
   return (
     <BrowserRouter>
@@ -98,8 +97,8 @@ export default function App() {
         <Route path="/auth/signin" element={<Navigate to="/signin" replace />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/profile-setup" element={<ProfileSetup />} />
-        <Route path="/find" element={<SearchPage />} />
-        <Route path="/search" element={<SearchPage />} />
+        <Route path="/find" element={<SearchDiscovery />} />
+        <Route path="/search" element={<SearchDiscovery />} />
         <Route path="/listing/:id" element={<ListingDetailPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
@@ -134,7 +133,7 @@ export default function App() {
         <Route path="/owner-agreements" element={<BookingAgreement />} />
         <Route path="/payment-rental" element={<PaymentRentalPage />} />
         <Route path="/payment-rental/:placeId" element={<BoardingPlaceDetail />} />
-        <Route path="/owner-bookings" element={<BookingManagementSystem />} />
+        <Route path="/owner-bookings" element={<OwnerApprovalPage />} />
         <Route path="/student-booking" element={<StudentBookingDashboard />} />
         <Route path="/student-payment" element={<StudentPayment />} />
         <Route path="/admin-monitoring" element={<AdministrationMonitoring />} />

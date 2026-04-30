@@ -64,7 +64,7 @@ const ProfessionalVisual = () => {
   );
 };
 
-export default function SignIn() {
+export default function SignIn(): JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

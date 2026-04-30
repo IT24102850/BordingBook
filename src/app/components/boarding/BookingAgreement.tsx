@@ -5,6 +5,8 @@ import {
   createOwnerAgreement,
   getOwnerAgreements,
   getOwnerBookingRequests,
+  getAgreementTemplates,
+  AgreementTemplateDto,
 } from '../../api/bookingAgreementApi';
 
 type AgreementFormState = {
@@ -24,6 +26,7 @@ export default function BookingAgreement() {
 
   const [approvedRequests, setApprovedRequests] = useState<BookingRequestDto[]>([]);
   const [agreements, setAgreements] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<AgreementTemplateDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -44,14 +47,16 @@ export default function BookingAgreement() {
     setLoading(true);
     setError('');
     try {
-      const [requests, sentAgreements] = await Promise.all([
+      const [requests, sentAgreements, templateData] = await Promise.all([
         getOwnerBookingRequests('approved'),
         getOwnerAgreements(),
+        getAgreementTemplates(),
       ]);
 
       const withoutAgreement = requests.filter((item) => !item.agreementId?._id);
       setApprovedRequests(withoutAgreement);
       setAgreements(sentAgreements);
+      setTemplates(templateData);
 
       const chosenId = preferredRequestId && withoutAgreement.some((item) => item._id === preferredRequestId)
         ? preferredRequestId
@@ -85,6 +90,18 @@ export default function BookingAgreement() {
 
   function updateForm<K extends keyof AgreementFormState>(key: K, value: AgreementFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleTemplateSelect(templateId: string) {
+    const template = templates.find((item) => item._id === templateId);
+    if (!template) {
+      updateForm('title', '');
+      updateForm('terms', '');
+      return;
+    }
+
+    updateForm('title', template.title);
+    updateForm('terms', template.content);
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -163,6 +180,22 @@ export default function BookingAgreement() {
                     </option>
                   );
                 })}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Agreement Template</label>
+              <select
+                onChange={(e) => handleTemplateSelect(e.target.value)}
+                className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                defaultValue=""
+              >
+                <option value="">Select template</option>
+                {templates.map((template) => (
+                  <option key={template._id} value={template._id} className="text-black">
+                    v{template.version} - {template.title}
+                  </option>
+                ))}
               </select>
             </div>
 

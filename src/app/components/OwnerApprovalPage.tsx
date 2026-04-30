@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle, Clock, Home, User, XCircle } from 'lucide-react';
 import {
   BookingRequestDto,
+  AgreementTemplateDto,
+  createOwnerAgreement,
+  getAgreementTemplates,
   getOwnerBookingRequests,
   updateOwnerBookingRequestStatus,
 } from '../api/bookingAgreementApi';
@@ -10,6 +13,7 @@ import {
 type FilterStatus = 'all' | 'pending' | 'approved' | 'rejected';
 
 export default function OwnerApprovalPage() {
+    const [showNotifyPopup, setShowNotifyPopup] = useState(false);
   const navigate = useNavigate();
   const [requests, setRequests] = useState<BookingRequestDto[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
@@ -17,11 +21,33 @@ export default function OwnerApprovalPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState('');
+  const [templates, setTemplates] = useState<AgreementTemplateDto[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [agreementTitle, setAgreementTitle] = useState('Boarding House Rental Agreement');
+  const [agreementTerms, setAgreementTerms] = useState('');
+  const [agreementDeposit, setAgreementDeposit] = useState('0');
+  const [agreementStart, setAgreementStart] = useState('');
+  const [agreementEnd, setAgreementEnd] = useState('');
+  const [sendingAgreementId, setSendingAgreementId] = useState('');
 
   const selectedRequest = useMemo(
     () => requests.find((item) => item._id === selectedId) || null,
     [requests, selectedId]
   );
+
+  useEffect(() => {
+    const template = templates.find((item) => item._id === selectedTemplateId);
+    if (template) {
+      setAgreementTitle(template.title);
+      setAgreementTerms(template.content);
+      return;
+    }
+
+    if (!selectedTemplateId) {
+      setAgreementTitle('Boarding House Rental Agreement');
+      setAgreementTerms('');
+    }
+  }, [selectedTemplateId, templates]);
 
   const pendingCount = useMemo(
     () => requests.filter((item) => item.status === 'pending').length,
@@ -32,8 +58,12 @@ export default function OwnerApprovalPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await getOwnerBookingRequests(filterStatus === 'all' ? undefined : filterStatus);
+      const [data, templateData] = await Promise.all([
+        getOwnerBookingRequests(filterStatus === 'all' ? undefined : filterStatus),
+        getAgreementTemplates(),
+      ]);
       setRequests(data);
+      setTemplates(templateData);
       if (data.length > 0 && !data.some((item) => item._id === selectedId)) {
         setSelectedId(data[0]._id);
       }
@@ -56,10 +86,26 @@ export default function OwnerApprovalPage() {
     setActionLoadingId(requestId);
     setError('');
     try {
+      // 1. Approve booking
       const updated = await updateOwnerBookingRequestStatus(requestId, { status: 'approved' });
       setRequests((prev) => prev.map((item) => (item._id === requestId ? updated : item)));
+
+      // 2. Create/send agreement immediately after approval
+      await createOwnerAgreement({
+        bookingRequestId: requestId,
+        title: agreementTitle.trim() || 'Boarding House Rental Agreement',
+        terms: agreementTerms.trim(),
+        rentAmount: Number(selectedRequest?.roomId?.price || 0),
+        depositAmount: Number(agreementDeposit || 0),
+        periodStart: agreementStart || new Date().toISOString().slice(0, 10),
+        periodEnd: agreementEnd || new Date(Date.now() + 1000 * 60 * 60 * 24 * 30 * 6).toISOString().slice(0, 10),
+        additionalClauses: [],
+      });
+
+      // 3. Show notification popup to owner
+      setShowNotifyPopup(true);
     } catch (apiError: any) {
-      setError(apiError?.message || 'Failed to approve booking request');
+      setError(apiError?.message || 'Failed to approve booking and send agreement');
     } finally {
       setActionLoadingId('');
     }
@@ -86,8 +132,56 @@ export default function OwnerApprovalPage() {
     }
   }
 
+  async function handleSendAgreement() {
+    if (!selectedRequest) return;
+    if (!agreementTerms.trim()) {
+      setError('Select a template or enter agreement terms before sending.');
+      return;
+    }
+
+    setSendingAgreementId(selectedRequest._id);
+    setError('');
+    try {
+      await createOwnerAgreement({
+        bookingRequestId: selectedRequest._id,
+        title: agreementTitle.trim() || 'Boarding House Rental Agreement',
+        terms: agreementTerms.trim(),
+        rentAmount: Number(selectedRequest.roomId?.price || 0),
+        depositAmount: Number(agreementDeposit || 0),
+        periodStart: agreementStart || new Date().toISOString().slice(0, 10),
+        periodEnd: agreementEnd || new Date(Date.now() + 1000 * 60 * 60 * 24 * 30 * 6).toISOString().slice(0, 10),
+        additionalClauses: [],
+      });
+      await loadRequests();
+      setAgreementTerms('');
+      setSelectedTemplateId('');
+      setAgreementDeposit('0');
+      setAgreementStart('');
+      setAgreementEnd('');
+    } catch (apiError: any) {
+      setError(apiError?.message || 'Failed to send agreement');
+    } finally {
+      setSendingAgreementId('');
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a1124] via-[#131d3a] to-[#0b132b]">
+      {/* Notification Popup */}
+      {showNotifyPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full text-center">
+            <h2 className="text-lg font-bold mb-2 text-cyan-700">Student Notified</h2>
+            <p className="text-gray-700 mb-4">The student has been notified to accept the agreement. You will be updated once the student responds.</p>
+            <button
+              className="mt-2 px-4 py-2 bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition"
+              onClick={() => setShowNotifyPopup(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
       <div className="sticky top-0 z-50 bg-gradient-to-r from-[#0a1124] to-[#131d3a] border-b border-white/10 p-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-white">Owner Booking Requests</h1>
         {pendingCount > 0 && (
@@ -227,8 +321,77 @@ export default function OwnerApprovalPage() {
 
               {selectedRequest.status === 'pending' && (
                 <div className="space-y-2">
+                  <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Agreement Template</label>
+                      <select
+                        value={selectedTemplateId}
+                        onChange={(e) => setSelectedTemplateId(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                      >
+                        <option value="">Select template</option>
+                        {templates.map((template) => (
+                          <option key={template._id} value={template._id} className="text-black">
+                            v{template.version} - {template.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Agreement Title</label>
+                      <input
+                        value={agreementTitle}
+                        onChange={(e) => setAgreementTitle(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Agreement Terms</label>
+                      <textarea
+                        rows={6}
+                        value={agreementTerms}
+                        onChange={(e) => setAgreementTerms(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                        placeholder="Select a template or write the agreement terms"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Deposit</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={agreementDeposit}
+                          onChange={(e) => setAgreementDeposit(e.target.value)}
+                          className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          value={agreementStart}
+                          onChange={(e) => setAgreementStart(e.target.value)}
+                          className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={agreementEnd}
+                        onChange={(e) => setAgreementEnd(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                      />
+                    </div>
+                  </div>
                   <button
-                    disabled={actionLoadingId === selectedRequest._id}
+                    disabled={
+                      actionLoadingId === selectedRequest._id ||
+                      !selectedTemplateId ||
+                      !agreementTerms.trim()
+                    }
                     onClick={() => handleApprove(selectedRequest._id)}
                     className="w-full bg-gradient-to-r from-green-500 to-emerald-500 disabled:opacity-60 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
                   >
@@ -249,12 +412,78 @@ export default function OwnerApprovalPage() {
               {selectedRequest.status === 'approved' && (
                 <div className="space-y-2">
                   <div className="text-center py-3 rounded-lg bg-green-500/20 text-green-300 font-bold">Approved</div>
-                  <button
-                    onClick={() => navigate('/owner-agreements', { state: { bookingRequestId: selectedRequest._id } })}
-                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold py-2 px-4 rounded-lg transition"
-                  >
-                    {selectedRequest.agreementId?._id ? 'View Agreement' : 'Create & Send Agreement'}
-                  </button>
+                  <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Agreement Template</label>
+                      <select
+                        value={selectedTemplateId}
+                        onChange={(e) => setSelectedTemplateId(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                      >
+                        <option value="">Select template</option>
+                        {templates.map((template) => (
+                          <option key={template._id} value={template._id} className="text-black">
+                            v{template.version} - {template.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Agreement Title</label>
+                      <input
+                        value={agreementTitle}
+                        onChange={(e) => setAgreementTitle(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Agreement Terms</label>
+                      <textarea
+                        rows={6}
+                        value={agreementTerms}
+                        onChange={(e) => setAgreementTerms(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                        placeholder="Select a template or write the agreement terms"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Deposit</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={agreementDeposit}
+                          onChange={(e) => setAgreementDeposit(e.target.value)}
+                          className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          value={agreementStart}
+                          onChange={(e) => setAgreementStart(e.target.value)}
+                          className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={agreementEnd}
+                        onChange={(e) => setAgreementEnd(e.target.value)}
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white text-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSendAgreement}
+                      disabled={sendingAgreementId === selectedRequest._id}
+                      className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 disabled:opacity-60 text-white font-bold py-2 px-4 rounded-lg transition"
+                    >
+                      {selectedRequest.agreementId?._id ? 'Resend Agreement' : 'Create & Send Agreement'}
+                    </button>
+                  </div>
                 </div>
               )}
 

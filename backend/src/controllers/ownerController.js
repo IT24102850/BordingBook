@@ -138,6 +138,52 @@ exports.getRooms = async (req, res) => {
   }
 };
 
+exports.getRoomAvailability = async (req, res) => {
+  if (!ensureOwnerRole(req, res)) return;
+  try {
+    const rooms = await Room
+      .find({ ownerId: req.user.userId, isActive: true })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Calculate real-time availability status for each room
+    const availability = rooms.map((room) => {
+      const occupiedBeds = room.occupancy || 0;
+      const bedCount = room.bedCount || 1;
+      
+      let status = 'available';
+      if (occupiedBeds > 0 && occupiedBeds < bedCount) {
+        status = 'partial';
+      } else if (occupiedBeds >= bedCount) {
+        status = 'full';
+      }
+
+      return {
+        id: room._id,
+        roomNumber: room.roomNumber,
+        houseId: room.houseId,
+        occupiedBeds,
+        bedCount,
+        status,
+        availableFrom: room.availableFrom,
+        isDateRestricted: room.availableFrom && new Date(room.availableFrom) > new Date(),
+      };
+    });
+
+    // Calculate summary
+    const summary = {
+      available: availability.filter((a) => a.status === 'available').length,
+      partial: availability.filter((a) => a.status === 'partial').length,
+      full: availability.filter((a) => a.status === 'full').length,
+      total: availability.length,
+    };
+
+    return res.status(200).json({ success: true, data: availability, summary });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch room availability', error: error.message });
+  }
+};
+
 exports.createRoom = async (req, res) => {
   if (!ensureOwnerRole(req, res)) return;
   try {

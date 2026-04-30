@@ -50,12 +50,23 @@ router.delete('/houses/:houseId', requireAuth, ownerController.deleteHouse);
 
 router.get('/rooms', requireAuth, ownerController.getRooms);
 
+router.get('/rooms/availability/status', requireAuth, ownerController.getRoomAvailability);
+
 router.post(
   '/rooms',
   requireAuth,
   [
+    body('name').notEmpty().withMessage('Room name is required'),
     body('location').notEmpty().withMessage('Location is required'),
-    body('price').isNumeric().withMessage('Price must be a number'),
+    body('price')
+      .isNumeric().withMessage('Price must be a number')
+      .custom(value => {
+        const price = Number(value);
+        if (price < 5000 || price > 50000) {
+          throw new Error('Price must be between 5000 and 50000');
+        }
+        return true;
+      }),
     body('bedCount').isInt({ min: 1 }).withMessage('Bed count must be at least 1'),
     body('roomNumber').notEmpty().withMessage('Room number is required'),
   ],

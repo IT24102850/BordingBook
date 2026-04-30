@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, Download, UploadCloud, AlertCircle, Info, Bell, BellOff, Navigation, XCircle, Loader2, Trash2, Check } from 'lucide-react';
 import { generatePaymentReceiptPDF } from '../../helpers/generateReceipt';
-import { getMyAgreements, BookingAgreementDto } from '../../api/bookingAgreementApi';
+import { getMyAgreements, BookingAgreementDto, respondToMyAgreement } from '../../api/bookingAgreementApi';
 
 // ========================================
 // MOCK DATA FOR DEVELOPMENT & TESTING
@@ -47,6 +47,7 @@ export default function StudentPayment() {
   // Notifications (Rejection reminders) State
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [respondingAgreementId, setRespondingAgreementId] = useState('');
 
   // Receipts State
   const [receipts, setReceipts] = useState<any[]>([]);
@@ -414,7 +415,9 @@ export default function StudentPayment() {
           // Show all notifications (rejection + payment reminders)
           const allNotifications = (data.data || [])
             .filter((notif: any) => 
-              notif.type === 'payment_rejected' || notif.type === 'payment_pre_payment'
+              notif.type === 'payment_rejected' ||
+              notif.type === 'payment_pre_payment' ||
+              (notif.type === 'system' && String(notif.title || '').toLowerCase().includes('agreement'))
             )
             .map((notif: any) => ({
               ...notif,
@@ -546,6 +549,21 @@ export default function StudentPayment() {
       console.error('Receipt download error:', error);
       setNotificationType('error');
       setNotification(error instanceof Error ? error.message : 'An unknown error occurred.');
+    }
+  };
+
+  const handleAgreementResponseFromNotification = async (agreementId: string, status: 'accepted' | 'rejected') => {
+    setRespondingAgreementId(agreementId);
+    try {
+      await respondToMyAgreement(agreementId, status);
+      setNotificationType('success');
+      setNotification(`Agreement ${status} successfully.`);
+      setNotifications((prev) => prev.filter((item) => item.data?.agreementId !== agreementId));
+    } catch (error) {
+      setNotificationType('error');
+      setNotification(error instanceof Error ? error.message : 'Failed to respond to agreement');
+    } finally {
+      setRespondingAgreementId('');
     }
   };
 
@@ -808,20 +826,40 @@ export default function StudentPayment() {
                   {notifications.map(notif => {
                     const isRejection = notif.type === 'payment_rejected';
                     const isReminder = notif.type === 'payment_pre_payment';
+                    const isAgreement = notif.type === 'system' && String(notif.title || '').toLowerCase().includes('agreement');
+                    const agreementId = notif.data?.agreementId || '';
                     
                     return (
-                    <div key={notif.id} className={`p-4 rounded-lg border flex items-start gap-4 transition-all ${notif.isRead ? (isRejection ? 'bg-slate-800/50 border-white/5' : 'bg-amber-900/30 border-white/5') : (isRejection ? 'bg-rose-500/10 border-rose-500/20' : 'bg-amber-500/10 border-amber-500/20')}`}>
-                      <div className={`mt-1 flex-shrink-0 p-1.5 rounded-full ${notif.isRead ? 'bg-white/10' : (isRejection ? 'bg-rose-500/20' : 'bg-amber-500/20')}`}>
-                        <AlertCircle size={18} className={notif.isRead ? 'text-gray-400' : (isRejection ? 'text-rose-400' : 'text-amber-400')} />
+                    <div key={notif.id} className={`p-4 rounded-lg border flex items-start gap-4 transition-all ${notif.isRead ? (isRejection ? 'bg-slate-800/50 border-white/5' : isAgreement ? 'bg-cyan-900/20 border-white/5' : 'bg-amber-900/30 border-white/5') : (isRejection ? 'bg-rose-500/10 border-rose-500/20' : isAgreement ? 'bg-cyan-500/10 border-cyan-500/20' : 'bg-amber-500/10 border-amber-500/20')}`}>
+                      <div className={`mt-1 flex-shrink-0 p-1.5 rounded-full ${notif.isRead ? 'bg-white/10' : (isRejection ? 'bg-rose-500/20' : isAgreement ? 'bg-cyan-500/20' : 'bg-amber-500/20')}`}>
+                        <AlertCircle size={18} className={notif.isRead ? 'text-gray-400' : (isRejection ? 'text-rose-400' : isAgreement ? 'text-cyan-400' : 'text-amber-400')} />
                       </div>
                       <div className="flex-grow">
                         <p className={`text-sm font-semibold ${notif.isRead ? 'text-gray-300' : 'text-white'}`}>
-                          {isRejection ? 'Payment Slip Rejected' : '💰 Payment Reminder'}
+                          {isRejection ? 'Payment Slip Rejected' : isAgreement ? 'New Agreement Received' : '💰 Payment Reminder'}
                         </p>
                         <p className={`text-xs mt-1 ${notif.isRead ? 'text-gray-400' : (isRejection ? 'text-rose-200' : 'text-amber-200')}`}>
                           {notif.message}
                         </p>
                         <div className="flex items-center gap-4 mt-3">
+                          {isAgreement && agreementId && (
+                            <>
+                              <button
+                                disabled={respondingAgreementId === agreementId}
+                                onClick={() => handleAgreementResponseFromNotification(agreementId, 'accepted')}
+                                className="text-xs font-medium text-cyan-400 hover:text-cyan-300 flex items-center gap-1 disabled:opacity-60"
+                              >
+                                <Check size={14} /> Accept
+                              </button>
+                              <button
+                                disabled={respondingAgreementId === agreementId}
+                                onClick={() => handleAgreementResponseFromNotification(agreementId, 'rejected')}
+                                className="text-xs font-medium text-rose-400 hover:text-rose-300 flex items-center gap-1 disabled:opacity-60"
+                              >
+                                <XCircle size={14} /> Reject
+                              </button>
+                            </>
+                          )}
                           <button onClick={() => handleDeleteNotification(notif.id)} className="text-xs font-medium text-gray-500 hover:text-rose-400 flex items-center gap-1">
                             <Trash2 size={14} /> Delete
                           </button>

@@ -1,4 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+// API base URL (adjust as needed for Vite)
+let API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// Remove trailing /api if present to avoid double /api/api/
+if (API_BASE_URL.endsWith('/api')) {
+  API_BASE_URL = API_BASE_URL.slice(0, -4);
+}
 import { useNavigate } from 'react-router-dom';
 import { 
   CheckCircle, XCircle, Clock, User, Home, Calendar, 
@@ -106,6 +112,70 @@ const initialBookingRequests: BookingRequest[] = [
 ];
 
 export default function BookingManagementSystem() {
+    // Approval and agreement states
+    const [approvingBookingId, setApprovingBookingId] = useState<string | null>(null);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [templates, setTemplates] = useState<Array<{id: string; title: string; version?: string}>>([]);
+    const [sendingAgreement, setSendingAgreement] = useState(false);
+
+    // Fetch templates on mount
+    useEffect(() => {
+      const fetchTemplates = async () => {
+        try {
+          const token = localStorage.getItem('bb_access_token');
+          const res = await fetch(`${API_BASE_URL}/api/owner/agreement-templates`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (data.success) {
+            setTemplates(data.data.map((t: any) => ({ id: t._id, title: t.title, version: t.version })));
+          }
+        } catch (err) {
+          console.error('Failed to fetch templates', err);
+        }
+      };
+      fetchTemplates();
+    }, []);
+
+    // Approve click handler
+    const handleApproveClick = (bookingId: string) => {
+      setApprovingBookingId(bookingId);
+      setSelectedTemplateId('');
+    };
+
+    // Send agreement handler
+    const handleSendAgreement = async (bookingId: string) => {
+      if (!selectedTemplateId) {
+        alert('Please select an agreement template first');
+        return;
+      }
+      setSendingAgreement(true);
+      try {
+        const token = localStorage.getItem('bb_access_token');
+        // Step 1: Approve the booking
+        await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/approve`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // Step 2: Send agreement with selected template
+        await fetch(`${API_BASE_URL}/api/agreements/send`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ bookingId, templateId: selectedTemplateId })
+        });
+        alert('Booking approved and agreement sent to student!');
+        setApprovingBookingId(null);
+        // Refresh bookings list (replace with your fetch function if needed)
+        // fetchBookings();
+      } catch (err) {
+        alert('Failed to send agreement');
+      } finally {
+        setSendingAgreement(false);
+      }
+    };
   const navigate = useNavigate();
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>(initialBookingRequests);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -355,13 +425,54 @@ export default function BookingManagementSystem() {
                 <div className="flex gap-2 mt-4 flex-wrap">
                   {booking.status === 'pending' && (
                     <>
-                      <button
-                        onClick={() => handleApprove(booking.id)}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
-                      >
-                        <CheckCircle size={16} />
-                        Approve Booking
-                      </button>
+                      {approvingBookingId === booking.id ? (
+                        <div className="mt-3 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg space-y-3">
+                          <p className="text-xs text-cyan-300 font-semibold">Select Agreement Template</p>
+                          <select
+                            value={selectedTemplateId}
+                            onChange={(e) => setSelectedTemplateId(e.target.value)}
+                            className="w-full px-3 py-2 bg-[#0f172a] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400"
+                          >
+                            <option value="">-- Choose a template --</option>
+                            {templates.map(t => (
+                              <option key={t.id} value={t.id}>
+                                {t.version ? `v${t.version} - ` : ''}{t.title}
+                              </option>
+                            ))}
+                          </select>
+                          {templates.length === 0 && (
+                            <p className="text-xs text-amber-400">
+                              No templates found. Create one in the Agreements tab first.
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setApprovingBookingId(null)}
+                              className="flex-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-medium transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleSendAgreement(booking.id)}
+                              disabled={sendingAgreement || !selectedTemplateId}
+                              className="flex-1 px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg text-xs font-medium disabled:opacity-50 transition-all flex items-center justify-center gap-1"
+                            >
+                              {sendingAgreement ? (
+                                <><Clock size={12} className="animate-spin" /> Sending...</>
+                              ) : (
+                                <><CheckCircle size={12} /> Approve & Send</>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleApproveClick(booking.id)}
+                          className="px-3 py-1.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg text-xs font-medium transition-colors"
+                        >
+                          Approve
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setSelectedBooking(booking);
