@@ -91,6 +91,24 @@ const BACKEND_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http
   .replace(/\/api\/?$/, '')
   .replace(/\/$/, '');
 
+type SavedSearchRecord = {
+  _id: string;
+  name: string;
+  filters: {
+    searchTerm?: string;
+    priceMax?: number;
+    priceMin?: number;
+    room?: string;
+    dist?: string;
+    avail?: string;
+    facs?: string[];
+    sortMode?: string;
+  };
+  createdAt?: string;
+  lastUsed?: string;
+  updatedAt?: string;
+};
+
 // Public house listings for all users
 type PublicHouse = {
   _id: string;
@@ -1155,56 +1173,57 @@ const RoommateFinderPlaceholder: React.FC<{
               <p className="text-xs text-gray-300 truncate">{lastMessage}</p>
             </div>
           </div>
-          {unreadCount > 0 && (
+                  {savedSearchesLoading || savedSearches.length > 0 ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-pink-500/20 border border-pink-400/30 text-pink-200 flex-shrink-0">
               {unreadCount} new
             </span>
           )}
         </div>
         {updatedAt && <p className="text-[11px] text-gray-500 mt-2">{updatedAt}</p>}
-        <div className="mt-3">
+                              {savedSearchesLoading
+                                ? 'Loading saved searches...'
+                                : `Showing ${visibleSavedSearches.length} of ${savedSearches.length}`}
           <button
             type="button"
-            onClick={() => navigate('/chat', { state: { conversationId } })}
+                          {savedSearches.length > savedSearchPreviewLimit && (
             className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 text-xs w-full"
           >
             Open Chat
           </button>
         </div>
-      </div>
+                              {showAllSavedSearches ? 'Less' : `+${hiddenSavedSearchesCount}`}
     );
   };
 
   const renderGroups = () => (
     <div className="space-y-4">
-      <div className="bg-white/5 rounded-xl border border-white/10 p-4 space-y-3">
-        <p className="text-sm text-white font-semibold">Create Booking Group</p>
-        <div className="flex gap-3 text-xs">
-          <label className="flex items-center gap-2 text-gray-200">
-            <input
-              type="radio"
-              checked={groupScenario === 'join-existing'}
-              onChange={() => setGroupScenario('join-existing')}
-              className="accent-cyan-400"
-            />
-            Join existing room
-          </label>
-          <label className="flex items-center gap-2 text-gray-200">
-            <input
-              type="radio"
-              checked={groupScenario === 'new-place'}
-              onChange={() => setGroupScenario('new-place')}
-              className="accent-pink-400"
-            />
-            Form group for new place
-          </label>
-        </div>
-
-        {groupScenario === 'join-existing' ? (
+                        {visibleSavedSearches.map((savedSearch) => (
+                          <div key={savedSearch._id} className="mx-2 rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-white">{savedSearch.name}</p>
+                                <p className="text-[11px] text-gray-400">
+                                  {savedSearch.createdAt ? new Date(savedSearch.createdAt).toLocaleDateString() : 'Saved search'}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => applySavedSearch(savedSearch)}
+                                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 text-[11px] font-semibold"
+                              >
+                                Apply
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-300 mt-2">{getSavedSearchSummary(savedSearch)}</p>
+                          </div>
           <div>
             <label className="block text-xs text-gray-300 mb-1">Select current boarding house</label>
             <select
-              value={selectedRoomId}
+                  ) : (
+                    <div className="mb-6 mx-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+                      <p className="text-sm text-gray-300">No saved searches yet.</p>
+                      <p className="text-xs text-gray-500 mt-1">Save the current filter set to show it here.</p>
+                    </div>
+                  )}
               onChange={(e) => setSelectedRoomId(e.target.value)}
               className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white"
             >
@@ -2630,6 +2649,8 @@ function SearchPage() {
   useEffect(() => {
     localStorage.setItem('bb_saved_rooms', JSON.stringify(likedListings));
   }, [likedListings]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearchRecord[]>([]);
+  const [savedSearchesLoading, setSavedSearchesLoading] = useState(false);
   const [showAllSavedSearches, setShowAllSavedSearches] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -3171,6 +3192,24 @@ function SearchPage() {
           }
         }
 
+        if (token && !isCancelled) {
+          setSavedSearchesLoading(true);
+          try {
+            const savedSearchesResponse = await fetch(`${API_BASE_URL}/api/roommates/search/saved`, {
+              headers: { Authorization: `Bearer ${token}` },
+              cache: 'no-store',
+            });
+            const savedSearchesJson = await savedSearchesResponse.json().catch(() => ({}));
+            if (savedSearchesResponse.ok && !isCancelled) {
+              setSavedSearches(Array.isArray(savedSearchesJson?.data) ? savedSearchesJson.data : []);
+            }
+          } catch {
+            if (!isCancelled) setSavedSearches([]);
+          } finally {
+            if (!isCancelled) setSavedSearchesLoading(false);
+          }
+        }
+
         if (token && !isCancelled && resolvedUserId) {
           void fetchLatestNotifications(token, resolvedUserId, {
             withLoader: false,
@@ -3339,10 +3378,10 @@ function SearchPage() {
   });
 
   const savedSearchPreviewLimit = 4;
-  const visibleSavedListings = showAllSavedSearches
-    ? likedListings
-    : likedListings.slice(0, savedSearchPreviewLimit);
-  const hiddenSavedListingsCount = Math.max(0, likedListings.length - savedSearchPreviewLimit);
+  const visibleSavedSearches = showAllSavedSearches
+    ? savedSearches
+    : savedSearches.slice(0, savedSearchPreviewLimit);
+  const hiddenSavedSearchesCount = Math.max(0, savedSearches.length - savedSearchPreviewLimit);
 
   const roomDataset: any[] = dbListings.map((listing, index) => ({
     id: listing.id || index + 1,
@@ -3431,6 +3470,87 @@ function SearchPage() {
   });
 
   const currentListing: Listing | undefined = rankedListings[currentIndex];
+
+  const currentSearchFilters = {
+    searchTerm: searchTerm.trim(),
+    priceMax: priceMax < 50000 ? priceMax : undefined,
+    priceMin: undefined,
+    room: room !== 'any' ? room : undefined,
+    dist: dist !== 'any' ? dist : undefined,
+    avail: avail !== 'all' ? avail : undefined,
+    facs: facs.length > 0 ? facs : undefined,
+    sortMode: sortMode !== 'discovery' ? sortMode : undefined,
+  };
+
+  const buildSavedSearchName = () => {
+    const parts = [currentSearchFilters.searchTerm, currentSearchFilters.room, currentSearchFilters.dist]
+      .filter((value): value is string => Boolean(value));
+    return parts.length > 0 ? parts.join(' • ').slice(0, 100) : 'My Search';
+  };
+
+  const getSavedSearchSummary = (savedSearch: SavedSearchRecord) => {
+    const parts: string[] = [];
+    if (savedSearch.filters.searchTerm) parts.push(`"${savedSearch.filters.searchTerm}"`);
+    if (typeof savedSearch.filters.priceMax === 'number') parts.push(`Up to Rs. ${savedSearch.filters.priceMax.toLocaleString()}`);
+    if (savedSearch.filters.room) parts.push(savedSearch.filters.room);
+    if (savedSearch.filters.dist) parts.push(savedSearch.filters.dist);
+    if (savedSearch.filters.avail) parts.push(savedSearch.filters.avail);
+    if (Array.isArray(savedSearch.filters.facs) && savedSearch.filters.facs.length > 0) {
+      parts.push(`${savedSearch.filters.facs.length} facilities`);
+    }
+    return parts.length > 0 ? parts.join(' • ') : 'Saved filter set';
+  };
+
+  const handleSaveCurrentSearch = async () => {
+    const token = localStorage.getItem('bb_access_token') || '';
+    if (!token) {
+      setToastMessage('Please sign in to save searches');
+      setShowToast(true);
+      window.setTimeout(() => setShowToast(false), 2000);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/roommates/search/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: buildSavedSearchName(),
+          filters: currentSearchFilters,
+        }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(json?.message || json?.error || 'Failed to save search');
+      }
+
+      const savedSearch = json?.data as SavedSearchRecord;
+      setSavedSearches((prev) => [savedSearch, ...prev]);
+      setToastMessage('Search saved');
+      setShowToast(true);
+      window.setTimeout(() => setShowToast(false), 2000);
+    } catch (error) {
+      setToastMessage((error as Error).message || 'Failed to save search');
+      setShowToast(true);
+      window.setTimeout(() => setShowToast(false), 2500);
+    }
+  };
+
+  const applySavedSearch = (savedSearch: SavedSearchRecord) => {
+    const { searchTerm, priceMax, room: savedRoom, dist: savedDist, avail: savedAvail, facs: savedFacs, sortMode: savedSortMode } = savedSearch.filters;
+    setSearchTerm(searchTerm || '');
+    setPriceMax(typeof priceMax === 'number' ? priceMax : 50000);
+    setRoom(savedRoom || 'any');
+    setDist(savedDist || 'any');
+    setAvail(savedAvail || 'all');
+    setFacs(Array.isArray(savedFacs) ? savedFacs : []);
+    setSortMode((savedSortMode as any) || 'discovery');
+    setCurrentIndex(0);
+    setShowAllSavedSearches(false);
+  };
 
   const handleLike = (): void => {
     if (!currentListing || isAnimating) return;
@@ -3890,6 +4010,15 @@ function SearchPage() {
                     setFacs([]);
                   }}
                 />
+                <div className="mt-3 flex justify-end">
+                  <button
+                    onClick={handleSaveCurrentSearch}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-semibold hover:shadow-lg transition-all"
+                  >
+                    <FaSave />
+                    Save Current Search
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -3988,23 +4117,25 @@ function SearchPage() {
                 </div>
               ) : (
                 <>
-                  {likedListings.length > 0 && (
+                  {savedSearchesLoading || savedSearches.length > 0 ? (
                     <>
                       <div className="mb-4 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <h2 className="text-xl font-bold text-white">Your Saved Searches</h2>
                             <p className="text-xs text-cyan-100/80 mt-1">
-                              Showing {visibleSavedListings.length} of {likedListings.length} saved rooms
+                              {savedSearchesLoading
+                                ? 'Loading saved searches from your account...'
+                                : `Showing ${visibleSavedSearches.length} of ${savedSearches.length} saved searches`}
                             </p>
                           </div>
-                          {likedListings.length > savedSearchPreviewLimit && (
+                          {savedSearches.length > savedSearchPreviewLimit && (
                             <button
                               onClick={() => setShowAllSavedSearches((prev) => !prev)}
                               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 border border-white/15 text-xs font-semibold text-cyan-100 hover:bg-white/15 transition-colors"
                             >
                               {showAllSavedSearches ? <FaChevronUp /> : <FaChevronDown />}
-                              {showAllSavedSearches ? 'Show less' : `Show ${hiddenSavedListingsCount} more`}
+                              {showAllSavedSearches ? 'Show less' : `Show ${hiddenSavedSearchesCount} more`}
                             </button>
                           )}
                         </div>
@@ -4026,33 +4157,40 @@ function SearchPage() {
                           }
                         }}
                       >
-                        {visibleSavedListings.map((listing) => (
-                          <div key={listing.id} className="min-w-[260px] max-w-[320px] flex-shrink-0 relative group">
-                            <button 
-                              onClick={() => {
-                                setLikedListings(likedListings.filter(l => l.id !== listing.id));
-                                setToastMessage('Removed from favorites');
-                                setShowToast(true);
-                                setTimeout(() => setShowToast(false), 2000);
-                              }}
-                              className="absolute top-2 right-2 z-10 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                              title="Remove from saved"
-                            >
-                              <FaTrash size={12} />
-                            </button>
-                            <ListingCard
-                              listing={listing}
-                              onLike={() => {}}
-                              onPass={() => {}}
-                              onViewDetails={handleViewDetails}
-                              isAnimating={false}
-                              direction={null}
-                              viewMode="grid"
-                            />
+                        {visibleSavedSearches.map((savedSearch) => (
+                          <div key={savedSearch._id} className="min-w-[260px] max-w-[320px] flex-shrink-0 rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div>
+                                <p className="text-sm font-semibold text-white">{savedSearch.name}</p>
+                                <p className="text-[11px] text-gray-400">
+                                  {savedSearch.createdAt ? new Date(savedSearch.createdAt).toLocaleDateString() : 'Saved search'}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => applySavedSearch(savedSearch)}
+                                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 text-[11px] font-semibold hover:bg-cyan-500/30 transition-colors"
+                              >
+                                Apply
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-300 leading-relaxed">{getSavedSearchSummary(savedSearch)}</p>
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {savedSearch.filters.facs?.slice(0, 3).map((facility) => (
+                                <span key={facility} className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] text-gray-200">
+                                  {facility}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         ))}
                       </div>
                     </>
+                  ) : (
+                    <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+                      <FaBookmark className="mx-auto text-gray-500 mb-2" />
+                      <p className="text-sm text-gray-300">No saved searches yet.</p>
+                      <p className="text-xs text-gray-500 mt-1">Use “Save Current Search” after setting filters.</p>
+                    </div>
                   )}
 
                   <div className="mb-4">
