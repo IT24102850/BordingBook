@@ -1190,36 +1190,31 @@ const RoommateFinderPlaceholder: React.FC<{
 
   const renderGroups = () => (
     <div className="space-y-4">
-                        {visibleSavedSearches.map((savedSearch) => (
-                          <div key={savedSearch._id} className="mx-2 rounded-2xl border border-white/10 bg-white/5 p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <p className="text-sm font-semibold text-white">{savedSearch.name}</p>
-                                <p className="text-[11px] text-gray-400">
-                                  {savedSearch.createdAt ? new Date(savedSearch.createdAt).toLocaleDateString() : 'Saved search'}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => applySavedSearch(savedSearch)}
-                                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 text-[11px] font-semibold"
-                              >
-                                Apply
-                              </button>
-                            </div>
-                            <p className="text-xs text-gray-300 mt-2">{getSavedSearchSummary(savedSearch)}</p>
-                          </div>
-          <div>
-            <label className="block text-xs text-gray-300 mb-1">Select current boarding house</label>
-            <select
-                  ) : (
-                    <div className="mb-6 mx-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
-                      <p className="text-sm text-gray-300">No saved searches yet.</p>
-                      <p className="text-xs text-gray-500 mt-1">Save the current filter set to show it here.</p>
-                    </div>
-                  )}
-              onChange={(e) => setSelectedRoomId(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white"
-            >
+      <div>
+        <label className="block text-xs text-gray-300 mb-1">Select current boarding house</label>
+        <select
+          onChange={(e) => setSelectedRoomId(e.target.value)}
+          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white"
+        >
+          <option value="">-- Select a room --</option>
+          {dbListings.map((room: any) => {
+            const roomId = String(room.id || room._id || '');
+            const vacancy = Math.max(0, Number(room.totalSpots || room.totalRooms || 0) - Number(room.occupancy || room.occupiedRooms || 0));
+            return (
+              <option key={roomId} value={roomId}>
+                {room.title || room.name || 'Room'} ({vacancy} vacancies)
+              </option>
+            );
+          })}
+        </select>
+        {(() => {
+          const selectedRoom: any = dbListings.find((room: any) => String(room.id || room._id) === String(selectedRoomId));
+          if (!selectedRoom) return null;
+          const vacancy = Math.max(0, Number(selectedRoom.totalSpots || selectedRoom.totalRooms || 0) - Number(selectedRoom.occupancy || selectedRoom.occupiedRooms || 0));
+          if (vacancy !== 1) return null;
+          return <p className="mt-2 text-xs text-amber-300">Tagged: Current boarding house (1 vacancy left)</p>;
+        })()}
+      </div>
               <option value="">-- Select a room --</option>
               {dbListings.map((room: any) => {
                 const roomId = String(room.id || room._id || '');
