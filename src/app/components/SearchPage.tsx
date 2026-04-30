@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 // Agreement Acceptance Modal
 const AgreementAcceptModal = ({
@@ -214,7 +215,6 @@ function PublicListings() {
 
 
 import { useLocation, useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import {
   FaMapMarkerAlt, FaStar, FaHeart, FaRegTimesCircle, FaInfoCircle,
   FaWalking, FaBicycle, FaBus, FaCar, FaBed, FaBolt, FaCheckCircle,
@@ -2369,7 +2369,7 @@ const BookingForm: React.FC<{
   const [successMessage, setSuccessMessage] = useState('');
 
   const listingTitle = listing?.title || 'N/A';
-  const roomMongoId = listing?.mongoId || listing?._id || (typeof listing?.id === 'string' ? listing.id : '') || '';
+  const roomMongoId = listing?.mongoId || (typeof listing?.id === 'string' ? listing.id : '') || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3088,7 +3088,7 @@ function SearchPage() {
               title: house.name || 'Boarding House',
               images: (() => {
                 const validImages = Array.isArray(house.images)
-                  ? house.images.filter((img) => 
+                  ? house.images.filter((img: string) => 
                       typeof img === 'string' && 
                       img.trim().length > 0 &&
                       !img.startsWith('data:image') 

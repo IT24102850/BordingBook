@@ -13,9 +13,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
-      ,
-      "types": ["node"]
+    "jsx": "react-jsx",
+    "types": ["node", "react", "react-dom", "vite/client"]
   },
   "include": ["src", "frontend/src", "Search, Filtering & Discovery/boarding-react/src"],
   "exclude": ["node_modules", "dist", "build"]

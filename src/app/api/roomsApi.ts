@@ -48,16 +48,7 @@ export interface Room {
 export interface SavedSearch {
   _id: string;
   name: string;
-  filters: {
-    searchTerm?: string;
-    priceMax?: number;
-    priceMin?: number;
-    room?: string;
-    dist?: string;
-    avail?: string;
-    facs?: string[];
-    sortMode?: string;
-  };
+  filters: RoomFilters;
   createdAt: string;
   lastUsed: string;
   updatedAt: string;
