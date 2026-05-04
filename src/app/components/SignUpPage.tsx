@@ -222,18 +222,13 @@ export default function SignUpPage() {
         phoneNumber: role === 'owner' ? phoneNumber : undefined,
       });
 
-      setSuccess('Account created! Redirecting to email verification...');
-      
-      // Always redirect to verify-email with token (instant, no wait for email)
-      const redirectPath = signUpResult?.verificationUrl
-        ? `${new URL(signUpResult.verificationUrl).pathname}${new URL(signUpResult.verificationUrl).search}`
-        : `/verify-email?email=${encodeURIComponent(email)}`;
-      
-      setTimeout(() => navigate(redirectPath), 800);
+      setSuccess('Account created! You can sign in now.');
+
+      setTimeout(() => navigate(`/signin?email=${encodeURIComponent(email)}`), 800);
     } catch (err) {
       if (err instanceof AuthApiError) {
         if (err.needsVerification) {
-          navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+          navigate(`/signin?email=${encodeURIComponent(email)}`);
           return;
         }
         setError(err.message);

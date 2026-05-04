@@ -31,7 +31,7 @@ interface SignUpResult {
   email: string;
   role: 'student' | 'owner' | 'admin';
   isVerified: boolean;
-  verificationUrl: string;
+  verificationUrl?: string;
   verificationToken?: string;
 }
 

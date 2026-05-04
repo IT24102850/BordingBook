@@ -55,7 +55,6 @@ exports.signup = async (req, res) => {
     }
 
 
-    // Owners are auto-verified; students must confirm email
     const isOwner = role === 'owner';
 
     // Only include relevant fields
@@ -70,18 +69,13 @@ exports.signup = async (req, res) => {
     const user = new User(userData);
 
     if (!isOwner) {
-      // Students: generate email verification token and send
-      const verificationToken = user.generateVerificationToken();
+      // Students can sign in immediately after signup
+      user.isVerified = true;
       await user.save();
-      try {
-        await sendVerificationEmail(email, verificationToken);
-      } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
-      }
       return res.status(201).json({
         success: true,
-        message: 'Account created. Please verify your email.',
-        data: { userId: user._id, email: user.email, role: user.role, isVerified: false },
+        message: 'Account created successfully. You can sign in now.',
+        data: { userId: user._id, email: user.email, role: user.role, isVerified: true },
       });
     }
 
@@ -267,15 +261,6 @@ exports.signin = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password',
-      });
-    }
-
-    // Check if email is verified
-    if (!user.isVerified) {
-      return res.status(403).json({
-        success: false,
-        message: 'Please verify your email before signing in',
-        needsVerification: true,
       });
     }
 
