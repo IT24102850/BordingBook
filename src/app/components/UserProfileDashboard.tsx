@@ -9,6 +9,7 @@ import {
   FaCheckCircle,
   FaSpinner,
   FaSignOutAlt,
+  FaTrash,
 } from "react-icons/fa";
 import StudentPayment from "./payment/StudentPayment";
 
@@ -234,6 +235,54 @@ export default function UserProfileDashboard() {
     navigate("/signin");
   };
 
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete your account? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const token = localStorage.getItem("bb_access_token");
+      if (!token) {
+        setError("Please sign in to delete your account.");
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/account`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result?.message || "Failed to delete account");
+      }
+
+      // Clear storage and redirect
+      localStorage.removeItem("bb_access_token");
+      localStorage.removeItem("bb_current_user");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userName");
+
+      // Show success message and redirect
+      setSuccess("Your account has been deleted successfully.");
+      setTimeout(() => navigate("/signin"), 2000);
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error ? deleteError.message : "Failed to delete account"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#071126] via-[#0d1f3a] to-[#13314f] text-white">
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
@@ -280,6 +329,13 @@ export default function UserProfileDashboard() {
               className="md:ml-auto px-4 py-2 rounded-xl text-sm font-semibold transition bg-red-500/15 border border-red-400/30 hover:bg-red-500/25 text-red-100"
             >
               <FaSignOutAlt className="inline mr-2" /> Logout
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={saving}
+              className="px-4 py-2 rounded-xl text-sm font-semibold transition bg-red-600/20 border border-red-500/50 hover:bg-red-600/40 text-red-200 disabled:opacity-50"
+            >
+              <FaTrash className="inline mr-2" /> Delete Account
             </button>
           </div>
 

@@ -7,7 +7,7 @@ import {
   Star, Heart, X, Check, ChevronRight, Clock,
   LifeBuoy, Send, CheckCircle, Loader2, AlertCircle,
   User, Edit3, Camera, BookOpen, Calendar, TrendingUp,
-  Shield, Inbox, UserCheck, RefreshCw, ArrowRight
+  Shield, Inbox, UserCheck, RefreshCw, ArrowRight, Trash
 } from 'lucide-react';
 
 // ============================================
@@ -403,6 +403,38 @@ export default function StudentDashboard() {
       }
     } catch { setProfileError('Network error.'); }
     setProfileSaving(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your account? This action cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    try {
+      setProfileSaving(true);
+      setProfileError('');
+
+      const response = await fetch(`${API}/auth/account`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        localStorage.removeItem('bb_access_token');
+        localStorage.removeItem('bb_current_user');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        navigate('/signin');
+      } else {
+        setProfileError(data?.message || 'Failed to delete account.');
+      }
+    } catch (err) {
+      setProfileError('Network error: ' + (err instanceof Error ? err.message : 'Unknown'));
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const handleSwipe = async (userId: string, action: 'like' | 'pass') => {
@@ -1316,14 +1348,25 @@ export default function StudentDashboard() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={profileSaving}
-                className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 disabled:opacity-50 text-white font-semibold py-2.5 px-6 rounded-xl transition"
-              >
-                {profileSaving ? <Loader2 size={16} className="animate-spin" /> : <Edit3 size={16} />}
-                Save Changes
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={profileSaving}
+                  className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 disabled:opacity-50 text-white font-semibold py-2.5 px-6 rounded-xl transition"
+                >
+                  {profileSaving ? <Loader2 size={16} className="animate-spin" /> : <Edit3 size={16} />}
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={profileSaving}
+                  className="flex items-center gap-2 bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 disabled:opacity-50 text-red-200 font-semibold py-2.5 px-6 rounded-xl transition"
+                >
+                  {profileSaving ? <Loader2 size={16} className="animate-spin" /> : <Trash size={16} />}
+                  Delete Account
+                </button>
+              </div>
             </form>
           </div>
         )}

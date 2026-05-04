@@ -454,3 +454,39 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch profile', error: error.message });
   }
 };
+
+/**
+ * Delete user account
+ * DELETE /api/auth/account
+ */
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id || req.user._id;
+    
+    // Find and delete the user
+    const user = await User.findByIdAndDelete(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully',
+      data: {
+        deletedUserId: user._id,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete account',
+      error: error.message,
+    });
+  }
+};

@@ -87,6 +87,8 @@ router.get('/me', requireAuth, authController.getMe);
 
 router.get('/profile', requireAuth, authController.getProfile);
 
+router.delete('/account', requireAuth, authController.deleteAccount);
+
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
