@@ -7,228 +7,10 @@ const AgreementAcceptModal = ({
   onClose,
   agreementId,
   bookingRequestId,
-  roomName,
-  onAccepted,
-}: {
-  open: boolean;
-  onClose: () => void;
-  agreementId: string;
-  bookingRequestId?: string;
-  roomName?: string;
-  onAccepted: () => void;
-}) => {
-  const [checked, setChecked] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // ...existing code...
 
-  const handleAccept = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const token = localStorage.getItem("bb_access_token") || "";
-      const res = await fetch(
-        `${BACKEND_URL}/api/roommates/agreements/${agreementId}/respond`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status: "accepted" }),
-        },
-      );
-      const json = await res.json();
-      if (!res.ok)
-        throw new Error(json.message || "Failed to accept agreement");
-      onAccepted();
-    } catch (e: any) {
-      setError(e.message || "Failed to accept agreement");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl p-6">
-        <h2 className="text-lg font-bold text-cyan-200 mb-2">
-          Agreement Acceptance
-        </h2>
-        <p className="text-gray-300 mb-4">
-          You have received a digital rental agreement
-          {roomName ? ` for room: ${roomName}` : ""}.<br />
-          Please review and accept to proceed.
-        </p>
-        <div className="flex items-center mb-4">
-          <input
-            type="checkbox"
-            id="accept-agreement"
-            checked={checked}
-            onChange={(e) => setChecked(e.target.checked)}
-            className="mr-2"
-          />
-          <label htmlFor="accept-agreement" className="text-white text-sm">
-            I accept and e-sign this agreement
-          </label>
-        </div>
-        {error && <div className="text-red-400 text-xs mb-2">{error}</div>}
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-medium"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleAccept}
-            className={`flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-lg hover:shadow-lg transition-all font-medium ${!checked || loading ? "opacity-60 cursor-not-allowed" : ""}`}
-            disabled={!checked || loading}
-          >
-            {loading ? "Accepting..." : "Accept & E-Sign"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const BACKEND_URL = (
-  ((import.meta as any).env?.VITE_API_URL as string) || "http://localhost:5001"
-)
-  .replace(/\/api\/?$/, "")
-  .replace(/\/$/, "");
-
-type SavedSearchRecord = {
-  _id: string;
-  name: string;
-  filters: {
-    searchTerm?: string;
-    priceMax?: number;
-    priceMin?: number;
-    room?: string;
-    dist?: string;
-    avail?: string;
-    facs?: string[];
-    sortMode?: string;
-  };
-  createdAt?: string;
-  lastUsed?: string;
-  updatedAt?: string;
-};
-
-// Public house listings for all users
-type PublicHouse = {
-  _id: string;
-  name: string;
-  address: string;
-  monthlyPrice: number;
-  deposit: number;
-  roomType: string;
-  genderPreference: string;
-  status: string;
-  rating?: number;
-  totalReviews?: number;
-  features?: string[];
-  image?: string;
-  images?: string[];
-  description?: string;
-  createdAt?: string;
-};
-
-// --- Public Listings Section ---
-function PublicListings() {
-  const [listings, setListings] = useState<PublicHouse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const nav = useNavigate();
-
-  useEffect(() => {
-    fetch(`${BACKEND_URL}/api/owner/public/houses`)
-      .then((res) => res.json())
-      .then((data) => {
-        setListings(data.data || []);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to load listings");
-        setLoading(false);
-      });
-  }, []);
-
-  const handleClick = (house: PublicHouse) => {
-    const listing = {
-      id: house._id || (house as any).id,
-      mongoId: house._id || (house as any).id,
-      title: house.name,
-      images: house.images?.length
-        ? house.images
-        : house.image
-          ? [house.image]
-          : [],
-      price: house.monthlyPrice ?? 0,
-      location: house.address,
-      distance: 0,
-      roomType: house.roomType,
-      genderPreference: house.genderPreference,
-      deposit: house.deposit,
-      description: house.description,
-      features: house.features,
-      rating: house.rating,
-    };
-    nav(`/listing/${house._id}`, { state: { listing } });
-  };
-
-  if (loading)
-    return <div className="text-cyan-300 py-4">Loading listings...</div>;
-  if (error) return <div className="text-red-400 py-4">{error}</div>;
-  if (!listings.length)
-    return <div className="text-gray-400 py-4">No listings found.</div>;
-
-  return (
-    <div className="my-6">
-      <h3 className="text-lg font-bold text-cyan-200 mb-3">Boarding Houses</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {listings.map((house) => (
-          <button
-            key={house._id}
-            onClick={() => handleClick(house)}
-            className="text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/30 rounded-xl overflow-hidden transition-all cursor-pointer group"
-          >
-            {(() => {
-              const src =
-                house.images?.find((img) => img && !img.startsWith("data:")) ||
-                (house.image && !house.image.startsWith("data:")
-                  ? house.image
-                  : null) ||
-                "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=80";
-              return (
-                <img
-                  src={src}
-                  alt={house.name}
-                  className="w-full h-44 object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=80";
-                  }}
-                />
-              );
-            })()}
-            <div className="p-4">
-              <p className="font-semibold text-white text-sm mb-1 truncate">
-                {house.name}
-              </p>
-              <p className="text-gray-400 text-xs mb-2 truncate">
-                {house.address}
-              </p>
-              <div className="flex items-center justify-between">
-                <span className="text-cyan-400 font-bold text-sm">
-                  Rs. {house.monthlyPrice?.toLocaleString()}
-                  <span className="text-gray-500 font-normal text-xs">/mo</span>
-                </span>
-                <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
-                  {house.roomType}
+  // Export the main component (RoommateFinderPlaceholder) for use in your app
+  export default RoommateFinderPlaceholder;
                 </span>
               </div>
             </div>
@@ -338,22 +120,346 @@ const MiniListingCard: React.FC<{
 
 // Roommate Finder Placeholder Component
 const RoommateFinderPlaceholder: React.FC<{
-  roommateData: Roommate[];
-  dbListings: Listing[];
-  currentUserId: string;
-  isRoommatesLoading: boolean;
-  onToast: (msg: string) => void;
+  dbListings?: Listing[];
+  currentUserId?: string;
+  isRoommatesLoading?: boolean;
+  onToast?: (msg: string) => void;
   currentUserName?: string;
   currentUserImage?: string;
 }> = ({
-  roommateData,
-  dbListings,
-  currentUserId,
-  isRoommatesLoading,
-  onToast,
-  currentUserName,
-  currentUserImage,
+  dbListings = [],
+  currentUserId = "dummy-user-1",
+  isRoommatesLoading = false,
+  onToast = () => {},
+  currentUserName = "Test User",
+  currentUserImage = "https://randomuser.me/api/portraits/men/1.jpg",
 }) => {
+  // Dummy roommate data for swipe
+  const dummyRoommates: Roommate[] = [
+    {
+      id: "1",
+      userId: "1",
+      name: "Alice Perera",
+      email: "alice@example.com",
+      age: 22,
+      gender: "Female",
+      university: "SLIIT",
+      bio: "Love music, movies, and coding.",
+      image: "https://randomuser.me/api/portraits/women/44.jpg",
+      interests: ["Music", "Movies", "Coding"],
+      mutualCount: 2,
+      role: "student",
+      compatibility: 90,
+      availability: "Weekends",
+    },
+    {
+      id: "2",
+      userId: "2",
+      name: "Bob Silva",
+      email: "bob@example.com",
+      age: 23,
+      gender: "Male",
+      university: "CINEC",
+      bio: "Enjoys football and gaming.",
+      image: "https://randomuser.me/api/portraits/men/32.jpg",
+      interests: ["Football", "Gaming", "Travel"],
+      mutualCount: 1,
+      role: "student",
+      compatibility: 85,
+      availability: "Evenings",
+    },
+    {
+      id: "3",
+      userId: "3",
+      name: "Chathuni Jayasuriya",
+      email: "chathuni@example.com",
+      age: 21,
+      gender: "Female",
+      university: "NSBM",
+      bio: "Bookworm and foodie.",
+      image: "https://randomuser.me/api/portraits/women/68.jpg",
+      interests: ["Books", "Food", "Yoga"],
+      mutualCount: 3,
+      role: "student",
+      compatibility: 92,
+      availability: "Mornings",
+    },
+    {
+      id: "4",
+      userId: "4",
+      name: "Dilan Fernando",
+      email: "dilan@example.com",
+      age: 24,
+      gender: "Male",
+      university: "UoM",
+      bio: "Cyclist and tech enthusiast.",
+      image: "https://randomuser.me/api/portraits/men/65.jpg",
+      interests: ["Cycling", "Tech", "Movies"],
+      mutualCount: 0,
+      role: "student",
+      compatibility: 80,
+      availability: "Afternoons",
+    },
+    {
+      id: "5",
+      userId: "5",
+      name: "Erandi Wijesinghe",
+      email: "erandi@example.com",
+      age: 22,
+      gender: "Female",
+      university: "APIIT",
+      bio: "Art lover and swimmer.",
+      image: "https://randomuser.me/api/portraits/women/12.jpg",
+      interests: ["Art", "Swimming", "Travel"],
+      mutualCount: 2,
+      role: "student",
+      compatibility: 88,
+      availability: "Evenings",
+    },
+    {
+      id: "6",
+      userId: "6",
+      name: "Kasun Rathnayake",
+      email: "kasun@example.com",
+      age: 25,
+      gender: "Male",
+      university: "UCSC",
+      bio: "Gamer and foodie.",
+      image: "https://randomuser.me/api/portraits/men/23.jpg",
+      interests: ["Gaming", "Food", "Movies"],
+      mutualCount: 1,
+      role: "student",
+      compatibility: 78,
+      availability: "Nights",
+    },
+    {
+      id: "7",
+      userId: "7",
+      name: "Nadeesha Fernando",
+      email: "nadeesha@example.com",
+      age: 20,
+      gender: "Female",
+      university: "SLTC",
+      bio: "Nature lover and hiker.",
+      image: "https://randomuser.me/api/portraits/women/21.jpg",
+      interests: ["Nature", "Hiking", "Photography"],
+      mutualCount: 2,
+      role: "student",
+      compatibility: 87,
+      availability: "Weekends",
+    },
+    {
+      id: "8",
+      userId: "8",
+      name: "Ruwan Jayawardena",
+      email: "ruwan@example.com",
+      age: 23,
+      gender: "Male",
+      university: "Rajarata",
+      bio: "Cricket fan and reader.",
+      image: "https://randomuser.me/api/portraits/men/41.jpg",
+      interests: ["Cricket", "Books", "Travel"],
+      mutualCount: 0,
+      role: "student",
+      compatibility: 75,
+      availability: "Afternoons",
+    },
+    {
+      id: "9",
+      userId: "9",
+      name: "Ishara Madushani",
+      email: "ishara@example.com",
+      age: 22,
+      gender: "Female",
+      university: "UoC",
+      bio: "Dancer and music lover.",
+      image: "https://randomuser.me/api/portraits/women/19.jpg",
+      interests: ["Dance", "Music", "Movies"],
+      mutualCount: 1,
+      role: "student",
+      compatibility: 89,
+      availability: "Evenings",
+    },
+    {
+      id: "10",
+      userId: "10",
+      name: "Tharindu Senanayake",
+      email: "tharindu@example.com",
+      age: 24,
+      gender: "Male",
+      university: "SLIIT",
+      bio: "Footballer and coder.",
+      image: "https://randomuser.me/api/portraits/men/77.jpg",
+      interests: ["Football", "Coding", "Travel"],
+      mutualCount: 2,
+      role: "student",
+      compatibility: 91,
+      availability: "Mornings",
+    },
+    {
+      id: "11",
+      userId: "11",
+      name: "Sajini Peris",
+      email: "sajini@example.com",
+      age: 21,
+      gender: "Female",
+      university: "NSBM",
+      bio: "Yoga and meditation.",
+      image: "https://randomuser.me/api/portraits/women/31.jpg",
+      interests: ["Yoga", "Meditation", "Books"],
+      mutualCount: 3,
+      role: "student",
+      compatibility: 93,
+      availability: "Mornings",
+    },
+    {
+      id: "12",
+      userId: "12",
+      name: "Nipun Lakmal",
+      email: "nipun@example.com",
+      age: 23,
+      gender: "Male",
+      university: "UoM",
+      bio: "Runner and movie buff.",
+      image: "https://randomuser.me/api/portraits/men/12.jpg",
+      interests: ["Running", "Movies", "Music"],
+      mutualCount: 1,
+      role: "student",
+      compatibility: 84,
+      availability: "Evenings",
+    },
+    {
+      id: "13",
+      userId: "13",
+      name: "Harini Silva",
+      email: "harini@example.com",
+      age: 22,
+      gender: "Female",
+      university: "CINEC",
+      bio: "Fashion and design.",
+      image: "https://randomuser.me/api/portraits/women/13.jpg",
+      interests: ["Fashion", "Design", "Art"],
+      mutualCount: 2,
+      role: "student",
+      compatibility: 86,
+      availability: "Afternoons",
+    },
+    {
+      id: "14",
+      userId: "14",
+      name: "Ravindu Jayasena",
+      email: "ravindu@example.com",
+      age: 24,
+      gender: "Male",
+      university: "APIIT",
+      bio: "Chess player and reader.",
+      image: "https://randomuser.me/api/portraits/men/14.jpg",
+      interests: ["Chess", "Books", "Music"],
+      mutualCount: 0,
+      role: "student",
+      compatibility: 79,
+      availability: "Nights",
+    },
+    {
+      id: "15",
+      userId: "15",
+      name: "Dilani Samarasinghe",
+      email: "dilani@example.com",
+      age: 21,
+      gender: "Female",
+      university: "UCSC",
+      bio: "Baker and traveler.",
+      image: "https://randomuser.me/api/portraits/women/15.jpg",
+      interests: ["Baking", "Travel", "Movies"],
+      mutualCount: 1,
+      role: "student",
+      compatibility: 88,
+      availability: "Weekends",
+    },
+    {
+      id: "16",
+      userId: "16",
+      name: "Sahan Perera",
+      email: "sahan@example.com",
+      age: 23,
+      gender: "Male",
+      university: "SLTC",
+      bio: "Photographer and cyclist.",
+      image: "https://randomuser.me/api/portraits/men/16.jpg",
+      interests: ["Photography", "Cycling", "Tech"],
+      mutualCount: 2,
+      role: "student",
+      compatibility: 82,
+      availability: "Afternoons",
+    },
+    {
+      id: "17",
+      userId: "17",
+      name: "Nimesha Gunasekara",
+      email: "nimesha@example.com",
+      age: 22,
+      gender: "Female",
+      university: "Rajarata",
+      bio: "Gardener and animal lover.",
+      image: "https://randomuser.me/api/portraits/women/17.jpg",
+      interests: ["Gardening", "Animals", "Yoga"],
+      mutualCount: 1,
+      role: "student",
+      compatibility: 90,
+      availability: "Mornings",
+    },
+    {
+      id: "18",
+      userId: "18",
+      name: "Janith Fernando",
+      email: "janith@example.com",
+      age: 24,
+      gender: "Male",
+      university: "UoC",
+      bio: "Swimmer and gamer.",
+      image: "https://randomuser.me/api/portraits/men/18.jpg",
+      interests: ["Swimming", "Gaming", "Music"],
+      mutualCount: 0,
+      role: "student",
+      compatibility: 77,
+      availability: "Evenings",
+    },
+    {
+      id: "19",
+      userId: "19",
+      name: "Sewwandi Jayasinghe",
+      email: "sewwandi@example.com",
+      age: 21,
+      gender: "Female",
+      university: "NSBM",
+      bio: "Runner and foodie.",
+      image: "https://randomuser.me/api/portraits/women/19.jpg",
+      interests: ["Running", "Food", "Travel"],
+      mutualCount: 2,
+      role: "student",
+      compatibility: 85,
+      availability: "Afternoons",
+    },
+    {
+      id: "20",
+      userId: "20",
+      name: "Lakshan Abeysekara",
+      email: "lakshan@example.com",
+      age: 23,
+      gender: "Male",
+      university: "SLIIT",
+      bio: "Tech geek and hiker.",
+      image: "https://randomuser.me/api/portraits/men/20.jpg",
+      interests: ["Tech", "Hiking", "Movies"],
+      mutualCount: 1,
+      role: "student",
+      compatibility: 89,
+      availability: "Weekends",
+    },
+  ];
+
+  // Use dummy data for matches
+  const roommateData = dummyRoommates;
   const navigate = useNavigate();
   const [selectedRoommate, setSelectedRoommate] = useState<Roommate | null>(
     null,
@@ -406,7 +512,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const DEFAULT_PROFILE_IMAGE =
-    "https://randomuser.me/api/portraits/lego/1.jpg";
+    "https://randomuser.me/api/portraits/men/1.jpg";
 
   const resolveProfileImage = (profile: any) => {
     const raw =
@@ -1034,76 +1140,74 @@ const toggleGroupMember = (memberId: string) => {
 
 const submitCreateGroup = async () => {
   // No authentication required
-  onToast("Please sign in first");
-  return;
-};
-if (selectedGroupMembers.length === 0) {
-  onToast("Select at least one member to invite");
-  return;
-}
-if (groupScenario === "join-existing" && !selectedRoomId) {
-  onToast("Choose a room with vacancy to join");
-  return;
-}
-
-const members = roommateData.filter((m) =>
-  selectedGroupMembers.includes(m.userId || m.id),
-);
-const memberEmails = members.map((m) => m.email).filter(Boolean);
-if (!memberEmails.length) {
-  onToast("Selected members do not have valid emails");
-  return;
-}
-
-const selectedRoom: any = (dbListings || []).find(
-  (room: any) => String(room.id || room._id) === String(selectedRoomId),
-);
-const totalSpots = Number(selectedRoom?.totalSpots || 0);
-const occupancy = Number(selectedRoom?.occupancy || 0);
-const vacancy = Math.max(0, totalSpots - occupancy);
-
-setIsCreatingGroup(true);
-try {
-  const payload: any = {
-    memberEmails,
-    scenario: groupScenario,
-    plannedBoardingHouseTag:
-      groupScenario === "new-place" ? "Planned boarding house" : "",
-    currentBoardingHouseTag:
-      groupScenario === "join-existing"
-        ? vacancy === 1
-          ? "Current boarding house (1 vacancy left)"
-          : "Current boarding house"
-        : "",
-  };
-  if (groupScenario === "join-existing") {
-    payload.roomId = selectedRoomId;
+  if (selectedGroupMembers.length === 0) {
+    onToast("Select at least one member to invite");
+    return;
   }
-
-  const response = await fetch(`${API_BASE_URL}/api/roommates/group`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok || json?.success === false) {
-    onToast(json?.message || "Failed to create group");
+  if (groupScenario === "join-existing" && !selectedRoomId) {
+    onToast("Choose a room with vacancy to join");
     return;
   }
 
-  onToast("Group created and invitations sent");
-  setSelectedGroupMembers([]);
-  setSelectedRoomId("");
-  await refreshRoommateTabData();
-  setActiveSection("groups");
-} catch {
-  onToast("Network error while creating group");
-} finally {
-  setIsCreatingGroup(false);
-}
+  const members = roommateData.filter((m) =>
+    selectedGroupMembers.includes(m.userId || m.id),
+  );
+  const memberEmails = members.map((m) => m.email).filter(Boolean);
+  if (!memberEmails.length) {
+    onToast("Selected members do not have valid emails");
+    return;
+  }
+
+  const selectedRoom: any = (dbListings || []).find(
+    (room: any) => String(room.id || room._id) === String(selectedRoomId),
+  );
+  const totalSpots = Number(selectedRoom?.totalSpots || 0);
+  const occupancy = Number(selectedRoom?.occupancy || 0);
+  const vacancy = Math.max(0, totalSpots - occupancy);
+
+  setIsCreatingGroup(true);
+  try {
+    const payload: any = {
+      memberEmails,
+      scenario: groupScenario,
+      plannedBoardingHouseTag:
+        groupScenario === "new-place" ? "Planned boarding house" : "",
+      currentBoardingHouseTag:
+        groupScenario === "join-existing"
+          ? vacancy === 1
+            ? "Current boarding house (1 vacancy left)"
+            : "Current boarding house"
+          : "",
+    };
+    if (groupScenario === "join-existing") {
+      payload.roomId = selectedRoomId;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/roommates/group`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || json?.success === false) {
+      onToast(json?.message || "Failed to create group");
+      return;
+    }
+
+    onToast("Group created and invitations sent");
+    setSelectedGroupMembers([]);
+    setSelectedRoomId("");
+    await refreshRoommateTabData();
+    setActiveSection("groups");
+  } catch {
+    onToast("Network error while creating group");
+  } finally {
+    setIsCreatingGroup(false);
+  }
+};
 
 const MiniProfileCard: React.FC<{
   item: Roommate;
