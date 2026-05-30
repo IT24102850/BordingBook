@@ -302,7 +302,8 @@ const RoommateFinderPlaceholder: React.FC<{
 
   const currentProfile = roommateData[browseIndex];
 
-  const getAuthToken = () => localStorage.getItem('bb_access_token') || '';
+  // No authentication required
+  const getAuthToken = () => '';
   const inboxCacheKey = currentUserId ? `bb_inbox_cache_${currentUserId}` : 'bb_inbox_cache';
 
   const sortRequestsNewestFirst = (items: any[]) => {
@@ -409,8 +410,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const loadLikedProfiles = async () => {
-    const token = getAuthToken();
-    if (!token) return;
+    // No authentication required
     try {
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 20000);
@@ -429,7 +429,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const handleBrowseLike = async () => {
-    if (!currentProfile || browseAnimating) return;
+    // No authentication required
     setBrowseAnimating(true);
     setBrowseDirection('right');
     void pushSwipeToDatabase(currentProfile, 'like');
@@ -450,7 +450,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const handleBrowsePass = async () => {
-    if (!currentProfile || browseAnimating) return;
+    // No authentication required
     setBrowseAnimating(true);
     setBrowseDirection('left');
     void pushSwipeToDatabase(currentProfile, 'pass');
@@ -701,7 +701,7 @@ const RoommateFinderPlaceholder: React.FC<{
   }, [activeSection]);
 
   const handleSendRequest = (roommate: Roommate) => {
-    if (!resolveValidRecipientId(roommate)) {
+    // No authentication required
       onToast('This profile cannot receive roommate requests because it does not have a valid account id. Please refresh and try again.');
       return;
     }
@@ -710,7 +710,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const submitRequest = async () => {
-    if (!selectedRoommate) return;
+    // No authentication required
     const token = getAuthToken();
     if (!token) {
       onToast('Please sign in to send roommate requests');
@@ -759,8 +759,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const refreshRoommateTabData = async () => {
-    const token = getAuthToken();
-    if (!token) return;
+    // No authentication required
     const load = async (url: string) => {
       const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
       const json = await response.json().catch(() => ({}));
@@ -780,8 +779,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const handleRequestDecision = async (requestId: string, decision: 'accept' | 'reject') => {
-    const token = getAuthToken();
-    if (!token) return;
+    // No authentication required
     try {
       const response = await fetch(`${API_BASE_URL}/api/roommates/request/${requestId}/${decision}`, {
         method: 'PATCH',
@@ -800,8 +798,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const handleGroupInviteDecision = async (groupId: string, decision: 'accepted' | 'rejected') => {
-    const token = getAuthToken();
-    if (!token) return;
+    // No authentication required
     try {
       const response = await fetch(`${API_BASE_URL}/api/roommates/group/${groupId}/respond`, {
         method: 'PATCH',
@@ -824,7 +821,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const handleStartGroupChat = async (group: any) => {
-    const groupId = String(group?._id || group?.id || '');
+    // No authentication required
     if (!groupId) {
       onToast('Invalid group');
       return;
@@ -849,8 +846,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const submitCreateGroup = async () => {
-    const token = getAuthToken();
-    if (!token) {
+    // No authentication required
       onToast('Please sign in first');
       return;
     }
