@@ -909,7 +909,6 @@ const RoommateFinderPlaceholder: React.FC<{
       onToast('Network error while creating group');
     } finally {
       setIsCreatingGroup(false);
-    }
   };
 
   const MiniProfileCard: React.FC<{ item: Roommate; type: 'passed' | 'liked' }> = ({ item, type }) => (
