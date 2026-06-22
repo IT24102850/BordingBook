@@ -7,10 +7,228 @@ const AgreementAcceptModal = ({
   onClose,
   agreementId,
   bookingRequestId,
-  // ...existing code...
+  roomName,
+  onAccepted,
+}: {
+  open: boolean;
+  onClose: () => void;
+  agreementId: string;
+  bookingRequestId?: string;
+  roomName?: string;
+  onAccepted: () => void;
+}) => {
+  const [checked, setChecked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Export the main component (RoommateFinderPlaceholder) for use in your app
-  export default RoommateFinderPlaceholder;
+  const handleAccept = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("bb_access_token") || "";
+      const res = await fetch(
+        `${BACKEND_URL}/api/roommates/agreements/${agreementId}/respond`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "accepted" }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok)
+        throw new Error(json.message || "Failed to accept agreement");
+      onAccepted();
+    } catch (e: any) {
+      setError(e.message || "Failed to accept agreement");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="bg-gradient-to-br from-[#181f36] to-[#0f172a] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl p-6">
+        <h2 className="text-lg font-bold text-cyan-200 mb-2">
+          Agreement Acceptance
+        </h2>
+        <p className="text-gray-300 mb-4">
+          You have received a digital rental agreement
+          {roomName ? ` for room: ${roomName}` : ""}.<br />
+          Please review and accept to proceed.
+        </p>
+        <div className="flex items-center mb-4">
+          <input
+            type="checkbox"
+            id="accept-agreement"
+            checked={checked}
+            onChange={(e) => setChecked(e.target.checked)}
+            className="mr-2"
+          />
+          <label htmlFor="accept-agreement" className="text-white text-sm">
+            I accept and e-sign this agreement
+          </label>
+        </div>
+        {error && <div className="text-red-400 text-xs mb-2">{error}</div>}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-medium"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAccept}
+            className={`flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-green-500 text-white rounded-lg hover:shadow-lg transition-all font-medium ${!checked || loading ? "opacity-60 cursor-not-allowed" : ""}`}
+            disabled={!checked || loading}
+          >
+            {loading ? "Accepting..." : "Accept & E-Sign"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BACKEND_URL = (
+  ((import.meta as any).env?.VITE_API_URL as string) || "http://localhost:5001"
+)
+  .replace(/\/api\/?$/, "")
+  .replace(/\/$/, "");
+
+type SavedSearchRecord = {
+  _id: string;
+  name: string;
+  filters: {
+    searchTerm?: string;
+    priceMax?: number;
+    priceMin?: number;
+    room?: string;
+    dist?: string;
+    avail?: string;
+    facs?: string[];
+    sortMode?: string;
+  };
+  createdAt?: string;
+  lastUsed?: string;
+  updatedAt?: string;
+};
+
+// Public house listings for all users
+type PublicHouse = {
+  _id: string;
+  name: string;
+  address: string;
+  monthlyPrice: number;
+  deposit: number;
+  roomType: string;
+  genderPreference: string;
+  status: string;
+  rating?: number;
+  totalReviews?: number;
+  features?: string[];
+  image?: string;
+  images?: string[];
+  description?: string;
+  createdAt?: string;
+};
+
+// --- Public Listings Section ---
+function PublicListings() {
+  const [listings, setListings] = useState<PublicHouse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const nav = useNavigate();
+
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/owner/public/houses`)
+      .then((res) => res.json())
+      .then((data) => {
+        setListings(data.data || []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Failed to load listings");
+        setLoading(false);
+      });
+  }, []);
+
+  const handleClick = (house: PublicHouse) => {
+    const listing = {
+      id: house._id || (house as any).id,
+      mongoId: house._id || (house as any).id,
+      title: house.name,
+      images: house.images?.length
+        ? house.images
+        : house.image
+          ? [house.image]
+          : [],
+      price: house.monthlyPrice ?? 0,
+      location: house.address,
+      distance: 0,
+      roomType: house.roomType,
+      genderPreference: house.genderPreference,
+      deposit: house.deposit,
+      description: house.description,
+      features: house.features,
+      rating: house.rating,
+    };
+    nav(`/listing/${house._id}`, { state: { listing } });
+  };
+
+  if (loading)
+    return <div className="text-cyan-300 py-4">Loading listings...</div>;
+  if (error) return <div className="text-red-400 py-4">{error}</div>;
+  if (!listings.length)
+    return <div className="text-gray-400 py-4">No listings found.</div>;
+
+  return (
+    <div className="my-6">
+      <h3 className="text-lg font-bold text-cyan-200 mb-3">Boarding Houses</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {listings.map((house) => (
+          <button
+            key={house._id}
+            onClick={() => handleClick(house)}
+            className="text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/30 rounded-xl overflow-hidden transition-all cursor-pointer group"
+          >
+            {(() => {
+              const src =
+                house.images?.find((img) => img && !img.startsWith("data:")) ||
+                (house.image && !house.image.startsWith("data:")
+                  ? house.image
+                  : null) ||
+                "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=80";
+              return (
+                <img
+                  src={src}
+                  alt={house.name}
+                  className="w-full h-44 object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                  onError={(e) => {
+                    e.currentTarget.src =
+                      "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&q=80";
+                  }}
+                />
+              );
+            })()}
+            <div className="p-4">
+              <p className="font-semibold text-white text-sm mb-1 truncate">
+                {house.name}
+              </p>
+              <p className="text-gray-400 text-xs mb-2 truncate">
+                {house.address}
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-cyan-400 font-bold text-sm">
+                  Rs. {house.monthlyPrice?.toLocaleString()}
+                  <span className="text-gray-500 font-normal text-xs">/mo</span>
+                </span>
+                <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
+                  {house.roomType}
                 </span>
               </div>
             </div>
@@ -640,7 +858,7 @@ const RoommateFinderPlaceholder: React.FC<{
   };
 
   const loadLikedProfiles = async () => {
-    // No authentication required
+  const token = localStorage.getItem("bb_access_token") || "";
     try {
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 20000);
@@ -971,19 +1189,18 @@ const RoommateFinderPlaceholder: React.FC<{
   }, [activeSection]);
 
   const handleSendRequest = (roommate: Roommate) => {
-    // No authentication required
-    onToast(
-      "This profile cannot receive roommate requests because it does not have a valid account id. Please refresh and try again.",
-    );
-    return;
+    if (!resolveValidRecipientId(roommate)) {
+      onToast(
+        "This profile cannot receive roommate requests because it does not have a valid account id. Please refresh and try again.",
+      );
+      return;
+    }
+    setSelectedRoommate(roommate);
+    setShowRequestModal(true);
   };
-  setSelectedRoommate(roommate);
-  setShowRequestModal(true);
-};
 
 const submitRequest = async () => {
-  // No authentication required
-  const token = getAuthToken();
+  const token = localStorage.getItem("bb_access_token") || "";
   if (!token) {
     onToast("Please sign in to send roommate requests");
     return;
@@ -1022,7 +1239,7 @@ const submitRequest = async () => {
       return;
     }
 
-    onToast(`Roommate request sent to ${selectedRoommate.name}!`);
+    onToast(`Roommate request sent to ${selectedRoommate?.name}!`);
     setShowRequestModal(false);
     setRequestMessage("");
     if (activeSection !== "browse") {
@@ -1034,7 +1251,7 @@ const submitRequest = async () => {
 };
 
 const refreshRoommateTabData = async () => {
-  // No authentication required
+  const token = localStorage.getItem("bb_access_token") || "";
   const load = async (url: string) => {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -1060,7 +1277,7 @@ const handleRequestDecision = async (
   requestId: string,
   decision: "accept" | "reject",
 ) => {
-  // No authentication required
+  const token = localStorage.getItem("bb_access_token") || "";
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/roommates/request/${requestId}/${decision}`,
@@ -1085,7 +1302,7 @@ const handleGroupInviteDecision = async (
   groupId: string,
   decision: "accepted" | "rejected",
 ) => {
-  // No authentication required
+  const token = localStorage.getItem("bb_access_token") || "";
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/roommates/group/${groupId}/respond`,
@@ -1111,7 +1328,8 @@ const handleGroupInviteDecision = async (
 };
 
 const handleStartGroupChat = async (group: any) => {
-  // No authentication required
+  const groupId = String(group?._id || group?.id || "");
+  const token = localStorage.getItem("bb_access_token") || "";
   if (!groupId) {
     onToast("Invalid group");
     return;
@@ -1139,7 +1357,7 @@ const toggleGroupMember = (memberId: string) => {
 };
 
 const submitCreateGroup = async () => {
-  // No authentication required
+  const token = localStorage.getItem("bb_access_token") || "";
   if (selectedGroupMembers.length === 0) {
     onToast("Select at least one member to invite");
     return;
@@ -2052,7 +2270,7 @@ return (
     )}
   </div>
 );
-// ...existing code...
+};
 
 // ---- TypeScript type/interface stubs ----
 interface Listing {
@@ -4181,6 +4399,8 @@ function SearchPage() {
   });
 
   const savedSearchPreviewLimit = 4;
+  const visibleSavedListings = showAllSavedSearches ? likedListings : likedListings.slice(0, savedSearchPreviewLimit);
+  const hiddenSavedListingsCount = Math.max(0, likedListings.length - savedSearchPreviewLimit);
   const visibleSavedSearches = showAllSavedSearches
     ? savedSearches
     : savedSearches.slice(0, savedSearchPreviewLimit);
@@ -5480,7 +5700,6 @@ function SearchPage() {
           </>
         ) : (
           <RoommateFinderPlaceholder
-            roommateData={effectiveRoommates}
             dbListings={dbListings}
             currentUserId={currentUserId}
             isRoommatesLoading={isRoommatesLoading}
@@ -5691,3 +5910,6 @@ function SearchPage() {
 }
 
 
+
+
+export default SearchPage;
