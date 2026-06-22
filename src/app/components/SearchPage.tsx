@@ -100,6 +100,8 @@ const BACKEND_URL = (
   .replace(/\/api\/?$/, "")
   .replace(/\/$/, "");
 
+const API_BASE_URL = BACKEND_URL;
+
 type SavedSearchRecord = {
   _id: string;
   name: string;
@@ -2423,8 +2425,6 @@ const roomImages = [
   "https://images.unsplash.com/photo-1598928506311-c55d439524e9?w=400&q=80",
   "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=400&q=80",
 ];
-
-const API_BASE_URL = BACKEND_URL;
 
 // Ranked Result Card Component
 const RankedResultCard: React.FC<{
@@ -5413,8 +5413,6 @@ function SearchPage() {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-xl font-bold text-white">
-                        All Available Rooms{" "}
-                        {rankedRooms.length > 0 && `(${rankedRooms.length})`}
                         All Available Rooms and Houses{" "}
                         {rankedRooms.length > 0 && `(${rankedRooms.length})`}
                       </h2>
