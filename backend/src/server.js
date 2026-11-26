@@ -6,6 +6,7 @@ const app = require('./app');
 const env = require('./config/env');
 const { connectDatabase } = require('./config/database');
 const { setupChatSocket } = require('./socket/chatSocket');
+const { ensureDemoAccounts } = require('./seeds/demoAccounts');
 
 let server;
 let keepAliveInterval; // ✅ track it so we can clear on shutdown
@@ -14,6 +15,7 @@ async function startServer() {
   try {
     await connectDatabase();
     console.log('✓ Database connected successfully');
+    await ensureDemoAccounts();
 
     // ====================== KEEP ATLAS ALIVE ======================
     // Pings Atlas every 5 min so M0 free tier never goes cold

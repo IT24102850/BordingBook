@@ -21,8 +21,13 @@ exports.signup = async (req, res) => {
       });
     }
 
+    // Only students and owners can self-register (admins are separate accounts)
+    if (role !== undefined && !['student', 'owner'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+
     // Validate email format based on role
-    if (role === 'student') {
+    if (!role || role === 'student') {
       if (!email.endsWith('@sliit.lk') && !email.endsWith('@my.sliit.lk')) {
         return res.status(400).json({
           success: false,

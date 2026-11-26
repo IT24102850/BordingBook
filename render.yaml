@@ -29,3 +29,7 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: BoardingBook <onboarding@resend.dev>
+      # Creates demo.student@my.sliit.lk and demo.owner@boardingbook.app with this
+      # generated password (see backend/src/seeds/demoAccounts.js). Delete to disable.
+      - key: DEMO_PASSWORD
+        generateValue: true
