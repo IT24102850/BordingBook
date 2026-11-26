@@ -1,0 +1,31 @@
+# Render Blueprint — deploys the BoardingBook API.
+# Render dashboard → New → Blueprint → pick this repo. You'll be asked for the
+# values marked `sync: false` (secrets are never stored in the repo).
+services:
+  - type: web
+    name: boardingbook-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: node src/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: MONGO_URI
+        sync: false
+      - key: FRONTEND_URL
+        value: https://bording-book.vercel.app
+      - key: CORS_ORIGIN
+        value: https://bording-book.vercel.app
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: BoardingBook <onboarding@resend.dev>

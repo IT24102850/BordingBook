@@ -22,10 +22,9 @@ import {
   FaChevronLeft,
   FaChevronRight,
 } from 'react-icons/fa';
+import { API_BASE_URL } from '../api/config';
 
-const BACKEND_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/$/, '');
+const BACKEND_URL = API_BASE_URL;
 
 const FACILITY_ICONS: Record<string, React.ReactNode> = {
   wifi: <FaWifi />,

@@ -7,6 +7,7 @@ import {
   BiShield, BiCheckCircle, BiWifi, BiBot, BiBookOpen,
 } from 'react-icons/bi';
 import { Search, ArrowRight, ChevronDown } from 'lucide-react';
+import { API_URL } from '../api/config';
 
 // ─────────────────────────────────────────────
 // LOTTIE: Inline "Floating Key + Sparkles" animation
@@ -291,7 +292,7 @@ export function HeroSection() {
   const [stats, setStats] = useState({ listings: 0, students: 0, owners: 0, avgRating: 4.9 });
 
   useEffect(() => {
-    fetch('http://localhost:5001/api/stats')
+    fetch(`${API_URL}/stats`)
       .then(r => r.json())
       .then(d => { if (d.success && d.data) setStats(d.data); })
       .catch(() => { /* keep defaults */ });

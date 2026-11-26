@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, AlertCircle, Trash2, Star, MapPin, Home, Users as UsersIcon, CreditCard, ChevronRight, X, CheckCircle, Navigation, TrendingUp, TrendingDown, Clock, ShieldAlert, Bell } from 'lucide-react';
+import { API_URL } from '../../api/config';
 
 interface Tenant {
   id: string;
@@ -102,7 +103,7 @@ export default function BoardingPlaceDetail() {
       setLoading(true);
       setError(null);
       
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const apiUrl = API_URL;
       
       // Fetch boarding house details
       const placeResponse = await fetch(
@@ -222,7 +223,7 @@ export default function BoardingPlaceDetail() {
   const fetchTenantReceipts = useCallback(async (studentId: string) => {
     try {
       setLoadingReceipts(true);
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const apiUrl = API_URL;
       
       const response = await fetch(
         `${apiUrl}/owner/students/${studentId}/receipts`,
@@ -314,7 +315,7 @@ export default function BoardingPlaceDetail() {
       }
 
       // Call backend to cancel agreement
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const apiUrl = API_URL;
       const response = await fetch(
         `${apiUrl}/owner/agreements/${tenant.id}`,
         {
@@ -386,7 +387,7 @@ export default function BoardingPlaceDetail() {
       console.log(`✅ Payment reminder sent to ${tenant.name}: ${reminderMessage}`);
 
       // Send reminder to backend API
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const apiUrl = API_URL;
       const response = await fetch(
         `${apiUrl}/owner/tenants/${tenant.studentId}/send-reminder`,
         {
@@ -774,7 +775,7 @@ export default function BoardingPlaceDetail() {
                             onClick={async () => {
                               try {
                                 const token = localStorage.getItem('bb_access_token');
-                                const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+                                const apiUrl = API_URL;
                                 const response = await fetch(`${apiUrl}/owner/students/${selectedTenant.studentId}/receipts/${receipt.receiptNumber}/download`, {
                                   headers: {
                                     Authorization: `Bearer ${token}`,

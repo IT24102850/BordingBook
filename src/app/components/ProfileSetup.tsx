@@ -14,9 +14,8 @@ import {
 import { MdDashboard, MdSettings, MdHelp, MdDragHandle, MdMyLocation, MdOutlineLocationOn } from 'react-icons/md';
 import { BiCurrentLocation } from 'react-icons/bi';
 import './ProfileSetupAnimations.css';
+import { API_BASE_URL } from '../api/config';
 
-const rawApiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5001';
-const API_BASE_URL = rawApiUrl.replace(/\/api\/?$/, ''); // Prevents duplicate /api/api
 
 const academicYears = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 const genders = ['Male', 'Female', 'Other'];

@@ -1,7 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
-yarn.lock
 
 # Environment variables
 .env
@@ -31,3 +29,7 @@ Thumbs.db
 # Build output
 dist/
 build/
+
+# Runtime data
+uploads/
+public/agreements/

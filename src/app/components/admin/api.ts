@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../api/config';
 // src/lib/adminApi.ts   ← Recommended file name/location
 
 // ================================================
@@ -5,25 +6,6 @@
 // ================================================
 
 // Priority: VITE_API_URL (Vite) > REACT_APP_... (for compatibility) > localhost fallback
-const getApiBaseUrl = (): string => {
-  // Vite (recommended)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
-  }
-
-  // Create React App style (for backward compatibility)
-  if (typeof process !== 'undefined' && process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
-  }
-  if (typeof process !== 'undefined' && process.env.REACT_APP_API_BASE) {
-    return process.env.REACT_APP_API_BASE.replace(/\/api\/?$/, '').replace(/\/$/, '');
-  }
-
-  // Development fallback
-  return 'http://localhost:5001';
-};
-
-const API_BASE_URL = getApiBaseUrl();
 const BASE = `${API_BASE_URL}/api/admin`;
 
 console.log('🔗 Admin API Base URL:', BASE); // Helpful for debugging
@@ -125,6 +107,15 @@ export const banUser = (id: string) =>
 export const unbanUser = (id: string) =>
   req(`${BASE}/users/${id}/unban`, { method: 'PATCH' });
 
+export const deleteUser = (id: string) =>
+  req(`${BASE}/users/${id}`, { method: 'DELETE' });
+
+export const changeAdminPassword = (currentPassword: string, newPassword: string) =>
+  req(`${BASE}/password`, {
+    method: 'PATCH',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+
 export const getUserActivity = (id: string) =>
   req<{ success: boolean; data: { lastLogin: string | null; loginHistory: { loginAt: string }[] } }>(
     `${BASE}/users/${id}/activity`
@@ -196,6 +187,8 @@ export const deleteReview = (id: string) =>
 export interface User {
   _id: string;
   email: string;
+  kycDocuments?: { nicFront?: string; nicBack?: string; businessReg?: string; [k: string]: string | undefined };
+  kycSubmittedAt?: string;
   fullName?: string;
   firstName?: string;
   lastName?: string;
@@ -238,7 +231,7 @@ export interface Review {
 // ================================================
 //  HELPERS
 // ================================================
-export const displayName = (u: Partial<User>) =>
+export const displayName = (u: { fullName?: string; firstName?: string; lastName?: string; email?: string }) =>
   u.fullName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email?.split('@')[0] || 'User';
 
 export const initials = (name: string) =>

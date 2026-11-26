@@ -8,6 +8,7 @@
 
 const paymentService = require('../services/paymentService');
 const { deleteUploadedFile } = require('../middleware/uploadHandler');
+const fileStore = require('../../lib/fileStore');
 const StudentPayment = require('../../models/StudentPayment');
 const path = require('path');
 const fs = require('fs');
@@ -32,7 +33,7 @@ exports.submitPaymentSlip = async (req, res) => {
     console.log('   Extracted studentId:', studentId);
 
     if (!studentId) {
-      if (req.file) deleteUploadedFile(req.file.path);
+      if (req.uploadedFile) deleteUploadedFile(req.uploadedFile.path);
       return res.status(401).json({
         success: false,
         message: 'Authentication failed. Student ID not found.',
@@ -40,7 +41,7 @@ exports.submitPaymentSlip = async (req, res) => {
     }
 
     if (!bookingAgreementId || bookingAgreementId.trim() === '') {
-      if (req.file) deleteUploadedFile(req.file.path);
+      if (req.uploadedFile) deleteUploadedFile(req.uploadedFile.path);
       return res.status(400).json({
         success: false,
         message: 'Booking agreement ID is required. Please ensure you have an active booking agreement.',
@@ -48,7 +49,7 @@ exports.submitPaymentSlip = async (req, res) => {
     }
 
     if (!paymentAmount || Number(paymentAmount) <= 0) {
-      if (req.file) deleteUploadedFile(req.file.path);
+      if (req.uploadedFile) deleteUploadedFile(req.uploadedFile.path);
       return res.status(400).json({
         success: false,
         message: 'Valid payment amount is required and must be greater than 0',
@@ -86,7 +87,7 @@ exports.submitPaymentSlip = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    if (req.file) deleteUploadedFile(req.file.path);
+    if (req.uploadedFile) deleteUploadedFile(req.uploadedFile.path);
     console.error('Error submitting payment slip:', error);
 
     return res.status(500).json({
@@ -708,43 +709,22 @@ exports.downloadPaymentSlip = async (req, res) => {
       });
     }
 
-    // CRITICAL: Construct the absolute file path from the stored URL.
-    // The URL is stored like: /uploads/payment/1711645297876_my-slip.jpg
-    // The backend's root directory is f:\BordingBook\backend, and the file is in f:\BordingBook\backend\uploads\payment\...
-    // So, we need to resolve the path correctly.
+    // Only the student who paid, the owner of the boarding house, or an admin may download.
+    const requesterId = String(req.user.userId);
+    let allowed = String(payment.studentId) === requesterId || req.user.role === 'admin';
+    if (!allowed && payment.boardingHouseId) {
+      const BoardingHouse = require('../../models/BoardingHouse');
+      const house = await BoardingHouse.findById(payment.boardingHouseId).select('ownerId').lean();
+      allowed = !!house && String(house.ownerId) === requesterId;
+    }
+    if (!allowed) {
+      return res.status(403).json({ success: false, message: 'You do not have access to this payment slip.' });
+    }
 
-    // The `__dirname` is `f:\BordingBook\backend\src\payment\controllers`
-    // We go up three levels to get to `f:\BordingBook\backend`
-    const backendRoot = path.resolve(__dirname, '..', '..', '..');
-
-    // The stored URL might have a leading slash, which `path.join` ignores if it's not the first argument.
-    // We need to remove it to ensure a correct join.
-    const relativePath = payment.slipUrl.startsWith('/')
-      ? payment.slipUrl.substring(1)
-      : payment.slipUrl;
-
-    const filePath = path.join(backendRoot, relativePath);
-
-    console.log(`   📂 Attempting to download from path: ${filePath}`);
-
-    // Check if the file exists before attempting to send
-    if (fs.existsSync(filePath)) {
-      console.log(`   ✅ File found. Initiating download...`);
-      // Set headers to trigger browser download
-      res.download(filePath, err => {
-        if (err) {
-          console.error('   ❌ Error sending file:', err);
-          // Avoid sending another response if headers are already sent
-          if (!res.headersSent) {
-            res.status(500).json({
-              success: false,
-              message: 'Server error while sending the file.',
-            });
-          }
-        }
-      });
-    } else {
-      console.log(`   ❌ File not found at the specified path.`);
+    const key = payment.paymentSlipUrl
+      || (payment.paymentSlipPath ? `/uploads/payments/${String(payment.studentId)}/${payment.paymentSlipPath}` : null);
+    const sent = key && (await fileStore.sendFile(res, key, { inline: false }));
+    if (!sent) {
       return res.status(404).json({
         success: false,
         message: 'File not found on server.',
@@ -784,27 +764,16 @@ exports.downloadReceiptPdf = async (req, res) => {
       });
     }
 
-    // Construct the absolute file path
-    // The file is in /uploads/receipts/ at the project root, so we go up 3 levels
-    const filePath = path.join(__dirname, '..', '..', '..', 'uploads', 'receipts', `${receiptNumber}.pdf`);
-    
-    console.log('   File path:', filePath);
-
-    // Check if the file exists
-    if (!fs.existsSync(filePath)) {
-      console.error('   File not found on disk!');
+    const sent = await fileStore.sendFile(res, `uploads/receipts/${receiptNumber}.pdf`, {
+      downloadName: `${receiptNumber}.pdf`,
+      inline: false,
+    });
+    if (!sent) {
       return res.status(404).json({
         success: false,
         message: 'Receipt file not found on the server.',
       });
     }
-
-    // Stream the file to the client
-    res.setHeader('Content-Disposition', `attachment; filename="${receiptNumber}.pdf"`);
-    res.setHeader('Content-Type', 'application/pdf');
-    
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
 
   } catch (error) {
     console.error('Error downloading receipt PDF:', error);

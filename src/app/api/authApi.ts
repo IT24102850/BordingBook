@@ -1,6 +1,5 @@
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/$/, '');
+import { API_BASE_URL } from './config';
+
 
 
 interface ApiResponse<T> {

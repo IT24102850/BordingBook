@@ -290,7 +290,7 @@ exports.signin = async (req, res) => {
         email: user.email,
         role: user.role
       },
-      process.env.JWT_SECRET || 'your-secret-key-change-this',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 

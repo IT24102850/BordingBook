@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, MailCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { API_BASE_URL } from '../api/config';
 
 declare global {
   interface ImportMetaEnv {
@@ -12,7 +13,7 @@ declare global {
   }
 }
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace(/\/api\/?$/, '').replace(/\/$/, '');
+
 
 export default function VerifyEmailPage() {
   const location = useLocation();

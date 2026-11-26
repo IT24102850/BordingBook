@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const fileStore = require('../lib/fileStore');
 const BookingRequest = require('../models/BookingRequest');
 const BookingAgreement = require('../models/BookingAgreement');
 const AgreementTemplate = require('../models/AgreementTemplate');
@@ -429,11 +430,13 @@ exports.respondToAgreement = async (req, res) => {
     let pdfUrl = null;
     if (status === 'accepted') {
       // Generate PDF
-      const pdfDir = path.join(__dirname, '../../public/agreements');
-      if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
-      const pdfPath = path.join(pdfDir, `agreement_${agreement._id}.pdf`);
       const doc = new PDFDocument();
-      doc.pipe(fs.createWriteStream(pdfPath));
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      const finished = new Promise((resolve, reject) => {
+        doc.on('end', resolve);
+        doc.on('error', reject);
+      });
       doc.fontSize(20).text('Boarding House Rental Agreement', { align: 'center' });
       doc.moveDown();
       doc.fontSize(12).text(`Agreement ID: ${agreement._id}`);
@@ -452,7 +455,8 @@ exports.respondToAgreement = async (req, res) => {
         });
       }
       doc.end();
-      pdfUrl = `/agreements/agreement_${agreement._id}.pdf`;
+      await finished;
+      pdfUrl = await fileStore.saveFile(`agreements/agreement_${agreement._id}.pdf`, Buffer.concat(chunks), 'application/pdf');
     }
 
     const hydrated = await BookingAgreement.findById(agreement._id)
@@ -506,12 +510,20 @@ exports.downloadAgreement = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Agreement has not been signed yet' });
     }
 
-    const pdfPath = path.join(__dirname, '../../public/agreements', `agreement_${agreement._id}.pdf`);
-    if (!fs.existsSync(pdfPath)) {
-      return res.status(404).json({ success: false, message: 'PDF file not found' });
+    const requesterId = String(req.user.userId);
+    const isParty = [agreement.ownerId, agreement.studentId].some((id) => String(id) === requesterId);
+    if (!isParty && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'You do not have access to this agreement' });
     }
 
-    return res.download(pdfPath);
+    const sent = await fileStore.sendFile(res, `agreements/agreement_${agreement._id}.pdf`, {
+      downloadName: `agreement_${agreement._id}.pdf`,
+      inline: false,
+    });
+    if (!sent) {
+      return res.status(404).json({ success: false, message: 'PDF file not found' });
+    }
+    return undefined;
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to download agreement', error: error.message });
   }

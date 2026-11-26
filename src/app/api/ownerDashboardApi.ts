@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './config';
 // Notice DTO
 export type NoticeDto = {
   _id: string;
@@ -66,7 +67,7 @@ async function deleteNotice(noticeId: string): Promise<void> {
   }
 }
 // Strip /api suffix from VITE_API_URL if present, since endpoints already include /api prefix
-const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL as string)?.replace(/\/api\/?$/, '') || 'http://localhost:5001';
+
 
 
 type ApiEnvelope<T> = {
@@ -290,7 +291,7 @@ async function deleteRoom(roomId: string): Promise<void> {
 
 async function getNextPaymentCycleDate(tenantId: string): Promise<{ nextPaymentCycleStartDate: string | null }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/next-cycle`, {
+    const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/next-payment-cycle`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) return { nextPaymentCycleStartDate: null };

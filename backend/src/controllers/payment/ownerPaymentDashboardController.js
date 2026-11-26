@@ -1,3 +1,4 @@
+const fileStore = require('../../lib/fileStore');
 /**
  * FILE: ownerPaymentDashboardController.js
  * PURPOSE: Handle owner payment & rental management dashboard requests
@@ -586,27 +587,16 @@ exports.downloadStudentReceipt = async (req, res) => {
     }
     console.log('   ✅ Receipt found:', receiptNumber);
 
-    // Construct the file path
-    const filePath = path.join(__dirname, '..', '..', '..', 'uploads', 'receipts', `${receiptNumber}.pdf`);
-    console.log('   File path:', filePath);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      console.error('   ❌ File not found on disk!');
+    const sent = await fileStore.sendFile(res, `uploads/receipts/${receiptNumber}.pdf`, {
+      downloadName: `${receiptNumber}.pdf`,
+      inline: false,
+    });
+    if (!sent) {
       return res.status(404).json({
         success: false,
         message: 'Receipt file not found on the server',
       });
     }
-    console.log('   ✅ File exists on disk');
-
-    // Stream the file to the client
-    res.setHeader('Content-Disposition', `attachment; filename="${receiptNumber}.pdf"`);
-    res.setHeader('Content-Type', 'application/pdf');
-    
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-
     console.log('   ✅ Receipt download started');
 
   } catch (error) {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_URL } from '../api/config';
 
 export interface RoommateProfile {
   id: string;
@@ -27,7 +28,7 @@ export function useRoommateProfiles() {
       try {
         const token = localStorage.getItem('bb_access_token') || '';
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/roommates/browse`,
+          `${API_URL}/roommates/browse`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,

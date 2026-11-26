@@ -1,5 +1,6 @@
 import React from 'react';
-import { User, QrCode, Bell, Clock, MapPin, Plane } from 'lucide-react';
+import { User, QrCode, Bell, Clock, MapPin, Plane, AlertTriangle, CheckCircle, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const MobileDashboard = () => {
   return (

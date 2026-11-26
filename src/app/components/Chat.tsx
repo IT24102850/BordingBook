@@ -9,8 +9,9 @@ import {
   Reply, Copy, Forward, Star, Flag, Volume2, VolumeX, UserCheck
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
+import { API_BASE_URL, fileUrl } from '../api/config';
 
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001').replace(/\/api\/?$/, '').replace(/\/$/, '');
+
 
 const ICE_CONFIG: RTCConfiguration = {
   iceServers: [
@@ -540,15 +541,7 @@ export default function Chat() {
           )
         );
         
-        // Send via socket
-        if (socketRef.current) {
-          socketRef.current.emit('message:send', {
-            conversationId: selectedConversationId,
-            content: json.data.url,
-            messageType: type === 'image' ? 'image' : 'file',
-            attachments: [{ url: json.data.url, type, name: file.name }],
-          });
-        }
+        // The server stores the message and broadcasts it to the other participants.
       }
     } catch (error) {
       console.error('Upload failed:', error);
@@ -1471,16 +1464,16 @@ export default function Chat() {
                       >
                         {message.messageType === 'image' ? (
                           <img 
-                            src={message.content} 
+                            src={fileUrl(message.content)} 
                             alt="Uploaded" 
                             className="max-w-full max-h-64 rounded-lg cursor-pointer"
-                            onClick={() => window.open(message.content, '_blank')}
+                            onClick={() => window.open(fileUrl(message.content), '_blank')}
                           />
                         ) : message.messageType === 'file' ? (
                           <div className="flex items-center gap-2">
                             <Paperclip size={16} />
                             <a 
-                              href={message.content} 
+                              href={fileUrl(message.content)} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="underline hover:text-cyan-200"

@@ -9,13 +9,12 @@ import {
   User, Edit3, Camera, BookOpen, Calendar, TrendingUp,
   Shield, Inbox, UserCheck, RefreshCw, ArrowRight, Trash
 } from 'lucide-react';
+import { API_URL } from '../api/config';
 
 // ============================================
 // CONFIG
 // ============================================
-const API = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5001')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/$/, '') + '/api';
+const API = API_URL;
 const getToken = () => localStorage.getItem('bb_access_token') || '';
 const authHeaders = () => ({ Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' });
 

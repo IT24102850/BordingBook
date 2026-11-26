@@ -11,6 +11,7 @@ import {
   ResponsiveContainer, Legend,
 } from 'recharts';
 import * as api from './api';
+import { API_BASE_URL } from '../../api/config';
 
 // ─────────────────────────────────────────────
 //  ADMIN LOGIN
@@ -834,7 +835,7 @@ export const KYCVerification = () => {
           {owners.map(owner => {
             const name = api.displayName(owner);
             const docs = owner.kycDocuments;
-            const UPLOADS = 'http://localhost:5001/uploads/kyc/';
+            const UPLOADS = `${API_BASE_URL}/uploads/kyc/`;
             const docList = [
               docs?.nicFront && { label: 'NIC Front', file: docs.nicFront },
               docs?.nicBack  && { label: 'NIC Back',  file: docs.nicBack  },

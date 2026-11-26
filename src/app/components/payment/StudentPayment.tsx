@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle, Download, UploadCloud, AlertCircle, Info, Bell, BellOff, Navigation, XCircle, Loader2, Trash2, Check } from 'lucide-react';
 import { generatePaymentReceiptPDF } from '../../helpers/generateReceipt';
 import { getMyAgreements, BookingAgreementDto, respondToMyAgreement } from '../../api/bookingAgreementApi';
+import { API_URL } from '../../api/config';
 
 // ========================================
 // MOCK DATA FOR DEVELOPMENT & TESTING
@@ -287,7 +288,7 @@ export default function StudentPayment() {
         const fetchPayments = async () => {
           setIsLoadingPayments(true);
           try {
-            const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+            const apiUrl = API_URL;
             const response = await fetch(`${apiUrl}/payments/history`, {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -400,7 +401,7 @@ export default function StudentPayment() {
       try {
         setIsLoadingNotifications(true);
         const token = localStorage.getItem('bb_access_token');
-        const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+        const apiUrl = API_URL;
         
         const response = await fetch(`${apiUrl}/notifications`, {
           method: 'GET',
@@ -449,7 +450,7 @@ export default function StudentPayment() {
       try {
         setIsLoadingReceipts(true);
         const token = localStorage.getItem('bb_access_token');
-        const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+        const apiUrl = API_URL;
         
         const response = await fetch(`${apiUrl}/payments/receipts`, {
           method: 'GET',
@@ -488,7 +489,7 @@ export default function StudentPayment() {
   const handleDeleteNotification = async (notificationId: string) => {
     try {
       const token = localStorage.getItem('bb_access_token');
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const apiUrl = API_URL;
       
       const response = await fetch(`${apiUrl}/notifications/${notificationId}`, {
         method: 'DELETE',
@@ -523,7 +524,7 @@ export default function StudentPayment() {
         return;
       }
 
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const apiUrl = API_URL;
       const response = await fetch(`${apiUrl}/payments/receipt/download/${receiptNumber}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -649,7 +650,7 @@ export default function StudentPayment() {
       formData.append('remarks', paymentRemark);
 
       const token = localStorage.getItem('bb_access_token');
-      const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+      const apiUrl = API_URL;
       const response = await fetch(`${apiUrl}/payments/submit`, {
         method: 'POST',
         headers: {

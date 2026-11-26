@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User } from 'lucide-react';
+import { API_BASE_URL } from '../../api/config';
 
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/$/, '');
+
 
 export const MobileLogin = () => {
   const navigate = useNavigate();

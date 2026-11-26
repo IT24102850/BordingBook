@@ -5,6 +5,9 @@ const ChatMessage = require('../models/ChatMessage');
 const RoommateMatch = require('../models/RoommateMatch');
 const RoommateProfile = require('../models/RoommateProfile');
 const User = require('../models/User');
+const path = require('path');
+const crypto = require('crypto');
+const fileStore = require('../lib/fileStore');
 
 const CHAT_USER_SELECT = 'fullName email role profilePicture profilePictures';
 
@@ -38,6 +41,7 @@ function mapMessage(message, currentUserId) {
     sender,
     content: message.content,
     messageType: message.messageType,
+    attachments: Array.isArray(message.attachments) ? message.attachments : [],
     createdAt: message.createdAt,
     mine: String(sender.id) === String(currentUserId),
   };
@@ -481,5 +485,74 @@ exports.markConversationRead = async (req, res) => {
     return res.status(200).json({ success: true, message: 'Conversation marked as read' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Error marking conversation as read', error: error.message });
+  }
+};
+
+/**
+ * Upload an image or file into a conversation.
+ * POST /api/chats/upload   (multipart: file, conversationId, type = image|file)
+ */
+exports.uploadAttachment = async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const { conversationId } = req.body;
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
+      return res.status(400).json({ success: false, message: 'Valid conversationId is required' });
+    }
+
+    const conversation = await ensureConversationMember(conversationId, currentUserId);
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    const isImage = /^image\//.test(req.file.mimetype);
+    const messageType = isImage ? 'image' : 'file';
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const base = path
+      .basename(req.file.originalname, path.extname(req.file.originalname))
+      .replace(/[^\w.-]+/g, '_')
+      .slice(0, 60);
+    const key = `uploads/chat/${conversationId}/${Date.now()}_${crypto.randomBytes(6).toString('hex')}_${base}${ext}`;
+    const url = await fileStore.saveFile(key, req.file.buffer, req.file.mimetype);
+
+    const message = await ChatMessage.create({
+      conversation: conversationId,
+      sender: currentUserId,
+      messageType,
+      content: url,
+      attachments: [{ url, type: messageType, name: req.file.originalname, size: req.file.size }],
+      readBy: [currentUserId],
+    });
+    const populatedMessage = await ChatMessage.findById(message._id).populate('sender', CHAT_USER_SELECT);
+
+    await ChatConversation.updateOne(
+      { _id: conversationId },
+      {
+        $set: {
+          lastMessage: {
+            text: isImage ? '📷 Image' : `📎 ${req.file.originalname}`,
+            sender: currentUserId,
+            at: populatedMessage.createdAt,
+          },
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    const mappedMessage = mapMessage(populatedMessage, currentUserId);
+    const io = req.app.locals.io;
+    if (io) {
+      io.to(`conversation:${conversationId}`).emit('message:new', mappedMessage);
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: { ...mappedMessage, messageId: mappedMessage.id, url },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
   }
 };

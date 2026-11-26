@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BiStar, BiMap, BiGroup, BiHome } from 'react-icons/bi';
 import { ArrowRight } from 'lucide-react';
+import { API_URL } from '../api/config';
 
-const API = 'http://localhost:5001/api';
+const API = API_URL;
 
 interface Listing {
   _id: string;

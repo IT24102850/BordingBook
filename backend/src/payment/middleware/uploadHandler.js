@@ -9,43 +9,12 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../../..', 'uploads', 'payments');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+const crypto = require('crypto');
+const fileStore = require('../../lib/fileStore');
 
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Create student-specific subdirectory
-    const studentId = req.user?.userId;
-    
-    if (!studentId) {
-      return cb(new Error('Student ID not found. Authentication may have failed.'));
-    }
-    
-    const studentDir = path.join(uploadsDir, studentId);
-
-    try {
-      if (!fs.existsSync(studentDir)) {
-        fs.mkdirSync(studentDir, { recursive: true });
-      }
-      cb(null, studentDir);
-    } catch (error) {
-      cb(new Error(`Failed to create upload directory: ${error.message}`));
-    }
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename: timestamp_originalname (replace spaces with underscores)
-    const timestamp = Date.now();
-    const ext = path.extname(file.originalname);
-    let name = path.basename(file.originalname, ext);
-    // Replace spaces with underscores to avoid encoding issues
-    name = name.replace(/\s+/g, '_');
-    cb(null, `${timestamp}_${name}${ext}`);
-  },
-});
+// Files are kept in memory, then persisted to durable storage (MongoDB GridFS)
+// in validateUploadedFile — local disk is wiped on every deploy on hosts like Render.
+const storage = multer.memoryStorage();
 
 // File filter for allowed types
 const fileFilter = (req, file, cb) => {
@@ -84,7 +53,7 @@ exports.paymentSlipUpload = upload;
 /**
  * Custom middleware to validate and prepare file data
  */
-exports.validateUploadedFile = (req, res, next) => {
+exports.validateUploadedFile = async (req, res, next) => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
@@ -99,18 +68,30 @@ exports.validateUploadedFile = (req, res, next) => {
     });
   }
 
-  // Add file info to request
-  req.uploadedFile = {
-    path: req.file.path,
-    url: `/uploads/payments/${req.user.userId}/${req.file.filename}`,
-    filename: req.file.filename,
-    originalname: req.file.originalname,
-    size: req.file.size,
-    mimetype: req.file.mimetype,
-    extension: path.extname(req.file.originalname).toLowerCase().replace('.', ''),
-  };
+  try {
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const base = path
+      .basename(req.file.originalname, path.extname(req.file.originalname))
+      .replace(/[^\w.-]+/g, '_')
+      .slice(0, 60);
+    const filename = `${Date.now()}_${crypto.randomBytes(4).toString('hex')}_${base}${ext}`;
+    const key = `uploads/payments/${req.user.userId}/${filename}`;
+    await fileStore.saveFile(key, req.file.buffer, req.file.mimetype);
 
-  next();
+    req.uploadedFile = {
+      path: key,
+      url: `/${key}`,
+      filename,
+      originalname: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      extension: ext.replace('.', ''),
+    };
+    return next();
+  } catch (error) {
+    console.error('Failed to store payment slip:', error);
+    return res.status(500).json({ success: false, message: 'Failed to store uploaded file' });
+  }
 };
 
 /**
@@ -158,11 +139,5 @@ exports.handleUploadError = (err, req, res, next) => {
  * @param {String} filePath - Full path to file
  */
 exports.deleteUploadedFile = (filePath) => {
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  } catch (error) {
-    console.error('Error deleting uploaded file:', error);
-  }
+  fileStore.deleteFile(filePath).catch((error) => console.error('Error deleting uploaded file:', error));
 };

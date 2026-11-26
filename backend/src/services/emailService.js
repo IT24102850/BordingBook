@@ -1,7 +1,23 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = 'BoardingBook <noreply@project.fxjpro.com>';
+// Resend client is created lazily so the server can boot without an API key.
+// Without RESEND_API_KEY, emails are logged instead of sent.
+// EMAIL_FROM must use a domain verified in Resend (e.g. "BoardingBook <noreply@mail.yourdomain.com>").
+// The default onboarding@resend.dev sender can only deliver to the Resend account owner's address.
+const FROM = process.env.EMAIL_FROM || 'BoardingBook <onboarding@resend.dev>';
+let client = null;
+const resend = {
+  emails: {
+    async send(message) {
+      if (!process.env.RESEND_API_KEY) {
+        console.warn(`[email] RESEND_API_KEY not set — not sending "${message.subject}" to ${message.to}`);
+        return { error: null };
+      }
+      if (!client) client = new Resend(process.env.RESEND_API_KEY);
+      return client.emails.send(message);
+    },
+  },
+};
 
 // Sends to actual recipient; override with DEV_TEST_EMAIL in .env for local testing
 const resolveRecipient = (email) =>

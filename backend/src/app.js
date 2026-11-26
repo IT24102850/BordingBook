@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const path = require('path');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -7,41 +8,44 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 
 const env = require('./config/env');
+const fileStore = require('./lib/fileStore');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const isDevelopment = env.nodeEnv !== 'production';
 
-// Security middleware setup
+// Behind Render/Vercel proxies: trust the first hop so rate limiting sees real client IPs
+app.set('trust proxy', 1);
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isDevelopment ? 5000 : 300,
+  max: isDevelopment ? 5000 : 1500,
   standardHeaders: true,
   legacyHeaders: false,
-  // Avoid throttling local development traffic while preserving production protection.
-  skip: (req) => {
-    if (!isDevelopment) return false;
-    const origin = String(req.headers.origin || '');
-    const host = String(req.headers.host || '');
-    const localhostOrigin = origin.includes('localhost') || origin.includes('127.0.0.1');
-    const localhostHost = host.includes('localhost') || host.includes('127.0.0.1');
-    return localhostOrigin || localhostHost;
-  },
 });
 
-app.use(helmet());
+// Stricter limit on credential endpoints to slow down password guessing
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDevelopment ? 1000 : 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts. Please try again in a few minutes.' },
+});
+
+app.use(
+  helmet({
+    // The frontend is served from a different origin and embeds images/PDFs from this API
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(compression());
 app.use(
   cors({
     origin(origin, callback) {
-      console.log('[CORS] Incoming request origin:', origin);
-      console.log('[CORS] Allowed origins:', env.allowedOrigins);
-      if (!origin || env.allowedOrigins.includes(origin)) {
-        console.log('[CORS] Origin allowed:', origin);
-        return callback(null, true);
-      }
-      console.log('[CORS] Origin NOT allowed:', origin);
-      return callback(new Error('CORS not allowed'));
+      if (env.isAllowedOrigin(origin)) return callback(null, true);
+      console.warn('[CORS] Blocked origin:', origin);
+      return callback(null, false);
     },
     credentials: true,
   })
@@ -49,9 +53,11 @@ app.use(
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: false, limit: '25mb' }));
-app.use(limiter);
+app.use('/api', limiter);
+app.use(['/api/auth/signin', '/api/auth/signup', '/api/auth/forgot-password', '/api/admin/login'], authLimiter);
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
-app.use('/agreements', express.static(path.join(__dirname, '../public/agreements')));
+app.use('/agreements', fileStore.serve('agreements'));
+app.use('/uploads', fileStore.serve('uploads'));
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -84,77 +90,8 @@ app.get('/api/health', (req, res) => {
     status: 'OK',
     message: 'Server is running',
     environment: env.nodeEnv,
+    db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
   });
-});
-
-// Debug endpoint - list all rooms  
-app.get('/api/debug/rooms', async (req, res) => {
-  try {
-    const Room = require('./models/Room');
-    const rooms = await Room.find({}).limit(5);
-    res.status(200).json({
-      success: true,
-      count: rooms.length,
-      data: rooms.map(r => ({
-        id: String(r._id),
-        name: r.name,
-        price: r.price,
-        campus: r.campus,
-        rating: r.rating,
-      })),
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Debug endpoint - list all users (remove in production)
-app.get('/api/debug/users', async (req, res) => {
-  try {
-    const User = require('./models/User');
-    const users = await User.find({}).select('_id email fullName role profilePicture');
-    res.status(200).json({
-      success: true,
-      count: users.length,
-      users: users.map(u => ({
-        id: String(u._id),
-        email: u.email,
-        fullName: u.fullName || '(no name)',
-        role: u.role,
-        avatar: u.profilePicture || '',
-      })),
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Debug endpoint - list all conversations (remove in production)
-app.get('/api/debug/conversations', async (req, res) => {
-  try {
-    const ChatConversation = require('./models/ChatConversation');
-    const conversations = await ChatConversation.find({})
-      .populate('participants.user', '_id email fullName role')
-      .populate('lastMessage.sender', '_id email fullName');
-    res.status(200).json({
-      success: true,
-      count: conversations.length,
-      conversations: conversations.map(c => ({
-        id: String(c._id),
-        type: c.type,
-        directKey: c.directKey,
-        name: c.name,
-        participants: (c.participants || []).map(p => ({
-          userId: p.user ? String(p.user._id) : 'unknown',
-          email: p.user?.email || 'unknown',
-          fullName: p.user?.fullName || 'unknown',
-        })),
-        lastMessage: c.lastMessage?.text?.substring(0, 50) || 'none',
-      })),
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
 });
 
 // Public platform stats (no auth required)
@@ -175,7 +112,7 @@ app.get('/api/stats', async (req, res) => {
 
     res.status(200).json({ success: true, data: { listings, students, owners, avgRating } });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch stats', error: err.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch stats' });
   }
 });
 

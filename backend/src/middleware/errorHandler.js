@@ -6,12 +6,13 @@ function errorHandler(err, req, res, next) {
   console.error('[Error]', err);
 
   const status = err.status || err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  const isProd = process.env.NODE_ENV === 'production';
+  const message = status >= 500 && isProd ? 'Internal Server Error' : err.message || 'Internal Server Error';
 
   res.status(status).json({
     success: false,
     message,
-    error: process.env.NODE_ENV === 'development' ? err : {},
+    ...(isProd ? {} : { error: err.message }),
   });
 }
 

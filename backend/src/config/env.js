@@ -11,8 +11,23 @@ function requireEnv(name) {
 }
 
 function parseAllowedOrigins() {
-  const raw = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173';
-  return raw.split(',').map(o => o.trim()).filter(Boolean);
+  const raw = [process.env.CORS_ORIGIN, process.env.FRONTEND_URL, 'http://localhost:5173']
+    .filter(Boolean)
+    .join(',');
+  return [...new Set(raw.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean))];
+}
+
+// Supports exact origins and wildcards such as "https://*.vercel.app"
+function makeOriginMatcher(origins) {
+  const patterns = origins.map((o) =>
+    o.includes('*')
+      ? new RegExp(`^${o.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[a-z0-9-]+')}$`, 'i')
+      : o
+  );
+  return (origin) => {
+    if (!origin) return true; // same-origin, curl, server-to-server
+    return patterns.some((p) => (typeof p === 'string' ? p === origin : p.test(origin)));
+  };
 }
 
 function getFrontendUrl() {
@@ -23,14 +38,21 @@ function getFrontendUrl() {
 const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
 if (!mongoUri) throw new Error('Missing required environment variable: MONGO_URI');
 
+const jwtSecret = requireEnv('JWT_SECRET');
+if ((process.env.NODE_ENV === 'production') && (jwtSecret.length < 32 || /change|your|secret-key/i.test(jwtSecret))) {
+  throw new Error('JWT_SECRET is too weak for production — set a random value of at least 32 characters');
+}
+const allowedOrigins = parseAllowedOrigins();
+
 const env = {
   nodeEnv:          process.env.NODE_ENV || 'development',
   port:             Number(process.env.PORT || 5000),
   mongoUri,
-  jwtSecret:        requireEnv('JWT_SECRET'),
+  jwtSecret,
   jwtExpiresIn:     process.env.JWT_EXPIRES_IN || '7d',
   frontendUrl:      getFrontendUrl(),
-  allowedOrigins:   parseAllowedOrigins(),
+  allowedOrigins,
+  isAllowedOrigin:  makeOriginMatcher(allowedOrigins),
   emailHost:        process.env.EMAIL_HOST || '',
   emailPort:        Number(process.env.EMAIL_PORT || 587),
   emailUser:        process.env.EMAIL_USER || '',
@@ -39,6 +61,5 @@ const env = {
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || '',
 };
 
-console.log('[ENV] mongoUri loaded:', mongoUri ? '✅ Found' : '❌ Missing');
 
 module.exports = env;

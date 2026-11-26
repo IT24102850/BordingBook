@@ -20,94 +20,19 @@ async function startServer() {
     keepAliveInterval = setInterval(async () => {
       try {
         await mongoose.connection.db.admin().ping();
-        console.log('✓ Atlas keep-alive ping sent');
       } catch (err) {
         console.warn('⚠️ Keep-alive ping failed:', err.message);
       }
     }, 5 * 60 * 1000); // every 5 minutes
 
-    // ====================== ROUTE MOUNTING ======================
-
-    try {
-      const adminRoutes = require('./routes/adminRoutes');
-      app.use('/api/admin', adminRoutes);
-      console.log('✓ Admin routes mounted successfully');
-    } catch (err) {
-      console.error('✗ Failed to load adminRoutes:', err.message);
-    }
-
-    try {
-      const authRoutes = require('./routes/authRoutes');
-      app.use('/api/auth', authRoutes);
-      console.log('✓ Auth routes mounted');
-    } catch (e) {
-      console.warn('⚠️ Auth routes not loaded');
-    }
-
-    try {
-      const ownerRoutes = require('./routes/ownerRoutes');
-      app.use('/api/owner', ownerRoutes);
-      console.log('✓ Owner routes mounted');
-    } catch (e) {
-      console.warn('⚠️ Owner routes not loaded');
-    }
-
-    try {
-      const roommateRoutes = require('./routes/roommateRoutes');
-      app.use('/api/roommates', roommateRoutes);
-      console.log('✓ Roommate routes mounted');
-    } catch (e) {
-      console.warn('⚠️ Roommate routes not loaded');
-    }
-
-    try {
-      const chatRoutes = require('./routes/chatRoutes');
-      app.use('/api/chats', chatRoutes);
-      console.log('✓ Chat routes mounted');
-    } catch (e) {
-      console.warn('⚠️ Chat routes not loaded');
-    }
-
-    try {
-      const notificationRoutes = require('./routes/notificationRoutes');
-      app.use('/api/notifications', notificationRoutes);
-      console.log('✓ Notification routes mounted');
-    } catch (e) {
-      console.warn('⚠️ Notification routes not loaded');
-    }
-
-    try {
-      const paymentRoutes = require('./payment/routes/paymentRoutes');
-      app.use('/api/payments', paymentRoutes);
-      console.log('✓ Payment routes mounted successfully');
-    } catch (e) {
-      console.error('✗ Payment routes failed to load:', e.message);
-    }
-
-    // Health check route
-    app.get('/api/health', (req, res) => {
-      res.json({
-        success: true,
-        message: 'Server is running',
-        environment: env.nodeEnv || 'production',
-        dbStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' // ✅ useful to see db status
-      });
-    });
-
-    // 404 handler - MUST BE LAST
-    app.use((req, res) => {
-      res.status(404).json({
-        success: false,
-        message: `Route ${req.method} ${req.originalUrl} not found`
-      });
-    });
+    // All routes, the health check and error handlers are registered in app.js
 
     // ====================== START SERVER ======================
     const httpServer = http.createServer(app);
 
     const io = new Server(httpServer, {
       cors: {
-        origin: env.allowedOrigins || '*',
+        origin: (origin, cb) => cb(null, env.isAllowedOrigin(origin)),
         methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
         credentials: true,
       },

@@ -15,6 +15,7 @@ import {
 import OwnerApprovalPage from './OwnerApprovalPage';
 import { ownerDashboardApi, type OwnerHouseDto, type OwnerRoomDto } from '../api/ownerDashboardApi';
 import { useRoomAvailability, calculateRoomStatus, getAvailabilitySummary } from '../hooks/useRoomAvailability';
+import { API_BASE_URL } from '../api/config';
 
 // ============================================
 // TYPES
@@ -164,7 +165,7 @@ interface SparklineProps {
 // MOCK DATA
 // ============================================
 
-const API = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace(/\/api\/?$/, '');
+const API = API_BASE_URL;
 
 const facilitiesList: Facility[] = [
   { id: 'wifi', name: 'Wi-Fi', icon: <Wifi size={14} /> },
@@ -715,7 +716,7 @@ const HierarchicalTenantOverview: React.FC<HierarchicalTenantOverviewProps> = ({
       // Check if any tenant in house matches
       for (const room of houseRooms) {
         const roomTenants = getRoomTenants(room.id);
-        if (roomTenants.some(t => t.name.toLowerCase().includes(query) || t.email.toLowerCase().includes(query))) {
+        if (roomTenants.some(t => t.name.toLowerCase().includes(query) || (t.email || "").toLowerCase().includes(query))) {
           return true;
         }
       }
@@ -1406,8 +1407,8 @@ export default function OwnerDashboard() {
               email: agr.studentId?.email || '',
               phone: agr.studentId?.mobileNumber || '',
               roomId: room.id,
-              checkInDate: agr.bookingRequestId?.checkInDate || new Date().toISOString(),
-              checkOutDate: agr.bookingRequestId?.checkOutDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              checkInDate: agr.bookingRequestId?.moveInDate || new Date().toISOString(),
+              checkOutDate: (() => { const b = agr.bookingRequestId; if (!b?.moveInDate) return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); const d = new Date(b.moveInDate); d.setMonth(d.getMonth() + (b.durationMonths || 1)); return d.toISOString(); })(),
               monthlyRent: room.price,
               paymentStatus: (agr.status === 'accepted' ? 'pending' : 'pending') as 'paid' | 'pending' | 'overdue',
               nextPaymentCycleStartDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -1530,8 +1531,8 @@ export default function OwnerDashboard() {
             email: agr.studentId?.email || '',
             phone: agr.studentId?.mobileNumber || '',
             roomId: room.id,
-            checkInDate: agr.bookingRequestId?.checkInDate || new Date().toISOString(),
-            checkOutDate: agr.bookingRequestId?.checkOutDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            checkInDate: agr.bookingRequestId?.moveInDate || new Date().toISOString(),
+            checkOutDate: (() => { const b = agr.bookingRequestId; if (!b?.moveInDate) return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); const d = new Date(b.moveInDate); d.setMonth(d.getMonth() + (b.durationMonths || 1)); return d.toISOString(); })(),
             monthlyRent: room.price,
             paymentStatus: (agr.status === 'accepted' ? 'pending' : 'pending') as 'paid' | 'pending' | 'overdue',
             nextPaymentCycleStartDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),

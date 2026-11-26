@@ -114,10 +114,13 @@ const OwnerApprovalPage = lazy(() => import("./components/OwnerApprovalPage"));
 const StudentDashboard = lazy(() => import("./components/StudentDashboard"));
 
 const OwnerDashboard = lazy(() => import("./components/OwnerDashboard"));
-
-const BookingManagementSystem = lazy(
-  () => import("./components/booking/BookingManagementSystem"),
+const ForgotPasswordPage = lazy(() =>
+  import("./components/PasswordResetPages").then((m) => ({ default: m.ForgotPasswordPage })),
 );
+const ResetPasswordPage = lazy(() =>
+  import("./components/PasswordResetPages").then((m) => ({ default: m.ResetPasswordPage })),
+);
+
 const StudentBookingDashboard = lazy(
   () => import("./components/booking/StudentBookingDashboard"),
 );
@@ -162,6 +165,8 @@ export default function App() {
             element={<Navigate to="/signin" replace />}
           />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/profile-setup" element={<ProfileSetup />} />
           <Route path="/find" element={<SearchPage />} />
           <Route path="/search" element={<SearchPage />} />

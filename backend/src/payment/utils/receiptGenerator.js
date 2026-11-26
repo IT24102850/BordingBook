@@ -6,8 +6,7 @@
  */
 
 const PDFDocument = require('pdfkit');
-const fs = require('fs');
-const path = require('path');
+const fileStore = require('../../lib/fileStore');
 
 /**
  * Generate PDF receipt for approved payment
@@ -17,14 +16,7 @@ const path = require('path');
  */
 exports.generateReceiptPdf = async (receipt, payment) => {
   try {
-    // The file should be in /uploads/receipts/ at project root
-    const receiptDir = path.join(__dirname, '..', '..', '..', 'uploads', 'receipts');
-    if (!fs.existsSync(receiptDir)) {
-      fs.mkdirSync(receiptDir, { recursive: true });
-    }
-
-    const fileName = `${receipt.receiptNumber}.pdf`;
-    const filePath = path.join(receiptDir, fileName);
+    const key = `uploads/receipts/${receipt.receiptNumber}.pdf`;
 
     // Create PDF document
     const doc = new PDFDocument({
@@ -32,9 +24,13 @@ exports.generateReceiptPdf = async (receipt, payment) => {
       bufferPages: true,
     });
 
-    // Pipe to file
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+    // Collect the PDF in memory, then persist it to durable storage
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    const finished = new Promise((resolve, reject) => {
+      doc.on('end', resolve);
+      doc.on('error', reject);
+    });
 
     // Header - Receipt Title
     doc.fontSize(24).font('Helvetica-Bold').text('PAYMENT RECEIPT', { align: 'center' });
@@ -135,13 +131,9 @@ exports.generateReceiptPdf = async (receipt, payment) => {
     // Finalize PDF
     doc.end();
 
-    // Return file path on stream finish
-    return new Promise((resolve, reject) => {
-      stream.on('finish', () => {
-        resolve(filePath);
-      });
-      stream.on('error', reject);
-    });
+    await finished;
+    await fileStore.saveFile(key, Buffer.concat(chunks), 'application/pdf');
+    return key;
   } catch (error) {
     throw error;
   }

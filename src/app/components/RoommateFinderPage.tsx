@@ -77,14 +77,14 @@ function SwipeCard({ profile, onSwipe, isAnimating, direction }: SwipeCardProps)
       
       {/* Preferences as chips */}
       <div className="flex flex-wrap gap-2 mb-2 justify-center">
-        {profile.preferences.split(',').map((pref, idx) => (
+        {profile.preferences.split(',').map((pref: string, idx: number) => (
           <span key={idx} className="bg-white/10 px-2 py-1 rounded-full text-xs text-gray-300">{pref.trim()}</span>
         ))}
       </div>
       
       {/* Tags as chips */}
       <div className="flex flex-wrap gap-2 mb-2 justify-center">
-        {profile.tags.map((tag, idx) => (
+        {profile.tags.map((tag: string, idx: number) => (
           <span key={idx} className="bg-purple-900/40 px-2 py-1 rounded-full text-xs text-purple-200">{tag}</span>
         ))}
       </div>

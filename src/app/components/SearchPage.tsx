@@ -94,13 +94,8 @@ const AgreementAcceptModal = ({
   );
 };
 
-const BACKEND_URL = (
-  ((import.meta as any).env?.VITE_API_URL as string) || "http://localhost:5001"
-)
-  .replace(/\/api\/?$/, "")
-  .replace(/\/$/, "");
+const BACKEND_URL = API_BASE_URL;
 
-const API_BASE_URL = BACKEND_URL;
 
 type SavedSearchRecord = {
   _id: string;
@@ -292,6 +287,7 @@ import {
   BiLoaderCircle,
 } from "react-icons/bi";
 import { RiUserSharedLine } from "react-icons/ri";
+import { API_BASE_URL } from '../api/config';
 // Mini Card for side panels
 const MiniListingCard: React.FC<{
   listing: Listing;

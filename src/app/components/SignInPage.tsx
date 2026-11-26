@@ -5,10 +5,9 @@ import {
   AlertCircle, Loader2, HelpCircle, FileText, Shield,
   Sparkles, Home
 } from 'lucide-react';
+import { API_BASE_URL } from '../api/config';
 
-const API_BASE_URL = (((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:5001')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/$/, '');
+
 
 // Professional image for right panel
 const ProfessionalVisual = () => {
@@ -64,7 +63,7 @@ const ProfessionalVisual = () => {
   );
 };
 
-export default function SignIn(): JSX.Element {
+export default function SignIn(): React.JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
