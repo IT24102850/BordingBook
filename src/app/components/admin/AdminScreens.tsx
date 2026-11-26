@@ -18,8 +18,8 @@ import { API_BASE_URL } from '../../api/config';
 // ─────────────────────────────────────────────
 export const AdminLogin = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@boardingbook.com');
-  const [password, setPassword] = useState('Admin@1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
