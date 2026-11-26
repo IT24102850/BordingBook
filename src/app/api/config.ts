@@ -1,7 +1,8 @@
 // Single source of truth for the backend address.
-// Set VITE_API_URL to the backend origin (e.g. https://boardingbook-api.onrender.com).
-// A trailing "/api" or "/" is tolerated and stripped.
-const raw = ((import.meta as any).env?.VITE_API_URL as string | undefined) || 'http://localhost:5001';
+// VITE_BACKEND_URL (set in .env.production for the deployed site) wins over the older
+// VITE_API_URL variable. A trailing "/api" or "/" is tolerated and stripped.
+const env = (import.meta as any).env || {};
+const raw = (env.VITE_BACKEND_URL as string | undefined) || (env.VITE_API_URL as string | undefined) || 'http://localhost:5001';
 
 /** Backend origin, without a trailing slash or /api — e.g. https://api.example.com */
 export const API_BASE_URL = raw.trim().replace(/\/+$/, '').replace(/\/api$/, '');

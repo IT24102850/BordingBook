@@ -37,8 +37,8 @@ npm run dev               # http://localhost:5173
 > Free Render instances sleep after ~15 minutes idle; the first request afterwards takes ~30–60 s.
 
 ### Frontend → Vercel
-In the Vercel project → **Settings → Environment Variables** add
-`VITE_API_URL = https://<service>.onrender.com`, then redeploy.
+Production builds read the backend address from `.env.production` (`VITE_BACKEND_URL`).
+If the Render URL changes, update that file (or set `VITE_BACKEND_URL` in Vercel → Settings → Environment Variables) and redeploy.
 
 ### Email
 Password-reset emails go through [Resend](https://resend.com). To email any address, verify a domain in Resend and set `EMAIL_FROM` (for example `BoardingBook <noreply@mail.yourdomain.com>`). With the default `onboarding@resend.dev` sender, Resend only delivers to your own Resend account address.
